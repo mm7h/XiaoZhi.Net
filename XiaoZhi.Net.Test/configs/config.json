@@ -1,0 +1,85 @@
+{
+  "Protocol": "websocket",
+  "Prompt": "你是一个叫小智/小志的台湾女孩，说话机车，声音好听，习惯简短表达，爱用网络梗。请注意，要像一个人一样说话，请不要回复表情符号、代码、和xml标签。当前时间是:{date_time}，现在我正在和你进行语音聊天，我们开始吧。如果用户希望结束对话，请在最后说“拜拜”或“再见”。",
+  "CloseConnectionNoVoiceTime": 120,
+  "WebSocketOption": {
+    "Url": "ws://0.0.0.0:4530",
+    "Path": "/xiaozhi/v1/"
+  },
+  "AuthOption": {
+    "Enabled": false,
+    "Tokens": [
+      {
+        "Token": "token123",
+        "Name": "AdminUser"
+      },
+      {
+        "Token": "token456",
+        "Name": "RegularUser"
+      }
+    ],
+    "AllowedDevices": [
+      "DeviceA",
+      "DeviceB",
+      "DeviceC"
+    ]
+  },
+  "LogSetting": {
+    "LogLevel": "DEBUG",
+    "LogFilePath": "./logs/log.txt",
+    "OutputTemplate": "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u4}] {Message}{NewLine}{Exception}",
+    "RetainedFileCountLimit": 30
+  },
+  "AudioSetting": {
+    "SampleRate": 16000,
+    "Channels": 1,
+    "FrameDuration": 60
+  },
+  "VadSetting": {
+    "ModelName": "silero",
+    "Config": {
+      "SampleRate": 16000,
+      "SilenceThresholdMs": 700
+    }
+  },
+  "AsrSetting": {
+    "ModelName": "sense-voice",
+    "Config": {
+      "UseInverseTextNormalization": 1,
+      "DecodingMethod": "greedy_search"
+    }
+    //paraformer
+    //"ModelName": "paraformer"
+  },
+  "PunctuationSetting": {
+    "ModelName": "ct-transformer"
+  },
+  "LlmSetting": {
+    "ModelName": "ChatGLM",
+    "Config": {
+      "BaseUrl": "https://open.bigmodel.cn/api/paas/v4/",
+      "ApiKey": "to your llm api key",
+      "ModelName": "glm-4",
+      "UseStreaming": true
+    }
+  },
+  "MemorySetting": {
+    "ModelName": "flash-memory"
+  },
+  "TtsSetting": {
+    "ModelName": "kokoro",
+    "Config": {
+      "Lexicons": "./lexicon/lexicon-zh.txt",
+      "Save2File": false,
+      "SavePath": "./data/tts-cache"
+    }
+  },
+  "IntentSetting": {
+    "ModelName": "ChatGLM",
+    "Config": {
+      "BaseUrl": "https://open.bigmodel.cn/api/paas/v4/",
+      "ApiKey": "to your llm api key",
+      "ModelName": "glm-4"
+    }
+  }
+}

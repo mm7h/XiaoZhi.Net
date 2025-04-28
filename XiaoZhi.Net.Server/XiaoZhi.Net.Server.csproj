@@ -1,0 +1,43 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup Label="Globals">
+        <SccProjectName>SAK</SccProjectName>
+        <SccProvider>SAK</SccProvider>
+        <SccAuxPath>SAK</SccAuxPath>
+        <SccLocalPath>SAK</SccLocalPath>
+    </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>netstandard2.1</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ApplicationIcon>robot.ico</ApplicationIcon>
+        <Version>0.0.1</Version>
+        <Authors>mm7h</Authors>
+        <Title>XiaoZhi.Net.Server</Title>
+        <PackageIcon />
+        <Description>用C#编写的xiaozhi-esp32服务端，帮助您快速搭建ESP32设备控制服务器。
+Dotnet backend service for xiaozhi-esp32, helps you quickly build an ESP32 device control server.</Description>
+        <RepositoryUrl>https://github.com/mm7h/XiaoZhi.Net</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/mm7h/XiaoZhi.Net</PackageProjectUrl>
+    </PropertyGroup>
+    <ItemGroup>
+      <Content Include="robot.ico" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.4" />
+        <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.4" />
+        <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.21.0" />
+        <PackageReference Include="Microsoft.SemanticKernel" Version="1.47.0" />
+        <PackageReference Include="OpusSharp" Version="1.5.5" />
+        <PackageReference Include="org.k2fsa.sherpa.onnx" Version="1.11.3" />
+        <PackageReference Include="Serilog" Version="4.2.0" />
+        <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.1" />
+        <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
+        <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+        <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+        <PackageReference Include="WebRtcVadSharp" Version="1.3.2" />
+        <PackageReference Include="websocketsharp.core" Version="1.0.1" />
+    </ItemGroup>
+
+</Project>

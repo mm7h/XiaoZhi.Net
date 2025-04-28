@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="Globals">
+    <SccProjectName>SAK</SccProjectName>
+    <SccProvider>SAK</SccProvider>
+    <SccAuxPath>SAK</SccAuxPath>
+    <SccLocalPath>SAK</SccLocalPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="C:\Users\Hang\.nuget\packages\volo.abp.aspnetcore.mvc\9.1.1\contentFiles\any\net9.0\Volo.Abp.AspNetCore.Mvc.abppkg.analyze.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Volo.Abp.AspNetCore.Mvc" Version="9.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\XiaoZhi.Net.Application.Contracts\XiaoZhi.Net.Application.Contracts.csproj" />
+    <ProjectReference Include="..\XiaoZhi.Net.Domain\XiaoZhi.Net.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
