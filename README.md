@@ -16,8 +16,7 @@
 
 （中文 | [English](https://translate.google.com/?hl=zh-cn&sl=auto&tl=en&op=translate)）
 
-**XiaoZhi.Net.Server** 是参照 [xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server) 项目使用基于`C#`开发。
-你可以将它集成到任何支持 `.Net Standard 2.1`的应用程序中。
+**XiaoZhi.Net.Server** 是参照 [xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server) 项目基于 `.Net Standard 2.1`开发的SDK。
 
 ## 快速开始 👋
 
@@ -41,13 +40,15 @@ internal class GetTime
 }
 ```
 
-### 启动 Xiao Zhi 服务 👇️
+### 快速创建 Xiao Zhi 服务 👇️
 
 ```csharp
+private static IServerEngine? _serverEngine = null;
+
 static async Task StartXiaoZhiServer()
 {
-    // 获取服务引擎
-    IServerEngine serverEngine = EngineFactory.GetServerEngine();
+    // 获取服务引擎构建器
+    IServerBuilder serverBuilder = EngineFactory.GetServerBuilder();
     try
     {
         Console.WriteLine("Hello, Xiao Zhi!");
@@ -56,15 +57,18 @@ static async Task StartXiaoZhiServer()
 
         // 快速从json文件中获取配置信息
         XiaoZhiConfig? config = Newtonsoft.Json.JsonConvert.DeserializeObject<XiaoZhiConfig>(configJson);
-        if (config != null)
+        if (config is not null)
         {
             // 开始初始化服务
-            await serverEngine.Initialize(config)
+            _serverEngine = serverBuilder.Initialize(config)
                 // 添加插件
                 .WithPlugin<PlayMusic>(nameof(PlayMusic))
                 .WithPlugin<GetTime>(nameof(GetTime))
                 .WithPlugin<ConversationSummary>(nameof(ConversationSummary))
-                .StartAsync();
+                //构建服务引擎
+                .Build();
+
+            await _serverEngine.StartAsync();
 
             Console.WriteLine("Type \"exit\" to stop the service.");
 
@@ -89,9 +93,9 @@ static async Task StartXiaoZhiServer()
     }
     finally
     {
-        if (serverEngine.Started)
+        if (_serverEngine is not null && _serverEngine.Started)
         {
-            await serverEngine.StopAsync();
+            await _serverEngine.StopAsync();
         }
         Console.WriteLine("The server stopped.");
     }

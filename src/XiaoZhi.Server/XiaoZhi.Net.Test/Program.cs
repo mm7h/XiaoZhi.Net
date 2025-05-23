@@ -14,7 +14,7 @@ namespace XiaoZhi.Net.Test
 
         static async Task StartXiaoZhiServer()
         {
-            // 获取服务引擎
+            // 获取服务引擎构建器
             IServerBuilder serverBuilder = EngineFactory.GetServerBuilder();
             try
             {
@@ -24,7 +24,7 @@ namespace XiaoZhi.Net.Test
 
                 // 快速从json文件中获取配置信息
                 XiaoZhiConfig? config = Newtonsoft.Json.JsonConvert.DeserializeObject<XiaoZhiConfig>(configJson);
-                if (config != null)
+                if (config is not null)
                 {
 #if DEBUG
                     string? apiKey = Environment.GetEnvironmentVariable("OPEN_AI_API_KEY", EnvironmentVariableTarget.User);
@@ -42,6 +42,7 @@ namespace XiaoZhi.Net.Test
                         .WithPlugin<PlayMusic>(nameof(PlayMusic))
                         .WithPlugin<GetTime>(nameof(GetTime))
                         .WithPlugin<ConversationSummary>(nameof(ConversationSummary))
+                        //构建服务引擎
                         .Build();
 
                     await _serverEngine.StartAsync();
