@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server", "XiaoZhi.Server\XiaoZhi.Net.Server\XiaoZhi.Net.Server.csproj", "{3BE4F5E5-001F-416F-82A8-35BD08D2B619}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server", "src\XiaoZhi.Server\XiaoZhi.Net.Server\XiaoZhi.Net.Server.csproj", "{3BE4F5E5-001F-416F-82A8-35BD08D2B619}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Test", "XiaoZhi.Server\XiaoZhi.Net.Test\XiaoZhi.Net.Test.csproj", "{74F41D2A-4D24-4944-B76A-880C5DC665BA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Test", "src\XiaoZhi.Server\XiaoZhi.Net.Test\XiaoZhi.Net.Test.csproj", "{74F41D2A-4D24-4944-B76A-880C5DC665BA}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{B1EC5935-24E5-4DD5-ABDC-99E86B925140}"
 	ProjectSection(SolutionItems) = preProject
@@ -14,19 +14,21 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{B1EC5935-2
 		README_en.md = README_en.md
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "XiaoZhi.Manage.Api", "XiaoZhi.Manage.Api", "{083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "XiaoZhi.Manage.Api", "src\XiaoZhi.Manage.Api", "{083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.WebApi", "XiaoZhi.Manage.Api\XiaoZhi.Net.WebApi\XiaoZhi.Net.WebApi.csproj", "{1F6453B8-5445-4D12-B4A9-D7722C9B522F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.WebApi", "src\XiaoZhi.Manage.Api\XiaoZhi.Net.WebApi\XiaoZhi.Net.WebApi.csproj", "{1F6453B8-5445-4D12-B4A9-D7722C9B522F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Domain.Share", "XiaoZhi.Manage.Api\XiaoZhi.Net.Domain.Share\XiaoZhi.Net.Domain.Share.csproj", "{4F9C0C6E-3037-47B0-8F49-50107E5C800C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Domain.Share", "src\XiaoZhi.Manage.Api\XiaoZhi.Net.Domain.Share\XiaoZhi.Net.Domain.Share.csproj", "{4F9C0C6E-3037-47B0-8F49-50107E5C800C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Domain", "XiaoZhi.Manage.Api\XiaoZhi.Net.Domain\XiaoZhi.Net.Domain.csproj", "{ED56CFFF-4191-4B1C-B033-AAC506B4E527}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Domain", "src\XiaoZhi.Manage.Api\XiaoZhi.Net.Domain\XiaoZhi.Net.Domain.csproj", "{ED56CFFF-4191-4B1C-B033-AAC506B4E527}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Application.Contracts", "XiaoZhi.Manage.Api\XiaoZhi.Net.Application.Contracts\XiaoZhi.Net.Application.Contracts.csproj", "{970CD7CE-BE13-4615-BD51-E513681B447D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Application.Contracts", "src\XiaoZhi.Manage.Api\XiaoZhi.Net.Application.Contracts\XiaoZhi.Net.Application.Contracts.csproj", "{970CD7CE-BE13-4615-BD51-E513681B447D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Application", "XiaoZhi.Manage.Api\XiaoZhi.Net.Application\XiaoZhi.Net.Application.csproj", "{05465B56-3A5E-409F-851E-488D41B1B671}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Application", "src\XiaoZhi.Manage.Api\XiaoZhi.Net.Application\XiaoZhi.Net.Application.csproj", "{05465B56-3A5E-409F-851E-488D41B1B671}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "XiaoZhi.Server", "XiaoZhi.Server", "{DB999C6B-96B0-4981-B0AB-020F6DABC6D3}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -69,44 +71,12 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{3BE4F5E5-001F-416F-82A8-35BD08D2B619} = {DB999C6B-96B0-4981-B0AB-020F6DABC6D3}
 		{74F41D2A-4D24-4944-B76A-880C5DC665BA} = {DB999C6B-96B0-4981-B0AB-020F6DABC6D3}
+		{083BDEB9-1E65-46A9-BD63-C62F4C8B3E19} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{1F6453B8-5445-4D12-B4A9-D7722C9B522F} = {083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}
 		{4F9C0C6E-3037-47B0-8F49-50107E5C800C} = {083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}
 		{ED56CFFF-4191-4B1C-B033-AAC506B4E527} = {083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}
 		{970CD7CE-BE13-4615-BD51-E513681B447D} = {083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}
 		{05465B56-3A5E-409F-851E-488D41B1B671} = {083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}
-	EndGlobalSection
-	GlobalSection(TeamFoundationVersionControl) = preSolution
-		SccNumberOfProjects = 8
-		SccEnterpriseProvider = {4CA58AB2-18FA-4F8D-95D4-32DDF27D184C}
-		SccTeamFoundationServer = https://muhang.visualstudio.com/
-		SccLocalPath0 = .
-		SccProjectUniqueName1 = XiaoZhi.Net.Server\\XiaoZhi.Net.Server.csproj
-		SccProjectTopLevelParentUniqueName1 = XiaoZhi.Net.sln
-		SccProjectName1 = XiaoZhi.Net.Server
-		SccLocalPath1 = XiaoZhi.Net.Server
-		SccProjectUniqueName2 = XiaoZhi.Net.Test\\XiaoZhi.Net.Test.csproj
-		SccProjectTopLevelParentUniqueName2 = XiaoZhi.Net.sln
-		SccProjectName2 = XiaoZhi.Net.Test
-		SccLocalPath2 = XiaoZhi.Net.Test
-		SccProjectUniqueName3 = XiaoZhi.Net.WebApi\\XiaoZhi.Net.WebApi.csproj
-		SccProjectTopLevelParentUniqueName3 = XiaoZhi.Net.sln
-		SccProjectName3 = XiaoZhi.Net.WebApi
-		SccLocalPath3 = XiaoZhi.Net.WebApi
-		SccProjectUniqueName4 = XiaoZhi.Net.Domain.Share\\XiaoZhi.Net.Domain.Share.csproj
-		SccProjectTopLevelParentUniqueName4 = XiaoZhi.Net.sln
-		SccProjectName4 = XiaoZhi.Net.Domain.Share
-		SccLocalPath4 = XiaoZhi.Net.Domain.Share
-		SccProjectUniqueName5 = XiaoZhi.Net.Domain\\XiaoZhi.Net.Domain.csproj
-		SccProjectTopLevelParentUniqueName5 = XiaoZhi.Net.sln
-		SccProjectName5 = XiaoZhi.Net.Domain
-		SccLocalPath5 = XiaoZhi.Net.Domain
-		SccProjectUniqueName6 = XiaoZhi.Net.Application.Contracts\\XiaoZhi.Net.Application.Contracts.csproj
-		SccProjectTopLevelParentUniqueName6 = XiaoZhi.Net.sln
-		SccProjectName6 = XiaoZhi.Net.Application.Contracts
-		SccLocalPath6 = XiaoZhi.Net.Application.Contracts
-		SccProjectUniqueName7 = XiaoZhi.Net.Application\\XiaoZhi.Net.Application.csproj
-		SccProjectTopLevelParentUniqueName7 = XiaoZhi.Net.sln
-		SccProjectName7 = XiaoZhi.Net.Application
-		SccLocalPath7 = XiaoZhi.Net.Application
+		{DB999C6B-96B0-4981-B0AB-020F6DABC6D3} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 EndGlobal
