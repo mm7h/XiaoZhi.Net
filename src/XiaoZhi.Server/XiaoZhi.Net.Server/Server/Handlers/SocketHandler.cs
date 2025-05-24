@@ -38,7 +38,7 @@ namespace XiaoZhi.Net.Server.Handlers
             int port = userEndPoint.Port;
             try
             {
-                bool checkResult = this._authHandler.Handle(headers);
+                bool checkResult = this._authHandler.Handle(headers, userEndPoint);
 
                 if (checkResult && headers.TryGetValue("device-id", out string deviceId))
                 {
@@ -106,6 +106,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 this.Logger.Debug($"Client offline, device id: {session.DeviceId}, session id: {session.SessionId}");
                 session.Release();
                 this._protocolEngine.RemoveSessionContext(connId);
+                //todo: save the mermory
             }
         }
         public void Dispose()

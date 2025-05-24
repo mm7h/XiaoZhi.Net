@@ -3,7 +3,6 @@ using SherpaOnnx;
 using System;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Protocol;
@@ -44,7 +43,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             try
             {
-                float[] pcmData = await _audioDecoder.DecodeAsync(workflow.Data, session.SessionCtsToken);
+                float[] pcmData = await this._audioDecoder.DecodeAsync(workflow.Data, session.SessionCtsToken);
 
                 session.SessionCtsToken.ThrowIfCancellationRequested();
                 if (session.ListenMode != ListenMode.Manual)
@@ -62,7 +61,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 if (!haveVoice && !session.VadStatusContext.HaveVoice)
                 {
                     session.AudioPacketContext.AsrPackets.Pop(Math.Max(0, session.AudioPacketContext.AsrPackets.Size - 15));
-                    Console.WriteLine("packet size: " + Math.Max(0, session.AudioPacketContext.AsrPackets.Size));
                     this.NoVoiceCloseConnect(session);
                     return;
                 }
@@ -119,7 +117,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
 
                     sessionContext.CloseAfterChat = true;
-                    string prompt = "请你以“时间过得真快”未来头，用富有感情、依依不舍的话来结束这场对话吧。";
+                    string prompt = "请你以“时间过得真快”为来头，用富有感情、依依不舍的话来结束这场对话吧。";
                     this.OnNoVoiceCloseConnect.Invoke(sessionContext.ToWorkflow(prompt));
                 }
             }

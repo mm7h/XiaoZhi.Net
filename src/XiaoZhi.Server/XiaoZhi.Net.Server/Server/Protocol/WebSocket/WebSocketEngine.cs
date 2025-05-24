@@ -30,6 +30,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
             this._webSocketOption = webSocketOption;
             this._connectionStore = store;
             this._logger = logger;
+            this.Service = new WebSocketService();
         }
 
         public bool Started => this._server?.IsListening ?? false;
@@ -58,12 +59,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
                 }
                 this._server.SslConfiguration.ServerCertificate = new System.Security.Cryptography.X509Certificates.X509Certificate2(wssOption.CertFilePath, wssOption.CertPassword);
             }
-
-            WebSocketService webSocketService = new WebSocketService();
-            this.Service = webSocketService;
-            _server.Log.Level = LogLevel.Debug;
-            _server.Log.File = "server.log";
-            _server!.AddWebSocketService(this._path, () => webSocketService);
+            this._server!.AddWebSocketService(this._path, () => this.Service as WebSocketService);
         }
 
         public Task StartAsync()

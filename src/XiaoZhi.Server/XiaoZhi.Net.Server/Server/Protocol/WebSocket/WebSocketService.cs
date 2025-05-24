@@ -10,10 +10,10 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
     {
         public WebSocketService() { }
 
-        public event Func<string, IDictionary<string, string>, IPEndPoint, bool> OnConnecting;
-        public event Action<string, string> OnTextMessage;
-        public event Action<string, byte[]> OnBinaryMessage;
-        public event Action<string> OnConnectionClose;
+        public event Func<string, IDictionary<string, string>, IPEndPoint, bool>? OnConnecting;
+        public event Action<string, string>? OnTextMessage;
+        public event Action<string, byte[]>? OnBinaryMessage;
+        public event Action<string>? OnConnectionClose;
 
         protected override void OnOpen()
         {
@@ -23,8 +23,8 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
                 headers.Add(key.ToLower(), this.Context.Headers[key]);
             }
 
-            bool ret = this.OnConnecting.Invoke(this.ID, headers, this.Context.UserEndPoint);
-            if (!ret)
+            bool? ret = this.OnConnecting?.Invoke(this.ID, headers, this.Context.UserEndPoint);
+            if (ret.HasValue && !ret.Value)
             { 
                 this.Context.WebSocket.Close(CloseStatusCode.Normal, "Authentication failed");
             }
@@ -34,17 +34,17 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
         {
             if (e.IsBinary)
             {
-                this.OnBinaryMessage.Invoke(this.ID, e.RawData);
+                this.OnBinaryMessage?.Invoke(this.ID, e.RawData);
             }
             else if (e.IsText)
             {
-                this.OnTextMessage.Invoke(this.ID, e.Data);
+                this.OnTextMessage?.Invoke(this.ID, e.Data);
             }
         }
 
         protected override void OnClose(CloseEventArgs e)
         {
-            this.OnConnectionClose.Invoke(this.ID);
+            this.OnConnectionClose?.Invoke(this.ID);
         }
     }
 }

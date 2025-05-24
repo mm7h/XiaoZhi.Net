@@ -2,20 +2,23 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
     internal sealed class AuthHandler : BaseHandler
     {
         private readonly AuthOption _authOption;
+        private readonly IBasicVerify? _basicVerify;
 
-        public AuthHandler(XiaoZhiConfig config, ILogger logger) : base(config, logger)
+        public AuthHandler(XiaoZhiConfig config, ILogger logger, IBasicVerify? basicVerify) : base(config, logger)
         {
             this._authOption = config.AuthOption;
+            this._basicVerify = basicVerify;
         }
         public override string HandlerName => nameof(AuthHandler);
 
-        public bool Handle(IDictionary<string, string> headers)
+        public bool Handle(IDictionary<string, string> headers, IPEndPoint userEndPoint)
         {
             if (!this._authOption.Enabled)
             {
@@ -43,6 +46,12 @@ namespace XiaoZhi.Net.Server.Handlers
                     return false;
                 }
                 this.Logger.Information($"Authentication successful - Device: {deviceId}, Token: {this._authOption.Tokens.FirstOrDefault(t => t.Token == token)}");
+
+                if (this._basicVerify != null)
+                {
+                    return this._basicVerify.Verify(deviceId, token, userEndPoint);
+                }
+
                 return true;
             }
 

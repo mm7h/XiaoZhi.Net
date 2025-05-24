@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Models;
 
-namespace XiaoZhi.Net.Server.Management
+namespace XiaoZhi.Net.Server
 {
     public interface IAdvanced
     {

@@ -4,7 +4,6 @@ using Microsoft.SemanticKernel;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using XiaoZhi.Net.Server.Management;
 using XiaoZhi.Net.Server.Store;
 
@@ -102,6 +101,12 @@ namespace XiaoZhi.Net.Server.Server
             }
             IEnumerable<KernelFunction> kernelFunctions = functions.Select(f => KernelFunctionFactory.CreateFromMethod(f.Method, f.FunctionName, f.Description));
             _kernelBuilder.Plugins.AddFromFunctions(pluginName, kernelFunctions);
+            return this;
+        }
+
+        public IServerBuilder WithVerify<T>() where T : class, IBasicVerify
+        {
+            _kernelBuilder.Services.AddSingleton<IBasicVerify, T>();
             return this;
         }
 

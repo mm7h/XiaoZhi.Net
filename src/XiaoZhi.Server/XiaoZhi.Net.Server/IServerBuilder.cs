@@ -39,6 +39,11 @@ namespace XiaoZhi.Net.Server
         /// <exception cref="ArgumentNullException"></exception>
         IServerBuilder WithPlugin<TPlugin>(string pluginName, IEnumerable<IFunction> functions);
         /// <summary>
+        /// 添加自定义验证
+        /// </summary>
+        /// <returns>是否允许设备连接到服务器</returns>
+        IServerBuilder WithVerify<T>() where T : class, IBasicVerify;
+        /// <summary>
         /// 构建服务引擎
         /// </summary>
         /// <returns></returns>
