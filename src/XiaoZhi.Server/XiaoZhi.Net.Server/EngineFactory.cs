@@ -1,7 +1,4 @@
-﻿
-using XiaoZhi.Net.Server.Server;
-
-namespace XiaoZhi.Net.Server
+﻿namespace XiaoZhi.Net.Server
 {
     public sealed class EngineFactory
     {

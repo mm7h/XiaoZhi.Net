@@ -7,7 +7,7 @@ using System.Linq;
 using XiaoZhi.Net.Server.Management;
 using XiaoZhi.Net.Server.Store;
 
-namespace XiaoZhi.Net.Server.Server
+namespace XiaoZhi.Net.Server
 {
     internal class ServerBuilder : IServerBuilder
     {
