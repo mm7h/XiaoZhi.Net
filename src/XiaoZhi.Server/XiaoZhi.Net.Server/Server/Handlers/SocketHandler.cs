@@ -80,12 +80,10 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             try
             {
-
-                float[] opusPacketFrame = data.Bytes2Float();
                 if (!session.IsIdle)
                 {
 #if DEBUG
-                    this.Logger.Debug($"The previous audio packet is processing, this packet would be ignored, frame size {opusPacketFrame.Length}.");
+                    this.Logger.Debug($"The previous audio packet is processing, this packet would be ignored, frame size {data.Length}.");
 #endif
                     return;
                 }

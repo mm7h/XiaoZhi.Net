@@ -38,31 +38,6 @@ namespace XiaoZhi.Net.Server.Helpers
 
                 opusPacketFrame.Pop(framesToGet);
                 return true;
-                //if (opusPacketFrame.Size == 0)
-                //{
-                //    data = Array.Empty<float>();
-                //    return false;
-                //}
-                //if (opusPacketFrame.Size != 0)
-                //{
-                //    if (opusPacketFrame.Size < size)
-                //    {
-                //        data = opusPacketFrame.Get(opusPacketFrame.Head, opusPacketFrame.Size);
-                //        opusPacketFrame.Pop(opusPacketFrame.Size);
-                //        return true;
-                //    }
-                //    else
-                //    {
-                //        data = opusPacketFrame.Get(opusPacketFrame.Head, size);
-                //        opusPacketFrame.Pop(size);
-                //        return true;
-                //    }
-                //}
-                //else
-                //{
-                //    data = Array.Empty<float>();
-                //    return false;
-                //}
             }
             catch (Exception ex)
             {
