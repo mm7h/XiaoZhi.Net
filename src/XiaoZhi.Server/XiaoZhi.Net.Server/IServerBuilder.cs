@@ -41,7 +41,7 @@ namespace XiaoZhi.Net.Server
         /// <summary>
         /// 添加自定义验证
         /// </summary>
-        /// <returns>是否允许设备连接到服务器</returns>
+        /// <returns></returns>
         IServerBuilder WithVerify<T>() where T : class, IBasicVerify;
         /// <summary>
         /// 构建服务引擎
