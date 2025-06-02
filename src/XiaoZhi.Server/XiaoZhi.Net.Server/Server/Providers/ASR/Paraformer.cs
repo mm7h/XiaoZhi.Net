@@ -63,7 +63,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR
                 }
                 await this._asrConvertSlim.WaitAsync(token);
 
-                if (voicePackets.Size > 10)
+                if (voicePackets.Size > 15)
                 {
                     using (var stream = this._offlineRecognizer.CreateStream())
                     {

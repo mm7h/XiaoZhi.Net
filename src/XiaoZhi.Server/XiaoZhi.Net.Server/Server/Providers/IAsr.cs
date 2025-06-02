@@ -1,14 +1,11 @@
-﻿using System;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
-using System.Threading.Tasks;
+﻿using SherpaOnnx;
 using System.Threading;
-using SherpaOnnx;
+using System.Threading.Tasks;
 
 namespace XiaoZhi.Net.Server.Providers
 {
     internal interface IAsr : IProvider
     {
-        Task<string> ConvertSpeechText( CircularBuffer voicePackets, int sampleRate, int frameSize, CancellationToken token);
+        Task<string> ConvertSpeechText(CircularBuffer voicePackets, int sampleRate, int frameSize, CancellationToken token);
     }
 }
