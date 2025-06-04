@@ -8,7 +8,7 @@ namespace XiaoZhi.Net.Server
         public ServerProtocol ServerProtocol { get; set; }
         public string Prompt { get; set; } = null!;
         public int? CloseConnectionNoVoiceTime { get; set; }
-        public LogSetting LogSetting { get; set; } = null!;
+        public LogSetting LogSetting { get; set; } = new LogSetting();
         public WebSocketOption WebSocketOption { get; set; } = null!;
         public AuthOption AuthOption { get; set; } = null!;
         public AudioSetting AudioSetting { get; set; } = null!;
@@ -37,10 +37,10 @@ namespace XiaoZhi.Net.Server
     #region Log
     public sealed class LogSetting
     {
-        public string LogLevel { get; set; }
-        public string LogFilePath { get; set; }
-        public string OutputTemplate { get; set; }
-        public int RetainedFileCountLimit { get; set; }
+        public string LogLevel { get; set; } = "INFO";
+        public string LogFilePath { get; set; } = "logs/server_log.log";
+        public string OutputTemplate { get; set; } = "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u4}] {Message:lj}{NewLine}{Exception}";
+        public int RetainedFileCountLimit { get; set; } = 7;
     }
     #endregion
 

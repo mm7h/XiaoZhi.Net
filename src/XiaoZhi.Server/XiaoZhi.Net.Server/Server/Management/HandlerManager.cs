@@ -18,7 +18,13 @@ namespace XiaoZhi.Net.Server.Management
 
         public static void RegisterServices(IServiceCollection services, XiaoZhiConfig config)
         {
-            services.AddSingleton<AuthHandler>();
+            services.AddSingleton<AuthHandler>(sp =>
+            {
+                var config = sp.GetRequiredService<XiaoZhiConfig>();
+                var logger = sp.GetRequiredService<ILogger>();
+                var basicVerify = sp.GetService<IBasicVerify>();
+                return new AuthHandler(config, logger, basicVerify);
+            });
             services.AddSingleton<SocketHandler>();
             services.AddSingleton<TextHandler>();
             services.AddSingleton<AudioReceiveHandler>();

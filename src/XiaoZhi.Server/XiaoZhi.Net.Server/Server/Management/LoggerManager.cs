@@ -15,20 +15,19 @@ namespace XiaoZhi.Net.Server.Management
         {
             LogSetting logSetting = config.LogSetting;
             LoggingLevelSwitch levelSwitch = new LoggingLevelSwitch();
-            levelSwitch.MinimumLevel = ConvertLogLevel(logSetting?.LogLevel ?? "INFO");
+            levelSwitch.MinimumLevel = ConvertLogLevel(logSetting.LogLevel);
 
-            string defaultOutputTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u4}] {Message:lj}{NewLine}{Exception}";
             LoggerConfiguration loggerConfig = new LoggerConfiguration()
                 .MinimumLevel.ControlledBy(levelSwitch)
                 .WriteTo.Async(a => a.File
                 (
-                    path: logSetting?.LogFilePath ?? "logs/server_log.log",
-                    outputTemplate: logSetting?.OutputTemplate ?? defaultOutputTemplate,
+                    path: logSetting.LogFilePath,
+                    outputTemplate: logSetting.OutputTemplate,
                     rollingInterval: RollingInterval.Day,
-                    retainedFileCountLimit: logSetting?.RetainedFileCountLimit ?? 7
+                    retainedFileCountLimit: logSetting.RetainedFileCountLimit
                 ))
                 .WriteTo.Async(a => a.Console(
-                    outputTemplate: logSetting?.OutputTemplate ?? defaultOutputTemplate,
+                    outputTemplate: logSetting.OutputTemplate,
                     theme: Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme.Code,
                     applyThemeToRedirectedOutput: true
                 ));
