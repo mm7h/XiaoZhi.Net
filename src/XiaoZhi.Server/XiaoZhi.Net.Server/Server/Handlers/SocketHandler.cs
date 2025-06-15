@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading.Channels;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Protocol;
 
 namespace XiaoZhi.Net.Server.Handlers
@@ -18,10 +17,10 @@ namespace XiaoZhi.Net.Server.Handlers
             this._authHandler = authHandler;
             this._protocolEngine = protocolEngine;
 
-            this._protocolEngine.Service.OnConnecting += this.DeviceConnecting;
-            this._protocolEngine.Service.OnTextMessage += this.HandleTextMessage;
-            this._protocolEngine.Service.OnBinaryMessage += this.HandleBinaryMessage;
-            this._protocolEngine.Service.OnConnectionClose += this.HandleConnectionClose;
+            this._protocolEngine.OnConnecting += this.DeviceConnecting;
+            this._protocolEngine.OnTextMessage += this.HandleTextMessage;
+            this._protocolEngine.OnBinaryMessage += this.HandleBinaryMessage;
+            this._protocolEngine.OnConnectionClose += this.HandleConnectionClose;
         }
 
         public event Action<Session> OnDeviceConnected;
@@ -42,12 +41,12 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 if (checkResult && headers.TryGetValue("device-id", out string deviceId))
                 {
-                    this.Logger.Information($"New device: {deviceId} with ip {ip} connected");
+                    this.Logger.Information("New device: {deviceId} with ip {ip} connected", deviceId, ip);
 
                     /*
                      private config
                      */
-                    Session sessionContext = new Session(sessionId, deviceId,  userEndPoint);
+                    Session sessionContext = new Session(sessionId, deviceId, userEndPoint);
                     this.OnDeviceConnected.Invoke(sessionContext);
 
                     this._protocolEngine.AddSessionContext(sessionId, sessionContext);
@@ -55,14 +54,14 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
                 else
                 {
-                    this.Logger.Error($"The device from ip: {ip} authentication failed.");
+                    this.Logger.Error("The device from ip: {ip} authentication failed.", ip);
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, $"Failed to process the connection from ip: {ip}, error: {ex.Message}.");
-                this.Logger.Error($"Failed to process the connection from ip: {ip}.");
+                this.Logger.Debug(ex, "Failed to process the connection from ip: {ip}, error: {message}.", ip, ex.Message);
+                this.Logger.Error("Failed to process the connection from ip: {ip}.", ip);
                 return false;
             }
         }
@@ -83,7 +82,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 if (!session.IsIdle)
                 {
 #if DEBUG
-                    this.Logger.Debug($"The previous audio packet is processing, this packet would be ignored, frame size {data.Length}.");
+                    this.Logger.Debug("The previous audio packet is processing, this packet would be ignored, frame size {length}.", data.Length);
 #endif
                     return;
                 }
@@ -92,8 +91,8 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, $"Failed to process the message packet from device: {session.DeviceId} and session id: {session.SessionId}, error: {ex.Message}.");
-                this.Logger.Error($"Failed to process the message packet from device: {session.DeviceId} and session id: {session.SessionId}.");
+                this.Logger.Debug(ex, "Failed to process the message packet from device: {deviceId} and session id: {sessionId}, error: {message}.", session.DeviceId, session.SessionId, ex.Message);
+                this.Logger.Error("Failed to process the message packet from device: {deviceId} and session id: {sessionId}.", session.DeviceId, session.SessionId);
             }
         }
         public void HandleConnectionClose(string connId)
@@ -101,7 +100,7 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this._protocolEngine.GetSessionContext(connId);
             if (session != null)
             {
-                this.Logger.Debug($"Client offline, device id: {session.DeviceId}, session id: {session.SessionId}");
+                this.Logger.Debug("Client offline, device id: {deviceId} and session id: {sessionId}.", session.DeviceId, session.SessionId);
                 session.Release();
                 this._protocolEngine.RemoveSessionContext(connId);
                 //todo: save the mermory

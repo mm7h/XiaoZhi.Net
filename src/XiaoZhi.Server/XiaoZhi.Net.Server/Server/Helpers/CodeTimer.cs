@@ -39,7 +39,7 @@ namespace XiaoZhi.Net.Server.Helpers
             if (!string.IsNullOrEmpty(this.Message))
                 Log.Information(this.Message);
             else
-                Log.Information($"The job finished and took {this.ElapsedMilliseconds:F2} ms.");
+                Log.Information("The job finished and took {elapsed:F2} ms.", this.ElapsedMilliseconds);
             this._stopwatch.Stop();
         }
     }

@@ -28,13 +28,13 @@ namespace XiaoZhi.Net.Server.Providers.Punctuation
                 config.Model.CtTransformer = Path.Combine(this.ModelFileFoler, "model.onnx");
 
                 this._offlinePunctuation = new OfflinePunctuation(config);
-                this.Logger.Information($"Builded the {this.ProviderType} model: {this.ModelName}");
+                this.Logger.Information("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, $"Invalid model settings for {this.ProviderType}: {ModelName}");
-                this.Logger.Error($"Invalid model settings for {this.ProviderType}: {ModelName}");
+                this.Logger.Debug(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.Error("Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
         }
@@ -53,13 +53,13 @@ namespace XiaoZhi.Net.Server.Providers.Punctuation
             }
             catch (OperationCanceledException ex)
             {
-                this.Logger.Warning($"User canceled the job for {this.ProviderType}.");
+                this.Logger.Warning("User canceled the job for {providerType}.", this.ProviderType);
                 throw ex;
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, $"Unexpected error(s): {ex.Message}.");
-                this.Logger.Error($"Unexpected error(s) for {this.ProviderType}.");
+                this.Logger.Debug(ex, "Unexpected error(s): {message}.", ex.Message);
+                this.Logger.Error("Unexpected error(s) for {providerType}.", this.ProviderType);
                 return string.Empty;
             }
             finally

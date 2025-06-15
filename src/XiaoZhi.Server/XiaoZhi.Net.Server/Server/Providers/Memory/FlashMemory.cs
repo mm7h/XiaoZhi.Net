@@ -17,7 +17,7 @@ namespace XiaoZhi.Net.Server.Providers.Memory
         public override string ProviderType => "memory";
         public override bool Build()
         {
-            this.Logger.Information($"Builded the default {this.ProviderType}: flash memory");
+            this.Logger.Information("Builded the default {providerType}: flash memory", this.ProviderType);
             return true;
         }
 

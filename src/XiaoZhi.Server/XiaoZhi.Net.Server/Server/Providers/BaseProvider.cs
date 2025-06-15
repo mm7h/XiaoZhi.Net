@@ -37,7 +37,7 @@ namespace XiaoZhi.Net.Server.Providers
             bool exist = File.Exists(modelFilePath);
             if (!exist)
             {
-                this.Logger.Error($"Cannot found the model file in path: {modelFilePath}.");
+                this.Logger.Error("Cannot found the model file in path: {modelFilePath}.", modelFilePath);
             }
             return exist;
         }

@@ -31,13 +31,13 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
             try
             {
                 this._decoder = new OpusDecoder(this.SampleRate, this.Channels);
-                this.Logger.Information($"Builded the default {this.ProviderType}: {this.ModelName}");
+                this.Logger.Information("Builded the default {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, $"Invalid model settings for {this.ProviderType}: {this.ModelName}");
-                this.Logger.Error($"Invalid model settings for {this.ProviderType}: {this.ModelName}");
+                this.Logger.Debug(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.Error("Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
         }

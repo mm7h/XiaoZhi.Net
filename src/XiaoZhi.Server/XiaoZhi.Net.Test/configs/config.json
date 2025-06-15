@@ -3,7 +3,7 @@
   "Prompt": "你是一个叫小智/小志的台湾女孩，说话机车，声音好听，习惯简短表达，爱用网络梗。请注意，要像一个人一样说话，请不要回复表情符号、代码、和xml标签。当前时间是:{date_time}，现在我正在和你进行语音聊天，我们开始吧。如果用户希望结束对话，请在最后说“拜拜”或“再见”。",
   "CloseConnectionNoVoiceTime": 120,
   "WebSocketOption": {
-    "Url": "ws://0.0.0.0:4530",
+    "Url": "ws://0.0.0.0:4532",
     "Path": "/xiaozhi/v1/"
   },
   "AuthOption": {
@@ -27,7 +27,7 @@
   "LogSetting": {
     "LogLevel": "DEBUG",
     "LogFilePath": "./logs/log.txt",
-    "OutputTemplate": "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u4}] {Message}{NewLine}{Exception}",
+    "OutputTemplate": "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u4}] {Message:l}{NewLine}{Exception}",
     "RetainedFileCountLimit": 30
   },
   "AudioSetting": {

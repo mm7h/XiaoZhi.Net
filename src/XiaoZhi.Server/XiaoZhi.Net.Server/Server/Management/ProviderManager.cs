@@ -64,7 +64,7 @@ namespace XiaoZhi.Net.Server.Management
             {
                 if (!provider.Build())
                 {
-                    this._logger.Error($"Failed to build {provider.ModelName} provider.");
+                    this._logger.Error("Failed to build {modelName} provider.", provider.ModelName);
                     return false;
                 }
             }

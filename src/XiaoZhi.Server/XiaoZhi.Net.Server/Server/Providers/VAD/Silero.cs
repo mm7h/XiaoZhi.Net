@@ -40,13 +40,13 @@ namespace XiaoZhi.Net.Server.Providers.VAD
                 this._silenceThresholdMs = this.ModelSetting.Config.SilenceThresholdMs ?? 700;
                 this.FrameSize = vadModelConfig.SileroVad.WindowSize;
                 this._vad = new VoiceActivityDetector(vadModelConfig, 60);
-                this.Logger.Information($"Builded the {this.ProviderType} model: {this.ModelName}");
+                this.Logger.Information("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, $"Invalid model settings for {this.ProviderType}: {ModelName}");
-                this.Logger.Error($"Invalid model settings for {this.ProviderType}: {ModelName}");
+                this.Logger.Debug(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.Error("Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
 
@@ -118,13 +118,13 @@ namespace XiaoZhi.Net.Server.Providers.VAD
             catch (OperationCanceledException ex)
             {
                 sessionContext.VadStatusContext.Reset();
-                this.Logger.Warning($"User canceled the job for {this.ProviderType}.");
+                this.Logger.Warning("User canceled the job for {providerType}.", this.ProviderType);
                 throw ex;
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, $"Unexpected error(s): {ex.Message}.");
-                this.Logger.Error($"Unexpected error(s) for {this.ProviderType}.");
+                this.Logger.Debug(ex, "Unexpected error(s): {message}.", ex.Message);
+                this.Logger.Error("Unexpected error(s) for {providerType}.", this.ProviderType);
                 return false;
             }
             finally

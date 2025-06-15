@@ -89,7 +89,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
                     if (!addResult)
                     {
-                        this.Logger.Error($"Failed to save dialogue for device: {session.DeviceId}.");
+                        this.Logger.Error("Failed to save dialogue for device: {deviceId}.", session.DeviceId);
                         return;
                     }
                 }
@@ -160,7 +160,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private async void OnTokenGenerated(string sessionId, string content)
         {
-            this.Logger.Debug($"LLM's response text: {content}");
+            this.Logger.Debug("LLM's response text: {content}", content);
 
             Session session = this._protocolEngine.GetSessionContext(sessionId);
             Dialogue assistantDialogue = new Dialogue(session.DeviceId, session.SessionId, AuthorRole.Assistant, content);

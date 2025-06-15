@@ -71,7 +71,7 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             if (segment.IsFirst)
             {
-                this.Logger.Information($"Send the first audio from segment: {segment.Content}");
+                this.Logger.Information("Send the first audio from segment: {content}", segment.Content);
                 await this._protocolEngine.SendTtsMessageAsync(sessionId, "start");
                 await this._protocolEngine.SendLlmMessageAsync(sessionId, Emotion.Cool);
             }
@@ -108,9 +108,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     {
                         return;
                     }
-                    this.Logger.Debug($"duration: {duration}, content: {segment.Content}");
                     await Task.Delay(duration, session.SessionCtsToken);
-                    this.Logger.Debug($"duration: {duration}, content: {segment.Content}");
                     await this._protocolEngine.SendTtsMessageAsync(sessionId, "sentence_end", segment.Content);
 
                     if (segment.IsLast)

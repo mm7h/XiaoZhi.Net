@@ -50,11 +50,11 @@ namespace XiaoZhi.Net.Server.Handlers
                 if (string.IsNullOrEmpty(DialogueHelper.GetStringNoPunctuationOrEmoji(speechText)))
                 {
                     session.Reset();
-                    this.Logger.Debug($"Device {session.DeviceId} no speak.");
+                    this.Logger.Debug("Device {deviceId} no speak.", session.DeviceId);
                     return;
                 }
                 await this._protocolEngine.SendSttMessageAsync(session.SessionId, speechText);
-                this.Logger.Debug($"Device {session.DeviceId} speak the text: {speechText}");
+                this.Logger.Debug("Device {deviceId} speak the text: {speechText}", session.DeviceId, speechText);
                 speechText = await this._punctuation.AppendPunctuationAsync(speechText!, session.SessionCtsToken);
 
                 await this.NextWriter!.WriteAsync(workflow.NextFlow(speechText));

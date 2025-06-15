@@ -30,12 +30,38 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
             this._webSocketOption = webSocketOption;
             this._connectionStore = store;
             this._logger = logger;
-            this.Service = new WebSocketService();
         }
 
         public bool Started => this._server?.IsListening ?? false;
 
-        public IProtocolService Service { get; private set; }
+        /// <summary>
+        /// 客户端连接时触发的事件
+        /// </summary>
+        /// <param name="sessionId">会话ID</param>
+        /// <param name="headers">连接请求头信息</param>
+        /// <param name="remoteEndPoint">客户端终端地址</param>
+        /// <returns>true表示允许连接,false表示拒绝连接</returns>
+        public event Func<string, IDictionary<string, string>, IPEndPoint, bool>? OnConnecting;
+
+        /// <summary>
+        /// 收到文本消息时触发的事件
+        /// </summary>
+        /// <param name="sessionId">会话ID</param>  
+        /// <param name="message">文本消息内容</param>
+        public event Action<string, string>? OnTextMessage;
+
+        /// <summary>
+        /// 收到二进制消息时触发的事件
+        /// </summary>
+        /// <param name="sessionId">会话ID</param>
+        /// <param name="data">二进制数据</param>
+        public event Action<string, byte[]>? OnBinaryMessage;
+
+        /// <summary>
+        /// 连接关闭时触发的事件
+        /// </summary>
+        /// <param name="sessionId">会话ID</param>
+        public event Action<string>? OnConnectionClose;
 
         public void Build()
         {
@@ -59,13 +85,20 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
                 }
                 this._server.SslConfiguration.ServerCertificate = new System.Security.Cryptography.X509Certificates.X509Certificate2(wssOption.CertFilePath, wssOption.CertPassword);
             }
-            this._server!.AddWebSocketService(this._path, () => this.Service as WebSocketService);
+            this._server!.AddWebSocketService<WebSocketService>(this._path, service =>
+            {
+                service.OnConnecting += this.OnConnecting;
+                service.OnTextMessage += this.OnTextMessage;
+                service.OnBinaryMessage += this.OnBinaryMessage;
+                service.OnConnectionClose += this.OnConnectionClose;
+            });
         }
 
         public Task StartAsync()
         {
             this._server!.Start();
-            this._logger.Information($"Server started and listing on: {(this._server.IsSecure ? "wss://" : "ws://")}{this.GetLocalIP()}:{this._server.Port}{this._path}");
+            string listeningUrl = $"{(this._server.IsSecure ? "wss://" : "ws://")}{this.GetLocalIP()}:{this._server.Port}{this._path}";
+            this._logger.Information("Server started and listing on: {listeningUrl}", listeningUrl);
             return Task.CompletedTask;
         }
 
@@ -77,7 +110,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
         public Task SendAsync(string connId, string json)
         {
             this.GetWebSocketSessionManager().SendTo(json, connId);
-            this._logger.Debug($"Sent json to client: {json}");
+            this._logger.Debug("Sent json to client: {json}", json);
             return Task.CompletedTask;
 
         }

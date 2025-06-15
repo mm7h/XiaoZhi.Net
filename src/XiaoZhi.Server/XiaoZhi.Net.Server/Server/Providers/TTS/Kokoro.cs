@@ -71,13 +71,13 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                         Directory.CreateDirectory(this._savePath);
                 }
                 this._offlineTts = new OfflineTts(config);
-                this.Logger.Information($"Builded the {this.ProviderType} model: {this.ModelName}");
+                this.Logger.Information("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, $"Invalid model settings for {this.ProviderType}: {ModelName}");
-                this.Logger.Error($"Invalid model settings for {this.ProviderType}: {ModelName}");
+                this.Logger.Debug(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.Error("Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
         }
@@ -127,11 +127,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                             bool saved = audio.SaveToWaveFile(filePath);
                             if (saved)
                             {
-                                this.Logger.Debug($"Saved tts wave file {fileName} successed, the duration of file is: {this.FormatDuration(duration)}s.");
+                                this.Logger.Debug("Saved tts wave file {fileName} successed, the duration of file is: {duration}s.", fileName, this.FormatDuration(duration));
                             }
                             else
                             {
-                                this.Logger.Debug($"Failed to save tts wave file {fileName}.");
+                                this.Logger.Debug("Failed to save tts wave file {fileName}.", fileName);
                             }
                             audio.Dispose();
                         });
@@ -139,7 +139,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     else
                     {
                         audio.Dispose();
-                        this.Logger.Debug($"TTS generated success, the duration of the voice is: {this.FormatDuration(duration)}.");
+                        this.Logger.Debug("TTS generated success, the duration of the voice is: {duration}s.", this.FormatDuration(duration));
                     }
                 }
 
@@ -149,13 +149,13 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             }
             catch (OperationCanceledException ex)
             {
-                this.Logger.Warning($"User canceled the job for {this.ProviderType}.");
+                this.Logger.Warning("User canceled the job for {providerType}.", this.ProviderType);
                 throw ex;
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, $"Unexpected error(s): {ex.Message}.");
-                this.Logger.Error($"Unexpected error(s) for {this.ProviderType}.");
+                this.Logger.Debug(ex, "Unexpected error(s): {message}.", ex.Message);
+                this.Logger.Error("Unexpected error(s) for {providerType}.", this.ProviderType);
             }
             finally
             {

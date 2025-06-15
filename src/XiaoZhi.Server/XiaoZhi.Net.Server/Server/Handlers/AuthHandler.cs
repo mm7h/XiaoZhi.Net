@@ -34,7 +34,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
                 {
-                    this.Logger.Error($"Missing or invalid authorization header: {authHeader}");
+                    this.Logger.Error("Missing or invalid authorization header: {authHeader}", authHeader);
                     return false;
                 }
 
@@ -42,10 +42,10 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 if (!this._authOption.Tokens.Select(t => t.Token).Contains(token))
                 {
-                    this.Logger.Error($"Invalid token: {token}");
+                    this.Logger.Error("Invalid token: {token}", token);
                     return false;
                 }
-                this.Logger.Information($"Authentication successful - Device: {deviceId}, Token: {this._authOption.Tokens.FirstOrDefault(t => t.Token == token)}");
+                this.Logger.Information("Authentication successful - Device: {deviceId}, Token: {token}", deviceId, this._authOption.Tokens.FirstOrDefault(t => t.Token == token));
 
                 if (this._basicVerify != null)
                 {

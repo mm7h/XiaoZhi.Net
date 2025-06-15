@@ -32,7 +32,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
-            this.Logger.Debug($"Received text from client: {jsonObject?.ToJsonString()}");
+            this.Logger.Debug("Received text from client: {jsonText}", jsonObject?.ToJsonString());
 
             if (jsonObject is JsonObject jsonObj)
             {
@@ -103,7 +103,7 @@ namespace XiaoZhi.Net.Server.Handlers
             if (!string.IsNullOrEmpty(mode))
             {
                 session.SetListenMode(mode);
-                this.Logger.Information($"Client voice listening mode setting is: {mode}");
+                this.Logger.Information("Client voice listening mode setting is: {mode}", mode);
             }
 
             string? state = jsonObject["state"]?.GetValue<string>()?.ToLower();

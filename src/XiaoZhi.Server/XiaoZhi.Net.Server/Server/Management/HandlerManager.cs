@@ -88,14 +88,14 @@ namespace XiaoZhi.Net.Server.Management
             previous.NextWriter = channel.Writer;
             next.PreviousReader = channel.Reader;
             next.Handle();
-            this._logger.Debug($"Builded the workflow of handlers, previous: {previous.GetType().Name} -> next: {next.GetType().Name}");
+            this._logger.Debug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
         }
 
         private void ScheduleOnAbort(BaseHandler handler)
         {
             handler.OnAbort += (deviceId, sessionId, message) =>
             {
-                this._logger.Debug($"Device: {deviceId}, session: {sessionId} abort the tasks, message: {message}.");
+                this._logger.Debug("Device: {deviceId}, session: {sessionId} abort the tasks, message: {message}.", deviceId, sessionId, message);
             };
         }
 
