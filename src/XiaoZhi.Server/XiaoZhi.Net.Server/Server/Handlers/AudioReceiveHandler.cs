@@ -60,7 +60,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 if (!haveVoice && !session.VadStatusContext.HaveVoice)
                 {
-                    session.AudioPacketContext.AsrPackets.Pop(Math.Max(0, session.AudioPacketContext.AsrPackets.Size - 15));
+                    session.AudioPacketContext.AsrPackets.Pop(Math.Max(0, session.AudioPacketContext.AsrPackets.Size - 50));
                     this.NoVoiceCloseConnect(session);
                     return;
                 }
@@ -79,7 +79,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 sessionContext.SessionCtsToken.ThrowIfCancellationRequested();
                 sessionContext.RejectIncomingAudio();
 
-                if (sessionContext.AudioPacketContext.AsrPackets.Size < 15)
+                if (sessionContext.AudioPacketContext.AsrPackets.Size < 50)
                 {
                     //音频太短了，无法识别
                     this.Logger.Debug("The voice is too short.");

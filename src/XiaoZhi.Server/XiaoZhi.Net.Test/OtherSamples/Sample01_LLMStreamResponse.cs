@@ -17,7 +17,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
         {
             string endPoint = "https://open.bigmodel.cn/api/paas/v4/";
             string apiKey = Environment.GetEnvironmentVariable("OPEN_AI_API_KEY", EnvironmentVariableTarget.User)!;
-            string chatModel = "glm-4";
+            string chatModel = "glm-4-flash";
             OpenAIClientOptions options = new OpenAIClientOptions
             {
                 Endpoint = new Uri(endPoint),

@@ -59,7 +59,7 @@
     "Config": {
       "BaseUrl": "https://open.bigmodel.cn/api/paas/v4/",
       "ApiKey": "to your llm api key",
-      "ModelName": "glm-4",
+      "ModelName": "glm-4-flash",
       "UseStreaming": true
     }
   },
@@ -79,7 +79,7 @@
     "Config": {
       "BaseUrl": "https://open.bigmodel.cn/api/paas/v4/",
       "ApiKey": "to your llm api key",
-      "ModelName": "glm-4"
+      "ModelName": "glm-4-flash"
     }
   }
 }

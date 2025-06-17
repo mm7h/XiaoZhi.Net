@@ -96,7 +96,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public bool CheckAsrData()
         {
             int asrPacketSize = AudioPacketContext.AsrPackets.Size;
-            if (IsIdle && ListenMode == ListenMode.Manual && asrPacketSize > 15)
+            if (IsIdle && ListenMode == ListenMode.Manual && asrPacketSize > 50)
             {
                 return true;
             }

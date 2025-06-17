@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Entities;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
 {
@@ -72,7 +73,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
                 var clientResult = await chatCompletionService.GetChatMessageContentAsync(chatHistory, this._chatCompletionOptions, this._kernel, token);
 
-                this.OnTokenGenerated?.Invoke(workflow.SessionId, Regex.Replace(clientResult.Content, @"<think>.*?</think>", "", RegexOptions.Singleline));
+                this.OnTokenGenerated?.Invoke(workflow.SessionId, MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(clientResult.Content), @"<think>.*?</think>", "", RegexOptions.Singleline)));
             }
             catch (OperationCanceledException ex)
             {
@@ -109,7 +110,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
                 await foreach (var item in chatCompletionService.GetStreamingChatMessageContentsAsync(chatHistory, this._chatCompletionOptions, this._kernel, token))
                 {
-                    string text = (item.Content ?? string.Empty).Replace(Environment.NewLine, string.Empty).Replace("\n", string.Empty);
+                    string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(item.Content) ?? string.Empty);
                     segmentResponse.Append(text);
 
                     // 在累积的文本中查找分割点
