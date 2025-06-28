@@ -11,12 +11,12 @@ src/api/XiaoZhi.Net.Domain/obj
 src/api/XiaoZhi.Net.WebApi/bin
 src/api/XiaoZhi.Net.WebApi/obj
 src/api/XiaoZhi.Net.WebApi/logs
+src/apiXiaoZhi.Net.WebApi/appsettings.Development.json
 src/server/XiaoZhi.Net.Server/bin
 src/server/XiaoZhi.Net.Server/obj
 src/server/XiaoZhi.Net.Test/bin
 src/server/XiaoZhi.Net.Test/obj
 *.vssscc
-XiaoZhi.Net.WebApi/appsettings.Development.json
 *.vspscc
 /demo/Demo.Server/bin/Debug/net9.0
 /demo/Demo.Server/obj

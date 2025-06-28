@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Text;
 
-namespace XiaoZhi.Net.Test.Plugins
+namespace Demo.Server.Plugins
 {
 
     /// <summary>

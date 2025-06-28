@@ -1,7 +1,7 @@
 ﻿using Microsoft.SemanticKernel;
 using System.ComponentModel;
 
-namespace XiaoZhi.Net.Test.Plugins
+namespace Demo.Server.Plugins
 {
     [Description("唱歌、听歌、播放音乐的插件")]
     internal class PlayMusic

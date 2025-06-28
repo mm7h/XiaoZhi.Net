@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server", "src\XiaoZhi.Server\XiaoZhi.Net.Server\XiaoZhi.Net.Server.csproj", "{3BE4F5E5-001F-416F-82A8-35BD08D2B619}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server", "src\server\XiaoZhi.Net.Server\XiaoZhi.Net.Server.csproj", "{3BE4F5E5-001F-416F-82A8-35BD08D2B619}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Test", "src\XiaoZhi.Server\XiaoZhi.Net.Test\XiaoZhi.Net.Test.csproj", "{74F41D2A-4D24-4944-B76A-880C5DC665BA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Test", "src\server\XiaoZhi.Net.Test\XiaoZhi.Net.Test.csproj", "{74F41D2A-4D24-4944-B76A-880C5DC665BA}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{B1EC5935-24E5-4DD5-ABDC-99E86B925140}"
 	ProjectSection(SolutionItems) = preProject
@@ -14,21 +14,25 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{B1EC5935-2
 		README_en.md = README_en.md
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "XiaoZhi.Manage.Api", "src\XiaoZhi.Manage.Api", "{083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "api", "api", "{083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.WebApi", "src\XiaoZhi.Manage.Api\XiaoZhi.Net.WebApi\XiaoZhi.Net.WebApi.csproj", "{1F6453B8-5445-4D12-B4A9-D7722C9B522F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.WebApi", "src\api\XiaoZhi.Net.WebApi\XiaoZhi.Net.WebApi.csproj", "{1F6453B8-5445-4D12-B4A9-D7722C9B522F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Domain.Share", "src\XiaoZhi.Manage.Api\XiaoZhi.Net.Domain.Share\XiaoZhi.Net.Domain.Share.csproj", "{4F9C0C6E-3037-47B0-8F49-50107E5C800C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Domain.Share", "src\api\XiaoZhi.Net.Domain.Share\XiaoZhi.Net.Domain.Share.csproj", "{4F9C0C6E-3037-47B0-8F49-50107E5C800C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Domain", "src\XiaoZhi.Manage.Api\XiaoZhi.Net.Domain\XiaoZhi.Net.Domain.csproj", "{ED56CFFF-4191-4B1C-B033-AAC506B4E527}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Domain", "src\api\XiaoZhi.Net.Domain\XiaoZhi.Net.Domain.csproj", "{ED56CFFF-4191-4B1C-B033-AAC506B4E527}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Application.Contracts", "src\XiaoZhi.Manage.Api\XiaoZhi.Net.Application.Contracts\XiaoZhi.Net.Application.Contracts.csproj", "{970CD7CE-BE13-4615-BD51-E513681B447D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Application.Contracts", "src\api\XiaoZhi.Net.Application.Contracts\XiaoZhi.Net.Application.Contracts.csproj", "{970CD7CE-BE13-4615-BD51-E513681B447D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Application", "src\XiaoZhi.Manage.Api\XiaoZhi.Net.Application\XiaoZhi.Net.Application.csproj", "{05465B56-3A5E-409F-851E-488D41B1B671}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Application", "src\api\XiaoZhi.Net.Application\XiaoZhi.Net.Application.csproj", "{05465B56-3A5E-409F-851E-488D41B1B671}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "XiaoZhi.Server", "XiaoZhi.Server", "{DB999C6B-96B0-4981-B0AB-020F6DABC6D3}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "server", "server", "{DB999C6B-96B0-4981-B0AB-020F6DABC6D3}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "demo", "demo", "{CCE40800-EE6B-4596-BE91-81D9ADF8AD4B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Demo.Server", "demo\Demo.Server\Demo.Server.csproj", "{7900A5F0-6E19-42A5-8CB5-C77BDD74888F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -64,6 +68,10 @@ Global
 		{05465B56-3A5E-409F-851E-488D41B1B671}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{05465B56-3A5E-409F-851E-488D41B1B671}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{05465B56-3A5E-409F-851E-488D41B1B671}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7900A5F0-6E19-42A5-8CB5-C77BDD74888F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7900A5F0-6E19-42A5-8CB5-C77BDD74888F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7900A5F0-6E19-42A5-8CB5-C77BDD74888F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7900A5F0-6E19-42A5-8CB5-C77BDD74888F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -78,5 +86,9 @@ Global
 		{970CD7CE-BE13-4615-BD51-E513681B447D} = {083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}
 		{05465B56-3A5E-409F-851E-488D41B1B671} = {083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}
 		{DB999C6B-96B0-4981-B0AB-020F6DABC6D3} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{7900A5F0-6E19-42A5-8CB5-C77BDD74888F} = {CCE40800-EE6B-4596-BE91-81D9ADF8AD4B}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3E8E1B85-DF08-433B-AB5F-28120905F507}
 	EndGlobalSection
 EndGlobal

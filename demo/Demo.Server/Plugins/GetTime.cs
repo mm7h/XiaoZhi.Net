@@ -1,7 +1,7 @@
 ﻿using Microsoft.SemanticKernel;
 using System.ComponentModel;
 
-namespace XiaoZhi.Net.Test.Plugins
+namespace Demo.Server.Plugins
 {
 
 
