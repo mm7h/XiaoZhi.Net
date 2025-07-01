@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace XiaoZhi.Net.Server.Server.Helpers
+namespace XiaoZhi.Net.Server.Helpers
 {
     /// <summary>
     /// Markdown清理工具：用于清理Markdown文本，使其更适合TTS处理

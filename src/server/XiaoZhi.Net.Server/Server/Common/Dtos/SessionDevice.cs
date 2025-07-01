@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace XiaoZhi.Net.Server.Common.Models
+namespace XiaoZhi.Net.Server.Common.Dtos
 {
     public class SessionDevice
     {

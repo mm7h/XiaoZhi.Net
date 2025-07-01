@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.SemanticKernel.Connectors.OpenAI;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,7 +13,7 @@ namespace XiaoZhi.Net.Server.Providers
         event Action<string> OnBeforeTokenGenerate;
         event Action<string, OutSegment> OnTokenGenerating;
         event Action<string, string> OnTokenGenerated;
-        Task ChatAsync(IEnumerable<Dialogue> dialogues, Workflow<string> workflow, CancellationToken token);
-        Task ChatByStreamingAsync(IEnumerable<Dialogue> dialogues, Workflow<string> workflow, CancellationToken token);
+        Task ChatAsync(IEnumerable<Dialogue> dialogues, Workflow<string> workflow, OpenAIPromptExecutionSettings chatCompletionOptions, CancellationToken token);
+        Task ChatByStreamingAsync(IEnumerable<Dialogue> dialogues, Workflow<string> workflow, OpenAIPromptExecutionSettings chatCompletionOptions, CancellationToken token);
     }
 }

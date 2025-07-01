@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Common.Models;
+using XiaoZhi.Net.Server.Common.Dtos;
 
 namespace XiaoZhi.Net.Server.Protocol
 {

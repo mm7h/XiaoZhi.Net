@@ -1,62 +1,37 @@
 ﻿using Serilog;
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
     internal sealed class AuthHandler : BaseHandler
     {
-        private readonly AuthOption _authOption;
+        private readonly bool _authEnabled;
         private readonly IBasicVerify? _basicVerify;
 
         public AuthHandler(XiaoZhiConfig config, ILogger logger, IBasicVerify? basicVerify) : base(config, logger)
         {
-            this._authOption = config.AuthOption;
+            this._authEnabled = config.AuthEnabled;
             this._basicVerify = basicVerify;
         }
         public override string HandlerName => nameof(AuthHandler);
 
-        public bool Handle(IDictionary<string, string> headers, IPEndPoint userEndPoint)
+        public bool Handle(IDictionary<string, string> headers, string deviceId, IPEndPoint userEndPoint)
         {
-            if (!this._authOption.Enabled)
+            if (!this._authEnabled)
             {
                 return true;
             }
 
-            if (headers.TryGetValue("device-id", out string deviceId) && (this._authOption.AllowedDevices?.Contains(deviceId) ?? false))
+            if (this._basicVerify != null && headers.TryGetValue("authorization", out string authToken))
             {
-                return true;
-            }
+                this.Logger.Information("Authentication checking - Device: {deviceId}, Token: {token}, IP end point: {userEndPoint}", deviceId, authToken, userEndPoint.ToString());
 
-            if (headers.TryGetValue("authorization", out string authHeader))
-            {
-                if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
-                {
-                    this.Logger.Error("Missing or invalid authorization header: {authHeader}", authHeader);
-                    return false;
-                }
-
-                string token = authHeader.Split(" ")[1];
-
-                if (!this._authOption.Tokens.Select(t => t.Token).Contains(token))
-                {
-                    this.Logger.Error("Invalid token: {token}", token);
-                    return false;
-                }
-                this.Logger.Information("Authentication successful - Device: {deviceId}, Token: {token}", deviceId, this._authOption.Tokens.FirstOrDefault(t => t.Token == token));
-
-                if (this._basicVerify != null)
-                {
-                    return this._basicVerify.Verify(deviceId, token, userEndPoint);
-                }
-
-                return true;
+                return this._basicVerify.Verify(deviceId, authToken, userEndPoint);
             }
 
 
-            return true;
+            return false;
         }
 
 

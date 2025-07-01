@@ -1,9 +1,9 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Models;
 using XiaoZhi.Net.Server.Handlers;
 using XiaoZhi.Net.Server.Protocol;
+using XiaoZhi.Net.Server.Common.Dtos;
 
 namespace XiaoZhi.Net.Server.Management
 {

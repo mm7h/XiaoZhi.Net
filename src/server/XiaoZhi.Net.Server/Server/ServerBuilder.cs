@@ -50,7 +50,6 @@ namespace XiaoZhi.Net.Server
             IServiceCollection services = _kernelBuilder.Services;
 
             services.AddSingleton(config);
-            services.AddSingleton(config.LogSetting);
             services.AddSingleton(config.AudioSetting);
 
             services.AddSingleton(connectionStore);

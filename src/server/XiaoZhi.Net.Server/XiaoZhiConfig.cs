@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using XiaoZhi.Net.Server.Common.Enums;
+﻿using XiaoZhi.Net.Server.Common.Enums;
 
 namespace XiaoZhi.Net.Server
 {
@@ -8,9 +7,9 @@ namespace XiaoZhi.Net.Server
         public ServerProtocol ServerProtocol { get; set; }
         public string Prompt { get; set; } = null!;
         public int? CloseConnectionNoVoiceTime { get; set; }
+        public bool AuthEnabled { get; set; }
         public LogSetting LogSetting { get; set; } = new LogSetting();
         public WebSocketOption WebSocketOption { get; set; } = null!;
-        public AuthOption AuthOption { get; set; } = null!;
         public AudioSetting AudioSetting { get; set; } = null!;
         public ModelSetting VadSetting { get; set; } = null!;
         public ModelSetting AsrSetting { get; set; } = null!;
@@ -20,19 +19,6 @@ namespace XiaoZhi.Net.Server
         public ModelSetting TtsSetting { get; set; } = null!;
         public ModelSetting? IntentSetting { get; set; }
     }
-    #region Auth
-    public sealed class AuthOption
-    {
-        public bool Enabled { get; set; }
-        public IList<Tokens> Tokens { get; set; }
-        public IList<string> AllowedDevices { get; set; }
-    }
-    public sealed class Tokens
-    {
-        public string Token { get; set; }
-        public string Name { get; set; }
-    }
-    #endregion
 
     #region Log
     public sealed class LogSetting

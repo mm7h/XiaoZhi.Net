@@ -5,6 +5,7 @@ using System.Net;
 using System.Threading.Channels;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Protocol;
+using XiaoZhi.Net.Server.Services;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
@@ -12,12 +13,15 @@ namespace XiaoZhi.Net.Server.Handlers
     {
         private readonly AuthHandler _authHandler;
         private readonly IProtocolEngine _protocolEngine;
-        public SocketHandler(AuthHandler authHandler, IProtocolEngine protocolEngine, XiaoZhiConfig config, ILogger logger) : base(config, logger)
+        private readonly ConfigLoader _configLoader;
+
+        public SocketHandler(AuthHandler authHandler, IProtocolEngine protocolEngine, ConfigLoader configLoader, XiaoZhiConfig config, ILogger logger) : base(config, logger)
         {
             this._authHandler = authHandler;
             this._protocolEngine = protocolEngine;
+            this._configLoader = configLoader;
 
-            this._protocolEngine.OnConnecting += this.DeviceConnecting;
+            this._protocolEngine.OnConnecting += this.OnDeviceConnecting;
             this._protocolEngine.OnTextMessage += this.HandleTextMessage;
             this._protocolEngine.OnBinaryMessage += this.HandleBinaryMessage;
             this._protocolEngine.OnConnectionClose += this.HandleConnectionClose;
@@ -30,31 +34,43 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public ChannelWriter<Workflow<byte[]>> NextWriter { get; set; }
 
-        private bool DeviceConnecting(string sessionId, IDictionary<string, string> headers, IPEndPoint userEndPoint)
+        private bool OnDeviceConnecting(string sessionId, IDictionary<string, string> headers, IPEndPoint userEndPoint)
         {
 
             string ip = userEndPoint.Address.ToString();
             int port = userEndPoint.Port;
             try
             {
-                bool checkResult = this._authHandler.Handle(headers, userEndPoint);
-
-                if (checkResult && headers.TryGetValue("device-id", out string deviceId))
+                if (headers.TryGetValue("device-id", out string deviceId))
                 {
-                    this.Logger.Information("New device: {deviceId} with ip {ip} connected", deviceId, ip);
+                    bool checkResult = this._authHandler.Handle(headers, deviceId, userEndPoint);
 
-                    /*
-                     private config
-                     */
-                    Session sessionContext = new Session(sessionId, deviceId, userEndPoint);
-                    this.OnDeviceConnected.Invoke(sessionContext);
+                    if (checkResult)
+                    {
+                        this.Logger.Information("New device: {deviceId} with ip {ip} connected", deviceId, ip);
 
-                    this._protocolEngine.AddSessionContext(sessionId, sessionContext);
-                    return true;
+                        /*
+                         private config
+                         */
+                        Session session = new Session(sessionId, deviceId, userEndPoint);
+                        session.RefreshLastActivityTime();
+
+                        this.OnDeviceConnected.Invoke(session);
+
+                         
+
+                        this._protocolEngine.AddSessionContext(sessionId, session);
+                        return true;
+                    }
+                    else
+                    {
+                        this.Logger.Error("The device {deviceId} from ip: {ip} authentication failed.", deviceId, ip);
+                        return false;
+                    }
                 }
                 else
                 {
-                    this.Logger.Error("The device from ip: {ip} authentication failed.", ip);
+                    this.Logger.Error("Cannot get the device id from ip: {ip} authentication failed.", ip);
                     return false;
                 }
             }

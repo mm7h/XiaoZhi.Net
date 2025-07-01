@@ -100,11 +100,11 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     if (this._useStreaming)
                     {
-                        await this._llm.ChatByStreamingAsync(dialogues, workflow, session.SessionCtsToken);
+                        await this._llm.ChatByStreamingAsync(dialogues, workflow, session.ChatCompletionOptions, session.SessionCtsToken);
                     }
                     else
                     {
-                        await this._llm.ChatAsync(dialogues, workflow, session.SessionCtsToken);
+                        await this._llm.ChatAsync(dialogues, workflow, session.ChatCompletionOptions, session.SessionCtsToken);
                     }
                     timer.Message = $"Calling the LLM takes {timer.ElapsedMilliseconds} ms.";
                 }

@@ -1,4 +1,8 @@
-﻿using System;
+﻿using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
+using OpenAI.Chat;
+using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,19 +32,19 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         public string SessionId { get; set; }
         public string DeviceId { get; set; }
+        public string AudioFormat { get; set; } = "opus";
         public IPEndPoint EndPoint { get; }
         public ListenMode ListenMode { get; set; }
         public AudioPacket AudioPacketContext { get; }
         public VadStatus VadStatusContext { get; }
         public SentenceTimeAxis SentenceTimeAxisContext { get; }
+        public OpenAIPromptExecutionSettings ChatCompletionOptions { get; private set; }
         public CancellationToken SessionCtsToken => this._sessionCts.Token;
+        public DateTime LastActivityTime { get; private set; }
+        public bool IsSupportMCP { get; set; }
         public bool CloseAfterChat { get; set; }
 
-        public bool IsIdle
-        {
-            get => Volatile.Read(ref _isAudioProcessing) == 1;
-            private set => Interlocked.Exchange(ref _isAudioProcessing, value ? 1 : 0);
-        }
+        public bool IsIdle => Volatile.Read(ref _isAudioProcessing) == 1;
 
         public bool ShouldIgnore()
         {
@@ -48,6 +52,17 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             {
                 return this._isCanceling && DateTime.Now < this._cancelCoolingTime;
             }
+        }
+
+        public void SetChatCompletionOption(IEnumerable<KernelFunction> functions)
+        {
+            this.ChatCompletionOptions = new OpenAIPromptExecutionSettings
+            {
+                Temperature = 0.5f,
+                MaxTokens = 80,
+                ResponseFormat = ChatResponseFormat.CreateTextFormat(),
+                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(functions)
+            };
         }
 
         public void SetListenMode(string mode)
@@ -124,6 +139,11 @@ namespace XiaoZhi.Net.Server.Common.Contexts
                 this._cancelCoolingTime = DateTime.Now.AddSeconds(3);
             }
             this.CreateCancellationTokenSource();
+        }
+
+        public void RefreshLastActivityTime()
+        {
+            this.LastActivityTime = DateTime.Now;
         }
 
         public void Release()

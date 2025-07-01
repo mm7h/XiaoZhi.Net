@@ -4,13 +4,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Text.Json;
 using System.Threading.Tasks;
 using WebSocketSharp;
 using WebSocketSharp.Server;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Enums;
-using XiaoZhi.Net.Server.Common.Models;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Store;
 
@@ -134,7 +133,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
                 msg["text"] = text;
             }
 
-            string json = JsonSerializer.Serialize(msg);
+            string json = JsonHelper.Serialize(msg);
 
             if (state == "stop")
             {
@@ -147,24 +146,24 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
         }
         public Task SendLlmMessageAsync(string sessionId, Emotion emotion)
         {
-            var emo = new Dictionary<string, string>
+            var emo = new 
             {
-                ["type"] = "llm",
-                ["text"] = emotion.GetDescription(),
-                ["emotion"] = emotion.GetName().ToLower(),
-                ["session_id"] = sessionId
+                Type = "llm",
+                Text = emotion.GetDescription(),
+                Emotion = emotion.GetName().ToLower(),
+                SessionId = sessionId
             };
-            return this.SendAsync(sessionId, JsonSerializer.Serialize(emo));
+            return this.SendAsync(sessionId, JsonHelper.Serialize(emo));
         }
         public Task SendSttMessageAsync(string sessionId, string sttText)
         {
-            var msg = new Dictionary<string, string>
+            var msg = new
             {
-                ["type"] = "stt",
-                ["text"] = sttText,
-                ["session_id"] = sessionId
+                Type = "stt",
+                Text = sttText,
+                SessionId = sessionId
             };
-            return this.SendAsync(sessionId, JsonSerializer.Serialize(msg));
+            return this.SendAsync(sessionId, JsonHelper.Serialize(msg));
         }
         public void AddSessionContext(string sessionId, Session sessionContext)
         {

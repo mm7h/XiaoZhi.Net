@@ -5,8 +5,10 @@ using System.Text.Json.Nodes;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Protocol;
+using static System.Collections.Specialized.BitVector32;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
@@ -46,7 +48,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 switch (type)
                 {
                     case "hello":
-                        this.HandleHelloMessage(connId);
+                        this.HandleHelloMessage(connId, jsonObj);
                         break;
                     case "abort":
                         await this.HandleAbortMessage(connId);
@@ -57,28 +59,46 @@ namespace XiaoZhi.Net.Server.Handlers
                     case "iot":
                         this.HandleIotDescriptors(connId);
                         break;
+                    case "mcp":
+                        this.HandleMcp(connId, jsonObj);
+                        break;
                 }
             }
         }
 
-        private void HandleHelloMessage(string connId)
+        private void HandleHelloMessage(string connId, JsonObject jsonObj)
         {
             Session session = this._protocolEngine.GetSessionContext(connId);
-            var helloMessage = new
+
+            AudioParams defaultAudioParams = new AudioParams(this.Config.AudioSetting.SampleRate, this.Config.AudioSetting.Channels, this.Config.AudioSetting.FrameDuration);
+            HelloMessage defultHelloMessage = new HelloMessage(connId, this.Config.ServerProtocol.GetDescription().ToLower(), defaultAudioParams);
+
+            if (jsonObj.TryGetPropertyValue("audio_params", out var audioParams) && audioParams != null)
             {
-                type = "hello",
-                version = 1,
-                transport = this.Config.ServerProtocol.GetDescription().ToLower(),
-                session_id = session.SessionId,
-                audio_params = new
+                JsonObject audioParamsObj = audioParams.AsObject();
+                if (audioParamsObj.TryGetPropertyValue("format", out var format) && format != null)
                 {
-                    format = "opus",
-                    sample_rate = this.Config.AudioSetting.SampleRate,
-                    channels = this.Config.AudioSetting.Channels,
-                    frame_duration = this.Config.AudioSetting.FrameDuration
+                    string formatValue = format.GetValue<string>();
+                    if (!string.IsNullOrEmpty(formatValue))
+                    {
+                        session.AudioFormat = formatValue;
+                    }
                 }
-            };
-            this._protocolEngine.SendAsync(connId, JsonSerializer.Serialize(helloMessage));
+            }
+
+            if (jsonObj.TryGetPropertyValue("features", out var features) && features != null)
+            {
+                JsonObject featuresObj = features.AsObject();
+                if (featuresObj.TryGetPropertyValue("mcp", out var mcp) && mcp != null)
+                {
+                    bool isSupportMCP = mcp.GetValue<bool>();
+                    if (isSupportMCP)
+                    {
+                        session.IsSupportMCP = true;
+                    }
+                }
+            }
+            this._protocolEngine.SendAsync(connId, JsonHelper.Serialize(defultHelloMessage));
         }
 
         private async Task HandleAbortMessage(string connId)
@@ -91,7 +111,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 state = "stop",
                 session_id = session.SessionId
             };
-            await this._protocolEngine.SendAsync(connId, JsonSerializer.Serialize(abortMessage));
+            await this._protocolEngine.SendAsync(connId, JsonHelper.Serialize(abortMessage));
             session.Abort();
             this.Logger.Information("Abort message received-end, cancelled the tasks.");
         }
@@ -137,6 +157,48 @@ namespace XiaoZhi.Net.Server.Handlers
         private void HandleIotDescriptors(string connId)
         {
 
+        }
+
+        private void HandleMcp(string connId, JsonObject jsonObject)
+        {
+            if (jsonObject.TryGetPropertyValue("result", out var result) && result != null)
+            {
+                int msgId =  result["id"]?.AsValue().GetValue<int>() ?? 0;
+
+
+                if (msgId == 1)
+                {
+                    // mcp initialize id
+                    this.Logger.Information("Received MCP Initialize message from client: {connId}", connId);
+                    if (result.AsObject().TryGetPropertyValue("serverInfo", out var serverInfo) && serverInfo != null)
+                    {
+                        string? name = serverInfo["name"]?.GetValue<string>();
+                        string? version = serverInfo["version"]?.GetValue<string>();
+                        if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(version))
+                        {
+                            this.Logger.Information("The server info from xiaozhi client MCP: name - {name}, version - {version}", name, version);
+                        }
+                        else
+                        {
+                            this.Logger.Warning("Invalid server info received from xiaozhi client MCP.");
+                        }
+                    }
+
+                    return;
+                }
+                else if (msgId == 2)
+                {
+                    // mcp tools list id
+                }
+            }
+            else if (jsonObject.TryGetPropertyValue("method", out var method) && method != null)
+            {
+
+            }
+            else if (jsonObject.TryGetPropertyValue("error", out var error) && error != null)
+            {
+
+            }
         }
 
         public void Dispose()

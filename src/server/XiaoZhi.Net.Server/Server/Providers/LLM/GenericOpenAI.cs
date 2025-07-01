@@ -1,7 +1,6 @@
 ﻿using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
-using OpenAI.Chat;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -13,7 +12,6 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Entities;
 using XiaoZhi.Net.Server.Helpers;
-using XiaoZhi.Net.Server.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
 {
@@ -21,7 +19,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
     {
         private readonly SemaphoreSlim _llmSlim = new SemaphoreSlim(1, 1);
         private readonly Kernel _kernel;
-        private OpenAIPromptExecutionSettings _chatCompletionOptions;
         public const string SERVICE_ID = "generic";
 
         public GenericOpenAI(Kernel kernel, XiaoZhiConfig config, ILogger logger) : base(config.LlmSetting, logger)
@@ -38,14 +35,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
         {
             try
             {
-                this._chatCompletionOptions = new OpenAIPromptExecutionSettings
-                {
-                    Temperature = 0.5f,
-                    MaxTokens = 80,
-                    ResponseFormat = ChatResponseFormat.CreateTextFormat(),
-                    FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
-                };
-
                 this.Logger.Information("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
@@ -57,9 +46,9 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
         }
 
-        public async Task ChatAsync(IEnumerable<Dialogue> dialogues, Workflow<string> workflow, CancellationToken token)
+        public async Task ChatAsync(IEnumerable<Dialogue> dialogues, Workflow<string> workflow, OpenAIPromptExecutionSettings chatCompletionOptions, CancellationToken token)
         {
-            if (this._kernel == null || this._chatCompletionOptions == null)
+            if (this._kernel == null)
             {
                 throw new ArgumentNullException("Please build llm provider first.");
             }
@@ -71,7 +60,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
                 IChatCompletionService chatCompletionService = this._kernel.GetRequiredService<IChatCompletionService>(GenericOpenAI.SERVICE_ID);
 
-                var clientResult = await chatCompletionService.GetChatMessageContentAsync(chatHistory, this._chatCompletionOptions, this._kernel, token);
+                var clientResult = await chatCompletionService.GetChatMessageContentAsync(chatHistory, chatCompletionOptions, this._kernel, token);
 
                 this.OnTokenGenerated?.Invoke(workflow.SessionId, MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(clientResult.Content), @"<think>.*?</think>", "", RegexOptions.Singleline)));
             }
@@ -91,9 +80,9 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
         }
 
-        public async Task ChatByStreamingAsync(IEnumerable<Dialogue> dialogues, Workflow<string> workflow, CancellationToken token)
+        public async Task ChatByStreamingAsync(IEnumerable<Dialogue> dialogues, Workflow<string> workflow, OpenAIPromptExecutionSettings chatCompletionOptions, CancellationToken token)
         {
-            if (this._kernel == null || this._chatCompletionOptions == null)
+            if (this._kernel == null)
             {
                 throw new ArgumentNullException("Please build llm provider first.");
             }
@@ -108,7 +97,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 StringBuilder segmentResponse = new StringBuilder();
                 List<OutSegment> allResponse = new List<OutSegment>();
 
-                await foreach (var item in chatCompletionService.GetStreamingChatMessageContentsAsync(chatHistory, this._chatCompletionOptions, this._kernel, token))
+                await foreach (var item in chatCompletionService.GetStreamingChatMessageContentsAsync(chatHistory, chatCompletionOptions, this._kernel, token))
                 {
                     string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(item.Content) ?? string.Empty);
                     segmentResponse.Append(text);

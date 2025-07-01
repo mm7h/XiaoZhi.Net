@@ -1,17 +1,9 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
-using OpenAI;
 using Serilog;
 using System;
-using System.ClientModel;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Reflection;
 using XiaoZhi.Net.Server.Common.Exceptions;
-using XiaoZhi.Net.Server.Plugins;
 using XiaoZhi.Net.Server.Providers;
 using XiaoZhi.Net.Server.Providers.ASR;
 using XiaoZhi.Net.Server.Providers.AudioCodec;
@@ -136,18 +128,8 @@ namespace XiaoZhi.Net.Server.Management
                 string endPoint = config.LlmSetting.Config.BaseUrl;
                 string apiKey = config.LlmSetting.Config.ApiKey;
                 string modelId = config.LlmSetting.Config.ModelName;
-                services.AddKeyedSingleton<IChatCompletionService>(GenericOpenAI.SERVICE_ID, (sp, key) =>
-                {
 
-                    OpenAIClientOptions options = new OpenAIClientOptions
-                    {
-                        Endpoint = new Uri(endPoint),
-                        ProjectId = "Xiao Zhi Test"
-                    };
-                    OpenAIClient openAIClient = new OpenAIClient(new ApiKeyCredential(apiKey), options);
-
-                    return new OpenAIChatCompletionService(modelId, openAIClient);
-                });
+                services.AddOpenAIChatCompletion(modelId, new Uri(endPoint), apiKey, orgId: "Xiao Zhi", GenericOpenAI.SERVICE_ID);
 
                 switch (config.LlmSetting.ModelName.ToLower())
                 {
