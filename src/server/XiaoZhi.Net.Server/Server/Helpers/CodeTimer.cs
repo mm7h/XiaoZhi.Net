@@ -1,45 +1,37 @@
 ﻿using Serilog;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Text;
 
 namespace XiaoZhi.Net.Server.Helpers
 {
     internal sealed class CodeTimer : IDisposable
     {
         private readonly Stopwatch _stopwatch;
-        private bool _showMesssage = true;
+        private readonly string _template;
+        private readonly ILogger _logger;
 
         public long ElapsedMilliseconds => _stopwatch.ElapsedMilliseconds;
-        private CodeTimer()
+
+        private CodeTimer(string template, ILogger logger)
         {
             this._stopwatch = Stopwatch.StartNew();
-        }
-        private CodeTimer(bool showMessage) : this()
-        {
-            this._showMesssage = showMessage;
+            this._template = template;
+            this._logger = logger;
         }
 
-        public string? Message { get; set; }
+        public string? Message { get; }
 
-        public static CodeTimer Create()
+        public static CodeTimer Create(string template, ILogger logger)
         {
-            return new CodeTimer();
-        }
-        public static CodeTimer Create(bool showMessage)
-        {
-            return new CodeTimer(showMessage);
+            return new CodeTimer(template, logger);
         }
 
         public void Dispose()
         {
-            if (!this._showMesssage)
-                return;
             if (!string.IsNullOrEmpty(this.Message))
-                Log.Information(this.Message);
+                this._logger.Information(this.Message);
             else
-                Log.Information("The job finished and took {elapsed:F2} ms.", this.ElapsedMilliseconds);
+                this._logger.Information("The job finished and took {elapsed:F2} ms.", this.ElapsedMilliseconds);
             this._stopwatch.Stop();
         }
     }

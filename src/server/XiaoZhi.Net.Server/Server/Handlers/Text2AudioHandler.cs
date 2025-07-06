@@ -12,11 +12,9 @@ namespace XiaoZhi.Net.Server.Handlers
     internal sealed class Text2AudioHandler : BaseHandler, IInHandler<OutSegment>, IOutHandler<float[]>
     {
         private readonly ITts _tts;
-        private readonly IProtocolEngine _protocolEngine;
-        public Text2AudioHandler(ITts tts, IProtocolEngine protocolEngine, XiaoZhiConfig config, ILogger logger) : base(config, logger)
+        public Text2AudioHandler(ITts tts, XiaoZhiConfig config, ILogger logger) : base(config, logger)
         {
             this._tts = tts;
-            this._protocolEngine = protocolEngine;
             this._tts.OnBeforeProcessing += this.TTS_OnBeforeProcessing;
             this._tts.OnProcessing += this.TTS_OnProcessing;
             this._tts.OnProcessed += this.TTS_OnProcessed;
@@ -24,10 +22,9 @@ namespace XiaoZhi.Net.Server.Handlers
 
 
         public override string HandlerName => nameof(Text2AudioHandler);
-
-
-        public ChannelReader<Workflow<OutSegment>> PreviousReader { get; set; } = default!;
-        public ChannelWriter<Workflow<float[]>> NextWriter { get; set; } = default!;
+        public ISendOutter SendOutter { get; set; } = null!;
+        public ChannelReader<Workflow<OutSegment>> PreviousReader { get; set; } = null!;
+        public ChannelWriter<Workflow<float[]>> NextWriter { get; set; } = null!;
 
         public async Task Handle()
         {
@@ -36,8 +33,8 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public async Task Handle(Workflow<OutSegment> workflow)
         {
-            Session session = this._protocolEngine.GetSessionContext(workflow.SessionId);
-            if (session == null || session.ShouldIgnore())
+            Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
             {
                 return;
             }
@@ -56,8 +53,8 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 session.SentenceTimeAxisContext.Reset();
 
-                await this._protocolEngine.SendLlmMessageAsync(session.SessionId, Emotion.Confident);
-                await this._protocolEngine.SendTtsMessageAsync(session.SessionId, "stop");
+                await this.SendOutter.SendLlmMessageAsync(Emotion.Confident);
+                await this.SendOutter.SendTtsMessageAsync("stop");
 
                 this.FireAbort(session.DeviceId, session.SessionId, "text to audio");
             }
@@ -72,11 +69,10 @@ namespace XiaoZhi.Net.Server.Handlers
             if (segment.IsFirst)
             {
                 this.Logger.Information("Send the first audio from segment: {content}", segment.Content);
-                await this._protocolEngine.SendTtsMessageAsync(sessionId, "start");
-                await this._protocolEngine.SendLlmMessageAsync(sessionId, Emotion.Cool);
+                await this.SendOutter.SendTtsMessageAsync("start");
+                await this.SendOutter.SendLlmMessageAsync(Emotion.Cool);
             }
-            Session session
-                = this._protocolEngine.GetSessionContext(sessionId);
+            Session session = this.SendOutter.GetSession();
             if (session != null)
             {
                 Func<Task> sendSentenceAction = new Func<Task>(async () =>
@@ -85,7 +81,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     {
                         return;
                     }
-                    await this._protocolEngine.SendTtsMessageAsync(sessionId, "sentence_start", segment.Content);
+                    await this.SendOutter.SendTtsMessageAsync("sentence_start", segment.Content);
                 });
                 await session.SentenceTimeAxisContext.AddSendSentenceActionAsync(sendSentenceAction, session.SessionCtsToken);
             }
@@ -98,8 +94,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private async void TTS_OnProcessed(string sessionId, OutSegment segment, int duration)
         {
-            Session session
-                = this._protocolEngine.GetSessionContext(sessionId);
+            Session session = this.SendOutter.GetSession();
             if (session != null)
             {
                 Func<Task> sendSentenceAction = new Func<Task>(async () =>
@@ -109,16 +104,16 @@ namespace XiaoZhi.Net.Server.Handlers
                         return;
                     }
                     await Task.Delay(duration, session.SessionCtsToken);
-                    await this._protocolEngine.SendTtsMessageAsync(sessionId, "sentence_end", segment.Content);
+                    await this.SendOutter.SendTtsMessageAsync("sentence_end", segment.Content);
 
                     if (segment.IsLast)
                     {
                         session.SentenceTimeAxisContext.Reset();
-                        await this._protocolEngine.SendLlmMessageAsync(session.SessionId, Emotion.Confident);
-                        await this._protocolEngine.SendTtsMessageAsync(session.SessionId, "stop");
+                        await this.SendOutter.SendLlmMessageAsync(Emotion.Confident);
+                        await this.SendOutter.SendTtsMessageAsync("stop");
 
                         if (session.CloseAfterChat)
-                            this._protocolEngine.CloseSession(session.SessionId);
+                            await this.SendOutter.CloseSessionAsync("Close Chat");
                     }
                 });
                 await session.SentenceTimeAxisContext.AddSendSentenceActionAsync(sendSentenceAction, session.SessionCtsToken);

@@ -1,7 +1,14 @@
-﻿using XiaoZhi.Net.Server.Common.Enums;
+﻿using System.Collections.Generic;
+using XiaoZhi.Net.Server.Common.Enums;
 
 namespace XiaoZhi.Net.Server
 {
+    public sealed class XiaoZhiApiConfig
+    {
+        public string ManageApiUrl { get; set; } = null!;
+        public string Secret { get; set; } = null!;
+    }
+
     public sealed class XiaoZhiConfig
     {
         public ServerProtocol ServerProtocol { get; set; }
@@ -9,12 +16,13 @@ namespace XiaoZhi.Net.Server
         public int? CloseConnectionNoVoiceTime { get; set; }
         public bool AuthEnabled { get; set; }
         public LogSetting LogSetting { get; set; } = new LogSetting();
-        public WebSocketOption WebSocketOption { get; set; } = null!;
+        public WebSocketOption WebSocketOption { get; set; } = new WebSocketOption();
+        public DeviceBindSetting DeviceBindSetting { get; set; } = new DeviceBindSetting();
         public AudioSetting AudioSetting { get; set; } = null!;
         public ModelSetting VadSetting { get; set; } = null!;
         public ModelSetting AsrSetting { get; set; } = null!;
         public ModelSetting PunctuationSetting { get; set; } = null!;
-        public ModelSetting LlmSetting { get; set; } = null!;
+        public List<ModelSetting> LlmSettings { get; set; } = null!;
         public ModelSetting MemorySetting { get; set; } = null!;
         public ModelSetting TtsSetting { get; set; } = null!;
         public ModelSetting? IntentSetting { get; set; }
@@ -33,8 +41,8 @@ namespace XiaoZhi.Net.Server
     #region WebSocketSetting
     public sealed class WebSocketOption
     {
-        public string Url { get; set; } = null!;
-        public string Path { get; set; } = null!;
+        public string Url { get; set; } = "ws://0.0.0.0:4530";
+        public string Path { get; set; } = "/xiaozhi/v1/";
         public WssOption? WssOption { get; set; }
     }
     public sealed class WssOption
@@ -55,6 +63,11 @@ namespace XiaoZhi.Net.Server
         public int Channels { get; set; }
         public int FrameDuration { get; set; }
     }
-
+    public sealed class DeviceBindSetting
+    {
+        public string BindCodePromptFilePath { get; set; } = "config/assets/bind_code.wav";
+        public string BindCodeDigitFolderPath { get; set; } = "config/assets/bind_code";
+        public string BindNotFoundFilePath { get; set; } = "config/assets/bind_not_found.wav";
+    }
 
 }

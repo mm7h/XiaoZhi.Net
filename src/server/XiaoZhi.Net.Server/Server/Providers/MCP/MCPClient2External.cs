@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace XiaoZhi.Net.Server.Services
+namespace XiaoZhi.Net.Server.Providers.MCP
 {
     internal class MCPClient2External
     {

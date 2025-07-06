@@ -1,11 +1,27 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Store;
 
 namespace XiaoZhi.Net.Server
 {
     public interface IServerBuilder
     {
+        /// <summary>
+        /// 从manage api初始化服务
+        /// </summary>
+        /// <param name="apiConfig">配置信息</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        Task<IServerBuilder> Initialize(XiaoZhiApiConfig apiConfig);
+        /// <summary>
+        /// 从manage api初始化服务
+        /// </summary>
+        /// <param name="apiConfig">配置信息</param>
+        /// <param name="connectionStore">自定义的连接信息存储管理器</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        Task<IServerBuilder> Initialize(XiaoZhiApiConfig apiConfig, IStore connectionStore);
         /// <summary>
         /// 初始化服务
         /// </summary>

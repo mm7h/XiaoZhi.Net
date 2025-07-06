@@ -36,8 +36,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
-                this.Logger.Error("Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.Error(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
         }

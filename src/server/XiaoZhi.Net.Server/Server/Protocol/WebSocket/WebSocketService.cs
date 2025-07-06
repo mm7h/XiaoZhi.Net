@@ -1,19 +1,139 @@
-﻿using System;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Serilog;
+using System;
 using System.Collections.Generic;
-using System.Net;
+using System.Threading.Tasks;
 using WebSocketSharp;
 using WebSocketSharp.Server;
+using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Enums;
+using XiaoZhi.Net.Server.Common.Exceptions;
+using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.Management;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket
 {
-    internal sealed class WebSocketService : WebSocketBehavior, IProtocolService
+    internal sealed class WebSocketService : WebSocketBehavior, ISendOutter
     {
-        public WebSocketService() { }
+        private readonly IServiceProvider _serviceProvider;
+        private readonly XiaoZhiConfig _config;
+        private readonly SessionManager _sessionManager;
+        private readonly ProviderManager _providerManager;
+        private readonly ILogger _logger;
 
-        public event Func<string, IDictionary<string, string>, IPEndPoint, bool>? OnConnecting;
-        public event Action<string, string>? OnTextMessage;
-        public event Action<string, byte[]>? OnBinaryMessage;
-        public event Action<string>? OnConnectionClose;
+        private Session? _currentSession;
+
+        public WebSocketService(IServiceProvider serviceProvider)
+        {
+            this._serviceProvider = serviceProvider;
+            this._config = this._serviceProvider.GetRequiredService<XiaoZhiConfig>();
+            this._sessionManager = this._serviceProvider.GetRequiredService<SessionManager>();
+            this._providerManager = this._serviceProvider.GetRequiredService<ProviderManager>();
+            this._logger = this._serviceProvider.GetRequiredService<ILogger>();
+        }
+
+        #region ISendOutter
+        public string SessionId => this._currentSession?.SessionId ?? string.Empty;
+        public Session GetSession()
+        {
+            if (this._currentSession is null)
+            {
+                throw new SessionNotInitializedException();
+            }
+            else
+            {
+                return this._currentSession;
+            }
+        }
+        public Task SendAsync(string json)
+        {
+            this.Send(json);
+            return Task.CompletedTask;
+        }
+        public Task SendAsync(byte[] opusPacket)
+        {
+            this.Send(opusPacket);
+            return Task.CompletedTask;
+        }
+        public Task SendTtsMessageAsync(string state, string? text = null)
+        {
+            if (this._currentSession is null)
+            {
+                this._logger.Error("Cannot send TTS message, current session has not been initialized yet.");
+                return Task.FromException(new SessionNotInitializedException());
+            }
+            var msg = new Dictionary<string, string>
+            {
+                ["type"] = "tts",
+                ["state"] = state,
+                ["session_id"] = this._currentSession.SessionId
+            };
+
+            if (!string.IsNullOrEmpty(text))
+            {
+                msg["text"] = text;
+            }
+
+            string json = JsonHelper.Serialize(msg);
+
+            if (state == "stop")
+            {
+                this._currentSession.Reset();
+            }
+            return this.SendAsync(json);
+        }
+        public Task SendSttMessageAsync(string sttText)
+        {
+            if (this._currentSession is null)
+            {
+                this._logger.Error("Cannot send STT message, current session has not been initialized yet.");
+                return Task.FromException(new SessionNotInitializedException());
+            }
+            var msg = new
+            {
+                Type = "stt",
+                Text = sttText,
+                SessionId = this._currentSession.SessionId
+            };
+            return this.SendAsync(JsonHelper.Serialize(msg));
+        }
+        public Task SendLlmMessageAsync(Emotion emotion)
+        {
+            if (this._currentSession is null)
+            {
+                this._logger.Error("Cannot send LLM message, current session has not been initialized yet.");
+                return Task.FromException(new SessionNotInitializedException());
+            }
+            var emo = new
+            {
+                Type = "llm",
+                Text = emotion.GetDescription(),
+                Emotion = emotion.GetName().ToLower(),
+                SessionId = this._currentSession.SessionId
+            };
+            return this.SendAsync(JsonHelper.Serialize(emo));
+        }
+        public Task SendAbortMessageAsync()
+        {
+            if (this._currentSession is null)
+            {
+                this._logger.Error("Cannot send LLM message, current session has not been initialized yet.");
+                return Task.FromException(new SessionNotInitializedException());
+            }
+            var abortMessage = new
+            {
+                type = "tts",
+                state = "stop",
+                session_id = this._currentSession.SessionId
+            };
+            return this.SendAsync(JsonHelper.Serialize(abortMessage));
+        }
+        public Task CloseSessionAsync(string reason = "")
+        {
+            this.Context.WebSocket.Close(CloseStatusCode.Normal, reason);
+            return Task.CompletedTask;
+        }
+        #endregion
 
         protected override void OnOpen()
         {
@@ -23,28 +143,94 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
                 headers.Add(key.ToLower(), this.Context.Headers[key]);
             }
 
-            bool? ret = this.OnConnecting?.Invoke(this.ID, headers, this.Context.UserEndPoint);
-            if (ret.HasValue && !ret.Value)
-            { 
-                this.Context.WebSocket.Close(CloseStatusCode.Normal, "Authentication failed");
+            string ip = this.Context.UserEndPoint.Address.ToString();
+            int port = this.Context.UserEndPoint.Port;
+
+            try
+            {
+                if (headers.TryGetValue("device-id", out string deviceId) && !string.IsNullOrEmpty(deviceId))
+                {
+
+                    bool verifyResult = true;
+                    string authToken = headers.TryGetValue("authorization", out string token) ? token : string.Empty;
+
+                    if (this._config.AuthEnabled)
+                    {
+                        IBasicVerify? basicVerify = this._serviceProvider.GetService<IBasicVerify>();
+                        if (basicVerify is not null)
+                        {
+                            verifyResult = basicVerify.Verify(deviceId, authToken, this.Context.UserEndPoint);
+                        }
+                    }
+
+                    if (verifyResult)
+                    {
+                        this._currentSession = this._sessionManager.CreateSession(this.ID, deviceId, authToken, this.Context.UserEndPoint, this);
+
+                        _ = this._providerManager.InitializePrivateConfig(this._currentSession);
+
+                        this._currentSession.RefreshLastActivityTime();
+
+                        this._sessionManager.AddSession(this._currentSession.SessionId, this._currentSession);
+                        this._logger.Information("New device: {deviceId} with ip {ip} connected", deviceId, ip);
+                    }
+                    else
+                    {
+                        this._logger.Error("The device {deviceId} from ip: {ip} authentication failed.", deviceId, ip);
+                        this.Context.WebSocket.Close(CloseStatusCode.Normal, "Authentication failed");
+                    }
+                }
+                else
+                {
+                    this._logger.Error("Cannot get the device id from ip: {ip} authentication failed.", ip);
+                }
+            }
+            catch (Exception ex)
+            {
+                this._logger.Error(ex, "Failed to process the connection from ip: {ip}.", ip);
             }
         }
 
         protected override void OnMessage(MessageEventArgs e)
         {
-            if (e.IsBinary)
+            if (this._currentSession is not null)
             {
-                this.OnBinaryMessage?.Invoke(this.ID, e.RawData);
+                if (e.IsBinary)
+                {
+                    this._currentSession.HandlerPipeline.HandleBinaryMessage(e.RawData);
+                }
+                else if (e.IsText)
+                {
+                    this._currentSession.HandlerPipeline.HandleTextMessage(e.Data);
+                }
+                else if (e.IsPing)
+                {
+
+                }
+                else
+                {
+                    this._logger.Warning("Received message from uninitialized session. Message: {message}", e.Data);
+                }
             }
-            else if (e.IsText)
+            else
             {
-                this.OnTextMessage?.Invoke(this.ID, e.Data);
+                this._logger.Warning("The session has not been initialized yet.");
             }
         }
 
-        protected override void OnClose(CloseEventArgs e)
+        protected override async void OnClose(CloseEventArgs e)
         {
-            this.OnConnectionClose?.Invoke(this.ID);
+            if (this._currentSession is not null)
+            {
+                await this._providerManager.SaveMemoryAsync(this._currentSession);
+
+                this._currentSession.Release();
+                this._sessionManager.RemoveSession(this._currentSession.SessionId);
+
+                //todo: save the mermory
+
+                this._logger.Debug("Client offline, device id: {deviceId} and session id: {sessionId}.", this._currentSession.DeviceId, this._currentSession.SessionId);
+            }
         }
     }
 }

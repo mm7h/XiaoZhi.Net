@@ -1,8 +1,14 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Constants;
+using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Providers;
 using XiaoZhi.Net.Server.Providers.ASR;
@@ -12,28 +18,41 @@ using XiaoZhi.Net.Server.Providers.Memory;
 using XiaoZhi.Net.Server.Providers.Punctuation;
 using XiaoZhi.Net.Server.Providers.TTS;
 using XiaoZhi.Net.Server.Providers.VAD;
+using XiaoZhi.Net.Server.Services;
 
 namespace XiaoZhi.Net.Server.Management
 {
     internal sealed class ProviderManager
     {
+        private readonly ManageApiClient _manageApiClient;
         private readonly ILogger _logger;
 
-        public ProviderManager(ILogger logger)
+        private const string GLOBAL_AUDIO_DECODER = "GlobalAudioDecoder";
+        private const string GLOBAL_ASR = "GlobalAsr";
+        private const string GLOBAL_VAD = "GlobalVad";
+        private const string GLOBAL_PUNCTUATION = "GlobalPunctuation";
+        private const string GLOBAL_MEMORY = "GlobalMemory";
+        private const string GLOBAL_LLM = "GlobalLlm";
+        private const string GLOBAL_TTS = "GlobalTts";
+        private const string GLOBAL_AUDIO_ENCODER = "GlobalAudioEncoder";
+
+
+        public ProviderManager(ManageApiClient manageApiClient, ILogger logger)
         {
+            this._manageApiClient = manageApiClient;
             this._logger = logger;
         }
 
         public static void RegisterServices(IServiceCollection services, XiaoZhiConfig config)
         {
-            services.AddSingleton<IAudioDecoder, DefaultOpusDecoder>();
-            RegisterVad(services, config);
-            RegisterAsr(services, config);
-            RegisterPunctuation(services, config);
-            RegisterLlm(services, config);
-            RegisterMemory(services, config);
-            RegisterTts(services, config);
-            services.AddSingleton<IAudioEncoder, DefaultOpusEncoder>();
+            services.AddKeyedSingleton<IAudioDecoder, DefaultOpusDecoder>(GLOBAL_AUDIO_DECODER);
+            RegisterVad(services, config, GLOBAL_VAD);
+            RegisterAsr(services, config, GLOBAL_ASR);
+            RegisterPunctuation(services, config, GLOBAL_PUNCTUATION);
+            RegisterLlm(services, config, GLOBAL_LLM);
+            RegisterMemory(services, config, GLOBAL_MEMORY);
+            RegisterTts(services, config, GLOBAL_TTS);
+            services.AddKeyedSingleton<IAudioEncoder, DefaultOpusEncoder>(GLOBAL_AUDIO_ENCODER);
 
             services.AddSingleton<ProviderManager>();
         }
@@ -42,14 +61,14 @@ namespace XiaoZhi.Net.Server.Management
         {
             IList<IProvider> providers = new List<IProvider>
             {
-                serviceProvider.GetRequiredService<IAudioDecoder>(),
-                serviceProvider.GetRequiredService<IAsr>(),
-                serviceProvider.GetRequiredService<IVad>(),
-                serviceProvider.GetRequiredService<IPunctuation>(),
-                serviceProvider.GetRequiredService<IMemory>(),
-                serviceProvider.GetRequiredService<ILlm>(),
-                serviceProvider.GetRequiredService<ITts>(),
-                serviceProvider.GetRequiredService<IAudioEncoder>()
+                serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GLOBAL_AUDIO_DECODER),
+                serviceProvider.GetRequiredKeyedService<IAsr>(GLOBAL_ASR),
+                serviceProvider.GetRequiredKeyedService<IVad>(GLOBAL_VAD),
+                serviceProvider.GetRequiredKeyedService<IPunctuation>(GLOBAL_PUNCTUATION),
+                serviceProvider.GetRequiredKeyedService<IMemory>(GLOBAL_MEMORY),
+                serviceProvider.GetRequiredKeyedService<ILlm>(GLOBAL_LLM),
+                serviceProvider.GetRequiredKeyedService<ITts>(GLOBAL_TTS),
+                serviceProvider.GetRequiredKeyedService<IAudioEncoder>(GLOBAL_AUDIO_ENCODER)
             };
 
             foreach (IProvider provider in providers)
@@ -63,18 +82,105 @@ namespace XiaoZhi.Net.Server.Management
             return true;
         }
 
+        public async Task InitializePrivateConfig(Session session)
+        {
+            try
+            {
+                PrivateModelsConfig? privateModelsConfig = await this._manageApiClient.LoadConfigFromApi(session.DeviceId, session.SessionId);
+                if (privateModelsConfig is null)
+                {
+                    this._logger.Information("The device: {deviceId} with session: {sessionId} has not been configured with privatization settings and will use global providers.", session.DeviceId, session.SessionId);
+                    return;
+                }
+
+                PrivateProvider privateProvider = new PrivateProvider();
+
+                if (privateModelsConfig.VadSetting is not null)
+                {
+                    IVad privateVad = this.RegisterVad(privateModelsConfig.VadSetting);
+                    privateProvider.InitializeVad(privateVad);
+
+                    this._logger.Information("Private VAD {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.VadSetting.ModelName, session.DeviceId, session.SessionId);
+                }
+
+                if (privateModelsConfig.AsrSetting is not null)
+                {
+                    IAsr privateAsr = this.RegisterAsr(privateModelsConfig.AsrSetting);
+                    privateProvider.InitializeAsr(privateAsr);
+
+                    this._logger.Information("Private ASR {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.AsrSetting.ModelName, session.DeviceId, session.SessionId);
+                }
+
+                if (privateModelsConfig.LlmSetting is not null)
+                {
+                    privateProvider.InitializeLlm(privateModelsConfig.Prompt, privateModelsConfig.UseStreaming, privateModelsConfig.SummaryMemory, privateModelsConfig.LlmModelName);
+
+                    if (!string.IsNullOrEmpty(privateModelsConfig.Prompt))
+                    {
+                        session.Dialogues.Clear();
+                        Dialogue initDialogue = new Dialogue(session.DeviceId, session.SessionId, AuthorRole.System, privateModelsConfig.Prompt);
+                        session.Dialogues.Add(initDialogue);
+                    }
+
+                    if (!string.IsNullOrEmpty(privateModelsConfig.SummaryMemory))
+                    {
+                        Dialogue summaryMemoryDialogue = new Dialogue(session.DeviceId, session.SessionId, AuthorRole.System, privateModelsConfig.SummaryMemory);
+                        session.Dialogues.Add(summaryMemoryDialogue);
+                    }
+
+                    this._logger.Information("Private LLM {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.LlmSetting.ModelName, session.DeviceId, session.SessionId);
+                }
+
+                if (privateModelsConfig.TtsSetting is not null)
+                {
+                    ITts privateTts = this.RegisterTts(privateModelsConfig.TtsSetting);
+                    privateProvider.InitializeTts(privateTts);
+
+                    this._logger.Information("Private TTS {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.TtsSetting.ModelName, session.DeviceId, session.SessionId);
+                }
+
+                session.PrivateProvider = privateProvider;
+            }
+            catch (DeviceNotFoundException)
+            {
+                session.IsDeviceBinded = false;
+                session.PrivateProvider = null;
+            }
+            catch (DeviceBindException deviceBindException)
+            {
+                session.IsDeviceBinded = false;
+                session.PrivateProvider = null;
+                session.BindCode = deviceBindException.BindCode;
+            }
+            catch (Exception ex)
+            {
+                session.IsDeviceBinded = false;
+                session.PrivateProvider = null;
+                this._logger.Error(ex, "Failed to load private models config for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
+            }
+        }
+
+        public async Task SaveMemoryAsync(Session session)
+        {
+            var dialogues = session.Dialogues.Where(d => d.Role == AuthorRole.User || d.Role == AuthorRole.Assistant).ToList();
+            if (dialogues.Any())
+            {
+
+            }
+        }
+
         public void Dispose(IServiceProvider serviceProvider)
         {
             IList<IProvider> providers = new List<IProvider>
             {
-                serviceProvider.GetRequiredService<IAudioDecoder>(),
-                serviceProvider.GetRequiredService<IAsr>(),
-                serviceProvider.GetRequiredService<IVad>(),
-                serviceProvider.GetRequiredService<IPunctuation>(),
-                serviceProvider.GetRequiredService<IMemory>(),
-                serviceProvider.GetRequiredService<ILlm>(),
-                serviceProvider.GetRequiredService<ITts>(),
-                serviceProvider.GetRequiredService<IAudioEncoder>()
+                serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GLOBAL_AUDIO_DECODER),
+                serviceProvider.GetRequiredKeyedService<IAsr>(GLOBAL_ASR),
+                serviceProvider.GetRequiredKeyedService<IVad>(GLOBAL_VAD),
+                serviceProvider.GetRequiredKeyedService<IPunctuation>(GLOBAL_PUNCTUATION),
+                serviceProvider.GetRequiredKeyedService<IMemory>(GLOBAL_MEMORY),
+                serviceProvider.GetRequiredKeyedService<ILlm>(GLOBAL_LLM),
+                serviceProvider.GetRequiredKeyedService<ITts>(GLOBAL_TTS),
+                serviceProvider.GetRequiredKeyedService<IAudioEncoder>(GLOBAL_AUDIO_ENCODER)
             };
 
             foreach (IProvider provider in providers)
@@ -84,91 +190,131 @@ namespace XiaoZhi.Net.Server.Management
         }
 
         #region Register providers
-        private static void RegisterVad(IServiceCollection services, XiaoZhiConfig config)
+        private IVad RegisterVad(ModelSetting vadSetting)
+        {
+            switch (vadSetting.ModelName)
+            {
+                case "silero":
+                    Silero silero = new Silero(vadSetting, this._logger);
+                    silero.Build();
+                    return silero;
+                case "webrtc":
+                    WebRtc webrtc = new WebRtc(vadSetting, this._logger);
+                    webrtc.Build();
+                    return webrtc;
+                default:
+                    throw new ModelBuildException("Invalid vad model.");
+            }
+        }
+        private static void RegisterVad(IServiceCollection services, XiaoZhiConfig config, string key)
         {
             switch (config.VadSetting.ModelName.ToLower())
             {
                 case "silero":
-                    services.AddSingleton<IVad, Silero>(); break;
+                    services.AddKeyedSingleton<IVad, Silero>(key); break;
                 case "webrtc":
-                    services.AddSingleton<IVad, WebRtc>(); break;
+                    services.AddKeyedSingleton<IVad, WebRtc>(key); break;
                 default:
                     throw new ModelBuildException("Invalid vad model.");
             }
         }
 
-        private static void RegisterAsr(IServiceCollection services, XiaoZhiConfig config)
+        private IAsr RegisterAsr(ModelSetting asrSetting)
+        {
+            switch (asrSetting.ModelName.ToLower())
+            {
+                case "sense-voice":
+                    SenseVoice senseVoice = new SenseVoice(asrSetting, this._logger);
+                    senseVoice.Build();
+                    return senseVoice;
+                case "paraformer":
+                    Paraformer paraformer = new Paraformer(asrSetting, this._logger);
+                    paraformer.Build();
+                    return paraformer;
+                default:
+                    throw new ModelBuildException("Invalid asr model.");
+            }
+        }
+        private static void RegisterAsr(IServiceCollection services, XiaoZhiConfig config, string key)
         {
             switch (config.AsrSetting.ModelName.ToLower())
             {
                 case "sense-voice":
-                    services.AddSingleton<IAsr, SenseVoice>(); break;
+                    services.AddKeyedSingleton<IAsr, SenseVoice>(key); break;
                 case "paraformer":
-                    services.AddSingleton<IAsr, Paraformer>(); break;
+                    services.AddKeyedSingleton<IAsr, Paraformer>(key); break;
                 default:
                     throw new ModelBuildException("Invalid asr model.");
             }
         }
 
-        private static void RegisterPunctuation(IServiceCollection services, XiaoZhiConfig config)
+        private static void RegisterPunctuation(IServiceCollection services, XiaoZhiConfig config, string key)
         {
             switch (config.PunctuationSetting.ModelName.ToLower())
             {
                 case "ct-transformer":
-                    services.AddSingleton<IPunctuation, CtTransformer>(); break;
+                    services.AddKeyedSingleton<IPunctuation, CtTransformer>(key); break;
                 default:
                     throw new ModelBuildException("Invalid punctuation model.");
             }
         }
 
-        private static void RegisterLlm(IServiceCollection services, XiaoZhiConfig config)
+        private static void RegisterLlm(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            try
+            ModelSetting llmSetting = config.LlmSettings.First();
+            string endPoint = llmSetting.Config.BaseUrl;
+            string apiKey = llmSetting.Config.ApiKey;
+            string modelId = llmSetting.Config.ModelName;
+
+            switch (llmSetting.ModelName.ToLower())
             {
-                string endPoint = config.LlmSetting.Config.BaseUrl;
-                string apiKey = config.LlmSetting.Config.ApiKey;
-                string modelId = config.LlmSetting.Config.ModelName;
-
-                services.AddOpenAIChatCompletion(modelId, new Uri(endPoint), apiKey, orgId: "Xiao Zhi", GenericOpenAI.SERVICE_ID);
-
-                switch (config.LlmSetting.ModelName.ToLower())
-                {
-                    case "qwen":
-                    case "doubao":
-                    case "deepseek":
-                    case "chatglm":
-                        services.AddSingleton<ILlm, GenericOpenAI>(); break;
-                    default:
-                        throw new ModelBuildException("Invalid llm model.");
-                }
+                case "qwen":
+                case "doubao":
+                case "deepseek":
+                case "chatglm":
+                    services.AddOpenAIChatCompletion(modelId, new Uri(endPoint), apiKey, orgId: "Xiao Zhi", SystemLLMServiceNames.GENERIC_LLM_ID);
+                    services.AddKeyedSingleton<ILlm, GenericOpenAI>(key);
+                    break;
+                default:
+                    throw new ModelBuildException("Invalid llm model.");
             }
-            catch (Exception)
-            {
-
-                throw;
-            }
-
         }
 
-        private static void RegisterMemory(IServiceCollection services, XiaoZhiConfig config)
+        private static void RegisterMemory(IServiceCollection services, XiaoZhiConfig config, string key)
         {
             switch (config.MemorySetting.ModelName.ToLower())
             {
                 case "flash-memory":
-                    services.AddSingleton<IMemory, FlashMemory>(); break;
+                    services.AddKeyedSingleton<IMemory, FlashMemory>(key); break;
                 case "database":
-                    services.AddSingleton<IMemory, Database>(); break;
+                    services.AddKeyedSingleton<IMemory, Database>(key); break;
                 default:
                     throw new ModelBuildException("Invalid memory model.");
             }
         }
 
-        private static void RegisterTts(IServiceCollection services, XiaoZhiConfig config)
+        private ITts RegisterTts(ModelSetting ttsSetting)
+        {
+            switch (ttsSetting.ModelName.ToLower())
+            {
+                case "kokoro":
+                    Kokoro kokoro = new Kokoro(ttsSetting, this._logger);
+                    kokoro.Build();
+                    return kokoro;
+                case "huoshan-double-stream":
+                    HuoshanDoubleStream huoshanDoubleStream = new HuoshanDoubleStream(ttsSetting, this._logger);
+                    huoshanDoubleStream.Build();
+                    return huoshanDoubleStream;
+                default:
+                    throw new ModelBuildException("Invalid asr model.");
+            }
+        }
+        private static void RegisterTts(IServiceCollection services, XiaoZhiConfig config, string key)
         {
             switch (config.TtsSetting.ModelName.ToLower())
             {
                 case "kokoro":
-                    services.AddSingleton<ITts, Kokoro>(); break;
+                    services.AddKeyedSingleton<ITts, Kokoro>(key); break;
                 default:
                     throw new ModelBuildException("Invalid tts model.");
             }

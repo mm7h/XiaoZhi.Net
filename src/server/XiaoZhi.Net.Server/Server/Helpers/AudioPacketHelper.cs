@@ -41,8 +41,7 @@ namespace XiaoZhi.Net.Server.Helpers
             }
             catch (Exception ex)
             {
-                Log.Debug(ex, "GetFrames failed.");
-                Log.Error("GetFrames failed.");
+                Log.Error(ex, "GetFrames failed.");
                 data = Array.Empty<float>();
                 return false;
             }

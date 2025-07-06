@@ -6,7 +6,10 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Enums;
+using XiaoZhi.Net.Server.Protocol;
+using XiaoZhi.Net.Server.Providers.MCP;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {
@@ -19,19 +22,24 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private bool _isCanceling = false;
         private DateTime _cancelCoolingTime = DateTime.Now;
 
-        public Session(string sessionId, string deviceId, IPEndPoint userEndPoint)
+        public Session(string sessionId, string deviceId, string authToken, IPEndPoint userEndPoint, ISendOutter sendOutter)
         {
             this.SessionId = sessionId;
             this.DeviceId = deviceId;
+            this.AuthToken = authToken;
             this.EndPoint = userEndPoint;
+            this.SendOutter = sendOutter;
             this.AudioPacketContext = new AudioPacket();
             this.VadStatusContext = new VadStatus();
             this.SentenceTimeAxisContext = new SentenceTimeAxis();
+            this.HandlerPipeline = new HandlerPipeline(this);
+            this.Dialogues = new LinkedList<Dialogue>();
             this.CreateCancellationTokenSource();
         }
 
-        public string SessionId { get; set; }
-        public string DeviceId { get; set; }
+        public string SessionId { get; }
+        public string DeviceId { get; }
+        public string AuthToken { get; }
         public string AudioFormat { get; set; } = "opus";
         public IPEndPoint EndPoint { get; }
         public ListenMode ListenMode { get; set; }
@@ -40,8 +48,15 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public SentenceTimeAxis SentenceTimeAxisContext { get; }
         public OpenAIPromptExecutionSettings ChatCompletionOptions { get; private set; }
         public CancellationToken SessionCtsToken => this._sessionCts.Token;
+        public HandlerPipeline HandlerPipeline { get; }
+        public ISendOutter SendOutter { get; }
+        public ICollection<Dialogue> Dialogues { get; }
+        public PrivateProvider? PrivateProvider { get; set; }
+        public bool IsDeviceBinded { get; set; }
+        public string? BindCode { get; set; }
         public DateTime LastActivityTime { get; private set; }
         public bool IsSupportMCP { get; set; }
+        public MCPClient2Xiaozhi MCPClient { get; private set; }
         public bool CloseAfterChat { get; set; }
 
         public bool IsIdle => Volatile.Read(ref _isAudioProcessing) == 1;
@@ -153,6 +168,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.SentenceTimeAxisContext.Release();
             this._sessionCts.Cancel();
             this._sessionCts.Dispose();
+            this.HandlerPipeline.Release();
         }
 
         private void CreateCancellationTokenSource()

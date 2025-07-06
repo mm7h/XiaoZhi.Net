@@ -18,10 +18,12 @@ namespace XiaoZhi.Net.Server.Providers.VAD
         private int? _silenceThresholdMs;
 
         private readonly SemaphoreSlim _vadConvertSlim = new SemaphoreSlim(1, 1);
-        public WebRtc(XiaoZhiConfig config, ILogger logger) : base(config.VadSetting, logger)
+        public WebRtc(XiaoZhiConfig config, ILogger logger) : this(config.VadSetting, logger)
         {
         }
-
+        public WebRtc(ModelSetting vadSetting, ILogger logger) : base(vadSetting, logger)
+        {
+        }
         public override string ProviderType => "vad";
         public int FrameSize => throw new NotImplementedException();
         public override bool Build()
@@ -69,13 +71,12 @@ namespace XiaoZhi.Net.Server.Providers.VAD
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
-                this.Logger.Error("Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.Error(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
 
         }
-        public async Task<bool> AnalysisVoiceAsync( Session sessionContext, CancellationToken token)
+        public async Task<bool> AnalysisVoiceAsync(Session sessionContext, CancellationToken token)
         {
             if (this._vad == null)
             {
@@ -96,7 +97,9 @@ namespace XiaoZhi.Net.Server.Providers.VAD
                         long stopDuration = DateTimeOffset.Now.ToUnixTimeMilliseconds() - sessionContext.VadStatusContext.HaveVoiceLatestTime;
                         if (stopDuration > this._silenceThresholdMs)
                         {
+# if DEBUG
                             this.Logger.Debug("The voice is stopped, let's start the ASR.");
+#endif
                             sessionContext.VadStatusContext.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
                             sessionContext.VadStatusContext.VoiceStop = true;
                             return true;
@@ -120,8 +123,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, "Unexpected error(s): {message}.", ex.Message);
-                this.Logger.Error("Unexpected error(s) for {providerType}.", this.ProviderType);
+                this.Logger.Error(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
                 return false;
             }
             finally

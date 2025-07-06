@@ -1,8 +1,10 @@
-﻿using System;
+﻿using Microsoft.SemanticKernel.ChatCompletion;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using XiaoZhi.Net.Server.Common.Dtos;
 
 namespace XiaoZhi.Net.Server.Helpers
 {
@@ -183,6 +185,28 @@ namespace XiaoZhi.Net.Server.Helpers
                     yield return segment.Trim();
                 }
             }
+        }
+
+        public static ChatHistory Convert2ChatMessages(this IEnumerable<Dialogue> dialogues)
+        {
+            ChatHistory chatHistory = new ChatHistory();
+
+            foreach (Dialogue dialogue in dialogues)
+            {
+                if (dialogue.Role == AuthorRole.System)
+                {
+                    chatHistory.AddSystemMessage(dialogue.Content);
+                }
+                else if (dialogue.Role == AuthorRole.User)
+                {
+                    chatHistory.AddUserMessage(dialogue.Content);
+                }
+                else if (dialogue.Role == AuthorRole.Assistant)
+                {
+                    chatHistory.AddAssistantMessage(dialogue.Content);
+                }
+            }
+            return chatHistory;
         }
     }
 }

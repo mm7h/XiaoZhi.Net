@@ -1,5 +1,6 @@
 ﻿using Serilog;
 using System;
+using System.Diagnostics;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -12,16 +13,15 @@ namespace XiaoZhi.Net.Server.Handlers
     internal sealed class AudioSendHandler : BaseHandler, IInHandler<float[]>
     {
         private readonly IAudioEncoder _audioEncoder;
-        private readonly IProtocolEngine _protocolEngine;
 
-        public AudioSendHandler(IAudioEncoder audioEncoder,  IProtocolEngine protocolEngine, XiaoZhiConfig config, ILogger logger) : base(config, logger)
+        public AudioSendHandler(IAudioEncoder audioEncoder, XiaoZhiConfig config, ILogger logger) : base(config, logger)
         {
             this._audioEncoder = audioEncoder;
-            this._protocolEngine = protocolEngine;
         }
 
         public override string HandlerName => nameof(AudioSendHandler);
-        public ChannelReader<Workflow<float[]>> PreviousReader { get; set; }
+        public ISendOutter SendOutter { get; set; } = null!;
+        public ChannelReader<Workflow<float[]>> PreviousReader { get; set; } = null!;
 
         public async Task Handle()
         {
@@ -30,8 +30,8 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public async Task Handle(Workflow<float[]> workflow)
         {
-            Session session = this._protocolEngine.GetSessionContext(workflow.SessionId);
-            if (session == null || session.ShouldIgnore())
+            Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
             {
                 return;
             }
@@ -52,48 +52,24 @@ namespace XiaoZhi.Net.Server.Handlers
                     Array.Copy(preChunk, 0, preBuffer, i * frameSize, frameSize);
                     preBufferCount++;
                 }
-                using (CodeTimer timer = CodeTimer.Create(false))
+
+                Stopwatch timer = Stopwatch.StartNew();
+
+                int frameDuration = this.Config.AudioSetting.FrameDuration;
+                double startTime = timer.ElapsedMilliseconds;
+                double playPosition = 0;// 已播放时长
+
+                // 如果收集到了足够的数据，一次性编码并播放
+                if (preBufferCount > 0)
                 {
-                    int frameDuration = this.Config.AudioSetting.FrameDuration;
-                    double startTime = timer.ElapsedMilliseconds;
-                    double playPosition = 0;// 已播放时长
-
-                    // 如果收集到了足够的数据，一次性编码并播放
-                    if (preBufferCount > 0)
-                    {
-                        for (int i = 0; i < preBufferCount; i++)
-                        {
-                            session.SessionCtsToken.ThrowIfCancellationRequested();
-
-                            float[] chunk = new float[frameSize];
-                            Array.Copy(preBuffer, i * frameSize, chunk, 0, frameSize);
-
-                            byte[] opusData = await this._audioEncoder.EncodeAsync(chunk, session.SessionCtsToken);
-
-                            double expectedTime = startTime + (playPosition / 1000);
-                            double currentTime = timer.ElapsedMilliseconds;
-                            int delay = (int)(expectedTime - currentTime);
-                            if (delay > 0)
-                            {
-                                await Task.Delay(delay);
-                            }
-
-                            await this._protocolEngine.SendAsync(session.SessionId, opusData);
-
-                            playPosition += frameDuration;
-                        }
-
-                        await Task.Delay(20);
-                    }
-
-                    session.SessionCtsToken.ThrowIfCancellationRequested();
-
-                    // 当前缓冲区有数据
-                    while (session.AudioPacketContext.SendOpusPacketFrame.GetFrames(frameSize, out float[] chunk))
+                    for (int i = 0; i < preBufferCount; i++)
                     {
                         session.SessionCtsToken.ThrowIfCancellationRequested();
-                        byte[] opusData = await this._audioEncoder.EncodeAsync(chunk, session.SessionCtsToken);
 
+                        float[] chunk = new float[frameSize];
+                        Array.Copy(preBuffer, i * frameSize, chunk, 0, frameSize);
+
+                        byte[] opusData = await this._audioEncoder.EncodeAsync(chunk, session.SessionCtsToken);
 
                         double expectedTime = startTime + (playPosition / 1000);
                         double currentTime = timer.ElapsedMilliseconds;
@@ -103,11 +79,37 @@ namespace XiaoZhi.Net.Server.Handlers
                             await Task.Delay(delay);
                         }
 
-                        await this._protocolEngine.SendAsync(session.SessionId, opusData);
+                        await this.SendOutter.SendAsync(opusData);
 
                         playPosition += frameDuration;
                     }
+
+                    await Task.Delay(20);
                 }
+
+                session.SessionCtsToken.ThrowIfCancellationRequested();
+
+                // 当前缓冲区有数据
+                while (session.AudioPacketContext.SendOpusPacketFrame.GetFrames(frameSize, out float[] chunk))
+                {
+                    session.SessionCtsToken.ThrowIfCancellationRequested();
+                    byte[] opusData = await this._audioEncoder.EncodeAsync(chunk, session.SessionCtsToken);
+
+
+                    double expectedTime = startTime + (playPosition / 1000);
+                    double currentTime = timer.ElapsedMilliseconds;
+                    int delay = (int)(expectedTime - currentTime);
+                    if (delay > 0)
+                    {
+                        await Task.Delay(delay);
+                    }
+
+                    await this.SendOutter.SendAsync(opusData);
+
+                    playPosition += frameDuration;
+                }
+
+                timer.Stop();
             }
             catch (OperationCanceledException)
             {

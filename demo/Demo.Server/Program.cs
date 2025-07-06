@@ -23,7 +23,7 @@ try
             Console.WriteLine("Please set the environment variable \"OPEN_AI_API_KEY\"");
             return;
         }
-        config.LlmSetting.Config.ApiKey = apiKey;
+        config.LlmSettings.First().Config.ApiKey = apiKey;
 #endif
 
         // 开始初始化服务

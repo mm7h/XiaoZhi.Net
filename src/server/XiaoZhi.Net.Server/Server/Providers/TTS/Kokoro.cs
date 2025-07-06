@@ -1,6 +1,7 @@
 ﻿using Serilog;
 using SherpaOnnx;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -21,14 +22,16 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         private bool _save2File = false;
         private string? _savePath;
 
-        public event Action<string, OutSegment> OnBeforeProcessing;
-        public event Action<string, float[]> OnProcessing;
-        public event Action<string, OutSegment, int> OnProcessed;
+        public event Action<string, OutSegment>? OnBeforeProcessing;
+        public event Action<string, float[]>? OnProcessing;
+        public event Action<string, OutSegment, int>? OnProcessed;
 
-        public Kokoro(XiaoZhiConfig config, ILogger logger) : base(config.TtsSetting, logger)
+        public Kokoro(XiaoZhiConfig config, ILogger logger) : this(config.TtsSetting, logger)
         {
         }
-
+        public Kokoro(ModelSetting ttsSetting, ILogger logger) : base(ttsSetting, logger)
+        {
+        }
         public override string ProviderType => "tts";
 
         public int GetTtsSampleRate()
@@ -76,8 +79,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
-                this.Logger.Error("Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.Error(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
         }
@@ -94,54 +96,53 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 await this._ttsConvertSlim.WaitAsync(token);
                 string segment = workflow.Data.Content;
 
-                using (CodeTimer timer = CodeTimer.Create(false))
-                {
-                    this.OnBeforeProcessing?.Invoke(workflow.SessionId, workflow.Data);
+                Stopwatch timer = Stopwatch.StartNew();
+                this.OnBeforeProcessing?.Invoke(workflow.SessionId, workflow.Data);
 
-                    OfflineTtsGeneratedAudio audio = this._offlineTts.GenerateWithCallbackProgress(segment,
-                            SPEAK_SPPED,
-                            SPERAKER_ID,
-                            (IntPtr samples, int n, float progress) =>
-                            {
-                                if (token.IsCancellationRequested)
-                                    return 0;
-                                float[] data = new float[n];
-                                Marshal.Copy(samples, data, 0, n);
-                                this.OnProcessing?.Invoke(workflow.SessionId, data);
-
-                                return 1;
-                            });
-
-                    int duration = Math.Max((int)(this.CalculateDuration(audio.SampleRate, audio.NumSamples) * 1000 - (workflow.Data.IsFirst ? 300 + timer.ElapsedMilliseconds : 0)), 0);
-
-                    this.OnProcessed.Invoke(workflow.SessionId, workflow.Data, duration);
-
-                    if (this._save2File)
-                    {
-                        _ = Task.Run(() =>
+                OfflineTtsGeneratedAudio audio = this._offlineTts.GenerateWithCallbackProgress(segment,
+                        SPEAK_SPPED,
+                        SPERAKER_ID,
+                        (IntPtr samples, int n, float progress) =>
                         {
-                            string fileName = $"{this.ReplaceMacDelimiters(session.DeviceId)}_{DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString()}.wav";
-                            string filePath = Path.Combine(this._savePath, fileName);
-                            if (File.Exists(filePath))
-                                File.Delete(filePath);
-                            bool saved = audio.SaveToWaveFile(filePath);
-                            if (saved)
-                            {
-                                this.Logger.Debug("Saved tts wave file {fileName} successed, the duration of file is: {duration}s.", fileName, this.FormatDuration(duration));
-                            }
-                            else
-                            {
-                                this.Logger.Debug("Failed to save tts wave file {fileName}.", fileName);
-                            }
-                            audio.Dispose();
+                            if (token.IsCancellationRequested)
+                                return 0;
+                            float[] data = new float[n];
+                            Marshal.Copy(samples, data, 0, n);
+                            this.OnProcessing?.Invoke(workflow.SessionId, data);
+
+                            return 1;
                         });
-                    }
-                    else
+
+                int duration = Math.Max((int)(this.CalculateDuration(audio.SampleRate, audio.NumSamples) * 1000 - (workflow.Data.IsFirst ? 300 + timer.ElapsedMilliseconds : 0)), 0);
+
+                this.OnProcessed?.Invoke(workflow.SessionId, workflow.Data, duration);
+
+                if (this._save2File)
+                {
+                    _ = Task.Run(() =>
                     {
+                        string fileName = $"{this.ReplaceMacDelimiters(session.DeviceId)}_{DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString()}.wav";
+                        string filePath = Path.Combine(this._savePath, fileName);
+                        if (File.Exists(filePath))
+                            File.Delete(filePath);
+                        bool saved = audio.SaveToWaveFile(filePath);
+                        if (saved)
+                        {
+                            this.Logger.Debug("Saved tts wave file {fileName} successed, the duration of file is: {duration}s.", fileName, this.FormatDuration(duration));
+                        }
+                        else
+                        {
+                            this.Logger.Debug("Failed to save tts wave file {fileName}.", fileName);
+                        }
                         audio.Dispose();
-                        this.Logger.Debug("TTS generated success, the duration of the voice is: {duration}s.", this.FormatDuration(duration));
-                    }
+                    });
                 }
+                else
+                {
+                    audio.Dispose();
+                    this.Logger.Debug("TTS generated success, the duration of the voice is: {duration}s.", this.FormatDuration(duration));
+                }
+                timer.Stop();
 
 
                 await Task.CompletedTask;
@@ -154,8 +155,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, "Unexpected error(s): {message}.", ex.Message);
-                this.Logger.Error("Unexpected error(s) for {providerType}.", this.ProviderType);
+                this.Logger.Error(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
             }
             finally
             {

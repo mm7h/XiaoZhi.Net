@@ -12,10 +12,12 @@ namespace XiaoZhi.Net.Server.Providers.ASR
     {
         private readonly SemaphoreSlim _asrConvertSlim = new SemaphoreSlim(1, 1);
         private OfflineRecognizer? _offlineRecognizer;
-        public Paraformer(XiaoZhiConfig config, ILogger logger) : base(config.AsrSetting, logger)
+        public Paraformer(XiaoZhiConfig config, ILogger logger) : this(config.AsrSetting, logger)
         {
         }
-
+        public Paraformer(ModelSetting asrSetting, ILogger logger) : base(asrSetting, logger)
+        {
+        }
         public override string ProviderType => "asr";
 
         public override bool Build()
@@ -47,13 +49,12 @@ namespace XiaoZhi.Net.Server.Providers.ASR
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
-                this.Logger.Error("Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.Error(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
         }
 
-        public async Task<string> ConvertSpeechText( CircularBuffer voicePackets, int sampleRate, int frameSize, CancellationToken token)
+        public async Task<string> ConvertSpeechText(CircularBuffer voicePackets, int sampleRate, int frameSize, CancellationToken token)
         {
             try
             {
@@ -76,7 +77,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR
 
                         string speechResult = stream.Result.Text;
                         return speechResult;
-                    } 
+                    }
                 }
                 else
                 {
@@ -90,8 +91,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, "Unexpected error(s): {message}.", ex.Message);
-                this.Logger.Error("Unexpected error(s) for {providerType}.", this.ProviderType);
+                this.Logger.Error(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
                 return string.Empty;
             }
             finally

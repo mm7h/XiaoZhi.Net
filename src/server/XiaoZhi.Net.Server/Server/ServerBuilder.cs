@@ -1,9 +1,16 @@
-﻿using Microsoft.Extensions.AI;
+﻿using Flurl;
+using Flurl.Http;
+using Flurl.Http.Configuration;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Constants;
+using XiaoZhi.Net.Server.Common.Dtos;
+using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Management;
 using XiaoZhi.Net.Server.Store;
 
@@ -21,6 +28,41 @@ namespace XiaoZhi.Net.Server
             _kernelBuilder = Kernel.CreateBuilder();
         }
 
+        public async Task<IServerBuilder> Initialize(XiaoZhiApiConfig apiConfig)
+        {
+            return await this.Initialize(apiConfig, DefaultMemoryStore.Default);
+        }
+
+
+        public async Task<IServerBuilder> Initialize(XiaoZhiApiConfig apiConfig, IStore connectionStore)
+        {
+            IServiceCollection services = _kernelBuilder.Services;
+
+            services.AddSingleton(apiConfig);
+            services.AddSingleton<IFlurlClientCache>(_ => new FlurlClientCache()
+                .Add("ManageApi", apiConfig.ManageApiUrl, builder =>
+                {
+                    builder.Headers.Add("authorization", apiConfig.Secret);
+                    builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
+                }));
+
+            ApiResponse<XiaoZhiConfig> res = await apiConfig.ManageApiUrl
+                .AppendPathSegment(ApiActions.GetGlobalConfig)
+                .WithHeader("authorization", apiConfig.Secret)
+                .WithSettings(s =>
+                {
+                    s.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
+                })
+                .GetJsonAsync<ApiResponse<XiaoZhiConfig>>();
+
+            if (res.Data is null)
+            {
+                throw new ArgumentNullException(nameof(XiaoZhiConfig), "Failed to get config from remote api.");
+            }
+
+            return this.Initialize(res.Data);
+        }
+
         /// <summary>
         /// 初始化服务
         /// </summary>
@@ -29,8 +71,7 @@ namespace XiaoZhi.Net.Server
         /// <exception cref="ArgumentNullException"></exception>
         public IServerBuilder Initialize(XiaoZhiConfig config)
         {
-            this.Initialize(config, DefaultMemoryStore.Default);
-            return this;
+            return this.Initialize(config, DefaultMemoryStore.Default);
         }
 
         /// <summary>
@@ -55,9 +96,10 @@ namespace XiaoZhi.Net.Server
             services.AddSingleton(connectionStore);
 
             LoggerManager.RegisterServices(services, config);
+            SessionManager.RegisterServices(services);
             ProtocolManager.RegisterServices(services, config);
             ProviderManager.RegisterServices(services, config);
-            HandlerManager.RegisterServices(services, config);
+            HandlerManager.RegisterServices(services);
             AdvancedManager.RegisterServices(services, config);
 
             return this;
@@ -132,10 +174,6 @@ namespace XiaoZhi.Net.Server
             HandlerManager handlerManager = serviceProvider.GetRequiredService<HandlerManager>();
             protocolManager.BuildComponent(serviceProvider);
             bool builded = providerManager.BuildComponent(serviceProvider);
-            if (builded)
-            {
-                handlerManager.BuildComponent(serviceProvider);
-            }
         }
     }
 }

@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Entities;
+using XiaoZhi.Net.Server.Common.Dtos;
 
 namespace XiaoZhi.Net.Server.Providers
 {

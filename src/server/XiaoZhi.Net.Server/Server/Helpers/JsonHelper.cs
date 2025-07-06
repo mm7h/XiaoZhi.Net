@@ -9,7 +9,7 @@ namespace XiaoZhi.Net.Server.Helpers
 {
     internal static class JsonHelper
     {
-        private static readonly JsonSerializerOptions OPTIONS = new JsonSerializerOptions()
+        public static readonly JsonSerializerOptions OPTIONS = new JsonSerializerOptions()
         {
             PropertyNameCaseInsensitive = true,
             PropertyNamingPolicy = new JsonSnakeCaseNamingPolicy(),
@@ -17,10 +17,20 @@ namespace XiaoZhi.Net.Server.Helpers
         };
 
         public static string ToJson(this object obj) => JsonSerializer.Serialize(obj, JsonHelper.OPTIONS);
-        public static JsonNode? ToNode(this object obj) => JsonSerializer.SerializeToNode(obj, JsonHelper.OPTIONS);
+        public static JsonNode? ToNode(this object obj) => obj is null ? null : JsonSerializer.SerializeToNode(obj, JsonHelper.OPTIONS);
         public static string Serialize(object obj) => JsonSerializer.Serialize(obj, JsonHelper.OPTIONS);
 
-        public static T Deserialize<T>(string json) => JsonSerializer.Deserialize<T>(json, JsonHelper.OPTIONS) ?? default!;
+        public static T? Deserialize<T>(string json) where T : class
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<T>(json, JsonHelper.OPTIONS);
+            }
+            catch
+            {
+                return null;
+            }
+        }
 
     }
 

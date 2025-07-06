@@ -2,13 +2,16 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Entities;
+using XiaoZhi.Net.Server.Common.Dtos;
 
 namespace XiaoZhi.Net.Server.Providers.Memory
 {
     internal class Database : BaseProvider, IMemory
     {
-        public Database(XiaoZhiConfig config, ILogger logger) : base(config.MemorySetting, logger)
+        public Database(XiaoZhiConfig config, ILogger logger) : this(config.MemorySetting, logger)
+        {
+        }
+        public Database(ModelSetting memorySetting, ILogger logger) : base(memorySetting, logger)
         {
         }
         public override string ProviderType => "memory";

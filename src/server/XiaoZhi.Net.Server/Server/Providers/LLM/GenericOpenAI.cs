@@ -1,6 +1,7 @@
 ﻿using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using OpenAI.Chat;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -9,8 +10,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Common.Entities;
 using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
@@ -19,17 +20,28 @@ namespace XiaoZhi.Net.Server.Providers.LLM
     {
         private readonly SemaphoreSlim _llmSlim = new SemaphoreSlim(1, 1);
         private readonly Kernel _kernel;
-        public const string SERVICE_ID = "generic";
+        private OpenAIPromptExecutionSettings _chatCompletionOptions;
 
-        public GenericOpenAI(Kernel kernel, XiaoZhiConfig config, ILogger logger) : base(config.LlmSetting, logger)
+        public GenericOpenAI(Kernel kernel, XiaoZhiConfig config, ILogger logger) : this(kernel, config.LlmSettings.First(), logger)
+        {
+        }
+        public GenericOpenAI(Kernel kernel, ModelSetting llmSetting, ILogger logger) : base(llmSetting, logger)
         {
             this._kernel = kernel;
+            this._chatCompletionOptions = new OpenAIPromptExecutionSettings
+            {
+                Temperature = 0.5f,
+                MaxTokens = 80,
+                ResponseFormat = ChatResponseFormat.CreateTextFormat(),
+                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
+            };
         }
+
         public override string ProviderType => "llm";
 
-        public event Action<string> OnBeforeTokenGenerate;
-        public event Action<string, OutSegment> OnTokenGenerating;
-        public event Action<string, string> OnTokenGenerated;
+        public event Action<string>? OnBeforeTokenGenerate;
+        public event Action<string, OutSegment>? OnTokenGenerating;
+        public event Action<string, string>? OnTokenGenerated;
 
         public override bool Build()
         {
@@ -40,13 +52,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
-                this.Logger.Error("Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.Error(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
         }
 
-        public async Task ChatAsync(IEnumerable<Dialogue> dialogues, Workflow<string> workflow, OpenAIPromptExecutionSettings chatCompletionOptions, CancellationToken token)
+        public async Task ChatAsync(Workflow<DialogueContext> workflow, CancellationToken token)
         {
             if (this._kernel == null)
             {
@@ -56,11 +67,21 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             {
                 await this._llmSlim.WaitAsync(token);
                 this.OnBeforeTokenGenerate?.Invoke(workflow.SessionId);
-                ChatHistory chatHistory = this.Convert2ChatMessages(dialogues);
+                ChatHistory chatHistory = workflow.Data.Dialogues.Convert2ChatMessages();
 
-                IChatCompletionService chatCompletionService = this._kernel.GetRequiredService<IChatCompletionService>(GenericOpenAI.SERVICE_ID);
+                IChatCompletionService chatCompletionService;
 
-                var clientResult = await chatCompletionService.GetChatMessageContentAsync(chatHistory, chatCompletionOptions, this._kernel, token);
+                if (!string.IsNullOrEmpty(workflow.Data.LlmModelName))
+                {
+                    chatCompletionService = this._kernel.GetRequiredService<IChatCompletionService>(workflow.Data.LlmModelName);
+                }
+                else
+                {
+                    chatCompletionService = this._kernel.GetRequiredService<IChatCompletionService>(SystemLLMServiceNames.GENERIC_LLM_ID);
+                }
+
+
+                var clientResult = await chatCompletionService.GetChatMessageContentAsync(chatHistory, this._chatCompletionOptions, this._kernel, token);
 
                 this.OnTokenGenerated?.Invoke(workflow.SessionId, MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(clientResult.Content), @"<think>.*?</think>", "", RegexOptions.Singleline)));
             }
@@ -71,8 +92,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, "Unexpected error(s): {message}.", ex.Message);
-                this.Logger.Error("Unexpected error(s) for {providerType}.", this.ProviderType);
+                this.Logger.Error(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
             }
             finally
             {
@@ -80,7 +100,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
         }
 
-        public async Task ChatByStreamingAsync(IEnumerable<Dialogue> dialogues, Workflow<string> workflow, OpenAIPromptExecutionSettings chatCompletionOptions, CancellationToken token)
+        public async Task ChatByStreamingAsync(Workflow<DialogueContext> workflow, CancellationToken token)
         {
             if (this._kernel == null)
             {
@@ -91,13 +111,13 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 await this._llmSlim.WaitAsync(token);
                 this.OnBeforeTokenGenerate?.Invoke(workflow.SessionId);
 
-                ChatHistory chatHistory = this.Convert2ChatMessages(dialogues);
-                IChatCompletionService chatCompletionService = this._kernel.GetRequiredService<IChatCompletionService>(GenericOpenAI.SERVICE_ID);
+                ChatHistory chatHistory = workflow.Data.Dialogues.Convert2ChatMessages();
+                IChatCompletionService chatCompletionService = this._kernel.GetRequiredService<IChatCompletionService>(SystemLLMServiceNames.GENERIC_LLM_ID);
 
                 StringBuilder segmentResponse = new StringBuilder();
                 List<OutSegment> allResponse = new List<OutSegment>();
 
-                await foreach (var item in chatCompletionService.GetStreamingChatMessageContentsAsync(chatHistory, chatCompletionOptions, this._kernel, token))
+                await foreach (var item in chatCompletionService.GetStreamingChatMessageContentsAsync(chatHistory, this._chatCompletionOptions, this._kernel, token))
                 {
                     string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(item.Content) ?? string.Empty);
                     segmentResponse.Append(text);
@@ -165,8 +185,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, "Unexpected error(s): {message}.", ex.Message);
-                this.Logger.Error("Unexpected error(s) for {providerType}.", this.ProviderType);
+                this.Logger.Error(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
             }
             finally
             {
@@ -174,29 +193,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
 
         }
-
-        private ChatHistory Convert2ChatMessages(IEnumerable<Dialogue> dialogues)
-        {
-            ChatHistory chatHistory = new ChatHistory();
-
-            foreach (Dialogue dialogue in dialogues)
-            {
-                if (dialogue.Role == AuthorRole.System)
-                {
-                    chatHistory.AddSystemMessage(dialogue.Content);
-                }
-                else if (dialogue.Role == AuthorRole.User)
-                {
-                    chatHistory.AddUserMessage(dialogue.Content);
-                }
-                else if (dialogue.Role == AuthorRole.Assistant)
-                {
-                    chatHistory.AddAssistantMessage(dialogue.Content);
-                }
-            }
-            return chatHistory;
-        }
-
         public override void Dispose()
         {
 

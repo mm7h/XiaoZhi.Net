@@ -10,40 +10,33 @@ using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
-    internal sealed class AudioReceiveHandler : BaseHandler, IInHandler<byte[]>, IOutHandler<CircularBuffer>
+    internal sealed class AudioReceiveHandler : BaseHandler,  IOutHandler<CircularBuffer>
     {
         private readonly IVad _vad;
         private readonly IAudioDecoder _audioDecoder;
-        private readonly IProtocolEngine _protocolEngine;
-        public AudioReceiveHandler(IVad vad, IAudioDecoder audioDecoder, IProtocolEngine protocolEngine, XiaoZhiConfig config, ILogger logger) : base(config, logger)
+        public AudioReceiveHandler(IVad vad, IAudioDecoder audioDecoder, XiaoZhiConfig config, ILogger logger) : base(config, logger)
         {
             this._vad = vad;
             this._audioDecoder = audioDecoder;
-            this._protocolEngine = protocolEngine;
         }
 
-        public event Action<Workflow<string>> OnNoVoiceCloseConnect;
+        public event Action<Workflow<string>>? OnNoVoiceCloseConnect;
 
         public override string HandlerName => nameof(AudioReceiveHandler);
-        public ChannelReader<Workflow<byte[]>> PreviousReader { get; set; }
+        public ISendOutter SendOutter { get; set; } = null!;
+        public ChannelWriter<Workflow<CircularBuffer>> NextWriter { get; set; } = null!;
 
-        public ChannelWriter<Workflow<CircularBuffer>> NextWriter { get; set; }
 
-
-        public async Task Handle()
+        public async Task Handle(byte[] opusData)
         {
-            await foreach (var reader in this.PreviousReader.ReadAllAsync()) await this.Handle(reader);
-        }
-        public async Task Handle(Workflow<byte[]> workflow)
-        {
-            Session session = this._protocolEngine.GetSessionContext(workflow.SessionId);
-            if (session == null || session.ShouldIgnore())
+            Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
             {
                 return;
             }
             try
             {
-                float[] pcmData = await this._audioDecoder.DecodeAsync(workflow.Data, session.SessionCtsToken);
+                float[] pcmData = await this._audioDecoder.DecodeAsync(opusData, session.SessionCtsToken);
 
                 session.SessionCtsToken.ThrowIfCancellationRequested();
                 if (session.ListenMode != ListenMode.Manual)
@@ -118,7 +111,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
                     sessionContext.CloseAfterChat = true;
                     string prompt = "请你以“时间过得真快”为来头，用富有感情、依依不舍的话来结束这场对话吧。";
-                    this.OnNoVoiceCloseConnect.Invoke(sessionContext.ToWorkflow(prompt));
+                    this.OnNoVoiceCloseConnect?.Invoke(sessionContext.ToWorkflow(prompt));
                 }
             }
         }

@@ -1,21 +1,20 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Handlers;
-using XiaoZhi.Net.Server.Protocol;
 using XiaoZhi.Net.Server.Common.Dtos;
+using XiaoZhi.Net.Server.Handlers;
 
 namespace XiaoZhi.Net.Server.Management
 {
     internal class AdvancedManager : IAdvanced
     {
         private readonly DialogueHandler _dialogueHandler;
-        private readonly IProtocolEngine _protocolEngine;
+        private readonly SessionManager _sessionManager;
 
-        public AdvancedManager(DialogueHandler dialogueHandler, IProtocolEngine protocolEngine)
+        public AdvancedManager(DialogueHandler dialogueHandler, SessionManager sessionManager)
         {
             this._dialogueHandler = dialogueHandler;
-            this._protocolEngine = protocolEngine;
+            this._sessionManager = sessionManager;
         }
 
         public static void RegisterServices(IServiceCollection services, XiaoZhiConfig config)
@@ -25,7 +24,7 @@ namespace XiaoZhi.Net.Server.Management
 
         public IDictionary<string, SessionDevice> GetAllSessions()
         {
-            return this._protocolEngine.GetAllSessions();
+            return this._sessionManager.GetAllSessions();
         }
 
         public async Task SendCustomMessage(string sessionId, string content)

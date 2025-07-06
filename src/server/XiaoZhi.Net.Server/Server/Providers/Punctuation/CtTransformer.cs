@@ -14,6 +14,9 @@ namespace XiaoZhi.Net.Server.Providers.Punctuation
         public CtTransformer(XiaoZhiConfig config, ILogger logger) : base(config.PunctuationSetting, logger)
         {
         }
+        public CtTransformer(ModelSetting punctuationSetting, ILogger logger) : base(punctuationSetting, logger)
+        {
+        }
         public override string ProviderType => "punctuation";
 
         public override bool Build()
@@ -33,13 +36,12 @@ namespace XiaoZhi.Net.Server.Providers.Punctuation
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
-                this.Logger.Error("Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.Error(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
         }
 
-        public async Task<string> AppendPunctuationAsync( string message, CancellationToken token)
+        public async Task<string> AppendPunctuationAsync(string message, CancellationToken token)
         {
             if (this._offlinePunctuation == null)
             {
@@ -58,8 +60,7 @@ namespace XiaoZhi.Net.Server.Providers.Punctuation
             }
             catch (Exception ex)
             {
-                this.Logger.Debug(ex, "Unexpected error(s): {message}.", ex.Message);
-                this.Logger.Error("Unexpected error(s) for {providerType}.", this.ProviderType);
+                this.Logger.Error(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
                 return string.Empty;
             }
             finally

@@ -32,9 +32,7 @@ namespace XiaoZhi.Net.Server
         {
             IProtocolEngine protocolEngine = this._serviceProvider.GetRequiredService<IProtocolEngine>();
             ProviderManager providerManager = this._serviceProvider.GetRequiredService<ProviderManager>();
-            HandlerManager handlerManager = this._serviceProvider.GetRequiredService<HandlerManager>();
             providerManager.Dispose(this._serviceProvider);
-            handlerManager.Dispose(this._serviceProvider);
 
 
             await protocolEngine.StopAsync();
