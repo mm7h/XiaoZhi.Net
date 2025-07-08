@@ -4,6 +4,7 @@ using Microsoft.SemanticKernel.Connectors.OpenAI;
 using OpenAI;
 using OpenAI.Chat;
 using System.ClientModel;
+using System.Text;
 using System.Text.RegularExpressions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Test.Plugins;
@@ -43,12 +44,13 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 Temperature = 0.5f,
                 MaxTokens = 80,
                 ResponseFormat = ChatResponseFormat.CreateTextFormat(),
-                //FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(plugin)
+                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(plugin)
             };
 
 
             IChatCompletionService chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
 
+            #region ChatHistory
             ChatHistory chatHistory = new ChatHistory();
             chatHistory.AddUserMessage("我最近想去四川旅游，能推荐一些好玩的地方吗？");
             chatHistory.AddAssistantMessage("当然可以！四川有很多著名的旅游景点，比如成都的宽窄巷子、都江堰、乐山大佛、九寨沟和峨眉山等。你对自然风光还是历史文化更感兴趣呢？");
@@ -96,10 +98,29 @@ namespace XiaoZhi.Net.Test.OtherSamples
             chatHistory.AddAssistantMessage("青城山温泉、海螺沟温泉、峨眉山温泉都很有名。");
             chatHistory.AddUserMessage("四川有哪些适合徒步的地方？");
             chatHistory.AddAssistantMessage("稻城亚丁、四姑娘山、九寨沟等都是徒步爱好者的天堂。");
+            #endregion
 
-            var clientResult = await chatCompletionService.GetChatMessageContentAsync(chatHistory, chatCompletionOptions, kernel);
+
+            //FunctionResult summary = await kernel.InvokeAsync(
+            //    plugin["SummarizeConversation"], new() { ["input"] = ConvertChatTranscript(chatHistory) });
+
+            //Console.WriteLine("Generated Summary:");
+            //Console.WriteLine(summary.GetValue<string>());
+
+            var clientResult = await chatCompletionService.GetChatMessageContentAsync("Please summarize this conversation in Chinese below: " + ConvertChatTranscript(chatHistory), chatCompletionOptions, kernel);
             string result = MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(clientResult.Content), @"<think>.*?</think>", "", RegexOptions.Singleline));
+            Console.WriteLine("Generated Summary:");
             Console.WriteLine(result);
+        }
+
+        static string ConvertChatTranscript(ChatHistory chatHistory)
+        {
+            StringBuilder builder = new StringBuilder();
+            foreach (var item in chatHistory)
+            {
+                builder.AppendLine($"{item.Role}: {item.Content}");
+            }
+            return builder.ToString();
         }
     }
 }
