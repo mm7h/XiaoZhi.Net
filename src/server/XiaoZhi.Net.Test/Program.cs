@@ -9,7 +9,7 @@ namespace XiaoZhi.Net.Test
         static async Task Main(string[] args)
         {
             //await Sample01_LLMStreamResponse.Run();
-            await Sample05_ConversationSummary.Run();
+            await Sample06_MCPClient.Run();
 
             //ModelsInit();
         }
