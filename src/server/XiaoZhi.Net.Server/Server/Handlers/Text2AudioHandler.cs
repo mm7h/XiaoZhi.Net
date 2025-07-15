@@ -22,7 +22,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
 
         public override string HandlerName => nameof(Text2AudioHandler);
-        public ISendOutter SendOutter { get; set; } = null!;
+        public IBizSendOutter SendOutter { get; set; } = null!;
         public ChannelReader<Workflow<OutSegment>> PreviousReader { get; set; } = null!;
         public ChannelWriter<Workflow<float[]>> NextWriter { get; set; } = null!;
 

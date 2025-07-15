@@ -20,7 +20,7 @@ namespace XiaoZhi.Net.Server.Handlers
         }
 
         public override string HandlerName => nameof(AudioSendHandler);
-        public ISendOutter SendOutter { get; set; } = null!;
+        public IBizSendOutter SendOutter { get; set; } = null!;
         public ChannelReader<Workflow<float[]>> PreviousReader { get; set; } = null!;
 
         public async Task Handle()

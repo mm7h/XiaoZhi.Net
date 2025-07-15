@@ -4,6 +4,6 @@ namespace XiaoZhi.Net.Server.Handlers
 {
     internal interface IHandler
     {
-        ISendOutter SendOutter { get; set; }
+        IBizSendOutter SendOutter { get; set; }
     }
 }

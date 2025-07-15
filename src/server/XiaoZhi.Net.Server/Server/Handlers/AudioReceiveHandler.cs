@@ -23,7 +23,7 @@ namespace XiaoZhi.Net.Server.Handlers
         public event Action<Workflow<string>>? OnNoVoiceCloseConnect;
 
         public override string HandlerName => nameof(AudioReceiveHandler);
-        public ISendOutter SendOutter { get; set; } = null!;
+        public IBizSendOutter SendOutter { get; set; } = null!;
         public ChannelWriter<Workflow<CircularBuffer>> NextWriter { get; set; } = null!;
 
 

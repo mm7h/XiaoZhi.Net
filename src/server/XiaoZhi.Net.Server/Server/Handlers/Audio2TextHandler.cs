@@ -29,7 +29,7 @@ namespace XiaoZhi.Net.Server.Handlers
             this._frameSize = audioDecoder.FrameSize;
         }
         public override string HandlerName => nameof(Audio2TextHandler);
-        public ISendOutter SendOutter { get; set; } = null!;
+        public IBizSendOutter SendOutter { get; set; } = null!;
         public ChannelReader<Workflow<CircularBuffer>> PreviousReader { get; set; } = null!;
         public ChannelWriter<Workflow<string>> NextWriter { get; set; } = null!;
 

@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -19,7 +19,7 @@ namespace XiaoZhi.Net.Server.Helpers
         public static string ToJson(this object obj) => JsonSerializer.Serialize(obj, JsonHelper.OPTIONS);
         public static JsonNode? ToNode(this object obj) => obj is null ? null : JsonSerializer.SerializeToNode(obj, JsonHelper.OPTIONS);
         public static string Serialize(object obj) => JsonSerializer.Serialize(obj, JsonHelper.OPTIONS);
-
+        public static string Serialize(JsonObject obj) => obj.ToJsonString(JsonHelper.OPTIONS);
         public static T? Deserialize<T>(string json) where T : class
         {
             try
@@ -31,7 +31,6 @@ namespace XiaoZhi.Net.Server.Helpers
                 return null;
             }
         }
-
     }
 
     public class JsonSnakeCaseNamingPolicy : JsonNamingPolicy
@@ -40,10 +39,21 @@ namespace XiaoZhi.Net.Server.Helpers
 
         public override string ConvertName(string name)
         {
-            if (String.IsNullOrEmpty(name) || String.IsNullOrWhiteSpace(name)) return String.Empty;
+            if (string.IsNullOrEmpty(name) || string.IsNullOrWhiteSpace(name)) return string.Empty;
+
+
+            // 尝试获取属性的 JsonPropertyName 特性
+            var propertyInfo = GetPropertyInfo(name);
+            if (propertyInfo != null)
+            {
+                var jsonPropertyAttribute = propertyInfo.GetCustomAttribute<JsonPropertyNameAttribute>();
+                if (jsonPropertyAttribute != null)
+                {
+                    return jsonPropertyAttribute.Name;
+                }
+            }
 
             ReadOnlySpan<char> spanName = name.Trim();
-
             var stringBuilder = new StringBuilder();
             var addCharacter = true;
 
@@ -107,7 +117,37 @@ namespace XiaoZhi.Net.Server.Helpers
                     addCharacter = true;
             }
 
-            return stringBuilder.ToString().ToLower();
+            var result = stringBuilder.ToString().ToLower();
+            return result;
+        }
+
+        private PropertyInfo? GetPropertyInfo(string propertyName)
+        {
+            // 遍历当前加载的所有程序集
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                try
+                {
+                    foreach (var type in assembly.GetTypes())
+                    {
+                        var property = type.GetProperty(propertyName, 
+                            BindingFlags.Public | 
+                            BindingFlags.NonPublic | 
+                            BindingFlags.Instance);
+                        
+                        if (property != null)
+                        {
+                            return property;
+                        }
+                    }
+                }
+                catch
+                {
+                    // 忽略程序集加载错误
+                    continue;
+                }
+            }
+            return null;
         }
     }
 }

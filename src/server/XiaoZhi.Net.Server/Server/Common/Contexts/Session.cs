@@ -22,7 +22,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private bool _isCanceling = false;
         private DateTime _cancelCoolingTime = DateTime.Now;
 
-        public Session(string sessionId, string deviceId, string authToken, IPEndPoint userEndPoint, ISendOutter sendOutter)
+        public Session(string sessionId, string deviceId, string authToken, IPEndPoint userEndPoint, IBizSendOutter sendOutter)
         {
             this.SessionId = sessionId;
             this.DeviceId = deviceId;
@@ -49,7 +49,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public OpenAIPromptExecutionSettings ChatCompletionOptions { get; private set; }
         public CancellationToken SessionCtsToken => this._sessionCts.Token;
         public HandlerPipeline HandlerPipeline { get; }
-        public ISendOutter SendOutter { get; }
+        public IBizSendOutter SendOutter { get; }
         public ICollection<Dialogue> Dialogues { get; }
         public PrivateProvider? PrivateProvider { get; set; }
         public bool IsDeviceBinded { get; set; }

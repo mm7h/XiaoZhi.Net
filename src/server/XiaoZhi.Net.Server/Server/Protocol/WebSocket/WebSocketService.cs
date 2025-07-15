@@ -13,7 +13,7 @@ using XiaoZhi.Net.Server.Management;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket
 {
-    internal sealed class WebSocketService : WebSocketBehavior, ISendOutter
+    internal sealed class WebSocketService : WebSocketBehavior, IBizSendOutter
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly XiaoZhiConfig _config;

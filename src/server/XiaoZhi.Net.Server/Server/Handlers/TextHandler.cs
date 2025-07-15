@@ -17,7 +17,7 @@ namespace XiaoZhi.Net.Server.Handlers
         }
         public event Action<Session>? OnManualStop;
         public override string HandlerName => nameof(TextHandler);
-        public ISendOutter SendOutter { get; set; } = null!;
+        public IBizSendOutter SendOutter { get; set; } = null!;
         public ChannelWriter<Workflow<string>> NextWriter { get; set; } = null!;
 
         public async void Handle(string data)
@@ -96,6 +96,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     if (isSupportMCP)
                     {
                         session.IsSupportMCP = true;
+                        //todo: init mcp
                     }
                 }
             }

@@ -8,7 +8,7 @@ using WebSocketSharp.Server;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket
 {
-    internal sealed class WebSocketEngine : IProtocolEngine
+    internal sealed class WebSocketServerEngine : IProtocolEngine
     {
         private readonly WebSocketOption _webSocketOption;
         private readonly IServiceProvider _serviceProvider;
@@ -16,7 +16,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
         private string? _path;
         private WebSocketServer? _server;
 
-        public WebSocketEngine(WebSocketOption webSocketOption, IServiceProvider serviceProvider, ILogger logger)
+        public WebSocketServerEngine(WebSocketOption webSocketOption, IServiceProvider serviceProvider, ILogger logger)
         {
             this._webSocketOption = webSocketOption;
             this._serviceProvider = serviceProvider;

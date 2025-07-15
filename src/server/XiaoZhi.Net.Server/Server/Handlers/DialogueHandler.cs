@@ -31,7 +31,7 @@ namespace XiaoZhi.Net.Server.Handlers
         }
 
         public override string HandlerName => nameof(DialogueHandler);
-        public ISendOutter SendOutter { get; set; } = null!;
+        public IBizSendOutter SendOutter { get; set; } = null!;
         public ChannelReader<Workflow<string>> PreviousReader { get; set; } = null!;
         public ChannelWriter<Workflow<OutSegment>> NextWriter { get; set; } = null!;
 

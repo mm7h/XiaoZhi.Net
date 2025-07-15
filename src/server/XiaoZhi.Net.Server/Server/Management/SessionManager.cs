@@ -30,7 +30,7 @@ namespace XiaoZhi.Net.Server.Management
         {
             services.AddSingleton<SessionManager>();
         }
-        public Session CreateSession(string sessionId, string deviceId, string authToken, IPEndPoint endPoint, ISendOutter sendOutter)
+        public Session CreateSession(string sessionId, string deviceId, string authToken, IPEndPoint endPoint, IBizSendOutter sendOutter)
         {
             Session session = new Session(sessionId, deviceId, authToken, endPoint, sendOutter);
             session.HandlerPipeline.InitHandlerPipeline(this._serviceProvider, this._logger);

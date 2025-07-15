@@ -1,6 +1,7 @@
 ﻿using OpusSharp.Core;
 using Serilog;
 using System;
+using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -48,10 +49,12 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
             {
                 throw new ArgumentNullException("Please build opus provider first.");
             }
+            byte[]? byteData = null;
             try
             {
                 await this._encodesemaphoreSlim.WaitAsync(token);
-                var byteData = new byte[4000];
+
+                byteData = ArrayPool<byte>.Shared.Rent(4000);
                 int encodedLength = _encoder!.Encode(pcmData, pcmData.Length, byteData, byteData.Length);
 
                 byte[] opusBytes = new byte[encodedLength];
@@ -62,6 +65,10 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
             finally
             {
                 this._encodesemaphoreSlim.Release();
+                if (byteData != null)
+                {
+                    ArrayPool<byte>.Shared.Return(byteData);
+                }
             }
         }
 
