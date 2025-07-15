@@ -32,15 +32,17 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
                 return false;
             }
 
-
-
-            return true;
+            return this._webSocketClientEngine.Connect();
         }
 
 
         protected override Task SendMCPMessage<TMessage>(TMessage message)
         {
-            string json = message?.ToJson() ?? "{}";
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message), "Message cannot be null.");
+            }
+            string json = message.ToJson();
             return this._webSocketClientEngine.SendAsync(json);
         }
 
@@ -53,6 +55,8 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
             await this.SendMcpInitialize("XiaozhiMCPEndpointClient");
             await this.SendMcpNotification(NotificationMethods.InitializedNotification);
             await this.RequestToolsList();
+
+            this.Logger.Information("MCP Endpoint Client connected and initialized successfully.");
         }
 
         private void WebSocketClient_OnMessage(string data)

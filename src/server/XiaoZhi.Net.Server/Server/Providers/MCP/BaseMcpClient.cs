@@ -17,7 +17,6 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 {
     internal abstract class BaseMcpClient : BaseProvider
     {
-        private readonly Session _currentSession;
         private readonly SemaphoreSlim _lockerSlim = new SemaphoreSlim(1, 1);
 
         private bool _isReady = false;
@@ -30,7 +29,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
         public BaseMcpClient(Session session, ILogger logger) : base(logger)
         {
-            this._currentSession = session;
+            this.CurrentSession = session;
         }
         public ICollection<Tool> Tools => this._mcpTools.Values;
 
@@ -64,6 +63,8 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
         public int NextId => Interlocked.Increment(ref this._nextId);
 
+        protected Session CurrentSession { get; }
+
         public async Task HandleMcpMessage(JsonObject jsonObject)
         {
             if (jsonObject.TryGetPropertyValue("result", out var result) && result is not null)
@@ -72,7 +73,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
                 if (this._callResults.ContainsKey(msgId))
                 {
-                    this.Logger.Debug("Received MCP call result: {result} for message ID {msgId} from session {sessionId}.", result.ToJsonString(), msgId, this._currentSession.SessionId);
+                    this.Logger.Debug("Received MCP call result: {result} for message ID {msgId} from session {sessionId}.", result.ToJsonString(), msgId, this.CurrentSession.SessionId);
                     this.ResolveCallResult(msgId, result.AsObject());
                     return;
                 }
@@ -80,7 +81,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 if (msgId == 1)
                 {
                     // mcp initialize id
-                    this.Logger.Information("Received MCP Initialize message from client: {sessionId}.", this._currentSession.SessionId);
+                    this.Logger.Information("Received MCP Initialize message from client: {sessionId}.", this.CurrentSession.SessionId);
                     if (result.AsObject().TryGetPropertyValue("serverInfo", out var serverInfo) && serverInfo is not null)
                     {
                         string? name = serverInfo["name"]?.GetValue<string>();
@@ -100,7 +101,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 else if (msgId == 2)
                 {
                     // mcp tools list id
-                    this.Logger.Information("Received MCP Initialize message from client: {sessionId}.", this._currentSession.SessionId);
+                    this.Logger.Information("Received MCP Initialize message from client: {sessionId}.", this.CurrentSession.SessionId);
 
                     if (result is JsonObject resultObj && resultObj.TryGetPropertyValue("tools", out var toolsNode) && toolsNode is JsonArray toolsArray)
                     {
@@ -219,7 +220,9 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 Id = new RequestId(1),
                 Params = mcpClientOptions.ToNode()
             };
-            string json = request.ToJson();
+
+            this.Logger.Information("Session {sessionId} sending MCP Initialize request.", this.CurrentSession.SessionId);
+
             await this.SendMCPMessage(request);
         }
         protected virtual async Task SendMcpNotification(string method)
@@ -231,7 +234,6 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 Method = method,
                 Params = @params.ToNode()
             };
-            string json = request.ToJson();
             await this.SendMCPMessage(request);
         }
 
@@ -244,7 +246,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 Id = new RequestId(2)
             };
 
-            this.Logger.Debug("Session {SessionId} request tools list.", _currentSession.SessionId);
+            this.Logger.Debug("Session {SessionId} request tools list.", CurrentSession.SessionId);
 
             await this.SendMCPMessage(request);
         }
@@ -260,7 +262,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 Params = @params.ToNode()
             };
 
-            this.Logger.Debug("Session {SessionId} request tools list.", this._currentSession.SessionId);
+            this.Logger.Debug("Session {SessionId} request tools list with cursor: {cursor}.", this.CurrentSession.SessionId, cursor);
 
             await this.SendMCPMessage(request);
         }
@@ -419,7 +421,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                     Method = RequestMethods.ToolsCall,
                     Params = @params.ToNode()
                 };
-                this.Logger.Debug("Session {sessionId} call MCP tool: {toolName}, args: {args}", this._currentSession.SessionId, realToolName, args);
+                this.Logger.Debug("Session {sessionId} call MCP tool: {toolName}, args: {args}", this.CurrentSession.SessionId, realToolName, args);
                 await this.SendMCPMessage(request);
             }
 
@@ -436,7 +438,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 }
 
                 JsonObject rawResult = await resultTask;
-                this.Logger.Debug("Got the result of MCP tool call from the session {sessionId} successfully, result: {result}", this._currentSession.SessionId, rawResult.ToJsonString());
+                this.Logger.Debug("Got the result of MCP tool call from the session {sessionId} successfully, result: {result}", this.CurrentSession.SessionId, rawResult.ToJsonString());
 
                 if (rawResult.TryGetPropertyValue("isError", out var isErrorNode) && isErrorNode is not null && isErrorNode.GetValue<bool>())
                 {
