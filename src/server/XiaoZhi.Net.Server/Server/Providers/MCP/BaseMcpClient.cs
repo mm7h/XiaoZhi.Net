@@ -15,7 +15,7 @@ using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.MCP
 {
-    internal abstract class BaseMcpClient : BaseProvider
+    internal abstract class BaseMcpClient : BaseProvider, ISubMcpClient
     {
         private readonly SemaphoreSlim _lockerSlim = new SemaphoreSlim(1, 1);
 
@@ -27,7 +27,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
 
 
-        public BaseMcpClient(Session session, ILogger logger) : base(logger)
+        public BaseMcpClient(Session session, ModelSetting mcpSetting, ILogger logger) : base(mcpSetting, logger)
         {
             this.CurrentSession = session;
         }
@@ -65,7 +65,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
         protected Session CurrentSession { get; }
 
-        public async Task HandleMcpMessage(JsonObject jsonObject)
+        public async Task HandleMcpMessageAsync(JsonObject jsonObject)
         {
             if (jsonObject.TryGetPropertyValue("result", out var result) && result is not null)
             {
@@ -118,6 +118,8 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
                         foreach (var tool in tools)
                         {
+                            if (tool is null)
+                                continue;
                             var inputSchema = new JsonObject
                             {
                                 ["type"] = "object",
@@ -156,13 +158,14 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                             };
 
                             this.AddTool(newTool);
+                            this.Logger.Information("Tool added: {ToolName}", newTool.Name);
                         }
 
                         string nextCursor = resultObj["nextCursor"]?.GetValue<string>() ?? string.Empty;
                         if (!string.IsNullOrEmpty(nextCursor))
                         {
                             this.Logger.Information("Detected that there are more tools available, nextCursor: {nextCursor}", nextCursor);
-                            await this.RequestToolsList(nextCursor);
+                            await this.RequestToolsListAsync(nextCursor);
                         }
                         else
                         {
@@ -197,7 +200,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             }
         }
 
-        protected virtual async Task SendMcpInitialize(string clientName)
+        protected virtual async Task SendMcpInitializeAsync(string clientName)
         {
             McpClientOptions mcpClientOptions = new McpClientOptions
             {
@@ -223,9 +226,9 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
             this.Logger.Information("Session {sessionId} sending MCP Initialize request.", this.CurrentSession.SessionId);
 
-            await this.SendMCPMessage(request);
+            await this.SendMCPMessageAsync(request);
         }
-        protected virtual async Task SendMcpNotification(string method)
+        protected virtual async Task SendMcpNotificationAsync(string method)
         {
             var @params = new { };
             JsonRpcNotification request = new JsonRpcNotification
@@ -234,10 +237,13 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 Method = method,
                 Params = @params.ToNode()
             };
-            await this.SendMCPMessage(request);
+
+            this.Logger.Debug("Session {sessionId} sending MCP notification: {method}.", this.CurrentSession.SessionId, method);
+
+            await this.SendMCPMessageAsync(request);
         }
 
-        protected virtual async Task RequestToolsList()
+        protected virtual async Task RequestToolsListAsync()
         {
             JsonRpcRequest request = new JsonRpcRequest
             {
@@ -248,10 +254,10 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
             this.Logger.Debug("Session {SessionId} request tools list.", CurrentSession.SessionId);
 
-            await this.SendMCPMessage(request);
+            await this.SendMCPMessageAsync(request);
         }
 
-        protected virtual async Task RequestToolsList(string cursor)
+        protected virtual async Task RequestToolsListAsync(string cursor)
         {
             var @params = new { cursor };
             JsonRpcRequest request = new JsonRpcRequest
@@ -264,10 +270,10 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
             this.Logger.Debug("Session {SessionId} request tools list with cursor: {cursor}.", this.CurrentSession.SessionId, cursor);
 
-            await this.SendMCPMessage(request);
+            await this.SendMCPMessageAsync(request);
         }
 
-        protected abstract Task SendMCPMessage<TMessage>(TMessage message);
+        protected abstract Task SendMCPMessageAsync<TMessage>(TMessage message);
 
         protected void AddTool(Tool mcpTool)
         {
@@ -422,7 +428,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                     Params = @params.ToNode()
                 };
                 this.Logger.Debug("Session {sessionId} call MCP tool: {toolName}, args: {args}", this.CurrentSession.SessionId, realToolName, args);
-                await this.SendMCPMessage(request);
+                await this.SendMCPMessageAsync(request);
             }
 
             try
@@ -459,17 +465,15 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             }
             catch (TimeoutException timeoutException)
             {
+                this.CleanCallResults(toolCallId);
                 this.Logger.Error(timeoutException, "Timeout while waiting for MCP tool call response: {toolName}, args: {args}", toolName, args);
                 throw timeoutException;
             }
             catch (Exception e)
             {
+                this.CleanCallResults(toolCallId);
                 this.Logger.Error(e, "Failed to call MCP tool: {toolName}, args: {args}", toolName, args);
                 throw e;
-            }
-            finally
-            {
-                this.CleanCallResults(toolCallId);
             }
         }
         protected virtual Task<JsonObject> RegisterCallResultAsync(int id)

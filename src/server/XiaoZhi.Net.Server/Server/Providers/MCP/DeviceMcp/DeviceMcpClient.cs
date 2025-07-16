@@ -9,29 +9,33 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
 {
     internal class DeviceMcpClient : BaseMcpClient
     {
-        public DeviceMcpClient(Session session, ILogger logger) : base(session, logger)
-        {
+        private readonly string? visionUrl;
+        private readonly string? visionToken;
 
+        public DeviceMcpClient(Session session, ModelSetting mcpSetting, ILogger logger) : base(session, mcpSetting, logger)
+        {
+            this.visionUrl = this.ModelSetting?.Config?.VisionUrl;
+            this.visionToken = this.ModelSetting?.Config?.VisionToken;
         }
 
-        public override string ProviderType => "device mcp";
+        public override string ProviderType => "device_mcp";
 
         public override bool Build()
         {
             return true;
         }
 
-        protected override Task SendMcpInitialize(string clientName)
+        protected override Task SendMcpInitializeAsync(string clientName)
         {
             if (string.IsNullOrEmpty(clientName))
             {
                 clientName = "DeviceMcpClient";
             }
 
-            var vision = new 
+            var vision = new
             {
-                Url = "",
-                Token = ""
+                Url = this.visionUrl ?? "",
+                Token = this.visionToken ?? ""
             };
 
             var @params = new
@@ -39,14 +43,14 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
                 ProtocolVersion = "2024-11-05",
                 Capabilities = new
                 {
-                    Roots = new 
+                    Roots = new
                     {
                         ListChanged = true
                     },
                     Sampling = new { },
                     Vision = vision
                 },
-                clientInfo = new 
+                clientInfo = new
                 {
                     Name = clientName,
                     Version = "1.0.0"
@@ -61,10 +65,10 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
                 Params = @params.ToNode()
             };
             this.Logger.Information("Session {sessionId} sending MCP Initialize request.", this.CurrentSession.SessionId);
-            return this.SendMCPMessage(request);
+            return this.SendMCPMessageAsync(request);
         }
 
-        protected override Task SendMCPMessage<TMessage>(TMessage message)
+        protected override Task SendMCPMessageAsync<TMessage>(TMessage message)
         {
             if (message == null)
             {
