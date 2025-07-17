@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\XiaoZhi.Net.Server\XiaoZhi.Net.Server.csproj" />
+    <ProjectReference Include="..\..\src\server\XiaoZhi.Net.Server\XiaoZhi.Net.Server.csproj" />
   </ItemGroup>
 
 </Project>

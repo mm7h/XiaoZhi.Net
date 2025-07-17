@@ -1,4 +1,5 @@
-﻿using ModelContextProtocol.Client;
+﻿using Microsoft.SemanticKernel;
+using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Serilog;
 using System;
@@ -126,6 +127,9 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                                 ["properties"] = new JsonObject(),
                                 ["required"] = new JsonArray()
                             };
+
+                            PromptTemplateConfig promptTemplateConfig = new PromptTemplateConfig();
+
 
                             if (tool.InputSchema.ValueKind == JsonValueKind.Object)
                             {
@@ -514,5 +518,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
         {
             return Regex.Replace(name, @"[^a-zA-Z0-9_\\-\u4e00-\u9fff]", "_");
         }
+
+        
     }
 }

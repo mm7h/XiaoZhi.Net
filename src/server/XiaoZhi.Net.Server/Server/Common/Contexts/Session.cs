@@ -56,7 +56,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public string? BindCode { get; set; }
         public DateTime LastActivityTime { get; private set; }
         public bool IsSupportMCP { get; set; }
-        public MCPClient2Xiaozhi MCPClient { get; private set; }
+        //public MCPClient2Xiaozhi MCPClient { get; private set; }
         public bool CloseAfterChat { get; set; }
 
         public bool IsIdle => Volatile.Read(ref _isAudioProcessing) == 1;

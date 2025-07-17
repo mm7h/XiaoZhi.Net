@@ -6,5 +6,6 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 {
     internal class McpClient
     {
+
     }
 }
