@@ -16,7 +16,7 @@ namespace XiaoZhi.Net.Server
         public int? CloseConnectionNoVoiceTime { get; set; }
         public bool AuthEnabled { get; set; }
         public LogSetting LogSetting { get; set; } = new LogSetting();
-        public WebSocketOption WebSocketOption { get; set; } = new WebSocketOption();
+        public WebSocketServerOption WebSocketServerOption { get; set; } = new WebSocketServerOption();
         public DeviceBindSetting DeviceBindSetting { get; set; } = new DeviceBindSetting();
         public AudioSetting AudioSetting { get; set; } = null!;
         public ModelSetting VadSetting { get; set; } = null!;
@@ -41,7 +41,7 @@ namespace XiaoZhi.Net.Server
     #endregion
 
     #region WebSocketSetting
-    public sealed class WebSocketOption
+    public sealed class WebSocketServerOption
     {
         public string Url { get; set; } = "ws://0.0.0.0:4530";
         public string Path { get; set; } = "/xiaozhi/v1/";

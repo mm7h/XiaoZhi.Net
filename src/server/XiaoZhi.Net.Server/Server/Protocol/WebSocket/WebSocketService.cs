@@ -197,7 +197,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
             {
                 if (e.IsBinary)
                 {
-                    this._currentSession.HandlerPipeline.HandleBinaryMessage(e.RawData);
+                    _ = this._currentSession.HandlerPipeline.HandleBinaryMessage(e.RawData);
                 }
                 else if (e.IsText)
                 {

@@ -22,7 +22,7 @@ namespace XiaoZhi.Net.Server.Management
         {
             if (config.ServerProtocol == ServerProtocol.WebSocket)
             {
-                services.AddSingleton(config.WebSocketOption);
+                services.AddSingleton(config.WebSocketServerOption);
                 services.AddSingleton<IProtocolEngine, WebSocketServerEngine>();
             }
             else

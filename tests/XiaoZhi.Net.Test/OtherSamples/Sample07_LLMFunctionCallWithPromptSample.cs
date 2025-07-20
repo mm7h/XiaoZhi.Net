@@ -2,6 +2,7 @@
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using ModelContextProtocol.Client;
 using OpenAI.Chat;
 using System.ClientModel;
 
@@ -27,7 +28,26 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 services.AddOpenAIChatCompletion(chatModel, new Uri(endPoint), apiKey, orgId: "Xiao Zhi");
 
                 var kernel = kernelBuilder.Build();
+                var (command, arguments) = GetCommandAndArguments();
 
+                var clientTransport = new StdioClientTransport(new()
+                {
+                    Name = "Demo Server",
+                    Command = command,
+                    Arguments = arguments,
+                });
+
+                await using var mcpClient = await McpClientFactory.CreateAsync(clientTransport);
+
+                var tools = await mcpClient.ListToolsAsync();
+                foreach (var tool in tools)
+                {
+                    Console.WriteLine($"Connected to server with tools: {tool.Name}");
+                }
+#pragma warning disable SKEXP0001 // 类型仅用于评估，在将来的更新中可能会被更改或删除。取消此诊断以继续。
+                var functions = tools.Select(aiFunction => aiFunction.AsKernelFunction()).ToList();
+#pragma warning restore SKEXP0001 // 类型仅用于评估，在将来的更新中可能会被更改或删除。取消此诊断以继续。
+               // kernel.Plugins.AddFromFunctions("Tools", functions);
                 //PromptTemplateConfig promptTemplateConfig = new PromptTemplateConfig("You are a helpful assistant. Answer the question using the provided tools.\n\nQuestion: {question}\n\nTools:\n{tools}\n\nAnswer: {answer}");
                 //PromptTemplateConfig promptTemplateConfig = new PromptTemplateConfig("")
                 //{
@@ -59,7 +79,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     }
                 };
                 var openUrlFunction = KernelFunctionFactory.CreateFromMethod(openUrlMethod,
-                       functionName: "OpenUrl",
+                       functionName: "open_url",
                        description: "打开网站",
                        parameters: parameters,
                        returnParameter: new KernelReturnParameterMetadata
@@ -74,8 +94,8 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 {
                     Temperature = 0.5f,
                     MaxTokens = 80,
-                    ResponseFormat = ChatResponseFormat.CreateTextFormat(),
-                    FunctionChoiceBehavior = FunctionChoiceBehavior.Required(new List<KernelFunction> { openUrlFunction })
+                    //ResponseFormat = ChatResponseFormat.CreateTextFormat(),
+                    FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
                 };
 
                 IChatCompletionService chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
@@ -104,9 +124,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
             }
         }
 
-        static void Test(string toolName, Dictionary<string, object> args, int timeout)
+        static (string command, string[] arguments) GetCommandAndArguments()
         {
-
+            return ("dotnet", ["run", "--project", Path.Combine("D:\\MyDotNet\\XiaoZhi AI\\model context protocol 0.3.0\\samples\\QuickstartClient\\../QuickstartWeatherServer")]);
         }
     }
 }

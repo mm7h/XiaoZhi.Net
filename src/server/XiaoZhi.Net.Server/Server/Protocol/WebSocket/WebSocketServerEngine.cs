@@ -10,13 +10,13 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
 {
     internal sealed class WebSocketServerEngine : IProtocolEngine
     {
-        private readonly WebSocketOption _webSocketOption;
+        private readonly WebSocketServerOption _webSocketOption;
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger _logger;
         private string? _path;
         private WebSocketServer? _server;
 
-        public WebSocketServerEngine(WebSocketOption webSocketOption, IServiceProvider serviceProvider, ILogger logger)
+        public WebSocketServerEngine(WebSocketServerOption webSocketOption, IServiceProvider serviceProvider, ILogger logger)
         {
             this._webSocketOption = webSocketOption;
             this._serviceProvider = serviceProvider;
