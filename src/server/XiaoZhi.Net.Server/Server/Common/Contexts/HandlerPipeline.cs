@@ -173,7 +173,8 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             Channel<Workflow<T>> channel = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous.NextWriter = channel.Writer;
             next.PreviousReader = channel.Reader;
-            _ = Task.Run(() => next.Handle());
+
+            _ = Task.Factory.StartNew(() => next.Handle(), TaskCreationOptions.LongRunning);
             this._logger?.Debug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
         }
 

@@ -16,6 +16,8 @@ namespace XiaoZhi.Net.Server.Providers.VAD
         private int? _sampleRate;
         private int? _silenceThresholdMs;
 
+        private const int REQUIRED_VOICE_FRAMES = 3;
+
         private readonly SemaphoreSlim _vadConvertSlim = new SemaphoreSlim(1, 1);
 
         public Silero(XiaoZhiConfig config, ILogger logger) : this(config.VadSetting, logger)
@@ -67,7 +69,8 @@ namespace XiaoZhi.Net.Server.Providers.VAD
 
                 this._vad.Clear();
 
-                bool client_have_voice = false;
+                bool clientHaveVoice = false;
+                int voiceFrameCount = 0;
 
                 while (sessionContext.AudioPacketContext.VadPacket.GetFrames(this.FrameSize, out float[] chunk))
                 {
@@ -77,31 +80,25 @@ namespace XiaoZhi.Net.Server.Providers.VAD
                         continue;
                     }
                     this._vad.AcceptWaveform(chunk);
-                    if (this._vad.IsSpeechDetected() && !this._vad.IsEmpty())
+                    bool is_voice = this._vad.IsSpeechDetected();
+                    if (is_voice)
                     {
-                        client_have_voice = true;
+                        voiceFrameCount++;
                     }
                     else
                     {
-                        client_have_voice = false;
-                    }
-                    this._vad.Flush();
-                    if (!this._vad.IsEmpty())
-                    {
-                        client_have_voice = true;
-                    }
-                    else
-                    {
-                        client_have_voice = false;
+                        voiceFrameCount = 0;
                     }
 
-                    if (sessionContext.VadStatusContext.HaveVoice && !client_have_voice)
+                    clientHaveVoice = voiceFrameCount >= REQUIRED_VOICE_FRAMES;
+
+                    if (sessionContext.VadStatusContext.HaveVoice && !clientHaveVoice)
                     {
                         long stopDuration = DateTimeOffset.Now.ToUnixTimeMilliseconds() - sessionContext.VadStatusContext.HaveVoiceLatestTime;
                         if (stopDuration > this._silenceThresholdMs)
                         {
 #if DEBUG
-                            this.Logger.Debug("The voice is stopped, let's start the ASR.");
+                            this.Logger.Debug("The voice is stopped.");
 #endif
                             sessionContext.VadStatusContext.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
                             sessionContext.VadStatusContext.VoiceStop = true;
@@ -109,7 +106,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD
                         }
                     }
 
-                    if (client_have_voice)
+                    if (clientHaveVoice)
                     {
                         sessionContext.VadStatusContext.HaveVoice = true;
                         sessionContext.VadStatusContext.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
@@ -118,7 +115,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD
 
                 this._vad.Flush();
 
-                return client_have_voice;
+                return clientHaveVoice;
             }
             catch (OperationCanceledException ex)
             {

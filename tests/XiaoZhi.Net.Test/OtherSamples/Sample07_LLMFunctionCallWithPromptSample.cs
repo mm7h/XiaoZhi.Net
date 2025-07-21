@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Flurl;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
@@ -44,28 +45,14 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 {
                     Console.WriteLine($"Connected to server with tools: {tool.Name}");
                 }
-#pragma warning disable SKEXP0001 // 类型仅用于评估，在将来的更新中可能会被更改或删除。取消此诊断以继续。
+#pragma warning disable SKEXP0001
                 var functions = tools.Select(aiFunction => aiFunction.AsKernelFunction()).ToList();
-#pragma warning restore SKEXP0001 // 类型仅用于评估，在将来的更新中可能会被更改或删除。取消此诊断以继续。
+#pragma warning restore SKEXP0001
                // kernel.Plugins.AddFromFunctions("Tools", functions);
-                //PromptTemplateConfig promptTemplateConfig = new PromptTemplateConfig("You are a helpful assistant. Answer the question using the provided tools.\n\nQuestion: {question}\n\nTools:\n{tools}\n\nAnswer: {answer}");
-                //PromptTemplateConfig promptTemplateConfig = new PromptTemplateConfig("")
-                //{
-                //    Name = "OpenUrl",
-                //    Description = "打开网站",
-                //    InputVariables = new List<InputVariable>
-                //    {
-                //        new InputVariable
-                //        {
-                //            Name = "url",
-                //            IsRequired = true,
-                //            JsonSchema = "{\"type\":\"string\",\"format\":\"uri\"}"
-                //        }
-                //    },
-                //};
-                Func<string, Task<string>> openUrlMethod = (uri) =>
+
+                Func<string, Task<string>> openUrlMethod = (url) =>
                 {
-                    Console.WriteLine("function调用：" + uri);
+                    Console.WriteLine("function调用：" + url);
                     return Task.FromResult("打开网站成功");
                 };
 
@@ -75,7 +62,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         Description = "要打开的网址",
                         IsRequired = true,
-                        Schema = KernelJsonSchema.Parse("{\"type\":\"string\",\"format\":\"uri\"}")
+                        ParameterType = typeof(string)
                     }
                 };
                 var openUrlFunction = KernelFunctionFactory.CreateFromMethod(openUrlMethod,
@@ -84,7 +71,8 @@ namespace XiaoZhi.Net.Test.OtherSamples
                        parameters: parameters,
                        returnParameter: new KernelReturnParameterMetadata
                        {
-                           Description = "打开网站的结果"
+                           Description = "打开网站的结果",
+                           ParameterType = typeof(string)
                        }
                 );
 
@@ -126,7 +114,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
         static (string command, string[] arguments) GetCommandAndArguments()
         {
-            return ("dotnet", ["run", "--project", Path.Combine("D:\\MyDotNet\\XiaoZhi AI\\model context protocol 0.3.0\\samples\\QuickstartClient\\../QuickstartWeatherServer")]);
+            return ("dotnet", ["run", "--project", Path.Combine("C:\\Visual_D_Drive\\Projects\\Github\\csharp-sdk-0.3.0-preview.2\\samples\\QuickstartWeatherServer\\../QuickstartWeatherServer")]);
         }
     }
 }
