@@ -102,11 +102,13 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
         static void InitCustomFunctions(Kernel kernel)
         {
-            Func<string, Task<string>> openUrlMethod = (url) =>
-            {
-                Console.WriteLine("function调用：" + url);
-                return Task.FromResult("打开网站成功");
-            };
+            //Func<string, Task<string>> openUrlMethod = (url) =>
+            //{
+            //    Console.WriteLine("function调用：" + url);
+            //    return Task.FromResult("打开网站成功");
+            //};
+
+            Action tempMethod = () => { };
 
             var parameters = new List<KernelParameterMetadata>
                 {
@@ -136,7 +138,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 AdditionalMetadata = new ReadOnlyDictionary<string, object?>(additionalMetadataDic)
             };
 
-            var openUrlFunction = KernelFunctionFactory.CreateFromMethod(openUrlMethod, openUrlFunctionOptions);
+            var openUrlFunction = KernelFunctionFactory.CreateFromMethod(tempMethod, openUrlFunctionOptions);
 
             var deviceMcpPlugins = kernel.ImportPluginFromFunctions("DeviceMcpFunctions", new List<KernelFunction> { openUrlFunction });
         }
