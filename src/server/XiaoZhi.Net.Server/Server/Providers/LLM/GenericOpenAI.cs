@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
@@ -19,15 +20,15 @@ namespace XiaoZhi.Net.Server.Providers.LLM
     internal sealed class GenericOpenAI : BaseProvider, ILlm
     {
         private readonly SemaphoreSlim _llmSlim = new SemaphoreSlim(1, 1);
-        private readonly Kernel _kernel;
+        private readonly IServiceProvider _serviceProvider;
         private OpenAIPromptExecutionSettings _chatCompletionOptions;
 
-        public GenericOpenAI(Kernel kernel, XiaoZhiConfig config, ILogger<GenericOpenAI> logger) : this(kernel, config.LlmSettings.First(), logger)
+        public GenericOpenAI(IServiceProvider serviceProvider, XiaoZhiConfig config, ILogger<GenericOpenAI> logger) : this(serviceProvider, config.LlmSettings.First(), logger)
         {
         }
-        public GenericOpenAI(Kernel kernel, ModelSetting llmSetting, ILogger logger) : base(llmSetting, logger)
+        public GenericOpenAI(IServiceProvider serviceProvider, ModelSetting llmSetting, ILogger logger) : base(llmSetting, logger)
         {
-            this._kernel = kernel;
+            this._serviceProvider = serviceProvider;
             this._chatCompletionOptions = new OpenAIPromptExecutionSettings
             {
                 Temperature = 0.5f,
@@ -59,10 +60,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
         public async Task ChatAsync(Workflow<DialogueContext> workflow, CancellationToken token)
         {
-            if (this._kernel == null)
-            {
-                throw new ArgumentNullException("Please build llm provider first.");
-            }
             try
             {
                 await this._llmSlim.WaitAsync(token);
@@ -73,15 +70,15 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
                 if (!string.IsNullOrEmpty(workflow.Data.LlmModelName))
                 {
-                    chatCompletionService = this._kernel.GetRequiredService<IChatCompletionService>(workflow.Data.LlmModelName);
+                    chatCompletionService = this._serviceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{workflow.Data.LlmModelName}");
                 }
                 else
                 {
-                    chatCompletionService = this._kernel.GetRequiredService<IChatCompletionService>(SystemLLMServiceNames.GENERIC_LLM_ID);
+                    chatCompletionService = this._serviceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{SystemLLMServiceNames.GENERIC_LLM_ID}");
                 }
 
 
-                var clientResult = await chatCompletionService.GetChatMessageContentAsync(chatHistory, this._chatCompletionOptions, this._kernel, token);
+                var clientResult = await chatCompletionService.GetChatMessageContentAsync(chatHistory, this._chatCompletionOptions, workflow.Data.Kernel, token);
 
                 this.OnTokenGenerated?.Invoke(workflow.SessionId, MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(clientResult.Content), @"<think>.*?</think>", "", RegexOptions.Singleline)));
             }
@@ -102,22 +99,27 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
         public async Task ChatByStreamingAsync(Workflow<DialogueContext> workflow, CancellationToken token)
         {
-            if (this._kernel == null)
-            {
-                throw new ArgumentNullException("Please build llm provider first.");
-            }
             try
             {
                 await this._llmSlim.WaitAsync(token);
                 this.OnBeforeTokenGenerate?.Invoke(workflow.SessionId);
 
                 ChatHistory chatHistory = workflow.Data.Dialogues.Convert2ChatMessages();
-                IChatCompletionService chatCompletionService = this._kernel.GetRequiredService<IChatCompletionService>(SystemLLMServiceNames.GENERIC_LLM_ID);
+
+                IChatCompletionService chatCompletionService;
+                if (!string.IsNullOrEmpty(workflow.Data.LlmModelName))
+                {
+                    chatCompletionService = this._serviceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{workflow.Data.LlmModelName}");
+                }
+                else
+                {
+                    chatCompletionService = this._serviceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{SystemLLMServiceNames.GENERIC_LLM_ID}");
+                }
 
                 StringBuilder segmentResponse = new StringBuilder();
                 List<OutSegment> allResponse = new List<OutSegment>();
 
-                await foreach (var item in chatCompletionService.GetStreamingChatMessageContentsAsync(chatHistory, this._chatCompletionOptions, this._kernel, token))
+                await foreach (var item in chatCompletionService.GetStreamingChatMessageContentsAsync(chatHistory, this._chatCompletionOptions, workflow.Data.Kernel, token))
                 {
                     string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(item.Content) ?? string.Empty);
                     segmentResponse.Append(text);

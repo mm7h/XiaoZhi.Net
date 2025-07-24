@@ -9,14 +9,14 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Protocol;
-using XiaoZhi.Net.Server.Providers.MCP;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {
     internal sealed class Session
     {
         private int _isAudioProcessing;
-        private CancellationTokenSource _sessionCts;
+        private CancellationTokenSource _sessionCts = null!;
+        private Kernel? _kernel;
 
         private readonly object _lock = new object();
         private bool _isCanceling = false;
@@ -46,10 +46,10 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public AudioPacket AudioPacketContext { get; }
         public VadStatus VadStatusContext { get; }
         public SentenceTimeAxis SentenceTimeAxisContext { get; }
-        public OpenAIPromptExecutionSettings ChatCompletionOptions { get; private set; }
         public CancellationToken SessionCtsToken => this._sessionCts.Token;
         public HandlerPipeline HandlerPipeline { get; }
         public IBizSendOutter SendOutter { get; }
+        public Kernel Kernel => this._kernel ?? throw new InvalidOperationException("Kernel is not set. Please set the kernel before using the session.");
         public ICollection<Dialogue> Dialogues { get; }
         public PrivateProvider? PrivateProvider { get; set; }
         public bool IsDeviceBinded { get; set; }
@@ -69,15 +69,9 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             }
         }
 
-        public void SetChatCompletionOption(IEnumerable<KernelFunction> functions)
+        public void SetKernel(Kernel kernel)
         {
-            this.ChatCompletionOptions = new OpenAIPromptExecutionSettings
-            {
-                Temperature = 0.5f,
-                MaxTokens = 80,
-                ResponseFormat = ChatResponseFormat.CreateTextFormat(),
-                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(functions)
-            };
+            this._kernel = kernel;
         }
 
         public void SetListenMode(string mode)

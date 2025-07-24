@@ -54,7 +54,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 using (CodeTimer timer = CodeTimer.Create("Calling the LLM takes {elapsed:F2} ms.", this.Logger))
                 {
-                    DialogueContext dialogueContext = new DialogueContext(session.SessionId, session.PrivateProvider?.LlmModelName, session.Dialogues);
+                    DialogueContext dialogueContext = new DialogueContext(session.SessionId, session.Kernel, session.PrivateProvider?.LlmModelName, session.Dialogues);
                     Workflow<DialogueContext> nextWorkflow = workflow.NextFlow(dialogueContext);
 
                     bool useStreaming = (session.PrivateProvider is not null && session.PrivateProvider.UseStreaming) || this._useStreaming;

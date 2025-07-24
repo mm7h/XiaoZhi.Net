@@ -1,10 +1,12 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.SemanticKernel;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using WebSocketSharp;
 using WebSocketSharp.Server;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Common.Exceptions;
@@ -59,7 +61,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
         {
             if (this._currentSession is null)
             {
-                this._logger.Error("Cannot send TTS message, current session has not been initialized yet.");
+                this._logger.LogError("Cannot send TTS message, current session has not been initialized yet.");
                 return Task.FromException(new SessionNotInitializedException());
             }
             var msg = new Dictionary<string, string>
@@ -86,7 +88,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
         {
             if (this._currentSession is null)
             {
-                this._logger.Error("Cannot send STT message, current session has not been initialized yet.");
+                this._logger.LogError("Cannot send STT message, current session has not been initialized yet.");
                 return Task.FromException(new SessionNotInitializedException());
             }
             var msg = new
@@ -101,7 +103,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
         {
             if (this._currentSession is null)
             {
-                this._logger.Error("Cannot send LLM message, current session has not been initialized yet.");
+                this._logger.LogError("Cannot send LLM message, current session has not been initialized yet.");
                 return Task.FromException(new SessionNotInitializedException());
             }
             var emo = new
@@ -117,7 +119,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
         {
             if (this._currentSession is null)
             {
-                this._logger.Error("Cannot send LLM message, current session has not been initialized yet.");
+                this._logger.LogError("Cannot send LLM message, current session has not been initialized yet.");
                 return Task.FromException(new SessionNotInitializedException());
             }
             var abortMessage = new
@@ -167,27 +169,27 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
                     {
                         this._currentSession = this._sessionManager.CreateSession(this.ID, deviceId, authToken, this.Context.UserEndPoint, this);
 
-                        _ = this._providerManager.InitializePrivateConfig(this._currentSession);
+                        this._providerManager.InitializePrivateConfig(this._currentSession).ConfigureAwait(false);
 
                         this._currentSession.RefreshLastActivityTime();
 
                         this._sessionManager.AddSession(this._currentSession.SessionId, this._currentSession);
-                        this._logger.Information("New device: {deviceId} with ip {ip} connected", deviceId, ip);
+                        this._logger.LogInformation("New device: {deviceId} with ip {ip} connected", deviceId, ip);
                     }
                     else
                     {
-                        this._logger.Error("The device {deviceId} from ip: {ip} authentication failed.", deviceId, ip);
+                        this._logger.LogError("The device {deviceId} from ip: {ip} authentication failed.", deviceId, ip);
                         this.Context.WebSocket.Close(CloseStatusCode.Normal, "Authentication failed");
                     }
                 }
                 else
                 {
-                    this._logger.Error("Cannot get the device id from ip: {ip} authentication failed.", ip);
+                    this._logger.LogError("Cannot get the device id from ip: {ip} authentication failed.", ip);
                 }
             }
             catch (Exception ex)
             {
-                this._logger.Error(ex, "Failed to process the connection from ip: {ip}.", ip);
+                this._logger.LogError(ex, "Failed to process the connection from ip: {ip}.", ip);
             }
         }
 
@@ -209,27 +211,25 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
                 }
                 else
                 {
-                    this._logger.Warning("Received message from uninitialized session. Message: {message}", e.Data);
+                    this._logger.LogWarning("Received message from uninitialized session. Message: {message}", e.Data);
                 }
             }
             else
             {
-                this._logger.Warning("The session has not been initialized yet.");
+                this._logger.LogWarning("The session has not been initialized yet.");
             }
         }
 
-        protected override async void OnClose(CloseEventArgs e)
+        protected override void OnClose(CloseEventArgs e)
         {
             if (this._currentSession is not null)
             {
-                await this._providerManager.SaveMemoryAsync(this._currentSession);
+                this._providerManager.SaveMemoryAsync(this._currentSession).ConfigureAwait(false);
 
                 this._currentSession.Release();
                 this._sessionManager.RemoveSession(this._currentSession.SessionId);
 
-                //todo: save the mermory
-
-                this._logger.Debug("Client offline, device id: {deviceId} and session id: {sessionId}.", this._currentSession.DeviceId, this._currentSession.SessionId);
+                this._logger.LogDebug("Client offline, device id: {deviceId} and session id: {sessionId}.", this._currentSession.DeviceId, this._currentSession.SessionId);
             }
         }
     }

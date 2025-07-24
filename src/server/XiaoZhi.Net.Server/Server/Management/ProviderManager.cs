@@ -26,6 +26,8 @@ namespace XiaoZhi.Net.Server.Management
     internal sealed class ProviderManager
     {
         private readonly ManageApiClient _manageApiClient;
+        private readonly Kernel _globalKernel;
+        private readonly XiaoZhiConfig _config;
         private readonly ILogger<ProviderManager> _logger;
 
         private const string GLOBAL_AUDIO_DECODER = "GlobalAudioDecoder";
@@ -38,9 +40,11 @@ namespace XiaoZhi.Net.Server.Management
         private const string GLOBAL_AUDIO_ENCODER = "GlobalAudioEncoder";
 
 
-        public ProviderManager(ManageApiClient manageApiClient, ILogger<ProviderManager> logger)
+        public ProviderManager(ManageApiClient manageApiClient, Kernel _globalKernel, XiaoZhiConfig config,ILogger<ProviderManager> logger)
         {
             this._manageApiClient = manageApiClient;
+            this._globalKernel = _globalKernel;
+            this._config = config;
             this._logger = logger;
         }
 
@@ -114,6 +118,9 @@ namespace XiaoZhi.Net.Server.Management
                     this._logger.LogInformation("Private ASR {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.AsrSetting.ModelName, session.DeviceId, session.SessionId);
                 }
 
+                Kernel privateKernel = this._globalKernel.Clone();
+                session.SetKernel(privateKernel);
+
                 if (privateModelsConfig.LlmSetting is not null)
                 {
                     privateProvider.InitializeLlm(privateModelsConfig.Prompt, privateModelsConfig.UseStreaming, privateModelsConfig.SummaryMemory, privateModelsConfig.LlmModelName);
@@ -122,6 +129,11 @@ namespace XiaoZhi.Net.Server.Management
                     {
                         session.Dialogues.Clear();
                         Dialogue initDialogue = new Dialogue(session.DeviceId, session.SessionId, AuthorRole.System, privateModelsConfig.Prompt);
+                        session.Dialogues.Add(initDialogue);
+                    }
+                    else
+                    {
+                        Dialogue initDialogue = new Dialogue(session.DeviceId, session.SessionId, AuthorRole.System, this._config.Prompt);
                         session.Dialogues.Add(initDialogue);
                     }
 
@@ -264,23 +276,36 @@ namespace XiaoZhi.Net.Server.Management
 
         private static void RegisterLlm(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            ModelSetting llmSetting = config.LlmSettings.First();
-            string endPoint = llmSetting.Config.BaseUrl;
-            string apiKey = llmSetting.Config.ApiKey;
-            string modelId = llmSetting.Config.ModelName;
 
-            switch (llmSetting.ModelName.ToLower())
+            int index = 0;
+            foreach (var llmSetting in config.LlmSettings)
             {
-                case "qwen":
-                case "doubao":
-                case "deepseek":
-                case "chatglm":
-                    services.AddOpenAIChatCompletion(modelId, new Uri(endPoint), apiKey, orgId: "Xiao Zhi", SystemLLMServiceNames.GENERIC_LLM_ID);
-                    services.AddKeyedSingleton<ILlm, GenericOpenAI>(key);
-                    break;
-                default:
-                    throw new ModelBuildException("Invalid llm model.");
+                string endPoint = llmSetting.Config.BaseUrl;
+                string apiKey = llmSetting.Config.ApiKey;
+                string modelId = llmSetting.Config.ModelName;
+
+                switch (llmSetting.ModelName.ToLower())
+                {
+                    case "qwen":
+                    case "doubao":
+                    case "deepseek":
+                    case "chatglm":
+                        services.AddOpenAIChatCompletion(modelId, new Uri(endPoint), apiKey, orgId: "Xiao Zhi", $"LLM_{llmSetting.ModelName}");
+                        break;
+                    default:
+                        throw new ModelBuildException("Invalid llm model.");
+                }
+
+                if (index == 0)
+                {
+                    services.AddOpenAIChatCompletion(modelId, new Uri(endPoint), apiKey, orgId: "Xiao Zhi", $"LLM_{SystemLLMServiceNames.GENERIC_LLM_ID}");
+                }
+
+                index++;
             }
+
+
+            services.AddKeyedSingleton<ILlm, GenericOpenAI>(key);
         }
 
         private static void RegisterMemory(IServiceCollection services, XiaoZhiConfig config, string key)

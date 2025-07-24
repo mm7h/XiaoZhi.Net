@@ -31,12 +31,12 @@ namespace XiaoZhi.Net.Server.Providers.Punctuation
                 config.Model.CtTransformer = Path.Combine(this.ModelFileFoler, "model.onnx");
 
                 this._offlinePunctuation = new OfflinePunctuation(config);
-                this.Logger.Information("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.Error(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
         }
@@ -55,12 +55,12 @@ namespace XiaoZhi.Net.Server.Providers.Punctuation
             }
             catch (OperationCanceledException ex)
             {
-                this.Logger.Warning("User canceled the job for {providerType}.", this.ProviderType);
+                this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
                 throw ex;
             }
             catch (Exception ex)
             {
-                this.Logger.Error(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
+                this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
                 return string.Empty;
             }
             finally

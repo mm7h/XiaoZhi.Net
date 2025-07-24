@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.SemanticKernel.ChatCompletion;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,14 +16,12 @@ namespace XiaoZhi.Net.Server.Management
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly IStore _connectionStore;
-        private readonly XiaoZhiConfig _config;
         private readonly ILogger<SessionManager> _logger;
 
-        public SessionManager(IServiceProvider serviceProvider, IStore store, XiaoZhiConfig config, ILogger<SessionManager> logger)
+        public SessionManager(IServiceProvider serviceProvider, IStore store, ILogger<SessionManager> logger)
         {
             this._serviceProvider = serviceProvider;
             this._connectionStore = store;
-            this._config = config;
             this._logger = logger;
         }
         public static void RegisterServices(HostApplicationBuilder builder)
@@ -35,7 +32,6 @@ namespace XiaoZhi.Net.Server.Management
         {
             Session session = new Session(sessionId, deviceId, authToken, endPoint, sendOutter);
             session.HandlerPipeline.InitHandlerPipeline(this._serviceProvider, this._logger);
-            this.InitDialoguePrompt(session);
             return session;
         }
 
@@ -60,10 +56,5 @@ namespace XiaoZhi.Net.Server.Management
             this._connectionStore.Remove(sessionId);
         }
 
-        private void InitDialoguePrompt(Session session)
-        {
-            Dialogue initDialogue = new Dialogue(session.DeviceId, session.SessionId, AuthorRole.System, this._config.Prompt);
-            session.Dialogues.Add(initDialogue);
-        }
     }
 }
