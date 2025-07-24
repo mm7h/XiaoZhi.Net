@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel.ChatCompletion;
-using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,18 +18,18 @@ namespace XiaoZhi.Net.Server.Management
         private readonly IServiceProvider _serviceProvider;
         private readonly IStore _connectionStore;
         private readonly XiaoZhiConfig _config;
-        private readonly ILogger _logger;
+        private readonly ILogger<SessionManager> _logger;
 
-        public SessionManager(IServiceProvider serviceProvider, IStore store, XiaoZhiConfig config, ILogger logger)
+        public SessionManager(IServiceProvider serviceProvider, IStore store, XiaoZhiConfig config, ILogger<SessionManager> logger)
         {
             this._serviceProvider = serviceProvider;
             this._connectionStore = store;
             this._config = config;
             this._logger = logger;
         }
-        public static void RegisterServices(IServiceCollection services)
+        public static void RegisterServices(HostApplicationBuilder builder)
         {
-            services.AddSingleton<SessionManager>();
+            builder.Services.AddSingleton<SessionManager>();
         }
         public Session CreateSession(string sessionId, string deviceId, string authToken, IPEndPoint endPoint, IBizSendOutter sendOutter)
         {

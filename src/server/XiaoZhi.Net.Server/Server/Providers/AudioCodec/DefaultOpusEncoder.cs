@@ -1,5 +1,5 @@
-﻿using OpusSharp.Core;
-using Serilog;
+﻿using Microsoft.Extensions.Logging;
+using OpusSharp.Core;
 using System;
 using System.Buffers;
 using System.Threading;
@@ -19,7 +19,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
         public int Channels { get; }
         public int FrameDuration { get; }
         public int FrameSize { get; private set; }
-        public DefaultOpusEncoder(ITts tts, AudioSetting audioSetting, ILogger logger) : base(logger)
+        public DefaultOpusEncoder(ITts tts, AudioSetting audioSetting, ILogger<DefaultOpusEncoder> logger) : base(logger)
         {
             this._tts = tts;
             this.Channels = audioSetting.Channels;
@@ -33,12 +33,12 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
                 this.SampleRate = this._tts.GetTtsSampleRate();
                 this.FrameSize = this.SampleRate * this.FrameDuration * this.Channels / 1000;
                 this._encoder = new OpusEncoder(this.SampleRate, this.Channels, OpusPredefinedValues.OPUS_APPLICATION_AUDIO);
-                this.Logger.Information("Builded the default {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogInformation("Builded the default {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.Error(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
         }

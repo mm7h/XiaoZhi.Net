@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,7 +8,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 {
     internal class HuoshanDoubleStream : BaseProvider, ITts
     {
-        public HuoshanDoubleStream(XiaoZhiConfig config, ILogger logger) : this(config.TtsSetting, logger)
+        public HuoshanDoubleStream(XiaoZhiConfig config, ILogger<HuoshanDoubleStream> logger) : this(config.TtsSetting, logger)
         {
         }
         public HuoshanDoubleStream(ModelSetting ttsSetting, ILogger logger) : base(ttsSetting, logger)

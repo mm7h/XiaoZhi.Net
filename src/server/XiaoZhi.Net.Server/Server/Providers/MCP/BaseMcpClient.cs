@@ -1,7 +1,7 @@
-﻿using Microsoft.SemanticKernel;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.SemanticKernel;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
-using Serilog;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -74,7 +74,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
                 if (this._callResults.ContainsKey(msgId))
                 {
-                    this.Logger.Debug("Received MCP call result: {result} for message ID {msgId} from session {sessionId}.", result.ToJsonString(), msgId, this.CurrentSession.SessionId);
+                    this.Logger.LogDebug("Received MCP call result: {result} for message ID {msgId} from session {sessionId}.", result.ToJsonString(), msgId, this.CurrentSession.SessionId);
                     this.ResolveCallResult(msgId, result.AsObject());
                     return;
                 }
@@ -82,18 +82,18 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 if (msgId == 1)
                 {
                     // mcp initialize id
-                    this.Logger.Information("Received MCP Initialize message from client: {sessionId}.", this.CurrentSession.SessionId);
+                    this.Logger.LogInformation("Received MCP Initialize message from client: {sessionId}.", this.CurrentSession.SessionId);
                     if (result.AsObject().TryGetPropertyValue("serverInfo", out var serverInfo) && serverInfo is not null)
                     {
                         string? name = serverInfo["name"]?.GetValue<string>();
                         string? version = serverInfo["version"]?.GetValue<string>();
                         if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(version))
                         {
-                            this.Logger.Information("The server info from xiaozhi client MCP: name - {name}, version - {version}", name, version);
+                            this.Logger.LogInformation("The server info from xiaozhi client MCP: name - {name}, version - {version}", name, version);
                         }
                         else
                         {
-                            this.Logger.Warning("Invalid server info received from xiaozhi client MCP.");
+                            this.Logger.LogWarning("Invalid server info received from xiaozhi client MCP.");
                         }
                     }
 
@@ -102,7 +102,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 else if (msgId == 2)
                 {
                     // mcp tools list id
-                    this.Logger.Information("Received MCP Initialize message from client: {sessionId}.", this.CurrentSession.SessionId);
+                    this.Logger.LogInformation("Received MCP Initialize message from client: {sessionId}.", this.CurrentSession.SessionId);
 
                     if (result is JsonObject resultObj && resultObj.TryGetPropertyValue("tools", out var toolsNode) && toolsNode is JsonArray toolsArray)
                     {
@@ -111,11 +111,11 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
                         if (tools is null)
                         {
-                            this.Logger.Warning("Cannot get the MCP tools from client.");
+                            this.Logger.LogWarning("Cannot get the MCP tools from client.");
                             return;
                         }
 
-                        this.Logger.Information("Number of tools supported by client devices: {count}", tools.Count);
+                        this.Logger.LogInformation("Number of tools supported by client devices: {count}", tools.Count);
 
                         foreach (var tool in tools)
                         {
@@ -162,19 +162,19 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                             };
 
                             this.AddTool(newTool);
-                            this.Logger.Information("Tool added: {ToolName}", newTool.Name);
+                            this.Logger.LogInformation("Tool added: {ToolName}", newTool.Name);
                         }
 
                         string nextCursor = resultObj["nextCursor"]?.GetValue<string>() ?? string.Empty;
                         if (!string.IsNullOrEmpty(nextCursor))
                         {
-                            this.Logger.Information("Detected that there are more tools available, nextCursor: {nextCursor}", nextCursor);
+                            this.Logger.LogInformation("Detected that there are more tools available, nextCursor: {nextCursor}", nextCursor);
                             await this.RequestToolsListAsync(nextCursor);
                         }
                         else
                         {
                             this.IsReady = true;
-                            this.Logger.Information("All tools have been obtained, MCP client is ready.");
+                            this.Logger.LogInformation("All tools have been obtained, MCP client is ready.");
 
                             //// 刷新工具缓存，确保MCP工具被包含在函数列表中
                             //if (conn?.FuncHandler?.ToolManager is not null)
@@ -189,13 +189,13 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             }
             else if (jsonObject.TryGetPropertyValue("method", out var method) && method is not null)
             {
-                this.Logger.Information("Received MCP client request: {method}", method.GetValue<string>());
+                this.Logger.LogInformation("Received MCP client request: {method}", method.GetValue<string>());
             }
             else if (jsonObject.TryGetPropertyValue("error", out var error) && error is not null)
             {
                 var errorMsg = error["message"]?.GetValue<string>() ?? "未知错误";
 
-                this.Logger.Error("Received MCP error response: {ErrorMsg}", errorMsg);
+                this.Logger.LogError("Received MCP error response: {ErrorMsg}", errorMsg);
 
                 if (jsonObject.TryGetPropertyValue("id", out var msgId) && msgId is not null)
                 {
@@ -228,7 +228,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 Params = mcpClientOptions.ToNode()
             };
 
-            this.Logger.Information("Session {sessionId} sending MCP Initialize request.", this.CurrentSession.SessionId);
+            this.Logger.LogInformation("Session {sessionId} sending MCP Initialize request.", this.CurrentSession.SessionId);
 
             await this.SendMCPMessageAsync(request);
         }
@@ -242,7 +242,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 Params = @params.ToNode()
             };
 
-            this.Logger.Debug("Session {sessionId} sending MCP notification: {method}.", this.CurrentSession.SessionId, method);
+            this.Logger.LogDebug("Session {sessionId} sending MCP notification: {method}.", this.CurrentSession.SessionId, method);
 
             await this.SendMCPMessageAsync(request);
         }
@@ -256,7 +256,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 Id = new RequestId(2)
             };
 
-            this.Logger.Debug("Session {SessionId} request tools list.", CurrentSession.SessionId);
+            this.Logger.LogDebug("Session {SessionId} request tools list.", CurrentSession.SessionId);
 
             await this.SendMCPMessageAsync(request);
         }
@@ -272,7 +272,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 Params = @params.ToNode()
             };
 
-            this.Logger.Debug("Session {SessionId} request tools list with cursor: {cursor}.", this.CurrentSession.SessionId, cursor);
+            this.Logger.LogDebug("Session {SessionId} request tools list with cursor: {cursor}.", this.CurrentSession.SessionId, cursor);
 
             await this.SendMCPMessageAsync(request);
         }
@@ -287,7 +287,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 string sanitizedToolName = this.SanitizeToolName(mcpTool.Name);
                 if (this._mcpTools.ContainsKey(sanitizedToolName))
                 {
-                    this.Logger.Warning("Tool with name {ToolName} already exists, skipping.", sanitizedToolName);
+                    this.Logger.LogWarning("Tool with name {ToolName} already exists, skipping.", sanitizedToolName);
                     return;
                 }
                 this._mcpTools.Add(sanitizedToolName, mcpTool);
@@ -309,7 +309,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                     string sanitizedToolName = this.SanitizeToolName(tool.Name);
                     if (this._mcpTools.ContainsKey(sanitizedToolName))
                     {
-                        this.Logger.Warning("Tool with name {ToolName} already exists, skipping.", sanitizedToolName);
+                        this.Logger.LogWarning("Tool with name {ToolName} already exists, skipping.", sanitizedToolName);
                         continue;
                     }
                     this._mcpTools[sanitizedToolName] = tool;
@@ -409,7 +409,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 }
                 catch (Exception e)
                 {
-                    this.Logger.Error(e, "Failed to parse tool arguments: {args}", args);
+                    this.Logger.LogError(e, "Failed to parse tool arguments: {args}", args);
                     throw e;
                 }
             }
@@ -431,7 +431,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                     Method = RequestMethods.ToolsCall,
                     Params = @params.ToNode()
                 };
-                this.Logger.Debug("Session {sessionId} call MCP tool: {toolName}, args: {args}", this.CurrentSession.SessionId, realToolName, args);
+                this.Logger.LogDebug("Session {sessionId} call MCP tool: {toolName}, args: {args}", this.CurrentSession.SessionId, realToolName, args);
                 await this.SendMCPMessageAsync(request);
             }
 
@@ -443,12 +443,12 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
                 if (completedTask == timeoutTask)
                 {
-                    this.Logger.Error("Response timeout after {timeout} seconds for tool call: {toolName}", timeout, toolName);
+                    this.Logger.LogError("Response timeout after {timeout} seconds for tool call: {toolName}", timeout, toolName);
                     throw new TimeoutException($"Response timeout after {timeout} seconds");
                 }
 
                 JsonObject rawResult = await resultTask;
-                this.Logger.Debug("Got the result of MCP tool call from the session {sessionId} successfully, result: {result}", this.CurrentSession.SessionId, rawResult.ToJsonString());
+                this.Logger.LogDebug("Got the result of MCP tool call from the session {sessionId} successfully, result: {result}", this.CurrentSession.SessionId, rawResult.ToJsonString());
 
                 if (rawResult.TryGetPropertyValue("isError", out var isErrorNode) && isErrorNode is not null && isErrorNode.GetValue<bool>())
                 {
@@ -470,13 +470,13 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             catch (TimeoutException timeoutException)
             {
                 this.CleanCallResults(toolCallId);
-                this.Logger.Error(timeoutException, "Timeout while waiting for MCP tool call response: {toolName}, args: {args}", toolName, args);
+                this.Logger.LogError(timeoutException, "Timeout while waiting for MCP tool call response: {toolName}, args: {args}", toolName, args);
                 throw timeoutException;
             }
             catch (Exception e)
             {
                 this.CleanCallResults(toolCallId);
-                this.Logger.Error(e, "Failed to call MCP tool: {toolName}, args: {args}", toolName, args);
+                this.Logger.LogError(e, "Failed to call MCP tool: {toolName}, args: {args}", toolName, args);
                 throw e;
             }
         }

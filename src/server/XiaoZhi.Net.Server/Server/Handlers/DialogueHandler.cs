@@ -1,5 +1,5 @@
-﻿using Microsoft.SemanticKernel.ChatCompletion;
-using Serilog;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.SemanticKernel.ChatCompletion;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,7 +20,7 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly IMemory _memory;
         private bool _useStreaming;
 
-        public DialogueHandler(ILlm llm, IMemory memory, XiaoZhiConfig config, ILogger logger) : base(config, logger)
+        public DialogueHandler(ILlm llm, IMemory memory, XiaoZhiConfig config, ILogger<DialogueHandler> logger) : base(config, logger)
         {
             this._llm = llm;
             this._useStreaming = this.Config.LlmSettings.First().Config.UseStreaming ?? false;
@@ -52,7 +52,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 Dialogue dialogue = new Dialogue(session.DeviceId, session.SessionId, AuthorRole.User, workflow.Data);
                 session.Dialogues.Add(dialogue);
 
-                using (CodeTimer timer = CodeTimer.Create("Calling the LLM takes {timer.ElapsedMilliseconds} ms.", this.Logger))
+                using (CodeTimer timer = CodeTimer.Create("Calling the LLM takes {elapsed:F2} ms.", this.Logger))
                 {
                     DialogueContext dialogueContext = new DialogueContext(session.SessionId, session.PrivateProvider?.LlmModelName, session.Dialogues);
                     Workflow<DialogueContext> nextWorkflow = workflow.NextFlow(dialogueContext);
@@ -120,7 +120,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private async void OnTokenGenerated(string sessionId, string content)
         {
-            this.Logger.Debug("LLM's response text: {content}", content);
+            this.Logger.LogDebug("LLM's response text: {content}", content);
 
             Session session = this.SendOutter.GetSession();
             Dialogue assistantDialogue = new Dialogue(session.DeviceId, session.SessionId, AuthorRole.Assistant, content);

@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
 using System.Net;
@@ -12,11 +12,11 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
     {
         private readonly WebSocketServerOption _webSocketOption;
         private readonly IServiceProvider _serviceProvider;
-        private readonly ILogger _logger;
+        private readonly ILogger<WebSocketServerEngine> _logger;
         private string? _path;
         private WebSocketServer? _server;
 
-        public WebSocketServerEngine(WebSocketServerOption webSocketOption, IServiceProvider serviceProvider, ILogger logger)
+        public WebSocketServerEngine(WebSocketServerOption webSocketOption, IServiceProvider serviceProvider, ILogger<WebSocketServerEngine> logger)
         {
             this._webSocketOption = webSocketOption;
             this._serviceProvider = serviceProvider;
@@ -50,7 +50,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
 #pragma warning disable CS0618
             this._server!.AddWebSocketService<WebSocketService>(this._path, () =>
             {
-                return new WebSocketService(this._serviceProvider);
+                return new WebSocketService(this._serviceProvider, this._logger);
             });
 #pragma warning restore CS0618
         }
@@ -59,7 +59,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
         {
             this._server!.Start();
             string listeningUrl = $"{(this._server.IsSecure ? "wss://" : "ws://")}{this.GetLocalIP()}:{this._server.Port}{this._path}";
-            this._logger.Information("Server started and listing on: {listeningUrl}", listeningUrl);
+            this._logger.LogInformation("Server started and listing on: {listeningUrl}", listeningUrl);
             return Task.CompletedTask;
         }
 

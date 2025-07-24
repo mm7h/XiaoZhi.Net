@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using SherpaOnnx;
 using System;
 using System.Diagnostics;
@@ -7,7 +7,6 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.TTS
 {
@@ -26,7 +25,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         public event Action<string, float[]>? OnProcessing;
         public event Action<string, OutSegment, int>? OnProcessed;
 
-        public Kokoro(XiaoZhiConfig config, ILogger logger) : this(config.TtsSetting, logger)
+        public Kokoro(XiaoZhiConfig config, ILogger<Kokoro> logger) : this(config.TtsSetting, logger)
         {
         }
         public Kokoro(ModelSetting ttsSetting, ILogger logger) : base(ttsSetting, logger)
@@ -74,12 +73,12 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                         Directory.CreateDirectory(this._savePath);
                 }
                 this._offlineTts = new OfflineTts(config);
-                this.Logger.Information("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.Error(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
         }
@@ -128,11 +127,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                         bool saved = audio.SaveToWaveFile(filePath);
                         if (saved)
                         {
-                            this.Logger.Debug("Saved tts wave file {fileName} successed, the duration of file is: {duration}s.", fileName, this.FormatDuration(duration));
+                            this.Logger.LogDebug("Saved tts wave file {fileName} successed, the duration of file is: {duration}s.", fileName, this.FormatDuration(duration));
                         }
                         else
                         {
-                            this.Logger.Debug("Failed to save tts wave file {fileName}.", fileName);
+                            this.Logger.LogDebug("Failed to save tts wave file {fileName}.", fileName);
                         }
                         audio.Dispose();
                     });
@@ -140,7 +139,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 else
                 {
                     audio.Dispose();
-                    this.Logger.Debug("TTS generated success, the duration of the voice is: {duration}s.", this.FormatDuration(duration));
+                    this.Logger.LogDebug("TTS generated success, the duration of the voice is: {duration}s.", this.FormatDuration(duration));
                 }
                 timer.Stop();
 
@@ -150,12 +149,12 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             }
             catch (OperationCanceledException ex)
             {
-                this.Logger.Warning("User canceled the job for {providerType}.", this.ProviderType);
+                this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
                 throw ex;
             }
             catch (Exception ex)
             {
-                this.Logger.Error(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
+                this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
             }
             finally
             {

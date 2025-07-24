@@ -1,5 +1,5 @@
-﻿using ModelContextProtocol.Protocol;
-using Serilog;
+﻿using Microsoft.Extensions.Logging;
+using ModelContextProtocol.Protocol;
 using System;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -12,7 +12,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
         private readonly string? visionUrl;
         private readonly string? visionToken;
 
-        public DeviceMcpClient(Session session, ModelSetting mcpSetting, ILogger logger) : base(session, mcpSetting, logger)
+        public DeviceMcpClient(Session session, ModelSetting mcpSetting, ILogger<DeviceMcpClient> logger) : base(session, mcpSetting, logger)
         {
             this.visionUrl = this.ModelSetting?.Config?.VisionUrl;
             this.visionToken = this.ModelSetting?.Config?.VisionToken;
@@ -64,7 +64,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
                 Id = new RequestId(1),
                 Params = @params.ToNode()
             };
-            this.Logger.Information("Session {sessionId} sending MCP Initialize request.", this.CurrentSession.SessionId);
+            this.Logger.LogInformation("Session {sessionId} sending MCP Initialize request.", this.CurrentSession.SessionId);
             return this.SendMCPMessageAsync(request);
         }
 

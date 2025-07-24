@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using System;
 
 namespace XiaoZhi.Net.Server.Handlers
@@ -14,7 +14,7 @@ namespace XiaoZhi.Net.Server.Handlers
         public XiaoZhiConfig Config { get; }
         public ILogger Logger { get; }
 
-        public event Action<string, string, string> OnAbort;
+        public event Action<string, string, string>? OnAbort;
 
         public abstract string HandlerName { get; }
 

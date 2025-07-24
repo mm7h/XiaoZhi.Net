@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Serilog;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading.Channels;
@@ -91,12 +91,12 @@ namespace XiaoZhi.Net.Server.Common.Contexts
                 }
                 catch (Exception ex)
                 {
-                    this._logger?.Error(ex, "Failed to push audio data to AudioSendHandler for device: {deviceId}", this._currentSession.DeviceId);
+                    this._logger?.LogError(ex, "Failed to push audio data to AudioSendHandler for device: {deviceId}", this._currentSession.DeviceId);
                 }
             }
             else
             {
-                this._logger?.Error("AudioSendHandler is not initialized");
+                this._logger?.LogError("AudioSendHandler is not initialized");
             }
         }
 
@@ -108,7 +108,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             }
             else
             {
-                this._logger?.Error("TextHandler is not initialized");
+                this._logger?.LogError("TextHandler is not initialized");
             }
         }
 
@@ -125,7 +125,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
                     if (!this._currentSession.IsIdle)
                     {
 #if DEBUG
-                        this._logger?.Debug("The previous audio packet is processing, this packet would be ignored, frame size {length}.", data.Length);
+                        this._logger?.LogDebug("The previous audio packet is processing, this packet would be ignored, frame size {length}.", data.Length);
 #endif
                         return;
                     }
@@ -134,12 +134,12 @@ namespace XiaoZhi.Net.Server.Common.Contexts
                 }
                 catch (Exception ex)
                 {
-                    this._logger?.Error(ex, "Failed to process the message packet from device: {deviceId} and session id: {sessionId}.", this._currentSession.DeviceId, this._currentSession.SessionId);
+                    this._logger?.LogError(ex, "Failed to process the message packet from device: {deviceId} and session id: {sessionId}.", this._currentSession.DeviceId, this._currentSession.SessionId);
                 }
             }
             else
             {
-                this._logger?.Error("AudioReceiveHandler is not initialized");
+                this._logger?.LogError("AudioReceiveHandler is not initialized");
             }
         }
 
@@ -174,15 +174,15 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             previous.NextWriter = channel.Writer;
             next.PreviousReader = channel.Reader;
 
-            _ = Task.Factory.StartNew(() => next.Handle(), TaskCreationOptions.LongRunning);
-            this._logger?.Debug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
+            Task.Factory.StartNew(() => next.Handle(), TaskCreationOptions.LongRunning).ConfigureAwait(false);
+            this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
         }
 
         private void ScheduleOnAbort(BaseHandler handler)
         {
             handler.OnAbort += (deviceId, sessionId, message) =>
             {
-                this._logger?.Debug("Device: {deviceId}, session: {sessionId} abort the tasks, message: {message}.", deviceId, sessionId, message);
+                this._logger?.LogDebug("Device: {deviceId}, session: {sessionId} abort the tasks, message: {message}.", deviceId, sessionId, message);
             };
         }
     }

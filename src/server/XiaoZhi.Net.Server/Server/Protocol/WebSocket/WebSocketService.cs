@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Serilog;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -23,13 +23,13 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
 
         private Session? _currentSession;
 
-        public WebSocketService(IServiceProvider serviceProvider)
+        public WebSocketService(IServiceProvider serviceProvider, ILogger logger)
         {
             this._serviceProvider = serviceProvider;
+            this._logger = logger;
             this._config = this._serviceProvider.GetRequiredService<XiaoZhiConfig>();
             this._sessionManager = this._serviceProvider.GetRequiredService<SessionManager>();
             this._providerManager = this._serviceProvider.GetRequiredService<ProviderManager>();
-            this._logger = this._serviceProvider.GetRequiredService<ILogger>();
         }
 
         #region ISendOutter

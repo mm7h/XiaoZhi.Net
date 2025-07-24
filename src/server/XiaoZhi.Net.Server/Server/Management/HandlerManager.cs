@@ -1,12 +1,14 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using XiaoZhi.Net.Server.Handlers;
 
 namespace XiaoZhi.Net.Server.Management
 {
     internal sealed class HandlerManager
     {
-        public static void RegisterServices(IServiceCollection services)
+        public static void RegisterServices(HostApplicationBuilder builder)
         {
+            IServiceCollection services = builder.Services;
             services.AddTransient<TextHandler>();
             services.AddTransient<AudioReceiveHandler>();
             services.AddTransient<Audio2TextHandler>();

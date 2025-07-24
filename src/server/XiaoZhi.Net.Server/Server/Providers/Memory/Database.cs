@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -8,7 +8,7 @@ namespace XiaoZhi.Net.Server.Providers.Memory
 {
     internal class Database : BaseProvider, IMemory
     {
-        public Database(XiaoZhiConfig config, ILogger logger) : this(config.MemorySetting, logger)
+        public Database(XiaoZhiConfig config, ILogger<Database> logger) : this(config.MemorySetting, logger)
         {
         }
         public Database(ModelSetting memorySetting, ILogger logger) : base(memorySetting, logger)

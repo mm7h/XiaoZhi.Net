@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Text.Json.Nodes;
 using System.Threading.Channels;
@@ -12,7 +12,7 @@ namespace XiaoZhi.Net.Server.Handlers
 {
     internal sealed class TextHandler : BaseHandler, IOutHandler<string>
     {
-        public TextHandler(XiaoZhiConfig config, ILogger logger) : base(config, logger)
+        public TextHandler(XiaoZhiConfig config, ILogger<TextHandler> logger) : base(config, logger)
         {
         }
         public event Action<Session>? OnManualStop;
@@ -31,14 +31,14 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
-            this.Logger.Debug("Received text from client: {jsonText}", jsonObject?.ToJsonString());
+            this.Logger.LogDebug("Received text from client: {jsonText}", jsonObject?.ToJsonString());
 
             if (jsonObject is JsonObject jsonObj)
             {
                 string? type = jsonObj["type"]?.GetValue<string>()?.ToLower();
                 if (string.IsNullOrEmpty(type))
                 {
-                    this.Logger.Error("Invalid type for text message handle.");
+                    this.Logger.LogError("Invalid type for text message handle.");
                     return;
                 }
 
@@ -106,10 +106,10 @@ namespace XiaoZhi.Net.Server.Handlers
         private async Task HandleAbortMessage()
         {
             Session session = this.SendOutter.GetSession();
-            this.Logger.Information("Abort message received");
+            this.Logger.LogInformation("Abort message received");
             await this.SendOutter.SendAbortMessageAsync();
             session.Abort();
-            this.Logger.Information("Abort message received-end, cancelled the tasks.");
+            this.Logger.LogInformation("Abort message received-end, cancelled the tasks.");
         }
 
         private async void HandleListen(JsonObject jsonObject)
@@ -119,7 +119,7 @@ namespace XiaoZhi.Net.Server.Handlers
             if (!string.IsNullOrEmpty(mode))
             {
                 session.SetListenMode(mode);
-                this.Logger.Information("Client voice listening mode setting is: {mode}", mode);
+                this.Logger.LogInformation("Client voice listening mode setting is: {mode}", mode);
             }
 
             string? state = jsonObject["state"]?.GetValue<string>()?.ToLower();

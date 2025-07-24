@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Protocol;
@@ -18,19 +19,19 @@ namespace XiaoZhi.Net.Server.Management
 
         }
 
-        public static void RegisterServices(IServiceCollection services, XiaoZhiConfig config)
+        public static void RegisterServices(HostApplicationBuilder builder, XiaoZhiConfig config)
         {
             if (config.ServerProtocol == ServerProtocol.WebSocket)
             {
-                services.AddSingleton(config.WebSocketServerOption);
-                services.AddSingleton<IProtocolEngine, WebSocketServerEngine>();
+                builder.Services.AddSingleton(config.WebSocketServerOption);
+                builder.Services.AddSingleton<IProtocolEngine, WebSocketServerEngine>();
             }
             else
             {
                 //MQTT
                 throw new NotSupportedException("No MQTT implement yet...");
             }
-            services.AddSingleton<ProtocolManager>();
+            builder.Services.AddSingleton<ProtocolManager>();
         }
 
         public void BuildComponent(IServiceProvider serviceProvider)

@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -12,7 +12,7 @@ namespace XiaoZhi.Net.Server.Handlers
     internal sealed class Text2AudioHandler : BaseHandler, IInHandler<OutSegment>, IOutHandler<float[]>
     {
         private readonly ITts _tts;
-        public Text2AudioHandler(ITts tts, XiaoZhiConfig config, ILogger logger) : base(config, logger)
+        public Text2AudioHandler(ITts tts, XiaoZhiConfig config, ILogger<Text2AudioHandler> logger) : base(config, logger)
         {
             this._tts = tts;
             this._tts.OnBeforeProcessing += this.TTS_OnBeforeProcessing;
@@ -42,7 +42,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 if (string.IsNullOrEmpty(workflow.Data.Content))
                 {
-                    this.Logger.Information("No tts required, the query text is empty.");
+                    this.Logger.LogInformation("No tts required, the query text is empty.");
                     return;
                 }
 
@@ -68,7 +68,7 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             if (segment.IsFirst)
             {
-                this.Logger.Information("Send the first audio from segment: {content}", segment.Content);
+                this.Logger.LogInformation("Send the first audio from segment: {content}", segment.Content);
                 await this.SendOutter.SendTtsMessageAsync("start");
                 await this.SendOutter.SendLlmMessageAsync(Emotion.Cool);
             }

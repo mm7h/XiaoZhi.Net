@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
 using System.Threading.Channels;
@@ -14,7 +14,7 @@ namespace XiaoZhi.Net.Server.Handlers
     {
         private readonly IAudioEncoder _audioEncoder;
 
-        public AudioSendHandler(IAudioEncoder audioEncoder, XiaoZhiConfig config, ILogger logger) : base(config, logger)
+        public AudioSendHandler(IAudioEncoder audioEncoder, XiaoZhiConfig config, ILogger<AudioSendHandler> logger) : base(config, logger)
         {
             this._audioEncoder = audioEncoder;
         }

@@ -1,5 +1,5 @@
-﻿using ModelContextProtocol.Protocol;
-using Serilog;
+﻿using Microsoft.Extensions.Logging;
+using ModelContextProtocol.Protocol;
 using System;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
@@ -14,7 +14,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
         private readonly string? _endpointUrl;
         private readonly WebSocketClientEngine _webSocketClientEngine;
 
-        public McpEndpointClient(Session session, ModelSetting mcpSetting, ILogger logger) : base(session, mcpSetting, logger)
+        public McpEndpointClient(Session session, ModelSetting mcpSetting, ILogger<McpEndpointClient> logger) : base(session, mcpSetting, logger)
         {
             this._endpointUrl = this.ModelSetting?.Config?.EndpointUrl;
             this._webSocketClientEngine = new WebSocketClientEngine(this._endpointUrl, this.ModelSetting?.Config?.Headers);
@@ -28,7 +28,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
         {
             if (string.IsNullOrWhiteSpace(this._endpointUrl))
             {
-                this.Logger.Error("Endpoint URL cannot be null or empty.");
+                this.Logger.LogError("Endpoint URL cannot be null or empty.");
                 return false;
             }
 
@@ -56,7 +56,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
             await this.SendMcpNotificationAsync(NotificationMethods.InitializedNotification);
             await this.RequestToolsListAsync();
 
-            this.Logger.Information("MCP Endpoint Client connected and initialized successfully.");
+            this.Logger.LogInformation("MCP Endpoint Client connected and initialized successfully.");
         }
 
         private async void WebSocketClient_OnMessage(string data)

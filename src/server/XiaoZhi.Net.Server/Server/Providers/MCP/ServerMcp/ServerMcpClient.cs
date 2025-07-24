@@ -1,5 +1,5 @@
-﻿using ModelContextProtocol.Client;
-using Serilog;
+﻿using Microsoft.Extensions.Logging;
+using ModelContextProtocol.Client;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -11,7 +11,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.ServerMcp
     {
         private IMcpClient? _mcpClient;
 
-        public ServerMcpClient(Session session, ModelSetting mcpSetting, ILogger logger) : base(session, mcpSetting, logger)
+        public ServerMcpClient(Session session, ModelSetting mcpSetting, ILogger<ServerMcpClient> logger) : base(session, mcpSetting, logger)
         {
 
         }

@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using SherpaOnnx;
 using System;
 using System.IO;
@@ -20,7 +20,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD
 
         private readonly SemaphoreSlim _vadConvertSlim = new SemaphoreSlim(1, 1);
 
-        public Silero(XiaoZhiConfig config, ILogger logger) : this(config.VadSetting, logger)
+        public Silero(XiaoZhiConfig config, ILogger<Silero> logger) : this(config.VadSetting, logger)
         {
         }
 
@@ -46,12 +46,12 @@ namespace XiaoZhi.Net.Server.Providers.VAD
                 this._silenceThresholdMs = this.ModelSetting.Config.SilenceThresholdMs ?? 700;
                 this.FrameSize = vadModelConfig.SileroVad.WindowSize;
                 this._vad = new VoiceActivityDetector(vadModelConfig, 60);
-                this.Logger.Information("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.Error(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
 
@@ -98,7 +98,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD
                         if (stopDuration > this._silenceThresholdMs)
                         {
 #if DEBUG
-                            this.Logger.Debug("The voice is stopped.");
+                            this.Logger.LogDebug("The voice is stopped.");
 #endif
                             sessionContext.VadStatusContext.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
                             sessionContext.VadStatusContext.VoiceStop = true;
@@ -120,12 +120,12 @@ namespace XiaoZhi.Net.Server.Providers.VAD
             catch (OperationCanceledException ex)
             {
                 sessionContext.VadStatusContext.Reset();
-                this.Logger.Warning("User canceled the job for {providerType}.", this.ProviderType);
+                this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
                 throw ex;
             }
             catch (Exception ex)
             {
-                this.Logger.Error(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
+                this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
                 return false;
             }
             finally

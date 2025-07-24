@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using SherpaOnnx;
 using System;
 using System.Threading.Channels;
@@ -14,7 +14,7 @@ namespace XiaoZhi.Net.Server.Handlers
     {
         private readonly IVad _vad;
         private readonly IAudioDecoder _audioDecoder;
-        public AudioReceiveHandler(IVad vad, IAudioDecoder audioDecoder, XiaoZhiConfig config, ILogger logger) : base(config, logger)
+        public AudioReceiveHandler(IVad vad, IAudioDecoder audioDecoder, XiaoZhiConfig config, ILogger<AudioReceiveHandler> logger) : base(config, logger)
         {
             this._vad = vad;
             this._audioDecoder = audioDecoder;
@@ -75,7 +75,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 if (sessionContext.AudioPacketContext.AsrPackets.Size < 50)
                 {
                     //音频太短了，无法识别
-                    this.Logger.Debug("The voice is too short.");
+                    this.Logger.LogDebug("The voice is too short.");
                     sessionContext.Reset();
                     return;
                 }

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Dtos;
@@ -17,9 +18,9 @@ namespace XiaoZhi.Net.Server.Management
             this._sessionManager = sessionManager;
         }
 
-        public static void RegisterServices(IServiceCollection services, XiaoZhiConfig config)
+        public static void RegisterServices(HostApplicationBuilder builder, XiaoZhiConfig config)
         {
-            services.AddSingleton<IAdvanced, AdvancedManager>();
+            builder.Services.AddSingleton<IAdvanced, AdvancedManager>();
         }
 
         public IDictionary<string, SessionDevice> GetAllSessions()

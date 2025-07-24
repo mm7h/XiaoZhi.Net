@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using SherpaOnnx;
 using System;
 using System.IO;
@@ -12,7 +12,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR
     {
         private readonly SemaphoreSlim _asrConvertSlim = new SemaphoreSlim(1, 1);
         private OfflineRecognizer? _offlineRecognizer;
-        public SenseVoice(XiaoZhiConfig config, ILogger logger) : this(config.AsrSetting, logger)
+        public SenseVoice(XiaoZhiConfig config, ILogger<SenseVoice> logger) : this(config.AsrSetting, logger)
         {
         }
         public SenseVoice(ModelSetting asrSetting, ILogger logger) : base(asrSetting, logger)
@@ -45,12 +45,12 @@ namespace XiaoZhi.Net.Server.Providers.ASR
                 //this._config.RuleFsts = this.ModelSetting.Config.RuleFsts;
 
                 this._offlineRecognizer = new OfflineRecognizer(offlineRecognizerConfig);
-                this.Logger.Information("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.Error(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
         }
@@ -87,12 +87,12 @@ namespace XiaoZhi.Net.Server.Providers.ASR
             }
             catch (OperationCanceledException ex)
             {
-                this.Logger.Warning("User canceled the job for {providerType}.", this.ProviderType);
+                this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
                 throw ex;
             }
             catch (Exception ex)
             {
-                this.Logger.Error(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
+                this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
                 return string.Empty;
             }
             finally

@@ -1,5 +1,5 @@
 ﻿//The lib from https://github.com/ladenedge/WebRtcVadSharp
-using Serilog;
+using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -18,7 +18,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD
         private int? _silenceThresholdMs;
 
         private readonly SemaphoreSlim _vadConvertSlim = new SemaphoreSlim(1, 1);
-        public WebRtc(XiaoZhiConfig config, ILogger logger) : this(config.VadSetting, logger)
+        public WebRtc(XiaoZhiConfig config, ILogger<WebRtc> logger) : this(config.VadSetting, logger)
         {
         }
         public WebRtc(ModelSetting vadSetting, ILogger logger) : base(vadSetting, logger)
@@ -34,7 +34,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD
 
                 if (!File.Exists(libPath))
                 {
-                    this.Logger.Error("Cannot found the lib file in path: {libPath}.", libPath);
+                    this.Logger.LogError("Cannot found the lib file in path: {libPath}.", libPath);
                     return false;
                 }
 
@@ -44,7 +44,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD
 
                 if (_dllHandle == IntPtr.Zero)
                 {
-                    this.Logger.Error("Invalid model settings for {providerType}: {modelName}, failed to load DLL: {libPath}", this.ProviderType, this.ModelName, libPath);
+                    this.Logger.LogError("Invalid model settings for {providerType}: {modelName}, failed to load DLL: {libPath}", this.ProviderType, this.ModelName, libPath);
                     return false;
                 }
 
@@ -66,12 +66,12 @@ namespace XiaoZhi.Net.Server.Providers.VAD
                 }
 
                 this._vad = new WebRtcVad();
-                this.Logger.Information("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.Error(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
 
@@ -98,7 +98,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD
                         if (stopDuration > this._silenceThresholdMs)
                         {
 # if DEBUG
-                            this.Logger.Debug("The voice is stopped, let's start the ASR.");
+                            this.Logger.LogDebug("The voice is stopped, let's start the ASR.");
 #endif
                             sessionContext.VadStatusContext.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
                             sessionContext.VadStatusContext.VoiceStop = true;
@@ -118,12 +118,12 @@ namespace XiaoZhi.Net.Server.Providers.VAD
             catch (OperationCanceledException ex)
             {
                 sessionContext.VadStatusContext.Reset();
-                this.Logger.Warning("User canceled the job for {providerType}.", this.ProviderType);
+                this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
                 throw ex;
             }
             catch (Exception ex)
             {
-                this.Logger.Error(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
+                this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
                 return false;
             }
             finally

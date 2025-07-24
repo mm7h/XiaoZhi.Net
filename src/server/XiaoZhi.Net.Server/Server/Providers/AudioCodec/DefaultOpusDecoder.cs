@@ -1,5 +1,5 @@
-﻿using OpusSharp.Core;
-using Serilog;
+﻿using Microsoft.Extensions.Logging;
+using OpusSharp.Core;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,7 +18,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
         public int Channels { get; }
         public int FrameDuration { get; }
         public int FrameSize { get; }
-        public DefaultOpusDecoder(AudioSetting audioSetting, ILogger logger) : base(logger)
+        public DefaultOpusDecoder(AudioSetting audioSetting, ILogger<DefaultOpusDecoder> logger) : base(logger)
         {
             this.SampleRate = audioSetting.SampleRate;
             this.Channels = audioSetting.Channels;
@@ -31,12 +31,12 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
             try
             {
                 this._decoder = new OpusDecoder(this.SampleRate, this.Channels);
-                this.Logger.Information("Builded the default {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogInformation("Builded the default {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.Error(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
         }

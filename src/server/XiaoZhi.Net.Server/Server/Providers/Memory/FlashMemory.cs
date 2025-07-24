@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -12,7 +12,7 @@ namespace XiaoZhi.Net.Server.Providers.Memory
     {
         private readonly ManageApiClient _manageApiClient;
         private readonly IStore _store;
-        public FlashMemory(ManageApiClient manageApiClient, XiaoZhiConfig config, ILogger logger) : this(manageApiClient, config.MemorySetting, logger)
+        public FlashMemory(ManageApiClient manageApiClient, XiaoZhiConfig config, ILogger<FlashMemory> logger) : this(manageApiClient, config.MemorySetting, logger)
         {
         }
         public FlashMemory(ManageApiClient manageApiClient, ModelSetting memorySetting, ILogger logger) : base(memorySetting, logger)
@@ -23,7 +23,7 @@ namespace XiaoZhi.Net.Server.Providers.Memory
         public override string ProviderType => "memory";
         public override bool Build()
         {
-            this.Logger.Information("Builded the default {providerType}: flash memory", this.ProviderType);
+            this.Logger.LogInformation("Builded the default {providerType}: flash memory", this.ProviderType);
             return true;
         }
 

@@ -1,9 +1,8 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using SherpaOnnx;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -21,7 +20,7 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly int _sampleRate;
         private readonly int _frameSize;
 
-        public Audio2TextHandler(IAsr asr, IPunctuation punctuation, IAudioDecoder audioDecoder, XiaoZhiConfig config, ILogger logger) : base(config, logger)
+        public Audio2TextHandler(IAsr asr, IPunctuation punctuation, IAudioDecoder audioDecoder, XiaoZhiConfig config, ILogger<Audio2TextHandler> logger) : base(config, logger)
         {
             this._asr = asr;
             this._punctuation = punctuation;
@@ -52,7 +51,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 if (string.IsNullOrEmpty(DialogueHelper.GetStringNoPunctuationOrEmoji(speechText)))
                 {
                     session.Reset();
-                    this.Logger.Debug("Device {deviceId} no speak.", session.DeviceId);
+                    this.Logger.LogDebug("Device {deviceId} no speak.", session.DeviceId);
                     return;
                 }
 
@@ -63,7 +62,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
 
                 await this.SendOutter.SendSttMessageAsync(speechText);
-                this.Logger.Debug("Device {deviceId} speak the text: {speechText}", session.DeviceId, speechText);
+                this.Logger.LogDebug("Device {deviceId} speak the text: {speechText}", session.DeviceId, speechText);
                 speechText = await this._punctuation.AppendPunctuationAsync(speechText!, session.SessionCtsToken);
 
                 await this.NextWriter!.WriteAsync(workflow.NextFlow(speechText));
@@ -80,7 +79,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 if (session.BindCode.Length != 6)
                 {
-                    this.Logger.Error("Invalid bind code {code} for the device: {deviceId}", session.BindCode, session.DeviceId);
+                    this.Logger.LogError("Invalid bind code {code} for the device: {deviceId}", session.BindCode, session.DeviceId);
                     string bindErrorMsg = "绑定码格式错误，请检查配置。";
                     await session.SendOutter.SendSttMessageAsync(bindErrorMsg);
                     return;
@@ -108,7 +107,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             else
             {
-                this.Logger.Error("Invalid bind code {code} for the device: {deviceId}", session.BindCode, session.DeviceId);
+                this.Logger.LogError("Invalid bind code {code} for the device: {deviceId}", session.BindCode, session.DeviceId);
                 string text = "没有找到该设备的版本信息，请正确配置 OTA地址，然后重新编译固件。";
                 await session.SendOutter.SendSttMessageAsync(text);
 
@@ -128,7 +127,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     if (!File.Exists(audioFilePath))
                     {
-                        this.Logger.Error("The audio file does not exist: {filePath}", audioFilePath);
+                        this.Logger.LogError("The audio file does not exist: {filePath}", audioFilePath);
                         continue;
                     }
 
@@ -154,7 +153,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             catch (Exception ex)
             {
-                this.Logger.Error(ex, "播放音频文件失败");
+                this.Logger.LogError(ex, "播放音频文件失败");
             }
         }
 

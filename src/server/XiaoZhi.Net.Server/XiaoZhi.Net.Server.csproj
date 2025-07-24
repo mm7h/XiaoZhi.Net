@@ -27,6 +27,7 @@ Dotnet backend service for xiaozhi-esp32, helps you quickly build an ESP32 devic
     <ItemGroup>
         <PackageReference Include="Flurl.Http" Version="4.0.2" />
         <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.7" />
         <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.1" />
         <PackageReference Include="Microsoft.SemanticKernel" Version="1.60.0" />
         <PackageReference Include="ModelContextProtocol-SemanticKernel" Version="0.3.0-preview-01" />

@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Core;
@@ -11,7 +11,7 @@ namespace XiaoZhi.Net.Server.Management
         public LoggerManager()
         {
         }
-        public static void RegisterServices(IServiceCollection services, XiaoZhiConfig config)
+        public static void RegisterServices(HostApplicationBuilder builder, XiaoZhiConfig config)
         {
             LogSetting logSetting = config.LogSetting;
             LoggingLevelSwitch levelSwitch = new LoggingLevelSwitch();
@@ -32,12 +32,9 @@ namespace XiaoZhi.Net.Server.Management
                     applyThemeToRedirectedOutput: true
                 ));
             Log.Logger = loggerConfig.CreateLogger();
-            services.AddLogging(loggingBuilder =>
-            {
-                loggingBuilder.ClearProviders(); // 清除默认日志提供程序
-                loggingBuilder.AddSerilog(dispose: true); // 添加 Serilog 提供程序
-            });
-            services.AddSingleton(Log.Logger);
+
+            builder.Logging.ClearProviders();
+            builder.Logging.AddSerilog(Log.Logger, dispose: true);
         }
 
         private static Serilog.Events.LogEventLevel ConvertLogLevel(string logLevel)

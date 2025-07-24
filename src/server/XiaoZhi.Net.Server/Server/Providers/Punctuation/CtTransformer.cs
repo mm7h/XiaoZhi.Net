@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using SherpaOnnx;
 using System;
 using System.IO;
@@ -11,7 +11,7 @@ namespace XiaoZhi.Net.Server.Providers.Punctuation
     {
         private OfflinePunctuation? _offlinePunctuation;
         private readonly SemaphoreSlim _punctuationConvertSlim = new SemaphoreSlim(1, 1);
-        public CtTransformer(XiaoZhiConfig config, ILogger logger) : base(config.PunctuationSetting, logger)
+        public CtTransformer(XiaoZhiConfig config, ILogger<CtTransformer> logger) : base(config.PunctuationSetting, logger)
         {
         }
         public CtTransformer(ModelSetting punctuationSetting, ILogger logger) : base(punctuationSetting, logger)

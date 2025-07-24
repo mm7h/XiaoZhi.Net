@@ -1,8 +1,6 @@
-﻿using Serilog;
-using SherpaOnnx;
+﻿using SherpaOnnx;
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace XiaoZhi.Net.Server.Helpers
 {
@@ -41,7 +39,6 @@ namespace XiaoZhi.Net.Server.Helpers
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "GetFrames failed.");
                 data = Array.Empty<float>();
                 return false;
             }

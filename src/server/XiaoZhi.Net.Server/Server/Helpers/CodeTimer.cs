@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
 
@@ -19,8 +19,6 @@ namespace XiaoZhi.Net.Server.Helpers
             this._logger = logger;
         }
 
-        public string? Message { get; }
-
         public static CodeTimer Create(string template, ILogger logger)
         {
             return new CodeTimer(template, logger);
@@ -28,10 +26,10 @@ namespace XiaoZhi.Net.Server.Helpers
 
         public void Dispose()
         {
-            if (!string.IsNullOrEmpty(this.Message))
-                this._logger.Information(this.Message);
+            if (!string.IsNullOrEmpty(this._template))
+                this._logger.LogInformation(this._template, this.ElapsedMilliseconds);
             else
-                this._logger.Information("The job finished and took {elapsed:F2} ms.", this.ElapsedMilliseconds);
+                this._logger.LogInformation("The job finished and took {elapsed:F2} ms.", this.ElapsedMilliseconds);
             this._stopwatch.Stop();
         }
     }

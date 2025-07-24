@@ -1,7 +1,8 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
-using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,7 +26,7 @@ namespace XiaoZhi.Net.Server.Management
     internal sealed class ProviderManager
     {
         private readonly ManageApiClient _manageApiClient;
-        private readonly ILogger _logger;
+        private readonly ILogger<ProviderManager> _logger;
 
         private const string GLOBAL_AUDIO_DECODER = "GlobalAudioDecoder";
         private const string GLOBAL_ASR = "GlobalAsr";
@@ -37,14 +38,16 @@ namespace XiaoZhi.Net.Server.Management
         private const string GLOBAL_AUDIO_ENCODER = "GlobalAudioEncoder";
 
 
-        public ProviderManager(ManageApiClient manageApiClient, ILogger logger)
+        public ProviderManager(ManageApiClient manageApiClient, ILogger<ProviderManager> logger)
         {
             this._manageApiClient = manageApiClient;
             this._logger = logger;
         }
 
-        public static void RegisterServices(IServiceCollection services, XiaoZhiConfig config)
+        public static void RegisterServices(HostApplicationBuilder builder, XiaoZhiConfig config)
         {
+            IServiceCollection services = builder.Services;
+
             services.AddKeyedSingleton<IAudioDecoder, DefaultOpusDecoder>(GLOBAL_AUDIO_DECODER);
             RegisterVad(services, config, GLOBAL_VAD);
             RegisterAsr(services, config, GLOBAL_ASR);
@@ -75,7 +78,7 @@ namespace XiaoZhi.Net.Server.Management
             {
                 if (!provider.Build())
                 {
-                    this._logger.Error("Failed to build {modelName} provider.", provider.ModelName);
+                    this._logger.LogError("Failed to build {modelName} provider.", provider.ModelName);
                     return false;
                 }
             }
@@ -89,7 +92,7 @@ namespace XiaoZhi.Net.Server.Management
                 PrivateModelsConfig? privateModelsConfig = await this._manageApiClient.LoadConfigFromApi(session.DeviceId, session.SessionId);
                 if (privateModelsConfig is null)
                 {
-                    this._logger.Information("The device: {deviceId} with session: {sessionId} has not been configured with privatization settings and will use global providers.", session.DeviceId, session.SessionId);
+                    this._logger.LogInformation("The device: {deviceId} with session: {sessionId} has not been configured with privatization settings and will use global providers.", session.DeviceId, session.SessionId);
                     return;
                 }
 
@@ -100,7 +103,7 @@ namespace XiaoZhi.Net.Server.Management
                     IVad privateVad = this.RegisterVad(privateModelsConfig.VadSetting);
                     privateProvider.InitializeVad(privateVad);
 
-                    this._logger.Information("Private VAD {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.VadSetting.ModelName, session.DeviceId, session.SessionId);
+                    this._logger.LogInformation("Private VAD {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.VadSetting.ModelName, session.DeviceId, session.SessionId);
                 }
 
                 if (privateModelsConfig.AsrSetting is not null)
@@ -108,7 +111,7 @@ namespace XiaoZhi.Net.Server.Management
                     IAsr privateAsr = this.RegisterAsr(privateModelsConfig.AsrSetting);
                     privateProvider.InitializeAsr(privateAsr);
 
-                    this._logger.Information("Private ASR {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.AsrSetting.ModelName, session.DeviceId, session.SessionId);
+                    this._logger.LogInformation("Private ASR {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.AsrSetting.ModelName, session.DeviceId, session.SessionId);
                 }
 
                 if (privateModelsConfig.LlmSetting is not null)
@@ -128,7 +131,7 @@ namespace XiaoZhi.Net.Server.Management
                         session.Dialogues.Add(summaryMemoryDialogue);
                     }
 
-                    this._logger.Information("Private LLM {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.LlmSetting.ModelName, session.DeviceId, session.SessionId);
+                    this._logger.LogInformation("Private LLM {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.LlmSetting.ModelName, session.DeviceId, session.SessionId);
                 }
 
                 if (privateModelsConfig.TtsSetting is not null)
@@ -136,7 +139,7 @@ namespace XiaoZhi.Net.Server.Management
                     ITts privateTts = this.RegisterTts(privateModelsConfig.TtsSetting);
                     privateProvider.InitializeTts(privateTts);
 
-                    this._logger.Information("Private TTS {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.TtsSetting.ModelName, session.DeviceId, session.SessionId);
+                    this._logger.LogInformation("Private TTS {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.TtsSetting.ModelName, session.DeviceId, session.SessionId);
                 }
 
                 session.PrivateProvider = privateProvider;
@@ -156,7 +159,7 @@ namespace XiaoZhi.Net.Server.Management
             {
                 session.IsDeviceBinded = false;
                 session.PrivateProvider = null;
-                this._logger.Error(ex, "Failed to load private models config for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
+                this._logger.LogError(ex, "Failed to load private models config for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
             }
         }
 
