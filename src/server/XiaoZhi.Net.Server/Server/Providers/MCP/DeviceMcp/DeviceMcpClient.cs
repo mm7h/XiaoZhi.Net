@@ -2,6 +2,7 @@
 using ModelContextProtocol.Protocol;
 using System;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Helpers;
 
@@ -9,33 +10,29 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
 {
     internal class DeviceMcpClient : BaseMcpClient
     {
-        private readonly string? visionUrl;
-        private readonly string? visionToken;
+        private readonly string visionUrl;
+        private readonly string visionToken;
 
-        public DeviceMcpClient(Session session, ModelSetting mcpSetting, ILogger<DeviceMcpClient> logger) : base(session, mcpSetting, logger)
+        public DeviceMcpClient(Session session, ModelSetting mcpSetting, ILogger logger) : base(session, mcpSetting, logger)
         {
-            this.visionUrl = this.ModelSetting?.Config?.VisionUrl;
-            this.visionToken = this.ModelSetting?.Config?.VisionToken;
+            this.visionUrl = this.ModelSetting?.Config?.VisionUrl ?? "";
+            this.visionToken = this.ModelSetting?.Config?.VisionToken ?? "";
         }
 
-        public override string ProviderType => "device_mcp";
+        public override string ProviderType => SubMCPClientTypeNames.DeviceMcpClient;
 
         public override bool Build()
         {
             return true;
         }
 
-        protected override Task SendMcpInitializeAsync(string clientName)
+        public override Task SendMcpInitializeAsync()
         {
-            if (string.IsNullOrEmpty(clientName))
-            {
-                clientName = "DeviceMcpClient";
-            }
 
             var vision = new
             {
-                Url = this.visionUrl ?? "",
-                Token = this.visionToken ?? ""
+                Url = this.visionUrl,
+                Token = this.visionToken
             };
 
             var @params = new
@@ -52,7 +49,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
                 },
                 clientInfo = new
                 {
-                    Name = clientName,
+                    Name = this.ProviderType,
                     Version = "1.0.0"
                 }
             };

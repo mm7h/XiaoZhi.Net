@@ -5,6 +5,7 @@ using ModelContextProtocol.Protocol;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -19,11 +20,13 @@ namespace XiaoZhi.Net.Server.Providers.MCP
     internal abstract class BaseMcpClient : BaseProvider, ISubMcpClient
     {
         private readonly SemaphoreSlim _lockerSlim = new SemaphoreSlim(1, 1);
+        private readonly IDictionary<string, object?> _additionalMetadataDic;
+        private readonly Action tempMethod = () => { };
 
         private bool _isReady = false;
         private int _nextId = 1;
 
-        private IDictionary<string, Tool> _mcpTools = new ConcurrentDictionary<string, Tool>();
+        private IDictionary<string, KernelFunction> _mcpTools = new ConcurrentDictionary<string, KernelFunction>();
         private IDictionary<int, TaskCompletionSource<JsonObject>> _callResults = new ConcurrentDictionary<int, TaskCompletionSource<JsonObject>>();
 
 
@@ -31,8 +34,12 @@ namespace XiaoZhi.Net.Server.Providers.MCP
         public BaseMcpClient(Session session, ModelSetting mcpSetting, ILogger logger) : base(mcpSetting, logger)
         {
             this.CurrentSession = session;
+            this._additionalMetadataDic = new Dictionary<string, object?>
+            {
+                { "session-id", session.SessionId }
+            };
         }
-        public ICollection<Tool> Tools => this._mcpTools.Values;
+        public ICollection<KernelFunction> Functions => this._mcpTools.Values;
 
         public bool IsReady
         {
@@ -104,66 +111,61 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                     // mcp tools list id
                     this.Logger.LogInformation("Received MCP Initialize message from client: {sessionId}.", this.CurrentSession.SessionId);
 
-                    if (result is JsonObject resultObj && resultObj.TryGetPropertyValue("tools", out var toolsNode) && toolsNode is JsonArray toolsArray)
+                    if (result is JsonObject resultObj && resultObj.TryGetPropertyValue("tools", out var toolsNode) && toolsNode is JsonArray toolsJson)
                     {
 
-                        List<Tool>? tools = JsonHelper.Deserialize<List<Tool>>(toolsArray.ToJsonString());
-
-                        if (tools is null)
+                        foreach (JsonNode? item in toolsJson)
                         {
-                            this.Logger.LogWarning("Cannot get the MCP tools from client.");
-                            return;
-                        }
-
-                        this.Logger.LogInformation("Number of tools supported by client devices: {count}", tools.Count);
-
-                        foreach (var tool in tools)
-                        {
-                            if (tool is null)
+                            if (item is not JsonObject itemObj)
                                 continue;
-                            var inputSchema = new JsonObject
+
+                            string toolName = item["name"]?.GetValue<string>() ?? "";
+                            string toolDescription = item["description"]?.GetValue<string>() ?? "";
+
+                            JsonObject inputSchema = item["inputSchema"]?.AsObject() ?? new JsonObject
                             {
                                 ["type"] = "object",
                                 ["properties"] = new JsonObject(),
                                 ["required"] = new JsonArray()
                             };
 
-                            PromptTemplateConfig promptTemplateConfig = new PromptTemplateConfig();
+                            JsonObject properties = inputSchema["properties"] as JsonObject ?? new JsonObject();
+                            JsonArray requiredProperties = inputSchema["required"] as JsonArray ?? new JsonArray();
 
+                            List<KernelParameterMetadata> kernelParameters = new List<KernelParameterMetadata>();
 
-                            if (tool.InputSchema.ValueKind == JsonValueKind.Object)
+                            foreach (var property in properties)
                             {
-                                var schemaObj = tool.InputSchema;
-                                if (schemaObj.TryGetProperty("type", out var typeProp))
+                                if (property.Value is JsonObject propObj)
                                 {
-                                    inputSchema["type"] = typeProp.GetString() ?? "object";
-                                }
-                                if (schemaObj.TryGetProperty("properties", out var propertiesProp) && propertiesProp.ValueKind == JsonValueKind.Object)
-                                {
-                                    inputSchema["properties"] = JsonNode.Parse(propertiesProp.GetRawText()) as JsonObject ?? new JsonObject();
-                                }
-                                if (schemaObj.TryGetProperty("required", out var requiredProp) && requiredProp.ValueKind == JsonValueKind.Array)
-                                {
-                                    var filtered = new JsonArray();
-                                    foreach (var s in requiredProp.EnumerateArray())
+                                    string propName = property.Key;
+                                    string propDescription = propObj["description"]?.GetValue<string>() ?? string.Empty;
+
+                                    KernelParameterMetadata kernelParameter = new KernelParameterMetadata(propName)
                                     {
-                                        if (s.ValueKind == JsonValueKind.String)
-                                            filtered.Add(s.GetString());
-                                    }
-                                    inputSchema["required"] = filtered;
+                                        Description = propDescription,
+                                        IsRequired = requiredProperties.Contains(propName),
+                                        Schema = KernelJsonSchema.Parse(propObj.ToJsonString())
+                                    };
+                                    kernelParameters.Add(kernelParameter);
                                 }
                             }
 
-                            Tool newTool = new Tool
+                            KernelFunctionFromMethodOptions functionOption = new KernelFunctionFromMethodOptions
                             {
-                                Name = tool.Name,
-                                Description = tool.Description?.Replace(tool.Name, this.SanitizeToolName(tool.Name)),
-                                InputSchema = this.ParseJsonElement(System.Text.Encoding.UTF8.GetBytes(inputSchema.ToJsonString()))
+                                FunctionName = this.SanitizeToolName(toolName),
+                                Description = toolDescription,
+                                Parameters = kernelParameters,
+                                AdditionalMetadata = new ReadOnlyDictionary<string, object?>(this._additionalMetadataDic)
                             };
+                            KernelFunction toolFunction = KernelFunctionFactory.CreateFromMethod(tempMethod, functionOption);
 
-                            this.AddTool(newTool);
-                            this.Logger.LogInformation("Tool added: {ToolName}", newTool.Name);
+                            this.AddTool(toolName, toolFunction);
+                            this.Logger.LogInformation("Tool added: {ToolName}", toolName);
                         }
+
+                        this.Logger.LogInformation("Number of tools supported by client devices: {count}", toolsJson.Count);
+
 
                         string nextCursor = resultObj["nextCursor"]?.GetValue<string>() ?? string.Empty;
                         if (!string.IsNullOrEmpty(nextCursor))
@@ -174,6 +176,9 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                         else
                         {
                             this.IsReady = true;
+
+                            this.CurrentSession.Kernel.ImportPluginFromFunctions(this.ProviderType, this._mcpTools.Values);
+
                             this.Logger.LogInformation("All tools have been obtained, MCP client is ready.");
 
                             //// 刷新工具缓存，确保MCP工具被包含在函数列表中
@@ -183,8 +188,15 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                             //    conn.FuncHandler.CurrentSupportFunctions();
                             //}
                         }
+
+
+                        return;
                     }
-                    return;
+                    else
+                    {
+                        this.Logger.LogWarning("Cannot get the MCP tools from client.");
+                        return;
+                    }
                 }
             }
             else if (jsonObject.TryGetPropertyValue("method", out var method) && method is not null)
@@ -204,7 +216,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             }
         }
 
-        protected virtual async Task SendMcpInitializeAsync(string clientName)
+        public virtual async Task SendMcpInitializeAsync()
         {
             McpClientOptions mcpClientOptions = new McpClientOptions
             {
@@ -216,7 +228,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 },
                 ClientInfo = new Implementation
                 {
-                    Name = clientName,
+                    Name = this.ProviderType,
                     Version = "1.0.0"
                 }
             };
@@ -232,7 +244,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
             await this.SendMCPMessageAsync(request);
         }
-        protected virtual async Task SendMcpNotificationAsync(string method)
+        public virtual async Task SendMcpNotificationAsync(string method)
         {
             var @params = new { };
             JsonRpcNotification request = new JsonRpcNotification
@@ -247,7 +259,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             await this.SendMCPMessageAsync(request);
         }
 
-        protected virtual async Task RequestToolsListAsync()
+        public virtual async Task RequestToolsListAsync()
         {
             JsonRpcRequest request = new JsonRpcRequest
             {
@@ -261,7 +273,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             await this.SendMCPMessageAsync(request);
         }
 
-        protected virtual async Task RequestToolsListAsync(string cursor)
+        public virtual async Task RequestToolsListAsync(string cursor)
         {
             var @params = new { cursor };
             JsonRpcRequest request = new JsonRpcRequest
@@ -277,51 +289,9 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             await this.SendMCPMessageAsync(request);
         }
 
-        protected abstract Task SendMCPMessageAsync<TMessage>(TMessage message);
+       
 
-        protected void AddTool(Tool mcpTool)
-        {
-            try
-            {
-                this._lockerSlim.Wait();
-                string sanitizedToolName = this.SanitizeToolName(mcpTool.Name);
-                if (this._mcpTools.ContainsKey(sanitizedToolName))
-                {
-                    this.Logger.LogWarning("Tool with name {ToolName} already exists, skipping.", sanitizedToolName);
-                    return;
-                }
-                this._mcpTools.Add(sanitizedToolName, mcpTool);
-            }
-            finally
-            {
-                this._lockerSlim.Release();
-            }
-        }
-
-
-        protected void AddTools(ICollection<Tool> mcpTools)
-        {
-            try
-            {
-                this._lockerSlim.Wait();
-                foreach (var tool in mcpTools)
-                {
-                    string sanitizedToolName = this.SanitizeToolName(tool.Name);
-                    if (this._mcpTools.ContainsKey(sanitizedToolName))
-                    {
-                        this.Logger.LogWarning("Tool with name {ToolName} already exists, skipping.", sanitizedToolName);
-                        continue;
-                    }
-                    this._mcpTools[sanitizedToolName] = tool;
-                }
-            }
-            finally
-            {
-                this._lockerSlim.Release();
-            }
-        }
-
-        protected bool HasTool(string toolName)
+        public bool HasTool(string toolName)
         {
             try
             {
@@ -334,7 +304,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             }
         }
 
-        protected async virtual Task<string> CallMcpToolAsync(string toolName, string args = "{}", int timeout = 30)
+        public async virtual Task<string> CallMcpToolAsync(string toolName, KernelArguments arguments, int timeout = 30)
         {
             if (string.IsNullOrEmpty(toolName))
             {
@@ -351,70 +321,9 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             int toolCallId = this.NextId;
             Task<JsonObject> resultTask = this.RegisterCallResultAsync(toolCallId);
 
-            JsonObject arguments;
-            try
-            {
-                arguments = JsonNode.Parse(string.IsNullOrEmpty(args.Trim()) ? "{}" : args)?.AsObject() ?? new JsonObject();
-            }
-            catch (JsonException)
-            {
-                try
-                {
-                    var jsonObjects = Regex.Matches(args, @"\{[^{}]*\}")
-                        .Cast<Match>()
-                        .Select(m => m.Value)
-                        .ToList();
+            string argJson = arguments.ToJson();
 
-                    if (jsonObjects.Count > 1)
-                    {
-                        var mergedDict = new Dictionary<string, object>();
-                        foreach (var jsonStr in jsonObjects)
-                        {
-                            try
-                            {
-                                var obj = JsonHelper.Deserialize<Dictionary<string, object>>(jsonStr);
-                                if (obj != null)
-                                {
-                                    foreach (var kv in obj)
-                                    {
-                                        mergedDict[kv.Key] = kv.Value;
-                                    }
-                                }
-                            }
-                            catch (JsonException)
-                            {
-                                continue;
-                            }
-                        }
-                        if (mergedDict.Count > 0)
-                        {
-                            // 将 mergedDict 转换为 JsonObject 并赋值给 arguments
-                            arguments = new JsonObject();
-                            foreach (var kv in mergedDict)
-                            {
-                                // 其他类型先序列化为 JSON 字符串再解析为 JsonNode
-                                var json = JsonHelper.Serialize(kv.Value);
-                                arguments[kv.Key] = JsonNode.Parse(json);
-                            }
-                        }
-                        else
-                        {
-                            throw new ArgumentException($"Unable to parse any valid JSON object: {args}");
-                        }
-                    }
-                    else
-                    {
-                        throw new ArgumentException($"Failed to parse JSON: {args}");
-                    }
-                }
-                catch (Exception e)
-                {
-                    this.Logger.LogError(e, "Failed to parse tool arguments: {args}", args);
-                    throw e;
-                }
-            }
-
-            if (this._mcpTools.TryGetValue(toolName, out Tool mcpTool))
+            if (this._mcpTools.TryGetValue(toolName, out KernelFunction mcpTool))
             {
                 string realToolName = mcpTool.Name;
 
@@ -431,7 +340,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                     Method = RequestMethods.ToolsCall,
                     Params = @params.ToNode()
                 };
-                this.Logger.LogDebug("Session {sessionId} call MCP tool: {toolName}, args: {args}", this.CurrentSession.SessionId, realToolName, args);
+                this.Logger.LogDebug("Session {sessionId} call MCP tool: {toolName}, args: {args}", this.CurrentSession.SessionId, realToolName, argJson);
                 await this.SendMCPMessageAsync(request);
             }
 
@@ -470,16 +379,37 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             catch (TimeoutException timeoutException)
             {
                 this.CleanCallResults(toolCallId);
-                this.Logger.LogError(timeoutException, "Timeout while waiting for MCP tool call response: {toolName}, args: {args}", toolName, args);
+                this.Logger.LogError(timeoutException, "Timeout while waiting for MCP tool call response: {toolName}, args: {args}", toolName, argJson);
                 throw timeoutException;
             }
             catch (Exception e)
             {
                 this.CleanCallResults(toolCallId);
-                this.Logger.LogError(e, "Failed to call MCP tool: {toolName}, args: {args}", toolName, args);
+                this.Logger.LogError(e, "Failed to call MCP tool: {toolName}, args: {args}", toolName, argJson);
                 throw e;
             }
         }
+
+        protected abstract Task SendMCPMessageAsync<TMessage>(TMessage message);
+
+        protected void AddTool(string toolName, KernelFunction toolFunction)
+        {
+            try
+            {
+                this._lockerSlim.Wait();
+                if (this._mcpTools.ContainsKey(toolName))
+                {
+                    this.Logger.LogWarning("Tool with name {ToolName} already exists, skipping.", toolName);
+                    return;
+                }
+                this._mcpTools.Add(toolName, toolFunction);
+            }
+            finally
+            {
+                this._lockerSlim.Release();
+            }
+        }
+
         protected virtual Task<JsonObject> RegisterCallResultAsync(int id)
         {
             TaskCompletionSource<JsonObject> tcs = new TaskCompletionSource<JsonObject>();
@@ -508,17 +438,11 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             return this._callResults.Remove(id);
         }
 
-        private JsonElement ParseJsonElement(ReadOnlySpan<byte> utf8Json)
-        {
-            Utf8JsonReader reader = new(utf8Json);
-            return JsonElement.ParseValue(ref reader);
-        }
-
         private string SanitizeToolName(string name)
         {
             return Regex.Replace(name, @"[^a-zA-Z0-9_\\-\u4e00-\u9fff]", "_");
         }
 
-        
+
     }
 }

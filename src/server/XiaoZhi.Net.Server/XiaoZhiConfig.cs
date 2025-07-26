@@ -26,7 +26,7 @@ namespace XiaoZhi.Net.Server
         public ModelSetting MemorySetting { get; set; } = null!;
         public ModelSetting TtsSetting { get; set; } = null!;
         public ModelSetting? IntentSetting { get; set; }
-        public ModelSetting? McpSetting { get; set; }
+        public Dictionary<string, ModelSetting>? McpSettings { get; set; }
 
     }
 

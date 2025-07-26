@@ -118,7 +118,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
                 if (this._save2File)
                 {
-                    _ = Task.Run(() =>
+                    await Task.Run(() =>
                     {
                         string fileName = $"{this.ReplaceMacDelimiters(session.DeviceId)}_{DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString()}.wav";
                         string filePath = Path.Combine(this._savePath, fileName);
@@ -134,7 +134,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                             this.Logger.LogDebug("Failed to save tts wave file {fileName}.", fileName);
                         }
                         audio.Dispose();
-                    });
+                    }).ConfigureAwait(false);
                 }
                 else
                 {

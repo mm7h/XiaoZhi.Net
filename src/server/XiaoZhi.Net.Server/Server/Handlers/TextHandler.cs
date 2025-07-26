@@ -3,10 +3,12 @@ using System;
 using System.Text.Json.Nodes;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Protocol;
+using XiaoZhi.Net.Server.Providers.MCP;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
@@ -57,10 +59,10 @@ namespace XiaoZhi.Net.Server.Handlers
                         this.HandleIotDescriptors();
                         break;
                     case "mcp":
-                        _ = Task.Run(() =>
+                        await Task.Run(() =>
                         {
                             this.HandleMcp(jsonObj);
-                        });
+                        }).ConfigureAwait(false);
 
                         break;
                 }
@@ -157,7 +159,9 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private async void HandleMcp(JsonObject jsonObject)
         {
-            
+            Session session = this.SendOutter.GetSession();
+            ISubMcpClient subMcpClient = session.McpClient.GetSubMcpClient(SubMCPClientTypeNames.DeviceMcpClient);
+            await subMcpClient.HandleMcpMessageAsync(jsonObject);
         }
 
         public void Dispose()

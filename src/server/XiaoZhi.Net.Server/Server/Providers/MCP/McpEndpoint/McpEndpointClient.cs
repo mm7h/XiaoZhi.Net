@@ -3,18 +3,19 @@ using ModelContextProtocol.Protocol;
 using System;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Protocol.WebSocket;
 
 namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
 {
-    internal class McpEndpointClient : BaseMcpClient
+    internal class McpEndpointClient : BaseMcpClient, ISubMcpClient
     {
         private readonly string? _endpointUrl;
         private readonly WebSocketClientEngine _webSocketClientEngine;
 
-        public McpEndpointClient(Session session, ModelSetting mcpSetting, ILogger<McpEndpointClient> logger) : base(session, mcpSetting, logger)
+        public McpEndpointClient(Session session, ModelSetting mcpSetting, ILogger logger) : base(session, mcpSetting, logger)
         {
             this._endpointUrl = this.ModelSetting?.Config?.EndpointUrl;
             this._webSocketClientEngine = new WebSocketClientEngine(this._endpointUrl, this.ModelSetting?.Config?.Headers);
@@ -22,7 +23,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
             this._webSocketClientEngine.OnMessage += this.WebSocketClient_OnMessage;
         }
 
-        public override string ProviderType => "mcp_end_point";
+        public override string ProviderType => SubMCPClientTypeNames.DeviceMcpClient;
 
         public override bool Build()
         {
@@ -52,7 +53,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
         }
         private async void WebSocketClientEngine_OnOpen()
         {
-            await this.SendMcpInitializeAsync("XiaozhiMCPEndpointClient");
+            await this.SendMcpInitializeAsync();
             await this.SendMcpNotificationAsync(NotificationMethods.InitializedNotification);
             await this.RequestToolsListAsync();
 

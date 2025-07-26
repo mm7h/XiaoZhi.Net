@@ -13,6 +13,7 @@ using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Management;
+using XiaoZhi.Net.Server.Services;
 using XiaoZhi.Net.Server.Store;
 
 namespace XiaoZhi.Net.Server
@@ -116,6 +117,7 @@ namespace XiaoZhi.Net.Server
             this._hostApplicationBuilder.Services.AddSingleton(connectionStore);
 
             this._kernelBuilder = this._hostApplicationBuilder.Services.AddKernel();
+            this._hostApplicationBuilder.Services.AddTransient<IFunctionInvocationFilter, MCPToolFunctionFilter>();
 
             LoggerManager.RegisterServices(this._hostApplicationBuilder, config);
             SessionManager.RegisterServices(this._hostApplicationBuilder);

@@ -19,6 +19,7 @@ using XiaoZhi.Net.Server.Providers.Memory;
 using XiaoZhi.Net.Server.Providers.Punctuation;
 using XiaoZhi.Net.Server.Providers.TTS;
 using XiaoZhi.Net.Server.Providers.VAD;
+using XiaoZhi.Net.Server.Providers.MCP;
 using XiaoZhi.Net.Server.Services;
 
 namespace XiaoZhi.Net.Server.Management
@@ -40,7 +41,7 @@ namespace XiaoZhi.Net.Server.Management
         private const string GLOBAL_AUDIO_ENCODER = "GlobalAudioEncoder";
 
 
-        public ProviderManager(ManageApiClient manageApiClient, Kernel _globalKernel, XiaoZhiConfig config,ILogger<ProviderManager> logger)
+        public ProviderManager(ManageApiClient manageApiClient, Kernel _globalKernel, XiaoZhiConfig config, ILogger<ProviderManager> logger)
         {
             this._manageApiClient = manageApiClient;
             this._globalKernel = _globalKernel;
@@ -119,6 +120,7 @@ namespace XiaoZhi.Net.Server.Management
                 }
 
                 Kernel privateKernel = this._globalKernel.Clone();
+                privateKernel.Data.Add("session", session);
                 session.SetKernel(privateKernel);
 
                 if (privateModelsConfig.LlmSetting is not null)
@@ -154,6 +156,8 @@ namespace XiaoZhi.Net.Server.Management
                     this._logger.LogInformation("Private TTS {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.TtsSetting.ModelName, session.DeviceId, session.SessionId);
                 }
 
+                this.RegisterMCP(session);
+
                 session.PrivateProvider = privateProvider;
             }
             catch (DeviceNotFoundException)
@@ -180,7 +184,7 @@ namespace XiaoZhi.Net.Server.Management
             var dialogues = session.Dialogues.Where(d => d.Role == AuthorRole.User || d.Role == AuthorRole.Assistant).ToList();
             if (dialogues.Any())
             {
-
+                //todo: save mempry
             }
         }
 
@@ -205,6 +209,7 @@ namespace XiaoZhi.Net.Server.Management
         }
 
         #region Register providers
+        #region VAD
         private IVad RegisterVad(ModelSetting vadSetting)
         {
             switch (vadSetting.ModelName)
@@ -232,8 +237,10 @@ namespace XiaoZhi.Net.Server.Management
                 default:
                     throw new ModelBuildException("Invalid vad model.");
             }
-        }
+        } 
+        #endregion
 
+        #region ASR
         private IAsr RegisterAsr(ModelSetting asrSetting)
         {
             switch (asrSetting.ModelName.ToLower())
@@ -261,8 +268,10 @@ namespace XiaoZhi.Net.Server.Management
                 default:
                     throw new ModelBuildException("Invalid asr model.");
             }
-        }
+        } 
+        #endregion
 
+        #region Punctuation
         private static void RegisterPunctuation(IServiceCollection services, XiaoZhiConfig config, string key)
         {
             switch (config.PunctuationSetting.ModelName.ToLower())
@@ -272,8 +281,10 @@ namespace XiaoZhi.Net.Server.Management
                 default:
                     throw new ModelBuildException("Invalid punctuation model.");
             }
-        }
+        } 
+        #endregion
 
+        #region LLM
         private static void RegisterLlm(IServiceCollection services, XiaoZhiConfig config, string key)
         {
 
@@ -306,8 +317,10 @@ namespace XiaoZhi.Net.Server.Management
 
 
             services.AddKeyedSingleton<ILlm, GenericOpenAI>(key);
-        }
+        } 
+        #endregion
 
+        #region Memory
         private static void RegisterMemory(IServiceCollection services, XiaoZhiConfig config, string key)
         {
             switch (config.MemorySetting.ModelName.ToLower())
@@ -319,8 +332,10 @@ namespace XiaoZhi.Net.Server.Management
                 default:
                     throw new ModelBuildException("Invalid memory model.");
             }
-        }
+        } 
+        #endregion
 
+        #region TTS
         private ITts RegisterTts(ModelSetting ttsSetting)
         {
             switch (ttsSetting.ModelName.ToLower())
@@ -347,6 +362,21 @@ namespace XiaoZhi.Net.Server.Management
                     throw new ModelBuildException("Invalid tts model.");
             }
         }
+        #endregion
+
+        #region MCP
+        private void RegisterMCP(Session session)
+        { 
+            IMcpClient mcpClient = new McpClient(session, this._config, this._logger);
+            if (!mcpClient.Build())
+            {
+                throw new ModelBuildException("Failed to build MCP client.");
+            }
+
+            session.SetMcpClient(mcpClient);
+        }
+        #endregion
+
         #endregion
     }
 }

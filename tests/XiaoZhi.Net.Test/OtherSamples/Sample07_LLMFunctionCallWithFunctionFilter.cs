@@ -37,7 +37,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 kernel.ImportPluginFromType<TimePlugin>();
                 kernel.ImportPluginFromType<WeatherPlugin>();
 
-                //await InitMCP(kernel);
+                await InitMCP(kernel);
                 InitCustomFunctions(kernel);
 
 
@@ -53,20 +53,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 var clientResult = await chatCompletionService.GetChatMessageContentAsync("帮我打开taobao网站", chatCompletionOptions, kernel);
                 Console.WriteLine(clientResult.Content);
 
-                //if (kernel.Plugins.Remove(deviceMcpPlugins))
-                //{
-                //    Console.WriteLine("删除deviceMcpPlugins成功");
-                //}
-                //else
-                //{
-                //    Console.WriteLine("删除deviceMcpPlugins失败");
-                //}
-
             }
             catch (Exception ex)
             {
-
-                throw;
+                Console.WriteLine("Error: " + ex.Message);
             }
             finally
             {
@@ -97,7 +87,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             var functions = tools.Select(aiFunction => aiFunction.AsKernelFunction()).ToList();
 #pragma warning restore SKEXP0001
 
-            // kernel.Plugins.AddFromFunctions("Tools", functions);
+            kernel.Plugins.AddFromFunctions("Tools", functions);
         }
 
         static void InitCustomFunctions(Kernel kernel)
@@ -108,16 +98,25 @@ namespace XiaoZhi.Net.Test.OtherSamples
             //    return Task.FromResult("打开网站成功");
             //};
 
-            Action tempMethod = () => { };
+            Action tempMethod = () => { Console.WriteLine("调用了"); };
+
+            KernelParameterMetadata kernelParameter = new KernelParameterMetadata("url")
+            {
+                Description = "要打开的网址",
+                IsRequired = true,
+                Schema = KernelJsonSchema.Parse("{\"description\": \"要打开的url地址\",\"type\": \"string\"}")
+            };
 
             var parameters = new List<KernelParameterMetadata>
                 {
-                    new KernelParameterMetadata("url")
-                    {
-                        Description = "要打开的网址",
-                        IsRequired = true,
-                        ParameterType = typeof(string),
-                    }
+                    //new KernelParameterMetadata("url")
+                    //{
+                    //    Description = "要打开的网址",
+                    //    IsRequired = true,
+                    //    ParameterType = typeof(string),
+                    //    DefaultValue = "",
+                    //}
+                    kernelParameter
                 };
 
             IDictionary<string, object?> additionalMetadataDic = new Dictionary<string, object?>
@@ -141,11 +140,19 @@ namespace XiaoZhi.Net.Test.OtherSamples
             var openUrlFunction = KernelFunctionFactory.CreateFromMethod(tempMethod, openUrlFunctionOptions);
 
             var deviceMcpPlugins = kernel.ImportPluginFromFunctions("DeviceMcpFunctions", new List<KernelFunction> { openUrlFunction });
+            //if (kernel.Plugins.Remove(deviceMcpPlugins))
+            //{
+            //    Console.WriteLine("删除deviceMcpPlugins成功");
+            //}
+            //else
+            //{
+            //    Console.WriteLine("删除deviceMcpPlugins失败");
+            //}
         }
 
         static (string command, string[] arguments) GetCommandAndArguments()
         {
-            return ("dotnet", ["run", "--project", Path.Combine("C:\\Visual_D_Drive\\Projects\\Github\\csharp-sdk-0.3.0-preview.2\\samples\\QuickstartWeatherServer\\../QuickstartWeatherServer")]);
+            return ("dotnet", ["run", "--project", Path.Combine("D:\\MyDotNet\\XiaoZhi AI\\model context protocol 0.3.0\\samples\\QuickstartWeatherServer\\../QuickstartWeatherServer")]);
         }
     }
 }

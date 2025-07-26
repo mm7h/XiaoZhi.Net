@@ -9,8 +9,8 @@ namespace XiaoZhi.Net.Test
         static async Task Main(string[] args)
         {
             //await Sample01_LLMStreamResponse.Run();
-            //await Sample07_LLMFunctionCallWithFunctionFilter.Run();
-            await Sample08_CloneKernelAndCheckTheMemory.Run();
+            await Sample07_LLMFunctionCallWithFunctionFilter.Run();
+            //await Sample08_CloneKernelAndCheckTheMemory.Run();
 
             //ModelsInit();
         }

@@ -1,21 +1,23 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.SemanticKernel;
 using ModelContextProtocol.Client;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.MCP.ServerMcp
 {
-    internal class ServerMcpClient : BaseMcpClient
+    internal class ServerMcpClient : BaseMcpClient, ISubMcpClient
     {
-        private IMcpClient? _mcpClient;
+        private ModelContextProtocol.Client.IMcpClient? _mcpClient;
 
-        public ServerMcpClient(Session session, ModelSetting mcpSetting, ILogger<ServerMcpClient> logger) : base(session, mcpSetting, logger)
+        public ServerMcpClient(Session session, ModelSetting mcpSetting, ILogger logger) : base(session, mcpSetting, logger)
         {
 
         }
-        public override string ProviderType => "server_mcp";
+        public override string ProviderType => SubMCPClientTypeNames.DeviceMcpClient;
 
         public override bool Build()
         {
@@ -35,8 +37,14 @@ namespace XiaoZhi.Net.Server.Providers.MCP.ServerMcp
                     });
                     
                     this._mcpClient = McpClientFactory.CreateAsync(transport).GetAwaiter().GetResult();
-                    var tools = this._mcpClient.ListToolsAsync().GetAwaiter().GetResult();
-                    //this.AddTools(tools.ToList());
+                    IList<McpClientTool> tools = this._mcpClient.ListToolsAsync().GetAwaiter().GetResult();
+                    foreach (McpClientTool tool in tools)
+                    {
+                        this.Logger.LogInformation($"Got mcp tools: {tool.Name}, Description: {tool.Description}");
+#pragma warning disable SKEXP0001
+                        this.AddTool(tool.Name,tool.AsKernelFunction());
+#pragma warning restore SKEXP0001
+                    }
                 }
 
 

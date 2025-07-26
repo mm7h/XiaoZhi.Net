@@ -3,7 +3,7 @@ using XiaoZhi.Net.Server;
 using Demo.Server.Plugins;
 
 
-IServerEngine? _serverEngine = null;
+IServerEngine? serverEngine = null;
 // 获取服务引擎构建器
 IServerBuilder serverBuilder = EngineFactory.GetServerBuilder();
 try
@@ -27,27 +27,15 @@ try
 #endif
 
         // 开始初始化服务
-        _serverEngine = serverBuilder.Initialize(config)
+        serverEngine = serverBuilder.Initialize(config)
             // 添加插件
             .WithPlugin<PlayMusic>(nameof(PlayMusic))
             .WithPlugin<GetTime>(nameof(GetTime))
-            .WithPlugin<ConversationSummary>(nameof(ConversationSummary))
+            //.WithPlugin<ConversationSummary>(nameof(ConversationSummary))
             //构建服务引擎
             .Build();
 
-        await _serverEngine.StartAsync();
-
-        Console.WriteLine("Type \"exit\" to stop the service.");
-
-        while (true)
-        {
-            // 输入exit退出
-            string? resKey = Console.ReadLine();
-            if (!string.IsNullOrEmpty(resKey) && resKey.ToLower() == "exit")
-            {
-                break;
-            }
-        }
+        await serverEngine.StartAsync();
     }
     else
     {
@@ -60,9 +48,9 @@ catch (Exception ex)
 }
 finally
 {
-    if (_serverEngine is not null && _serverEngine.Started)
+    if (serverEngine is not null && serverEngine.Started)
     {
-        await _serverEngine.StopAsync();
+        await serverEngine.StopAsync();
     }
     Console.WriteLine("The server stopped.");
 }

@@ -1,6 +1,4 @@
 ﻿using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
-using OpenAI.Chat;
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -9,6 +7,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Protocol;
+using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {
@@ -17,6 +16,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private int _isAudioProcessing;
         private CancellationTokenSource _sessionCts = null!;
         private Kernel? _kernel;
+        private IMcpClient? _mcpClient;
 
         private readonly object _lock = new object();
         private bool _isCanceling = false;
@@ -56,7 +56,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public string? BindCode { get; set; }
         public DateTime LastActivityTime { get; private set; }
         public bool IsSupportMCP { get; set; }
-        //public MCPClient2Xiaozhi MCPClient { get; private set; }
+        public IMcpClient McpClient => this._mcpClient ?? throw new InvalidOperationException("MCPClient is not set. Please set the mcp client before using the session.");
         public bool CloseAfterChat { get; set; }
 
         public bool IsIdle => Volatile.Read(ref _isAudioProcessing) == 1;
@@ -72,6 +72,11 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public void SetKernel(Kernel kernel)
         {
             this._kernel = kernel;
+        }
+
+        public void SetMcpClient(IMcpClient mcpClient)
+        {
+            this._mcpClient = mcpClient;
         }
 
         public void SetListenMode(string mode)
