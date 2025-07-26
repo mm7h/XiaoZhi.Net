@@ -27,11 +27,11 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             };
 
             this._sendSentenceAction = Channel.CreateBounded<Func<Task>>(boundedChannelOptions);
-            _ = this.HandleSendSentenceAction();
+            Task.Factory.StartNew(() => this.HandleSendSentenceActionAsync(), TaskCreationOptions.LongRunning).ConfigureAwait(false);
         }
 
 
-        private async Task HandleSendSentenceAction()
+        private async Task HandleSendSentenceActionAsync()
         {
             await foreach (Func<Task> func in this._sendSentenceAction.Reader.ReadAllAsync())
             {

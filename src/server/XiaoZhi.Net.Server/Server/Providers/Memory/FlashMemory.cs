@@ -3,21 +3,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Dtos;
-using XiaoZhi.Net.Server.Services;
 using XiaoZhi.Net.Server.Store;
 
 namespace XiaoZhi.Net.Server.Providers.Memory
 {
     internal sealed class FlashMemory : BaseProvider, IMemory
     {
-        private readonly ManageApiClient _manageApiClient;
         private readonly IStore _store;
-        public FlashMemory(ManageApiClient manageApiClient, XiaoZhiConfig config, ILogger<FlashMemory> logger) : this(manageApiClient, config.MemorySetting, logger)
+        public FlashMemory(XiaoZhiConfig config, ILogger<FlashMemory> logger) : this(config.MemorySetting, logger)
         {
         }
-        public FlashMemory(ManageApiClient manageApiClient, ModelSetting memorySetting, ILogger logger) : base(memorySetting, logger)
+        public FlashMemory(ModelSetting memorySetting, ILogger logger) : base(memorySetting, logger)
         {
-            this._manageApiClient = manageApiClient;
             this._store = new DefaultMemoryStore();
         }
         public override string ProviderType => "memory";
@@ -25,12 +22,6 @@ namespace XiaoZhi.Net.Server.Providers.Memory
         {
             this.Logger.LogInformation("Builded the default {providerType}: flash memory", this.ProviderType);
             return true;
-        }
-
-        public async Task SaveMemoryAsync(string deviceId, string llmModelName, ICollection<Dialogue> dialogues)
-        {
-
-
         }
 
         public async Task<bool> AppendDialogue(string deviceId, string sessionId, Dialogue dialogue)

@@ -26,7 +26,7 @@ namespace XiaoZhi.Net.Server.Management
 {
     internal sealed class ProviderManager
     {
-        private readonly ManageApiClient _manageApiClient;
+        private readonly IServiceProvider _serviceProvider;
         private readonly Kernel _globalKernel;
         private readonly XiaoZhiConfig _config;
         private readonly ILogger<ProviderManager> _logger;
@@ -41,9 +41,9 @@ namespace XiaoZhi.Net.Server.Management
         private const string GLOBAL_AUDIO_ENCODER = "GlobalAudioEncoder";
 
 
-        public ProviderManager(ManageApiClient manageApiClient, Kernel _globalKernel, XiaoZhiConfig config, ILogger<ProviderManager> logger)
+        public ProviderManager(IServiceProvider serviceProvider, Kernel _globalKernel, XiaoZhiConfig config, ILogger<ProviderManager> logger)
         {
-            this._manageApiClient = manageApiClient;
+            this._serviceProvider = serviceProvider;
             this._globalKernel = _globalKernel;
             this._config = config;
             this._logger = logger;
@@ -94,7 +94,17 @@ namespace XiaoZhi.Net.Server.Management
         {
             try
             {
-                PrivateModelsConfig? privateModelsConfig = await this._manageApiClient.LoadConfigFromApi(session.DeviceId, session.SessionId);
+                PrivateModelsConfig? privateModelsConfig = null;
+                ManageApiClient? manageApiClient = this._serviceProvider.GetService<ManageApiClient>();
+
+                if (manageApiClient is null)
+                {
+                    this._logger.LogInformation("Remote service is unavailable or not configured, skipping private models config loading for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
+                    return;
+                }
+
+                privateModelsConfig = await manageApiClient.LoadConfigFromApi(session.DeviceId, session.SessionId);
+
                 if (privateModelsConfig is null)
                 {
                     this._logger.LogInformation("The device: {deviceId} with session: {sessionId} has not been configured with privatization settings and will use global providers.", session.DeviceId, session.SessionId);
@@ -154,6 +164,12 @@ namespace XiaoZhi.Net.Server.Management
                     privateProvider.InitializeTts(privateTts);
 
                     this._logger.LogInformation("Private TTS {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.TtsSetting.ModelName, session.DeviceId, session.SessionId);
+
+                    IAudioEncoder audioEncoder = new DefaultOpusEncoder(privateTts.GetTtsSampleRate(), this._config.AudioSetting, this._logger);
+                    audioEncoder.Build();
+                    privateProvider.InitializeAudioEncoder(audioEncoder);
+                    this._logger.LogInformation("Private Audio Encoder initialized for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
+
                 }
 
                 this.RegisterMCP(session);
@@ -185,6 +201,23 @@ namespace XiaoZhi.Net.Server.Management
             if (dialogues.Any())
             {
                 //todo: save mempry
+                ManageApiClient? manageApiClient = this._serviceProvider.GetService<ManageApiClient>();
+                if (manageApiClient is not null)
+                {
+                    try
+                    {
+                        await manageApiClient.SaveMemoryAsync(session.DeviceId, session.SessionId, dialogues);
+                        this._logger.LogInformation("Memory saved successfully for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
+                    }
+                    catch (Exception ex)
+                    {
+                        this._logger.LogError(ex, "Failed to save memory for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
+                    }
+                }
+                else
+                {
+                    this._logger.LogWarning("ManageApiClient is not available, cannot save memory for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
+                }
             }
         }
 
@@ -382,8 +415,8 @@ namespace XiaoZhi.Net.Server.Management
                 session.SetMcpClient(mcpClient);
             }
             #endregion
-
-            #endregion
         }
+
+        #endregion
     }
 }

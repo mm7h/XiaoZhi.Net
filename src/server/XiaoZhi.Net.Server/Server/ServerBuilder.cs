@@ -83,6 +83,9 @@ namespace XiaoZhi.Net.Server
                 throw new ArgumentNullException(nameof(XiaoZhiConfig), "Failed to get config from remote api.");
             }
 
+            this._hostApplicationBuilder.Services.AddSingleton<XiaoZhiApiConfig>(apiConfig);
+            this._hostApplicationBuilder.Services.AddSingleton<ManageApiClient>();
+
             return this.Initialize(res.Data);
         }
 
@@ -216,6 +219,10 @@ namespace XiaoZhi.Net.Server
             HandlerManager handlerManager = serviceProvider.GetRequiredService<HandlerManager>();
             protocolManager.BuildComponent(serviceProvider);
             bool builded = providerManager.BuildComponent(serviceProvider);
+            if (!builded)
+            {
+                throw new ApplicationException("Failed to build provider components. Please check the configuration and provider implementations.");
+            }
         }
     }
 }

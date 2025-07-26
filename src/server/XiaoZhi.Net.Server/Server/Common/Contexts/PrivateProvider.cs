@@ -12,6 +12,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public string? SummaryMemory { get; private set; }
         public string? LlmModelName { get; private set; }
         public ITts? Tts { get; private set; }
+        public IAudioEncoder? AudioEncoder { get; private set; }
 
         public void InitializeVad(IVad vad)
         {
@@ -32,11 +33,16 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         {
             this.Tts = tts;
         }
+        public void InitializeAudioEncoder(IAudioEncoder audioEncoder)
+        {
+            this.AudioEncoder = audioEncoder;
+        }
         public void Release()
         {
             this.Vad?.Dispose();
             this.Asr?.Dispose();
             this.Tts?.Dispose();
+            this.AudioEncoder?.Dispose();
         }
     }
 }

@@ -12,7 +12,7 @@ namespace XiaoZhi.Net.Server
     {
         private IHost _host;
 
-        internal XiaoZhiEngine(IHost host)
+        public XiaoZhiEngine(IHost host)
         {
             this._host = host;
         }

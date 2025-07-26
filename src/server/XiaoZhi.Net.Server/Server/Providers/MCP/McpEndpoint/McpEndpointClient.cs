@@ -27,10 +27,10 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
 
         public override bool Build()
         {
-            if (string.IsNullOrWhiteSpace(this._endpointUrl))
+            if (string.IsNullOrEmpty(this._endpointUrl))
             {
-                this.Logger.LogError("Endpoint URL cannot be null or empty.");
-                return false;
+                this.Logger.LogWarning("Endpoint URL is empty, skip this mcp tpye.");
+                return true;
             }
 
             return this._webSocketClientEngine.Connect();

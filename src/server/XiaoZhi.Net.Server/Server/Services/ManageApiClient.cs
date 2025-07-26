@@ -1,6 +1,7 @@
 ﻿using Flurl;
 using Flurl.Http;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Dtos;
@@ -39,6 +40,9 @@ namespace XiaoZhi.Net.Server.Services
             }
         }
 
-
+        internal async Task SaveMemoryAsync(string deviceId, string sessionId, List<Dialogue> dialogues)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

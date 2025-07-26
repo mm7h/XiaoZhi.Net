@@ -9,9 +9,10 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
 {
     internal class DefaultOpusEncoder : BaseProvider, IAudioEncoder
     {
+        private const int DEFAULT_SAMPLE_RATE = 24_000;
+
         private OpusEncoder? _encoder;
         private SemaphoreSlim _encodesemaphoreSlim = new SemaphoreSlim(1, 1);
-        private readonly ITts _tts;
 
         public new string ModelName => "OpusEncoder";
         public override string ProviderType => "opus audio encoder";
@@ -19,18 +20,22 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
         public int Channels { get; }
         public int FrameDuration { get; }
         public int FrameSize { get; private set; }
-        public DefaultOpusEncoder(ITts tts, AudioSetting audioSetting, ILogger<DefaultOpusEncoder> logger) : base(logger)
+        public DefaultOpusEncoder(AudioSetting audioSetting, ILogger<DefaultOpusEncoder> logger) : base(logger)
         {
-            this._tts = tts;
+            this.SampleRate = DEFAULT_SAMPLE_RATE;
             this.Channels = audioSetting.Channels;
             this.FrameDuration = audioSetting.FrameDuration;
         }
-
+        public DefaultOpusEncoder(int sampleRate, AudioSetting audioSetting, ILogger logger) : base(logger)
+        {
+            this.SampleRate = sampleRate;
+            this.Channels = audioSetting.Channels;
+            this.FrameDuration = audioSetting.FrameDuration;
+        }
         public override bool Build()
         {
             try
             {
-                this.SampleRate = this._tts.GetTtsSampleRate();
                 this.FrameSize = this.SampleRate * this.FrameDuration * this.Channels / 1000;
                 this._encoder = new OpusEncoder(this.SampleRate, this.Channels, OpusPredefinedValues.OPUS_APPLICATION_AUDIO);
                 this.Logger.LogInformation("Builded the default {providerType}: {modelName}", this.ProviderType, this.ModelName);
