@@ -237,7 +237,7 @@ namespace XiaoZhi.Net.Server.Management
                 default:
                     throw new ModelBuildException("Invalid vad model.");
             }
-        } 
+        }
         #endregion
 
         #region ASR
@@ -268,7 +268,7 @@ namespace XiaoZhi.Net.Server.Management
                 default:
                     throw new ModelBuildException("Invalid asr model.");
             }
-        } 
+        }
         #endregion
 
         #region Punctuation
@@ -281,7 +281,7 @@ namespace XiaoZhi.Net.Server.Management
                 default:
                     throw new ModelBuildException("Invalid punctuation model.");
             }
-        } 
+        }
         #endregion
 
         #region LLM
@@ -317,7 +317,7 @@ namespace XiaoZhi.Net.Server.Management
 
 
             services.AddKeyedSingleton<ILlm, GenericOpenAI>(key);
-        } 
+        }
         #endregion
 
         #region Memory
@@ -332,7 +332,7 @@ namespace XiaoZhi.Net.Server.Management
                 default:
                     throw new ModelBuildException("Invalid memory model.");
             }
-        } 
+        }
         #endregion
 
         #region TTS
@@ -366,17 +366,24 @@ namespace XiaoZhi.Net.Server.Management
 
         #region MCP
         private void RegisterMCP(Session session)
-        { 
+        {
             IMcpClient mcpClient = new McpClient(session, this._config, this._logger);
             if (!mcpClient.Build())
             {
                 throw new ModelBuildException("Failed to build MCP client.");
             }
+            else
+            {
+                IDictionary<string, ISubMcpClient> subMcpClients = mcpClient.GetAllSubMcpClients();
+                foreach (var item in subMcpClients)
+                {
+                    session.Kernel.ImportPluginFromFunctions(item.Key, item.Value.Functions);
+                }
+                session.SetMcpClient(mcpClient);
+            }
+            #endregion
 
-            session.SetMcpClient(mcpClient);
+            #endregion
         }
-        #endregion
-
-        #endregion
     }
 }
