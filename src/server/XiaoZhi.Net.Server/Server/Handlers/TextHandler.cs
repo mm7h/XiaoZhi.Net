@@ -103,7 +103,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     bool isSupportMCP = mcp.GetValue<bool>();
                     if (isSupportMCP)
                     {
-                        this._providerManager.RegisterMCP(session);
+                        //this._providerManager.RegisterMCP(session);
                     }
                 }
             }
