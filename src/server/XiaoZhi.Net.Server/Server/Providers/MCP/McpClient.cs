@@ -57,8 +57,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 {
                     ModelName = SubMCPClientTypeNames.DeviceMcpClient
                 };
-                DeviceMcpClient deviceMcpClient = new DeviceMcpClient(this._currentSession, defaultDeviceMcpSetting, this.Logger);
-                deviceMcpClient.SendMcpInitializeAsync().GetAwaiter().GetResult();
+                ISubMcpClient deviceMcpClient = new DeviceMcpClient(this._currentSession, defaultDeviceMcpSetting, this.Logger);
                 this._subMcpClients.Add(SubMCPClientTypeNames.DeviceMcpClient, deviceMcpClient);
             }
 
