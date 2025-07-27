@@ -168,7 +168,6 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
                     if (verifyResult)
                     {
                         this._currentSession = this._sessionManager.CreateSession(this.ID, deviceId, authToken, this.Context.UserEndPoint, this);
-
                         this._providerManager.InitializePrivateConfig(this._currentSession).ConfigureAwait(false);
 
                         this._currentSession.RefreshLastActivityTime();
@@ -195,6 +194,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
 
         protected override void OnMessage(MessageEventArgs e)
         {
+            Console.WriteLine(e.ToJson());
             if (this._currentSession is not null)
             {
                 if (e.IsBinary)
@@ -229,7 +229,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
                 this._currentSession.Release();
                 this._sessionManager.RemoveSession(this._currentSession.SessionId);
 
-                this._logger.LogDebug("Client offline, device id: {deviceId} and session id: {sessionId}.", this._currentSession.DeviceId, this._currentSession.SessionId);
+                this._logger.LogDebug("Client offline, device id: {deviceId} and session id: {sessionId}, reason: {reason}.", this._currentSession.DeviceId, this._currentSession.SessionId, e.Reason);
             }
         }
     }

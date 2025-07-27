@@ -234,7 +234,6 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             };
             JsonRpcRequest request = new JsonRpcRequest
             {
-                JsonRpc = "2.0",
                 Method = RequestMethods.ToolsList,
                 Id = new RequestId(1),
                 Params = mcpClientOptions.ToNode()
@@ -249,7 +248,6 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             var @params = new { };
             JsonRpcNotification request = new JsonRpcNotification
             {
-                JsonRpc = "2.0",
                 Method = method,
                 Params = @params.ToNode()
             };
@@ -263,7 +261,6 @@ namespace XiaoZhi.Net.Server.Providers.MCP
         {
             JsonRpcRequest request = new JsonRpcRequest
             {
-                JsonRpc = "2.0",
                 Method = RequestMethods.ToolsList,
                 Id = new RequestId(2)
             };
@@ -278,7 +275,6 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             var @params = new { cursor };
             JsonRpcRequest request = new JsonRpcRequest
             {
-                JsonRpc = "2.0",
                 Method = RequestMethods.ToolsList,
                 Id = new RequestId(2),
                 Params = @params.ToNode()
@@ -335,7 +331,6 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
                 JsonRpcRequest request = new JsonRpcRequest
                 {
-                    JsonRpc = "2.0",
                     Id = new RequestId(toolCallId),
                     Method = RequestMethods.ToolsCall,
                     Params = @params.ToNode()

@@ -55,7 +55,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public bool IsDeviceBinded { get; set; }
         public string? BindCode { get; set; }
         public DateTime LastActivityTime { get; private set; }
-        public bool IsSupportMCP { get; set; }
         public IMcpClient McpClient => this._mcpClient ?? throw new InvalidOperationException("MCPClient is not set. Please set the mcp client before using the session.");
         public bool CloseAfterChat { get; set; }
 
@@ -166,8 +165,8 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.AudioPacketContext.Release();
             this.SentenceTimeAxisContext.Release();
             this._sessionCts.Cancel();
-            this._sessionCts.Dispose();
             this.HandlerPipeline.Release();
+            this._sessionCts.Dispose();
         }
 
         private void CreateCancellationTokenSource()

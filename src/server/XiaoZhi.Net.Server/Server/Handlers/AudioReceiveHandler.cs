@@ -1,8 +1,10 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SherpaOnnx;
 using System;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Protocol;
@@ -10,11 +12,11 @@ using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
-    internal sealed class AudioReceiveHandler : BaseHandler,  IOutHandler<CircularBuffer>
+    internal sealed class AudioReceiveHandler : BaseHandler, IOutHandler<CircularBuffer>
     {
         private readonly IVad _vad;
         private readonly IAudioDecoder _audioDecoder;
-        public AudioReceiveHandler(IVad vad, IAudioDecoder audioDecoder, XiaoZhiConfig config, ILogger<AudioReceiveHandler> logger) : base(config, logger)
+        public AudioReceiveHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_VAD)] IVad vad, [FromKeyedServices(GlobalProviderNames.GLOBAL_AUDIO_DECODER)] IAudioDecoder audioDecoder, XiaoZhiConfig config, ILogger<AudioReceiveHandler> logger) : base(config, logger)
         {
             this._vad = vad;
             this._audioDecoder = audioDecoder;
@@ -94,7 +96,7 @@ namespace XiaoZhi.Net.Server.Handlers
             sessionContext.AudioPacketContext.VadPacket.Reset();
 
             Workflow<CircularBuffer> session = sessionContext.ToWorkflow(sessionContext.AudioPacketContext.AsrPackets);
-            await this.NextWriter!.WriteAsync(session);
+            await this.NextWriter.WriteAsync(session);
         }
         private void NoVoiceCloseConnect(Session sessionContext)
         {

@@ -1,10 +1,12 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Enums;
@@ -14,13 +16,13 @@ using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
-    internal sealed class DialogueHandler : BaseHandler, IInHandler<string>, IOutHandler<OutSegment>
+    internal sealed class DialogueHandler : BaseHandler, IInHandler<string, string>, IOutHandler<OutSegment>
     {
         private readonly ILlm _llm;
         private readonly IMemory _memory;
         private bool _useStreaming;
 
-        public DialogueHandler(ILlm llm, IMemory memory, XiaoZhiConfig config, ILogger<DialogueHandler> logger) : base(config, logger)
+        public DialogueHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_LLM)] ILlm llm, [FromKeyedServices(GlobalProviderNames.GLOBAL_MEMORY)] IMemory memory, XiaoZhiConfig config, ILogger<DialogueHandler> logger) : base(config, logger)
         {
             this._llm = llm;
             this._useStreaming = this.Config.LlmSettings.First().Config.UseStreaming ?? false;
@@ -32,12 +34,54 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override string HandlerName => nameof(DialogueHandler);
         public IBizSendOutter SendOutter { get; set; } = null!;
-        public ChannelReader<Workflow<string>> PreviousReader { get; set; } = null!;
+        public ChannelReader<Workflow<string>> PreviousReader1 { get; set; } = null!;
+        public ChannelReader<Workflow<string>> PreviousReader2 { get; set; } = null!;
         public ChannelWriter<Workflow<OutSegment>> NextWriter { get; set; } = null!;
 
-        public async Task Handle()
+        public async Task Handle1()
         {
-            await foreach (var reader in PreviousReader.ReadAllAsync()) await this.Handle(reader);
+            //await foreach (var reader in PreviousReader.ReadAllAsync()) await this.Handle(reader);
+            try
+            {
+                await foreach (var reader in this.PreviousReader1.ReadAllAsync())
+                {
+                    try
+                    {
+                        await this.Handle(reader);
+                    }
+                    catch (Exception e1)
+                    {
+
+                    }
+                }
+            }
+            catch (Exception e2)
+            {
+
+            }
+        }
+
+        public async Task Handle2()
+        {
+            //await foreach (var reader in PreviousReader.ReadAllAsync()) await this.Handle(reader);
+            try
+            {
+                await foreach (var reader in this.PreviousReader1.ReadAllAsync())
+                {
+                    try
+                    {
+                        await this.Handle(reader);
+                    }
+                    catch (Exception e1)
+                    {
+
+                    }
+                }
+            }
+            catch (Exception e2)
+            {
+
+            }
         }
 
         public async Task Handle(Workflow<string> workflow, bool addToChatHistory = true)
@@ -97,12 +141,15 @@ namespace XiaoZhi.Net.Server.Handlers
                 bool isLast = segmentIndex == segmentsCount;
                 OutSegment outSegment = new OutSegment(segmentResult, isFirst, isLast);
 
-                await this.NextWriter!.WriteAsync(new Workflow<OutSegment>(sessionId, outSegment));
+                await this.NextWriter.WriteAsync(new Workflow<OutSegment>(sessionId, outSegment));
             }
         }
 
         public void Dispose()
         {
+            this._llm.OnBeforeTokenGenerate -= this.OnBeforeTokenGenerate;
+            this._llm.OnTokenGenerating -= this.OnTokenGenerating;
+            this._llm.OnTokenGenerated -= this.OnTokenGenerated;
             this.NextWriter.Complete();
         }
 
@@ -115,7 +162,7 @@ namespace XiaoZhi.Net.Server.Handlers
         private async void OnTokenGenerating(string sessionId, OutSegment outSegment)
         {
             string segment = DialogueHelper.GetStringNoPunctuationOrEmoji(outSegment.Content);
-            await this.NextWriter!.WriteAsync(new Workflow<OutSegment>(sessionId, outSegment));
+            await this.NextWriter.WriteAsync(new Workflow<OutSegment>(sessionId, outSegment));
         }
 
         private async void OnTokenGenerated(string sessionId, string content)

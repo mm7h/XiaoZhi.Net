@@ -174,7 +174,30 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             previous.NextWriter = channel.Writer;
             next.PreviousReader = channel.Reader;
 
-            Task.Factory.StartNew(() => next.Handle(), TaskCreationOptions.LongRunning).ConfigureAwait(false);
+            Task.Factory.StartNew(async () => await next.Handle(), TaskCreationOptions.LongRunning).ConfigureAwait(false);
+            this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
+        }
+
+        private void BuildHandlersWorkflow<T>(IOutHandler<T> previous, IInHandler<T, T> next)
+        {
+#if DEBUG
+            int capacity = 100;
+#else
+            int capacity = 1000;
+#endif
+            BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(capacity)
+            {
+                FullMode = BoundedChannelFullMode.Wait,
+                SingleWriter = true,
+                SingleReader = true
+            };
+            Channel<Workflow<T>> channel = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
+            previous.NextWriter = channel.Writer;
+            next.PreviousReader1 = channel.Reader;
+            next.PreviousReader2 = channel.Reader;
+
+            Task.Factory.StartNew(async () => await next.Handle1(), TaskCreationOptions.LongRunning).ConfigureAwait(false);
+            Task.Factory.StartNew(async () => await next.Handle2(), TaskCreationOptions.LongRunning).ConfigureAwait(false);
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
         }
 

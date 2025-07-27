@@ -31,15 +31,6 @@ namespace XiaoZhi.Net.Server.Management
         private readonly XiaoZhiConfig _config;
         private readonly ILogger<ProviderManager> _logger;
 
-        private const string GLOBAL_AUDIO_DECODER = "GlobalAudioDecoder";
-        private const string GLOBAL_ASR = "GlobalAsr";
-        private const string GLOBAL_VAD = "GlobalVad";
-        private const string GLOBAL_PUNCTUATION = "GlobalPunctuation";
-        private const string GLOBAL_MEMORY = "GlobalMemory";
-        private const string GLOBAL_LLM = "GlobalLlm";
-        private const string GLOBAL_TTS = "GlobalTts";
-        private const string GLOBAL_AUDIO_ENCODER = "GlobalAudioEncoder";
-
 
         public ProviderManager(IServiceProvider serviceProvider, Kernel _globalKernel, XiaoZhiConfig config, ILogger<ProviderManager> logger)
         {
@@ -53,14 +44,14 @@ namespace XiaoZhi.Net.Server.Management
         {
             IServiceCollection services = builder.Services;
 
-            services.AddKeyedSingleton<IAudioDecoder, DefaultOpusDecoder>(GLOBAL_AUDIO_DECODER);
-            RegisterVad(services, config, GLOBAL_VAD);
-            RegisterAsr(services, config, GLOBAL_ASR);
-            RegisterPunctuation(services, config, GLOBAL_PUNCTUATION);
-            RegisterLlm(services, config, GLOBAL_LLM);
-            RegisterMemory(services, config, GLOBAL_MEMORY);
-            RegisterTts(services, config, GLOBAL_TTS);
-            services.AddKeyedSingleton<IAudioEncoder, DefaultOpusEncoder>(GLOBAL_AUDIO_ENCODER);
+            services.AddKeyedSingleton<IAudioDecoder, DefaultOpusDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER);
+            RegisterVad(services, config, GlobalProviderNames.GLOBAL_VAD);
+            RegisterAsr(services, config, GlobalProviderNames.GLOBAL_ASR);
+            RegisterPunctuation(services, config, GlobalProviderNames.GLOBAL_PUNCTUATION);
+            RegisterLlm(services, config, GlobalProviderNames.GLOBAL_LLM);
+            RegisterMemory(services, config, GlobalProviderNames.GLOBAL_MEMORY);
+            RegisterTts(services, config, GlobalProviderNames.GLOBAL_TTS);
+            services.AddKeyedSingleton<IAudioEncoder, DefaultOpusEncoder>(GlobalProviderNames.GLOBAL_AUDIO_ENCODER);
 
             services.AddSingleton<ProviderManager>();
         }
@@ -69,14 +60,14 @@ namespace XiaoZhi.Net.Server.Management
         {
             IList<IProvider> providers = new List<IProvider>
             {
-                serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GLOBAL_AUDIO_DECODER),
-                serviceProvider.GetRequiredKeyedService<IAsr>(GLOBAL_ASR),
-                serviceProvider.GetRequiredKeyedService<IVad>(GLOBAL_VAD),
-                serviceProvider.GetRequiredKeyedService<IPunctuation>(GLOBAL_PUNCTUATION),
-                serviceProvider.GetRequiredKeyedService<IMemory>(GLOBAL_MEMORY),
-                serviceProvider.GetRequiredKeyedService<ILlm>(GLOBAL_LLM),
-                serviceProvider.GetRequiredKeyedService<ITts>(GLOBAL_TTS),
-                serviceProvider.GetRequiredKeyedService<IAudioEncoder>(GLOBAL_AUDIO_ENCODER)
+                serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER),
+                serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR),
+                serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD),
+                serviceProvider.GetRequiredKeyedService<IPunctuation>(GlobalProviderNames.GLOBAL_PUNCTUATION),
+                serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY),
+                serviceProvider.GetRequiredKeyedService<ILlm>(GlobalProviderNames.GLOBAL_LLM),
+                serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS),
+                serviceProvider.GetRequiredKeyedService<IAudioEncoder>(GlobalProviderNames.GLOBAL_AUDIO_ENCODER)
             };
 
             foreach (IProvider provider in providers)
@@ -94,6 +85,10 @@ namespace XiaoZhi.Net.Server.Management
         {
             try
             {
+                Kernel privateKernel = this._globalKernel.Clone();
+                privateKernel.Data.Add("session", session);
+                session.SetKernel(privateKernel);
+
                 PrivateModelsConfig? privateModelsConfig = null;
                 ManageApiClient? manageApiClient = this._serviceProvider.GetService<ManageApiClient>();
 
@@ -128,10 +123,6 @@ namespace XiaoZhi.Net.Server.Management
 
                     this._logger.LogInformation("Private ASR {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.AsrSetting.ModelName, session.DeviceId, session.SessionId);
                 }
-
-                Kernel privateKernel = this._globalKernel.Clone();
-                privateKernel.Data.Add("session", session);
-                session.SetKernel(privateKernel);
 
                 if (privateModelsConfig.LlmSetting is not null)
                 {
@@ -225,14 +216,14 @@ namespace XiaoZhi.Net.Server.Management
         {
             IList<IProvider> providers = new List<IProvider>
             {
-                serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GLOBAL_AUDIO_DECODER),
-                serviceProvider.GetRequiredKeyedService<IAsr>(GLOBAL_ASR),
-                serviceProvider.GetRequiredKeyedService<IVad>(GLOBAL_VAD),
-                serviceProvider.GetRequiredKeyedService<IPunctuation>(GLOBAL_PUNCTUATION),
-                serviceProvider.GetRequiredKeyedService<IMemory>(GLOBAL_MEMORY),
-                serviceProvider.GetRequiredKeyedService<ILlm>(GLOBAL_LLM),
-                serviceProvider.GetRequiredKeyedService<ITts>(GLOBAL_TTS),
-                serviceProvider.GetRequiredKeyedService<IAudioEncoder>(GLOBAL_AUDIO_ENCODER)
+                serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER),
+                serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR),
+                serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD),
+                serviceProvider.GetRequiredKeyedService<IPunctuation>(GlobalProviderNames.GLOBAL_PUNCTUATION),
+                serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY),
+                serviceProvider.GetRequiredKeyedService<ILlm>(GlobalProviderNames.GLOBAL_LLM),
+                serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS),
+                serviceProvider.GetRequiredKeyedService<IAudioEncoder>(GlobalProviderNames.GLOBAL_AUDIO_ENCODER)
             };
 
             foreach (IProvider provider in providers)
@@ -398,12 +389,12 @@ namespace XiaoZhi.Net.Server.Management
         #endregion
 
         #region MCP
-        private void RegisterMCP(Session session)
+        public void RegisterMCP(Session session)
         {
             IMcpClient mcpClient = new McpClient(session, this._config, this._logger);
             if (!mcpClient.Build())
             {
-                throw new ModelBuildException("Failed to build MCP client.");
+                this._logger.LogWarning("Session {sessionId} failed to build MCP client.", session.SessionId);
             }
             else
             {
@@ -414,9 +405,8 @@ namespace XiaoZhi.Net.Server.Management
                 }
                 session.SetMcpClient(mcpClient);
             }
-            #endregion
         }
-
+        #endregion
         #endregion
     }
 }

@@ -90,7 +90,5 @@
       "SavePath": "./data/tts-cache"
     }
   },
-  "IntentSetting": {
-    "ModelName": "ChatGLM"
-  }
+  "McpSettings": {}
 }

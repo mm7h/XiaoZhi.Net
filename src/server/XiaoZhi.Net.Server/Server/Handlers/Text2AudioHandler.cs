@@ -1,7 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Protocol;
@@ -12,8 +14,9 @@ namespace XiaoZhi.Net.Server.Handlers
     internal sealed class Text2AudioHandler : BaseHandler, IInHandler<OutSegment>, IOutHandler<float[]>
     {
         private readonly ITts _tts;
-        public Text2AudioHandler(ITts tts, XiaoZhiConfig config, ILogger<Text2AudioHandler> logger) : base(config, logger)
+        public Text2AudioHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_TTS)] ITts tts, XiaoZhiConfig config, ILogger<Text2AudioHandler> logger) : base(config, logger)
         {
+            Console.WriteLine("666666666666666666666");
             this._tts = tts;
             this._tts.OnBeforeProcessing += this.TTS_OnBeforeProcessing;
             this._tts.OnProcessing += this.TTS_OnProcessing;
@@ -46,7 +49,14 @@ namespace XiaoZhi.Net.Server.Handlers
                     return;
                 }
 
-                await this._tts.SynthesisAsync(workflow, session, session.SessionCtsToken);
+                if (session.PrivateProvider is not null && session.PrivateProvider.Tts is not null)
+                {
+                    await session.PrivateProvider.Tts.SynthesisAsync(workflow, session, session.SessionCtsToken);
+                }
+                else
+                {
+                    await this._tts.SynthesisAsync(workflow, session, session.SessionCtsToken);
+                }
 
             }
             catch (OperationCanceledException)
@@ -61,6 +71,10 @@ namespace XiaoZhi.Net.Server.Handlers
         }
         public void Dispose()
         {
+            Console.WriteLine("7777777777777");
+            this._tts.OnBeforeProcessing -= this.TTS_OnBeforeProcessing;
+            this._tts.OnProcessing -= this.TTS_OnProcessing;
+            this._tts.OnProcessed -= this.TTS_OnProcessed;
             this.NextWriter.Complete();
         }
 

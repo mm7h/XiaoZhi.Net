@@ -1,8 +1,10 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Protocol;
@@ -14,7 +16,7 @@ namespace XiaoZhi.Net.Server.Handlers
     {
         private readonly IAudioEncoder _audioEncoder;
 
-        public AudioSendHandler(IAudioEncoder audioEncoder, XiaoZhiConfig config, ILogger<AudioSendHandler> logger) : base(config, logger)
+        public AudioSendHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_AUDIO_ENCODER)] IAudioEncoder audioEncoder, XiaoZhiConfig config, ILogger<AudioSendHandler> logger) : base(config, logger)
         {
             this._audioEncoder = audioEncoder;
         }
@@ -39,7 +41,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 session.AudioPacketContext.SendOpusPacketFrame.Push(workflow.Data);
 
-                int frameSize = this._audioEncoder.FrameSize;
+                int frameSize = session.PrivateProvider is not null && session.PrivateProvider.AudioEncoder is not null ? session.PrivateProvider.AudioEncoder.FrameSize : this._audioEncoder.FrameSize;
 
                 // 增加预缓冲的帧数
                 int preBufferFrames = 50;
@@ -93,8 +95,16 @@ namespace XiaoZhi.Net.Server.Handlers
                 while (session.AudioPacketContext.SendOpusPacketFrame.GetFrames(frameSize, out float[] chunk))
                 {
                     session.SessionCtsToken.ThrowIfCancellationRequested();
-                    byte[] opusData = await this._audioEncoder.EncodeAsync(chunk, session.SessionCtsToken);
 
+                    byte[] opusData;
+                    if (session.PrivateProvider is not null && session.PrivateProvider.AudioEncoder is not null)
+                    {
+                        opusData = await session.PrivateProvider.AudioEncoder.EncodeAsync(chunk, session.SessionCtsToken);
+                    }
+                    else
+                    {
+                        opusData = await this._audioEncoder.EncodeAsync(chunk, session.SessionCtsToken);
+                    }
 
                     double expectedTime = startTime + (playPosition / 1000);
                     double currentTime = timer.ElapsedMilliseconds;

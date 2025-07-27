@@ -7,6 +7,7 @@ using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.Management;
 using XiaoZhi.Net.Server.Protocol;
 using XiaoZhi.Net.Server.Providers.MCP;
 
@@ -14,8 +15,11 @@ namespace XiaoZhi.Net.Server.Handlers
 {
     internal sealed class TextHandler : BaseHandler, IOutHandler<string>
     {
-        public TextHandler(XiaoZhiConfig config, ILogger<TextHandler> logger) : base(config, logger)
+        private readonly ProviderManager _providerManager;
+
+        public TextHandler(ProviderManager providerManager, XiaoZhiConfig config, ILogger<TextHandler> logger) : base(config, logger)
         {
+            this._providerManager = providerManager;
         }
         public event Action<Session>? OnManualStop;
         public override string HandlerName => nameof(TextHandler);
@@ -33,7 +37,9 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
+#if DEBUG
             this.Logger.LogDebug("Received text from client: {jsonText}", jsonObject?.ToJsonString());
+#endif
 
             if (jsonObject is JsonObject jsonObj)
             {
@@ -97,8 +103,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     bool isSupportMCP = mcp.GetValue<bool>();
                     if (isSupportMCP)
                     {
-                        session.IsSupportMCP = true;
-                        //todo: init mcp
+                        this._providerManager.RegisterMCP(session);
                     }
                 }
             }
@@ -141,12 +146,11 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
                 else if (state == "detect")
                 {
-                    // 用于客户端向服务器告知检测到唤醒词
                     string? text = jsonObject["text"]?.GetValue<string>()?.ToLower();
                     if (!string.IsNullOrEmpty(text))
                     {
                         // startToChat
-                        await this.NextWriter!.WriteAsync(new Workflow<string>(session, text));
+                        await this.NextWriter.WriteAsync(new Workflow<string>(session, text));
                     }
                 }
             }

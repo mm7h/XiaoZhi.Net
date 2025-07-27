@@ -1,10 +1,12 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SherpaOnnx;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
@@ -20,7 +22,7 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly int _sampleRate;
         private readonly int _frameSize;
 
-        public Audio2TextHandler(IAsr asr, IPunctuation punctuation, IAudioDecoder audioDecoder, XiaoZhiConfig config, ILogger<Audio2TextHandler> logger) : base(config, logger)
+        public Audio2TextHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_ASR)] IAsr asr, [FromKeyedServices(GlobalProviderNames.GLOBAL_PUNCTUATION)] IPunctuation punctuation, [FromKeyedServices(GlobalProviderNames.GLOBAL_AUDIO_DECODER)] IAudioDecoder audioDecoder, XiaoZhiConfig config, ILogger<Audio2TextHandler> logger) : base(config, logger)
         {
             this._asr = asr;
             this._punctuation = punctuation;
@@ -46,7 +48,15 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             try
             {
-                string speechText = await this._asr.ConvertSpeechText(workflow.Data, this._sampleRate, this._frameSize, session.SessionCtsToken);
+                string speechText;
+                if (session.PrivateProvider is not null && session.PrivateProvider.Asr is not null)
+                {
+                    speechText = await session.PrivateProvider.Asr.ConvertSpeechText(workflow.Data, this._sampleRate, this._frameSize, session.SessionCtsToken);
+                }
+                else
+                {
+                    speechText = await this._asr.ConvertSpeechText(workflow.Data, this._sampleRate, this._frameSize, session.SessionCtsToken);
+                }
 
                 if (string.IsNullOrEmpty(DialogueHelper.GetStringNoPunctuationOrEmoji(speechText)))
                 {
@@ -65,7 +75,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 this.Logger.LogDebug("Device {deviceId} speak the text: {speechText}", session.DeviceId, speechText);
                 speechText = await this._punctuation.AppendPunctuationAsync(speechText!, session.SessionCtsToken);
 
-                await this.NextWriter!.WriteAsync(workflow.NextFlow(speechText));
+                await this.NextWriter.WriteAsync(workflow.NextFlow(speechText));
             }
             catch (OperationCanceledException)
             {

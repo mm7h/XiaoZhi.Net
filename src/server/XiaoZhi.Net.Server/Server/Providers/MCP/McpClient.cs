@@ -40,22 +40,66 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
         public override bool Build()
         {
+            if (this._config.McpSettings is null)
+            {
+                return true;
+            }
             ModelSetting defaultSetting = new ModelSetting();
 
-            ISubMcpClient deviceMcpClient = new DeviceMcpClient(this._currentSession, this._config.McpSettings is not null && this._config.McpSettings.TryGetValue(SubMCPClientTypeNames.DeviceMcpClient, out var deviceSetting) ? deviceSetting : defaultSetting, this.Logger);
-            ISubMcpClient mcpEndpointClient = new McpEndpointClient(this._currentSession, this._config.McpSettings is not null && this._config.McpSettings.TryGetValue(SubMCPClientTypeNames.McpEndpointClient, out var endPointSetting) ? endPointSetting : defaultSetting, this.Logger);
-            ISubMcpClient serverMcpClient = new ServerMcpClient(this._currentSession, this._config.McpSettings is not null && this._config.McpSettings.TryGetValue(SubMCPClientTypeNames.ServerMcpClient, out var serverMCPSetting) ? serverMCPSetting : defaultSetting, this.Logger);
+            if (this._config.McpSettings.TryGetValue(SubMCPClientTypeNames.DeviceMcpClient, out var deviceSetting))
+            {
+                ISubMcpClient deviceMcpClient = new DeviceMcpClient(this._currentSession, deviceSetting, this.Logger);
+                this._subMcpClients.Add(SubMCPClientTypeNames.DeviceMcpClient, deviceMcpClient);
+            }
+            else
+            {
+                ModelSetting defaultDeviceMcpSetting = new ModelSetting
+                {
+                    ModelName = SubMCPClientTypeNames.DeviceMcpClient
+                };
+                DeviceMcpClient deviceMcpClient = new DeviceMcpClient(this._currentSession, defaultDeviceMcpSetting, this.Logger);
+                deviceMcpClient.SendMcpInitializeAsync().GetAwaiter().GetResult();
+                this._subMcpClients.Add(SubMCPClientTypeNames.DeviceMcpClient, deviceMcpClient);
+            }
 
-            this._subMcpClients.Add(SubMCPClientTypeNames.DeviceMcpClient, deviceMcpClient);
-            this._subMcpClients.Add(SubMCPClientTypeNames.McpEndpointClient, mcpEndpointClient);
-            this._subMcpClients.Add(SubMCPClientTypeNames.ServerMcpClient, serverMcpClient);
+            if (this._config.McpSettings.TryGetValue(SubMCPClientTypeNames.McpEndpointClient, out var endPointSetting))
+            {
+                ISubMcpClient mcpEndpointClient = new McpEndpointClient(this._currentSession, endPointSetting, this.Logger);
+                this._subMcpClients.Add(SubMCPClientTypeNames.McpEndpointClient, mcpEndpointClient);
+            }
 
-            var buildResults = this._subMcpClients.Values
-                .AsParallel()
-                .Select(client => client.Build())
-                .ToArray();
+            if (this._config.McpSettings.TryGetValue(SubMCPClientTypeNames.ServerMcpClient, out var serverMCPSetting))
+            {
+                ISubMcpClient serverMcpClient = new ServerMcpClient(this._currentSession, serverMCPSetting, this.Logger);
+                this._subMcpClients.Add(SubMCPClientTypeNames.ServerMcpClient, serverMcpClient);
+            }
 
-            return buildResults.All(result => result);
+            return true;
+            if (this._subMcpClients.Any())
+            {
+                //var buildResults = this._subMcpClients.Values
+                //.AsParallel()
+                //.Select(client => client.Build())
+                //.ToArray();
+
+                //return buildResults.All(result => result);
+
+                foreach (var subMcpClient in this._subMcpClients.Values)
+                {
+                    if (!subMcpClient.Build())
+                    {
+                        this.Logger.LogError("Failed to build the MCP client: {clientType}.", subMcpClient.ProviderType);
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+            else
+            {
+                this.Logger.LogWarning("No mcp client builed for the Session {sessionId}.");
+                return false;
+            }
         }
 
         public override void Dispose()

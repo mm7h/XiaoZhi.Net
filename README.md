@@ -1,22 +1,8 @@
-[![SVG Banners](https://svg-banners.vercel.app/api?type=origin&text1=你好😃，小智📟&text2=开源小智ESP-32后端服务&width=830&height=210)](https://github.com/mm7h/XiaoZhi.Net)
-
-<p align="center">
-  <a href="https://github.com/mm7h/XiaoZhi.Net/graphs/contributors">
-    <img alt="GitHub Contributors" src="https://img.shields.io/github/contributors/mm7h/XiaoZhi.Net" />
-  </a>
-  <a href="https://github.com/mm7h/XiaoZhi.Net/issues">
-    <img alt="Issues" src="https://img.shields.io/github/issues/mm7h/XiaoZhi.Net?color=0088ff" />
-  </a>
-  <a href="https://github.com/mm7h/XiaoZhi.Net/pulls">
-    <img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/mm7h/XiaoZhi.Net?color=0088ff" />
-  </a>
-</p>
-
 # 项目简介
 
 （中文 | [English](https://translate.google.com/?hl=zh-cn&sl=auto&tl=en&op=translate)）
 
-**XiaoZhi.Net.Server** 是参照 [xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server) 项目基于 `.Net Standard 2.1`开发的SDK。
+**XiaoZhi.Net.Server** 是参照 [xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server) 项目基于 `.Net 8`开发的SDK。
 
 ## 快速开始 👋
 

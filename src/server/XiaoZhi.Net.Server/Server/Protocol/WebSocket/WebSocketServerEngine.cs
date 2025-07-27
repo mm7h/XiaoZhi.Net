@@ -38,6 +38,10 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
             {
                 //KeepClean = true
             };
+#if !DEBUG
+            this._server.Log.Output = (data, s) => { };
+#endif
+
             if (isWss)
             {
                 WssOption? wssOption = this._webSocketOption.WssOption;

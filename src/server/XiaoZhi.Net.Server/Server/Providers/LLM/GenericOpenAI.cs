@@ -80,7 +80,9 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
                 var clientResult = await chatCompletionService.GetChatMessageContentAsync(chatHistory, this._chatCompletionOptions, workflow.Data.Kernel, token);
 
-                this.OnTokenGenerated?.Invoke(workflow.SessionId, MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(clientResult.Content), @"<think>.*?</think>", "", RegexOptions.Singleline)));
+                string content = !string.IsNullOrEmpty(clientResult.Content) ? clientResult.Content : string.Empty;
+                string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(content));
+                this.OnTokenGenerated?.Invoke(workflow.SessionId, MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(content), @"<think>.*?</think>", "", RegexOptions.Singleline)));
             }
             catch (OperationCanceledException ex)
             {
@@ -121,7 +123,8 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
                 await foreach (var item in chatCompletionService.GetStreamingChatMessageContentsAsync(chatHistory, this._chatCompletionOptions, workflow.Data.Kernel, token))
                 {
-                    string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(item.Content) ?? string.Empty);
+                    string content = !string.IsNullOrEmpty(item.Content) ? item.Content : string.Empty;
+                    string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(content));
                     segmentResponse.Append(text);
 
                     // 在累积的文本中查找分割点
