@@ -1,9 +1,10 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using XiaoZhi.Net.Server;
 using Demo.Server.Plugins;
+using Microsoft.Extensions.Hosting;
+using XiaoZhi.Net.Server;
 
 
-IServerEngine? serverEngine = null;
+IHost? serverHost = null;
 // 获取服务引擎构建器
 IServerBuilder serverBuilder = EngineFactory.GetServerBuilder();
 try
@@ -27,7 +28,7 @@ try
 #endif
 
         // 开始初始化服务
-        serverEngine = serverBuilder.Initialize(config)
+        serverHost = serverBuilder.Initialize(config)
             // 添加插件
             .WithPlugin<PlayMusic>(nameof(PlayMusic))
             .WithPlugin<GetTime>(nameof(GetTime))
@@ -35,7 +36,7 @@ try
             //构建服务引擎
             .Build();
 
-        await serverEngine.StartAsync();
+        await serverHost.RunAsync();
     }
     else
     {
@@ -48,9 +49,9 @@ catch (Exception ex)
 }
 finally
 {
-    if (serverEngine is not null && serverEngine.Started)
+    if (serverHost is not null)
     {
-        await serverEngine.StopAsync();
+        await serverHost.StopAsync();
     }
     Console.WriteLine("The server stopped.");
 }

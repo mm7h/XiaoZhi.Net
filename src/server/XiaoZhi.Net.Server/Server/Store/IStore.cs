@@ -9,8 +9,9 @@ namespace XiaoZhi.Net.Server.Store
         bool Add<T>(string key, T value);
         bool Contains(string key);
         T Get<T>(string key);
+        int GetAllCount();
         IDictionary<string, T> GetAll<T>();
-        IDictionary<string, T> Get<T>(ICollection<string> keys);
+        IEnumerable<T> Get<T>(Predicate<T> criteria);
         int Remove(string key);
         int Remove(params string[] keys);
         bool Update<T>(string key, T value);

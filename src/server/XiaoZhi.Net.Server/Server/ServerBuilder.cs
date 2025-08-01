@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.SemanticKernel;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
@@ -23,21 +24,11 @@ namespace XiaoZhi.Net.Server
         private static readonly Lazy<IServerBuilder> lazyInstance = new Lazy<IServerBuilder>(() => new ServerBuilder());
         internal static IServerBuilder CreateServerBuilder() => lazyInstance.Value;
 
-        private IKernelBuilder? _kernelBuilder;
-
-        private readonly HostApplicationBuilder _hostApplicationBuilder;
+        private IHostBuilder _hostBuilder;
 
         private ServerBuilder()
         {
-            this._hostApplicationBuilder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings
-            {
-                ApplicationName = "XiaoZhi.Net.Server",
-#if DEBUG
-                EnvironmentName = Environments.Development
-#else
-                EnvironmentName = Environments.Production
-#endif
-            });
+            this._hostBuilder = Host.CreateDefaultBuilder();
         }
 
         /// <summary>
@@ -59,34 +50,48 @@ namespace XiaoZhi.Net.Server
         /// <exception cref="ArgumentNullException"></exception>
         public async Task<IServerBuilder> Initialize(XiaoZhiApiConfig apiConfig, IStore connectionStore)
         {
-            IServiceCollection services = this._hostApplicationBuilder.Services;
-
-            services.AddSingleton(apiConfig);
-            services.AddSingleton<IFlurlClientCache>(_ => new FlurlClientCache()
-                .Add("ManageApi", apiConfig.ManageApiUrl, builder =>
-                {
-                    builder.Headers.Add("authorization", apiConfig.Secret);
-                    builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
-                }));
-
-            ApiResponse<XiaoZhiConfig> res = await apiConfig.ManageApiUrl
-                .AppendPathSegment(ApiActions.GetGlobalConfig)
-                .WithHeader("authorization", apiConfig.Secret)
-                .WithSettings(s =>
-                {
-                    s.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
-                })
-                .GetJsonAsync<ApiResponse<XiaoZhiConfig>>();
-
-            if (res.Data is null)
+            try
             {
-                throw new ArgumentNullException(nameof(XiaoZhiConfig), "Failed to get config from remote api.");
+                ApiResponse<XiaoZhiConfig> res = await apiConfig.ManageApiUrl
+                    .AppendPathSegment(ApiActions.GetGlobalConfig)
+                    .WithHeader("authorization", apiConfig.Secret)
+                    .WithSettings(s =>
+                    {
+                        s.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
+                    })
+                    .GetJsonAsync<ApiResponse<XiaoZhiConfig>>();
+
+
+                this._hostBuilder.ConfigureServices((context, services) =>
+                {
+                    services.AddSingleton(context.HostingEnvironment);
+                    services.AddSingleton(context.Configuration);
+
+                    services.AddSingleton(apiConfig);
+                    services.AddSingleton<IFlurlClientCache>(_ => new FlurlClientCache()
+                        .Add("ManageApi", apiConfig.ManageApiUrl, builder =>
+                        {
+                            builder.Headers.Add("authorization", apiConfig.Secret);
+                            builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
+                        }));
+
+                    services.AddSingleton<XiaoZhiApiConfig>(apiConfig);
+                    services.AddSingleton<ManageApiClient>();
+                });
+
+                if (res.Data is null)
+                {
+                    throw new ArgumentNullException(nameof(XiaoZhiConfig), "Failed to get config from remote api.");
+                }
+
+
+                return this.Initialize(res.Data);
             }
+            catch (Exception)
+            {
 
-            this._hostApplicationBuilder.Services.AddSingleton<XiaoZhiApiConfig>(apiConfig);
-            this._hostApplicationBuilder.Services.AddSingleton<ManageApiClient>();
-
-            return this.Initialize(res.Data);
+                throw;
+            }
         }
 
         /// <summary>
@@ -113,23 +118,27 @@ namespace XiaoZhi.Net.Server
             {
                 throw new ArgumentNullException(nameof(config), "Config cannot be null.");
             }
+            this._hostBuilder = this._hostBuilder.ConfigureServices((context, services) =>
+            {
+                services.AddSingleton(config);
+                services.AddSingleton(config.AudioSetting);
 
-            this._hostApplicationBuilder.Services.AddSingleton(config);
-            this._hostApplicationBuilder.Services.AddSingleton(config.AudioSetting);
+                services.AddSingleton(connectionStore);
 
-            this._hostApplicationBuilder.Services.AddSingleton(connectionStore);
+                services.AddKernel();
+                services.AddTransient<IFunctionInvocationFilter, MCPToolFunctionFilter>();
+            })
+            .RegisterLogger(config)
+            .RegisterSessionManagement()
+            .RegisterProviders(config)
+            .RegisterHandlers()
+            .RegisterProtocol(config);
 
-            this._kernelBuilder = this._hostApplicationBuilder.Services.AddKernel();
-            this._hostApplicationBuilder.Services.AddTransient<IFunctionInvocationFilter, MCPToolFunctionFilter>();
-
-            LoggerManager.RegisterServices(this._hostApplicationBuilder, config);
-            SessionManager.RegisterServices(this._hostApplicationBuilder);
-            ProtocolManager.RegisterServices(this._hostApplicationBuilder, config);
-            ProviderManager.RegisterServices(this._hostApplicationBuilder, config);
-            HandlerManager.RegisterServices(this._hostApplicationBuilder);
-            AdvancedManager.RegisterServices(this._hostApplicationBuilder, config);
-
-            this._hostApplicationBuilder.Services.AddHostedService<XiaoZhiEngine>();
+#if DEBUG
+            this._hostBuilder.UseEnvironment("Development");
+#else
+            this._hostBuilder.UseEnvironment("Production");
+#endif
 
             return this;
         }
@@ -143,15 +152,14 @@ namespace XiaoZhi.Net.Server
         /// <exception cref="ArgumentNullException"></exception>
         public IServerBuilder WithPlugin<TPlugin>(string pluginName)
         {
-            if (this._kernelBuilder == null)
-            {
-                throw new InvalidOperationException("Kernel builder is not initialized. Please call Initialize() first.");
-            }
             if (string.IsNullOrWhiteSpace(pluginName))
             {
                 throw new ArgumentNullException(nameof(pluginName), "Plugin name cannot be null or empty.");
             }
-            this._kernelBuilder.Plugins.AddFromType<TPlugin>(pluginName);
+            this._hostBuilder.ConfigureServices((context, services) =>
+            {
+                services.AddSingleton<KernelPlugin>(sp => KernelPluginFactory.CreateFromType<TPlugin>(serviceProvider: sp));
+            });
             return this;
         }
 
@@ -165,10 +173,6 @@ namespace XiaoZhi.Net.Server
         /// <exception cref="ArgumentNullException"></exception>
         public IServerBuilder WithPlugin<TPlugin>(string pluginName, IEnumerable<IFunction> functions)
         {
-            if (this._kernelBuilder == null)
-            {
-                throw new InvalidOperationException("Kernel builder is not initialized. Please call Initialize() first.");
-            }
             if (string.IsNullOrWhiteSpace(pluginName))
             {
                 throw new ArgumentNullException(nameof(pluginName), "Plugin name cannot be null or empty.");
@@ -177,18 +181,22 @@ namespace XiaoZhi.Net.Server
             {
                 throw new ArgumentNullException(nameof(functions), "Functions cannot be null or empty.");
             }
+
             IEnumerable<KernelFunction> kernelFunctions = functions.Select(f => KernelFunctionFactory.CreateFromMethod(f.Method, f.FunctionName, f.Description));
-            this._kernelBuilder.Plugins.AddFromFunctions(pluginName, kernelFunctions);
+            this._hostBuilder.ConfigureServices((context, services) =>
+            {
+                services.AddSingleton<KernelPlugin>(sp => KernelPluginFactory.CreateFromFunctions(pluginName, kernelFunctions));
+            });
             return this;
         }
 
         public IServerBuilder WithVerify<T>() where T : class, IBasicVerify
         {
-            if (this._kernelBuilder == null)
+            this._hostBuilder.ConfigureServices((context, services) =>
             {
-                throw new InvalidOperationException("Kernel builder is not initialized. Please call Initialize() first.");
-            }
-            this._kernelBuilder.Services.AddSingleton<IBasicVerify, T>();
+                services.AddSingleton<IBasicVerify, T>();
+            });
+
             return this;
         }
 
@@ -196,28 +204,19 @@ namespace XiaoZhi.Net.Server
         /// 构建服务引擎
         /// </summary>
         /// <returns></returns>
-        public IServerEngine Build()
+        public IHost Build()
         {
-            IHost host = this._hostApplicationBuilder.Build();
+            IHost host = this._hostBuilder.Build();
 
             this.BuildComponents(host.Services);
 
-            if (host.Services.GetRequiredService<IHostedService>() is XiaoZhiEngine engine)
-            {
-                return engine;
-            }
-            else
-            {
-                throw new InvalidOperationException("Please initialize the builder first.");
-            }
+            return host;
         }
 
         private void BuildComponents(IServiceProvider serviceProvider)
         {
-            ProtocolManager protocolManager = serviceProvider.GetRequiredService<ProtocolManager>();
             ProviderManager providerManager = serviceProvider.GetRequiredService<ProviderManager>();
             HandlerManager handlerManager = serviceProvider.GetRequiredService<HandlerManager>();
-            protocolManager.BuildComponent(serviceProvider);
             bool builded = providerManager.BuildComponent(serviceProvider);
             if (!builded)
             {

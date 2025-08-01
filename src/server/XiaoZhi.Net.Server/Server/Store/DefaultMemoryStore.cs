@@ -1,8 +1,10 @@
-﻿using System;
+﻿using SuperSocket.Server.Abstractions;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Store
 {
@@ -59,6 +61,16 @@ namespace XiaoZhi.Net.Server.Store
                 //log
                 return default;
             }
+        }
+
+        public int GetAllCount()
+        {
+            int count = 0;
+            foreach (var shard in _shards)
+            {
+                count += shard.Count;
+            }
+            return count;
         }
 
         public int Remove(string key)
@@ -121,28 +133,27 @@ namespace XiaoZhi.Net.Server.Store
             return result;
         }
 
-        public IDictionary<string, T> Get<T>(ICollection<string> keys)
+        public IEnumerable<T> Get<T>(Predicate<T> criteria)
         {
-            if (keys == null || keys.Count == 0)
+            if (criteria == null)
             {
-                throw new ArgumentNullException(nameof(keys));
+                throw new ArgumentNullException(nameof(criteria));
             }
-            var result = new ConcurrentDictionary<string, T>();
-            var validKeys = keys.Where(k => !string.IsNullOrEmpty(k)).ToList();
-            var shardGroups = validKeys.GroupBy(GetShardIndex);
 
-            foreach (var group in shardGroups)
+            var result = new ConcurrentDictionary<string, T>();
+            foreach (var shard in _shards)
             {
-                var shard = _shards[group.Key];
-                foreach (var key in group)
+                var enumerator = shard.GetEnumerator();
+                while (enumerator.MoveNext())
                 {
-                    if (shard.TryGetValue(key, out var entry))
+                    var v = enumerator.Current.Value;
+                    if (v is T val)
                     {
-                        result.TryAdd(key, (T)entry);
+                        if (criteria == null || criteria(val))
+                            yield return val;
                     }
                 }
             }
-            return result;
         }
 
         public void Clear()

@@ -18,9 +18,12 @@ namespace XiaoZhi.Net.Server.Management
             this._sessionManager = sessionManager;
         }
 
-        public static void RegisterServices(HostApplicationBuilder builder, XiaoZhiConfig config)
+        public static void RegisterServices(IHostBuilder builder, XiaoZhiConfig config)
         {
-            builder.Services.AddSingleton<IAdvanced, AdvancedManager>();
+            builder.ConfigureServices((context, services) =>
+            {
+                services.AddSingleton<IAdvanced, AdvancedManager>();
+            });
         }
 
         public IDictionary<string, SessionDevice> GetAllSessions()

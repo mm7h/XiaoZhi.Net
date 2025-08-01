@@ -24,9 +24,12 @@ namespace XiaoZhi.Net.Server.Management
             this._connectionStore = store;
             this._logger = logger;
         }
-        public static void RegisterServices(HostApplicationBuilder builder)
+        public static IHostBuilder RegisterServices(IHostBuilder builder)
         {
-            builder.Services.AddSingleton<SessionManager>();
+            return builder.ConfigureServices((context, services) =>
+            {
+                services.AddSingleton<SessionManager>();
+            });
         }
         public Session CreateSession(string sessionId, string deviceId, string authToken, IPEndPoint endPoint, IBizSendOutter sendOutter)
         {

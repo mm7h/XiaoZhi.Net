@@ -6,17 +6,19 @@ namespace XiaoZhi.Net.Server.Management
 {
     internal sealed class HandlerManager
     {
-        public static void RegisterServices(HostApplicationBuilder builder)
+        public static IHostBuilder RegisterServices(IHostBuilder builder)
         {
-            IServiceCollection services = builder.Services;
-            services.AddTransient<TextHandler>();
-            services.AddTransient<AudioReceiveHandler>();
-            services.AddTransient<Audio2TextHandler>();
-            services.AddTransient<DialogueHandler>();
-            services.AddTransient<Text2AudioHandler>();
-            services.AddTransient<AudioSendHandler>();
+            return builder.ConfigureServices((context, services) =>
+            {
+                services.AddTransient<TextHandler>();
+                services.AddTransient<AudioReceiveHandler>();
+                services.AddTransient<Audio2TextHandler>();
+                services.AddTransient<DialogueHandler>();
+                services.AddTransient<Text2AudioHandler>();
+                services.AddTransient<AudioSendHandler>();
 
-            services.AddSingleton<HandlerManager>();
+                services.AddSingleton<HandlerManager>();
+            });
         }
     }
 }

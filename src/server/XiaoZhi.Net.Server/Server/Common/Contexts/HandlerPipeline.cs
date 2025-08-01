@@ -112,7 +112,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             }
         }
 
-        public async Task HandleBinaryMessage(byte[] data)
+        public async Task HandleBinaryMessageAsync(byte[] data)
         {
             if (this._binaryMessageEntry is not null)
             {

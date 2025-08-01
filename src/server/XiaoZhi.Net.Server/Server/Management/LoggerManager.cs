@@ -11,30 +11,34 @@ namespace XiaoZhi.Net.Server.Management
         public LoggerManager()
         {
         }
-        public static void RegisterServices(HostApplicationBuilder builder, XiaoZhiConfig config)
+        public static IHostBuilder RegisterServices(IHostBuilder builder, XiaoZhiConfig config)
         {
-            LogSetting logSetting = config.LogSetting;
-            LoggingLevelSwitch levelSwitch = new LoggingLevelSwitch();
-            levelSwitch.MinimumLevel = ConvertLogLevel(logSetting.LogLevel);
+            return builder.ConfigureLogging((context, loggerBuilder) =>
+            {
+                LogSetting logSetting = config.LogSetting;
+                LoggingLevelSwitch levelSwitch = new LoggingLevelSwitch();
+                levelSwitch.MinimumLevel = ConvertLogLevel(logSetting.LogLevel);
 
-            LoggerConfiguration loggerConfig = new LoggerConfiguration()
-                .MinimumLevel.ControlledBy(levelSwitch)
-                .WriteTo.Async(a => a.File
-                (
-                    path: logSetting.LogFilePath,
-                    outputTemplate: logSetting.OutputTemplate,
-                    rollingInterval: RollingInterval.Day,
-                    retainedFileCountLimit: logSetting.RetainedFileCountLimit
-                ))
-                .WriteTo.Async(a => a.Console(
-                    outputTemplate: logSetting.OutputTemplate,
-                    theme: Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme.Code,
-                    applyThemeToRedirectedOutput: true
-                ));
-            Log.Logger = loggerConfig.CreateLogger();
+                LoggerConfiguration loggerConfig = new LoggerConfiguration()
+                    .MinimumLevel.ControlledBy(levelSwitch)
+                    .WriteTo.Async(a => a.File
+                    (
+                        path: logSetting.LogFilePath,
+                        outputTemplate: logSetting.OutputTemplate,
+                        rollingInterval: RollingInterval.Day,
+                        retainedFileCountLimit: logSetting.RetainedFileCountLimit
+                    ))
+                    .WriteTo.Async(a => a.Console(
+                        outputTemplate: logSetting.OutputTemplate,
+                        theme: Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme.Code,
+                        applyThemeToRedirectedOutput: true
+                    ));
+                Log.Logger = loggerConfig.CreateLogger();
 
-            builder.Logging.ClearProviders();
-            builder.Logging.AddSerilog(Log.Logger, dispose: true);
+                loggerBuilder.ClearProviders();
+                loggerBuilder.AddSerilog(Log.Logger, dispose: true);
+            });
+            
         }
 
         private static Serilog.Events.LogEventLevel ConvertLogLevel(string logLevel)

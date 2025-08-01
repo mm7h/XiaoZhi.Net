@@ -1,43 +1,67 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Host;
+using SuperSocket.WebSocket.Server;
 using System;
+using System.Collections.Generic;
 using XiaoZhi.Net.Server.Common.Enums;
-using XiaoZhi.Net.Server.Protocol;
-using XiaoZhi.Net.Server.Protocol.WebSocket;
+using XiaoZhi.Net.Server.Protocol.WebSocket.Contexts;
+using XiaoZhi.Net.Server.Protocol.WebSocket.Handlers;
+using XiaoZhi.Net.Server.Protocol.WebSocket.Middlewares;
 
 namespace XiaoZhi.Net.Server.Management
 {
     internal sealed class ProtocolManager
     {
 
-        public IProtocolEngine ProtocolEngine { get; private set; } = null!;
-
-        public bool Started => this.ProtocolEngine?.Started ?? false;
-
         public ProtocolManager()
         {
 
         }
 
-        public static void RegisterServices(HostApplicationBuilder builder, XiaoZhiConfig config)
+        public static IHostBuilder RegisterServices(IHostBuilder builder, XiaoZhiConfig config)
         {
             if (config.ServerProtocol == ServerProtocol.WebSocket)
             {
-                builder.Services.AddSingleton(config.WebSocketServerOption);
-                builder.Services.AddSingleton<IProtocolEngine, WebSocketServerEngine>();
+                WebSocketServerOption webSocketOption = config.WebSocketServerOption;
+
+                return builder.ConfigureServices((context, services) =>
+                    {
+                        services.AddSingleton<ProtocolManager>();
+                        services.Configure<HandshakeOptions>(opt =>
+                        {
+                            opt.HandshakeValidator = AuthenticationVerification.VerifyAsync;
+                        });
+                    }).AsWebSocketHostBuilder()
+                    .ConfigureSuperSocket(options =>
+                    {
+                        options.Name = "Xiao Zhi .Net Server";
+
+                        ListenOptions listenOptions = new ListenOptions
+                        {
+                            Ip = webSocketOption.IP,
+                            Port = webSocketOption.Port,
+                            Path = webSocketOption.Path
+                        };
+
+                        if (webSocketOption.WssOption is not null)
+                        {
+                            listenOptions.AuthenticationOptions.ServerCertificate = new System.Security.Cryptography.X509Certificates.X509Certificate2(webSocketOption.WssOption.CertFilePath, webSocketOption.WssOption.CertPassword);
+                        }
+                        options.Listeners = new List<ListenOptions> { listenOptions };
+                    })
+                    .UseWebSocketMessageHandler(MessageDispatch.DispatchAsync)
+                    .UseMiddleware<ServerStatusMiddleware>()
+                    .UseMiddleware<SessionContainerMiddleware>()
+                    .UseSession<SocketSession>();
             }
             else
             {
                 //MQTT
                 throw new NotSupportedException("No MQTT implement yet...");
             }
-            builder.Services.AddSingleton<ProtocolManager>();
-        }
 
-        public void BuildComponent(IServiceProvider serviceProvider)
-        {
-            IProtocolEngine protocolEngine = serviceProvider.GetRequiredService<IProtocolEngine>();
-            protocolEngine.Build();
         }
     }
 }

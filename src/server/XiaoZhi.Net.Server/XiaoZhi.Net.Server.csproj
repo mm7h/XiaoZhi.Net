@@ -41,7 +41,6 @@ Dotnet backend service for xiaozhi-esp32, helps you quickly build an ESP32 devic
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
         <PackageReference Include="SuperSocket.WebSocket.Server" Version="2.0.2" />
         <PackageReference Include="WebRtcVadSharp" Version="1.3.2" />
-        <PackageReference Include="WebSocketSharp-netstandard-customheaders" Version="1.0.3" />
     </ItemGroup>
 
 </Project>

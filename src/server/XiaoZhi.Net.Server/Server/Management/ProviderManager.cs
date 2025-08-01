@@ -40,20 +40,21 @@ namespace XiaoZhi.Net.Server.Management
             this._logger = logger;
         }
 
-        public static void RegisterServices(HostApplicationBuilder builder, XiaoZhiConfig config)
+        public static IHostBuilder RegisterServices(IHostBuilder builder, XiaoZhiConfig config)
         {
-            IServiceCollection services = builder.Services;
+            return builder.ConfigureServices((context, services) =>
+            {
+                services.AddKeyedSingleton<IAudioDecoder, DefaultOpusDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER);
+                RegisterVad(services, config, GlobalProviderNames.GLOBAL_VAD);
+                RegisterAsr(services, config, GlobalProviderNames.GLOBAL_ASR);
+                RegisterPunctuation(services, config, GlobalProviderNames.GLOBAL_PUNCTUATION);
+                RegisterLlm(services, config, GlobalProviderNames.GLOBAL_LLM);
+                RegisterMemory(services, config, GlobalProviderNames.GLOBAL_MEMORY);
+                RegisterTts(services, config, GlobalProviderNames.GLOBAL_TTS);
+                services.AddKeyedSingleton<IAudioEncoder, DefaultOpusEncoder>(GlobalProviderNames.GLOBAL_AUDIO_ENCODER);
 
-            services.AddKeyedSingleton<IAudioDecoder, DefaultOpusDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER);
-            RegisterVad(services, config, GlobalProviderNames.GLOBAL_VAD);
-            RegisterAsr(services, config, GlobalProviderNames.GLOBAL_ASR);
-            RegisterPunctuation(services, config, GlobalProviderNames.GLOBAL_PUNCTUATION);
-            RegisterLlm(services, config, GlobalProviderNames.GLOBAL_LLM);
-            RegisterMemory(services, config, GlobalProviderNames.GLOBAL_MEMORY);
-            RegisterTts(services, config, GlobalProviderNames.GLOBAL_TTS);
-            services.AddKeyedSingleton<IAudioEncoder, DefaultOpusEncoder>(GlobalProviderNames.GLOBAL_AUDIO_ENCODER);
-
-            services.AddSingleton<ProviderManager>();
+                services.AddSingleton<ProviderManager>();
+            });
         }
 
         public bool BuildComponent(IServiceProvider serviceProvider)

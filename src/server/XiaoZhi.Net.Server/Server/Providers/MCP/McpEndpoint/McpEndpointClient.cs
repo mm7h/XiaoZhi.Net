@@ -13,14 +13,14 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
     internal class McpEndpointClient : BaseMcpClient, ISubMcpClient
     {
         private readonly string? _endpointUrl;
-        private readonly WebSocketClientEngine _webSocketClientEngine;
+        private readonly WebSocketClient _webSocketClient;
 
         public McpEndpointClient(Session session, ModelSetting mcpSetting, ILogger logger) : base(session, mcpSetting, logger)
         {
             this._endpointUrl = this.ModelSetting?.Config?.EndpointUrl;
-            this._webSocketClientEngine = new WebSocketClientEngine(this._endpointUrl, this.ModelSetting?.Config?.Headers);
-            this._webSocketClientEngine.OnOpen += this.WebSocketClientEngine_OnOpen;
-            this._webSocketClientEngine.OnMessage += this.WebSocketClient_OnMessage;
+            this._webSocketClient = new WebSocketClient(this._endpointUrl, this.ModelSetting?.Config?.Headers);
+            this._webSocketClient.OnOpen += this.WebSocketClientEngine_OnOpen;
+            this._webSocketClient.OnTextMessage += this.WebSocketClient_OnMessage;
         }
 
         public override string ProviderType => SubMCPClientTypeNames.DeviceMcpClient;
@@ -32,8 +32,8 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
                 this.Logger.LogWarning("Endpoint URL is empty, skip this mcp tpye.");
                 return true;
             }
-
-            return this._webSocketClientEngine.Connect();
+            this._webSocketClient.ConnectAsync().ConfigureAwait(false);
+            return true;
         }
 
 
@@ -44,12 +44,12 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
                 throw new ArgumentNullException(nameof(message), "Message cannot be null.");
             }
             string json = message.ToJson();
-            return this._webSocketClientEngine.SendAsync(json);
+            return this._webSocketClient.SendAsync(json);
         }
 
         public override void Dispose()
         {
-            this._webSocketClientEngine.Close();
+            this._webSocketClient.CloseAsync().ConfigureAwait(false);
         }
         private async void WebSocketClientEngine_OnOpen()
         {

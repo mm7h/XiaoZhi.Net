@@ -43,13 +43,14 @@ namespace XiaoZhi.Net.Server
     #region WebSocketSetting
     public sealed class WebSocketServerOption
     {
-        public string Url { get; set; } = "ws://0.0.0.0:4530";
+        public string IP { get; set; } = "0.0.0.0";
+        public int Port { get; set; } = 4530;
         public string Path { get; set; } = "/xiaozhi/v1/";
         public WssOption? WssOption { get; set; }
     }
     public sealed class WssOption
     {
-        public string? CertFilePath { get; set; }
+        public string CertFilePath { get; set; } = "";
         public string? CertPassword { get; set; }
     }
     #endregion

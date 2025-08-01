@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Hosting;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Store;
@@ -63,6 +64,6 @@ namespace XiaoZhi.Net.Server
         /// 构建服务引擎
         /// </summary>
         /// <returns></returns>
-        IServerEngine Build();
+        IHost Build();
     }
 }
