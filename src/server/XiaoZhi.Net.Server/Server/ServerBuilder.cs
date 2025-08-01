@@ -158,7 +158,7 @@ namespace XiaoZhi.Net.Server
             }
             this._hostBuilder.ConfigureServices((context, services) =>
             {
-                services.AddSingleton<KernelPlugin>(sp => KernelPluginFactory.CreateFromType<TPlugin>(serviceProvider: sp));
+                services.AddSingleton<KernelPlugin>(sp => KernelPluginFactory.CreateFromType<TPlugin>(pluginName, sp));
             });
             return this;
         }
