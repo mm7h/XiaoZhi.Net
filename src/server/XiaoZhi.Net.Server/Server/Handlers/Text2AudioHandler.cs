@@ -16,7 +16,6 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ITts _tts;
         public Text2AudioHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_TTS)] ITts tts, XiaoZhiConfig config, ILogger<Text2AudioHandler> logger) : base(config, logger)
         {
-            Console.WriteLine("666666666666666666666");
             this._tts = tts;
             this._tts.OnBeforeProcessing += this.TTS_OnBeforeProcessing;
             this._tts.OnProcessing += this.TTS_OnProcessing;
@@ -71,7 +70,6 @@ namespace XiaoZhi.Net.Server.Handlers
         }
         public void Dispose()
         {
-            Console.WriteLine("7777777777777");
             this._tts.OnBeforeProcessing -= this.TTS_OnBeforeProcessing;
             this._tts.OnProcessing -= this.TTS_OnProcessing;
             this._tts.OnProcessed -= this.TTS_OnProcessed;

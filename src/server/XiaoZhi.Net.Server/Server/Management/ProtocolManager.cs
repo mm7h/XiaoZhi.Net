@@ -2,10 +2,12 @@
 using Microsoft.Extensions.Hosting;
 using SuperSocket.Server.Abstractions;
 using SuperSocket.Server.Host;
+using SuperSocket.WebSocket;
 using SuperSocket.WebSocket.Server;
 using System;
 using System.Collections.Generic;
 using XiaoZhi.Net.Server.Common.Enums;
+using XiaoZhi.Net.Server.Protocol.WebSocket;
 using XiaoZhi.Net.Server.Protocol.WebSocket.Contexts;
 using XiaoZhi.Net.Server.Protocol.WebSocket.Handlers;
 using XiaoZhi.Net.Server.Protocol.WebSocket.Middlewares;
@@ -50,11 +52,14 @@ namespace XiaoZhi.Net.Server.Management
                             listenOptions.AuthenticationOptions.ServerCertificate = new System.Security.Cryptography.X509Certificates.X509Certificate2(webSocketOption.WssOption.CertFilePath, webSocketOption.WssOption.CertPassword);
                         }
                         options.Listeners = new List<ListenOptions> { listenOptions };
+                        options.IdleSessionTimeOut = 10;
+                        options.ClearIdleSessionInterval = 30;
                     })
                     .UseWebSocketMessageHandler(MessageDispatch.DispatchAsync)
-                    .UseMiddleware<ServerStatusMiddleware>()
-                    .UseMiddleware<SessionContainerMiddleware>()
-                    .UseSession<SocketSession>();
+                    .UseServerStatusMonitor()
+                    .UseXiaoZhiSessionContainer()
+                    .UseSession<SocketSession>()
+                    .UseClearIdleSession();
             }
             else
             {

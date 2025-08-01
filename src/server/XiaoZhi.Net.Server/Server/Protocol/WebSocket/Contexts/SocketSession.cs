@@ -24,7 +24,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         public Session? XiaoZhiSession { get; set; }
 
         #region ISendOutter
-        public string SessionId => this.SessionId;
+        public string SessionId => this.SessionID;
         public Session GetSession()
         {
             if (this.XiaoZhiSession is null)
@@ -38,6 +38,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         }
         public Task SendAsync(string json)
         {
+            this.Logger.LogDebug("Sending json to device {deviceId}: {json}", this.XiaoZhiSession?.DeviceId, json);
             return base.SendAsync(json).AsTask();
         }
         public Task SendAsync(byte[] opusPacket)
@@ -134,6 +135,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
             IPEndPoint userEndPoint = (this.RemoteEndPoint as IPEndPoint)!;
 
             Session session = new Session(this.SessionId, deviceId, token, userEndPoint, this);
+            session.HandlerPipeline.InitHandlerPipeline(this.Server.ServiceProvider, this.Logger);
             session.RefreshLastActivityTime();
 
             await this._providerManager.InitializePrivateConfig(session);
@@ -145,7 +147,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         {
             if (this.XiaoZhiSession is not null)
             {
-               await this._providerManager.SaveMemoryAsync(this.XiaoZhiSession);
+                await this._providerManager.SaveMemoryAsync(this.XiaoZhiSession);
 
                 this.XiaoZhiSession.Release();
 

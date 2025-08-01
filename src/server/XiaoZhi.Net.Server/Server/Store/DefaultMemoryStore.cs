@@ -135,11 +135,6 @@ namespace XiaoZhi.Net.Server.Store
 
         public IEnumerable<T> Get<T>(Predicate<T> criteria)
         {
-            if (criteria == null)
-            {
-                throw new ArgumentNullException(nameof(criteria));
-            }
-
             var result = new ConcurrentDictionary<string, T>();
             foreach (var shard in _shards)
             {

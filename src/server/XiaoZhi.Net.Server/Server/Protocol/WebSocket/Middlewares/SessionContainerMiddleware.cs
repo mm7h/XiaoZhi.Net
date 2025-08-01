@@ -29,11 +29,11 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Middlewares
 
             if (appSession is SocketSession socketSession)
             {
-                bool addResult = this._connectionStore.Add(appSession.SessionID, appSession as SocketSession);
+                bool addResult = this._connectionStore.Add(appSession.SessionID, socketSession);
 
                 if (!addResult)
                 {
-                    socketSession.Logger.LogWarning("The session {sessionId} failed to loggin the server.", appSession.SessionID);
+                    socketSession.Logger.LogWarning("The session {sessionId} failed to loggin the server.", socketSession.SessionID);
                     socketSession.CloseAsync(CloseReason.UnexpectedCondition, "Loggin failed");
                 }
             }
