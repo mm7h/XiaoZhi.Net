@@ -9,7 +9,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
 {
     internal class AuthenticationVerification
     {
-        public static async ValueTask<bool> VerifyAsync(WebSocketSession session, WebSocketPackage package)
+        public static ValueTask<bool> VerifyAsync(WebSocketSession session, WebSocketPackage package)
         {
             string token = session.HttpHeader.Items.Get("authorization") ?? string.Empty;
             if (session.RemoteEndPoint is IPEndPoint ipEndPoint)
@@ -22,7 +22,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
                 if (string.IsNullOrEmpty(deviceId))
                 {
                     session.Logger.LogError("Cannot get the device id from ip: {ip} authentication failed.", ip);
-                    return false;
+                    return ValueTask.FromResult(false);
                 }
 
                 bool verifyResult = true;
@@ -41,19 +41,18 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
                 if (verifyResult)
                 {
                     session.Logger.LogInformation("New device: {deviceId} with ip {ip} connected", deviceId, ip);
-                    return true;
+                    return ValueTask.FromResult(true);
                 }
                 else
                 {
                     session.Logger.LogError("The device {deviceId} from ip: {ip} authentication failed.", deviceId, ip);
-                    await session.CloseAsync(CloseReason.ViolatePolicy, "Authentication failed");
-                    return false;
+                    return ValueTask.FromResult(false);
                 }
             }
             else
             {
                 session.Logger.LogError("Cannot get the ip info from the session: {sessionId}.", session.SessionID);
-                return false;
+                return ValueTask.FromResult(false);
             }
         }
     }

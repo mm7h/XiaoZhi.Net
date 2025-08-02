@@ -34,10 +34,12 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
                 var kernel = kernelBuilder.Build();
 
-                kernel.ImportPluginFromType<TimePlugin>();
-                kernel.ImportPluginFromType<WeatherPlugin>();
+                kernel.ImportPluginFromType<PlayMusic>(nameof(PlayMusic));
+                kernel.ImportPluginFromType<TimePlugin>(nameof(TimePlugin));
+                kernel.ImportPluginFromType<WeatherPlugin>(nameof(WeatherPlugin));
+                //kernel.Plugins.AddFromType<WeatherPlugin>(nameof(WeatherPlugin));
 
-                await InitMCP(kernel);
+                //await InitMCP(kernel);
                 InitCustomFunctions(kernel);
 
 
@@ -50,7 +52,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 };
 
                 IChatCompletionService chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
-                var clientResult = await chatCompletionService.GetChatMessageContentAsync("帮我打开taobao网站", chatCompletionOptions, kernel);
+                var clientResult = await chatCompletionService.GetChatMessageContentAsync("我本地目录下有哪些音乐文件", chatCompletionOptions, kernel);
                 Console.WriteLine(clientResult.Content);
 
             }

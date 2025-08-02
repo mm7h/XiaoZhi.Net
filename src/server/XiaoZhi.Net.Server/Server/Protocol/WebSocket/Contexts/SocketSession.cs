@@ -126,10 +126,6 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
 
         protected override async ValueTask OnSessionConnectedAsync()
         {
-            if (this.DataContext is not null && this.DataContext.ToString() == "reject")
-            {
-                return;
-            }
             string deviceId = this.HttpHeader.Items.Get("device-id")!;
             string token = this.HttpHeader.Items.Get("authorization")!;
             IPEndPoint userEndPoint = (this.RemoteEndPoint as IPEndPoint)!;

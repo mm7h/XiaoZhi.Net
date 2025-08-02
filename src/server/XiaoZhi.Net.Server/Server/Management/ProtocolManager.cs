@@ -52,7 +52,7 @@ namespace XiaoZhi.Net.Server.Management
                             listenOptions.AuthenticationOptions.ServerCertificate = new System.Security.Cryptography.X509Certificates.X509Certificate2(webSocketOption.WssOption.CertFilePath, webSocketOption.WssOption.CertPassword);
                         }
                         options.Listeners = new List<ListenOptions> { listenOptions };
-                        options.IdleSessionTimeOut = 10;
+                        options.IdleSessionTimeOut = ((config.CloseConnectionNoVoiceTime ?? 40) + 20) * 1000;
                         options.ClearIdleSessionInterval = 30;
                     })
                     .UseWebSocketMessageHandler(MessageDispatch.DispatchAsync)

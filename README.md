@@ -2,7 +2,7 @@
 
 （中文 | [English](https://translate.google.com/?hl=zh-cn&sl=auto&tl=en&op=translate)）
 
-**XiaoZhi.Net.Server** 是参照 [xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server) 项目基于 `.Net 8`开发的SDK。
+**XiaoZhi.Net.Server** 是基于 `.Net 8`开发的C# SDK，为 [XiaoZhi ESP32](https://github.com/78/xiaozhi-esp32) 项目提供后端服务支持。
 
 ## 快速开始 👋
 
@@ -29,62 +29,56 @@ internal class GetTime
 ### 快速创建 Xiao Zhi 服务 👇️
 
 ```csharp
-private static IServerEngine? _serverEngine = null;
-
-static async Task StartXiaoZhiServer()
+IHost? serverHost = null;
+// 获取服务引擎构建器
+IServerBuilder serverBuilder = EngineFactory.CreateServerBuilder();
+try
 {
-    // 获取服务引擎构建器
-    IServerBuilder serverBuilder = EngineFactory.GetServerBuilder();
-    try
+    Console.WriteLine("Hello, Xiao Zhi!");
+
+    string configJson = File.ReadAllText(Path.Combine(Environment.CurrentDirectory, "configs", "config.json"));
+
+    // 快速从json文件中获取配置信息
+    XiaoZhiConfig? config = Newtonsoft.Json.JsonConvert.DeserializeObject<XiaoZhiConfig>(configJson);
+    if (config is not null)
     {
-        Console.WriteLine("Hello, Xiao Zhi!");
-
-        string configJson = File.ReadAllText(Path.Combine(Environment.CurrentDirectory, "configs", "config.json"));
-
-        // 快速从json文件中获取配置信息
-        XiaoZhiConfig? config = Newtonsoft.Json.JsonConvert.DeserializeObject<XiaoZhiConfig>(configJson);
-        if (config is not null)
+#if DEBUG
+        // 为了方便调试，你可以在环境变量中设置 LLM 的 API Key
+        string? apiKey = Environment.GetEnvironmentVariable("OPEN_AI_API_KEY", EnvironmentVariableTarget.User);
+        if (string.IsNullOrEmpty(apiKey))
         {
-            // 开始初始化服务
-            _serverEngine = serverBuilder.Initialize(config)
-                // 添加插件
-                .WithPlugin<PlayMusic>(nameof(PlayMusic))
-                .WithPlugin<GetTime>(nameof(GetTime))
-                .WithPlugin<ConversationSummary>(nameof(ConversationSummary))
-                //构建服务引擎
-                .Build();
-
-            await _serverEngine.StartAsync();
-
-            Console.WriteLine("Type \"exit\" to stop the service.");
-
-            while (true)
-            {
-                // 输入exit退出
-                string? resKey = Console.ReadLine();
-                if (!string.IsNullOrEmpty(resKey) && resKey.ToLower() == "exit")
-                {
-                    break;
-                }
-            }
+            Console.WriteLine("Please set the environment variable \"OPEN_AI_API_KEY\"");
+            return;
         }
-        else
-        {
-            Console.WriteLine("Cannot read the config settings.");
-        }
+        config.LlmSettings.First().Config.ApiKey = apiKey;
+#endif
+
+        // 开始初始化服务
+        serverHost = serverBuilder.Initialize(config)
+            // 添加插件
+            .WithPlugin<PlayMusic>(nameof(PlayMusic))
+            .WithPlugin<GetTime>(nameof(GetTime))
+            //构建服务引擎
+            .Build();
+
+        await serverHost.RunAsync();
     }
-    catch (Exception ex)
+    else
     {
-        Console.WriteLine($"Got an error: {ex.Message}");
+        Console.WriteLine("Cannot read the config settings.");
     }
-    finally
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Got an error: {ex.Message}");
+}
+finally
+{
+    if (serverHost is not null)
     {
-        if (_serverEngine is not null && _serverEngine.Started)
-        {
-            await _serverEngine.StopAsync();
-        }
-        Console.WriteLine("The server stopped.");
+        await serverHost.StopAsync();
     }
+    Console.WriteLine("The server stopped.");
 }
 ```
 
@@ -120,6 +114,7 @@ static async Task StartXiaoZhiServer()
 - [ ] 音乐播放
 - [ ] 对接更多第三方 LLM、TTS 服务
 - [ ] IOT功能
+- [ ] MCP功能
 - [ ] 智控台管理（ [Abp](https://github.com/abpframework/abp) ）
 
 ## 本项目已接入的平台/组件列表 📋
@@ -203,7 +198,7 @@ static async Task StartXiaoZhiServer()
 │   └── vad
 │       └── silero
 │           └── model.onnx  # 模型文件
-└── XiaoZhi.Net.Test.exe # 测试主程序
+└── Demo.Server.exe # 测试主程序
 ```
 
 ### 二、模型下载
@@ -214,7 +209,7 @@ static async Task StartXiaoZhiServer()
 
 ### 三、程序运行
 
-点击`XiaoZhi.Net.Test.exe`运行后，将会在控制台中显示当前监听的`websocket`地址，将其复制到你的小智客户端中即可。
+点击`Demo.Server.exe`运行后，将会在控制台中显示当前监听的`websocket`地址，将其复制到你的小智客户端中即可。
 如果需要完整打印服务端日志，可以在`config.json`中将`LogSetting`项的`LogLevel`改为`DEBUG`。
 
 ## 贡献🙌
@@ -228,9 +223,9 @@ static async Task StartXiaoZhiServer()
 | 项目名称|
 |:---:|
 |[xiaozhi esp32](https://github.com/78/xiaozhi-esp32) |
-|[xiaozhi-esp32-server (python)](https://github.com/xinnan-tech/xiaozhi-esp32-server)|
+|[xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server)|
 |[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)|
-|[Yi.Abp](https://github.com/ccnetcore/Yi.Abp.Admin)|
+|[SuperSocket](https://github.com/kerryjiang/SuperSocket)|
 
 ## 许可证📝
 

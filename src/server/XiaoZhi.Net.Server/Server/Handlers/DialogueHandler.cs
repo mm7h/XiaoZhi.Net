@@ -40,48 +40,12 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public async Task Handle1()
         {
-            //await foreach (var reader in PreviousReader.ReadAllAsync()) await this.Handle(reader);
-            try
-            {
-                await foreach (var reader in this.PreviousReader1.ReadAllAsync())
-                {
-                    try
-                    {
-                        await this.Handle(reader);
-                    }
-                    catch (Exception e1)
-                    {
-
-                    }
-                }
-            }
-            catch (Exception e2)
-            {
-
-            }
+            await foreach (var reader in PreviousReader1.ReadAllAsync()) await this.Handle(reader);
         }
 
         public async Task Handle2()
         {
-            //await foreach (var reader in PreviousReader.ReadAllAsync()) await this.Handle(reader);
-            try
-            {
-                await foreach (var reader in this.PreviousReader1.ReadAllAsync())
-                {
-                    try
-                    {
-                        await this.Handle(reader);
-                    }
-                    catch (Exception e1)
-                    {
-
-                    }
-                }
-            }
-            catch (Exception e2)
-            {
-
-            }
+            await foreach (var reader in PreviousReader2.ReadAllAsync()) await this.Handle(reader);
         }
 
         public async Task Handle(Workflow<string> workflow, bool addToChatHistory = true)

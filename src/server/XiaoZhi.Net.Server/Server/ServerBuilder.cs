@@ -31,6 +31,16 @@ namespace XiaoZhi.Net.Server
             this._hostBuilder = Host.CreateDefaultBuilder();
         }
 
+        internal ServerBuilder(IHostBuilder hostBuilder)
+        {
+            this._hostBuilder = hostBuilder;
+        }
+
+        public static IServerBuilder CreateServerBuilder(IHostBuilder hostBuilder)
+        { 
+            return new ServerBuilder(hostBuilder);
+        }
+
         /// <summary>
         /// 通过Remote API初始化服务
         /// </summary>

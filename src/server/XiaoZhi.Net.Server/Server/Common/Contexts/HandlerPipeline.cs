@@ -46,8 +46,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.InitializeSendOutter(audioSendHandler);
 
             this.BuildHandlersWorkflow(audioReceiveHandler, audio2TextHandler);
-            this.BuildHandlersWorkflow(textHandler, dialogueHandler);
-            this.BuildHandlersWorkflow(audio2TextHandler, dialogueHandler);
+            this.BuildHandlersWorkflow(textHandler, audio2TextHandler, dialogueHandler);
             this.BuildHandlersWorkflow(dialogueHandler, text2AudioHandler);
             this.BuildHandlersWorkflow(text2AudioHandler, audioSendHandler);
 
@@ -178,7 +177,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
         }
 
-        private void BuildHandlersWorkflow<T>(IOutHandler<T> previous, IInHandler<T, T> next)
+        private void BuildHandlersWorkflow<T>(IOutHandler<T> previous1, IOutHandler<T> previous2, IInHandler<T, T> next)
         {
 #if DEBUG
             int capacity = 100;
@@ -191,14 +190,18 @@ namespace XiaoZhi.Net.Server.Common.Contexts
                 SingleWriter = true,
                 SingleReader = true
             };
-            Channel<Workflow<T>> channel = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
-            previous.NextWriter = channel.Writer;
-            next.PreviousReader1 = channel.Reader;
-            next.PreviousReader2 = channel.Reader;
-
+            Channel<Workflow<T>> channel1 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
+            previous1.NextWriter = channel1.Writer;
+            next.PreviousReader1 = channel1.Reader;
             Task.Factory.StartNew(async () => await next.Handle1(), TaskCreationOptions.LongRunning).ConfigureAwait(false);
+
+            Channel<Workflow<T>> channel2 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
+            previous2.NextWriter = channel2.Writer;
+            next.PreviousReader2 = channel2.Reader;
             Task.Factory.StartNew(async () => await next.Handle2(), TaskCreationOptions.LongRunning).ConfigureAwait(false);
-            this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
+
+            this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous1.GetType().Name, next.GetType().Name);
+            this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous2.GetType().Name, next.GetType().Name);
         }
 
         private void ScheduleOnAbort(BaseHandler handler)

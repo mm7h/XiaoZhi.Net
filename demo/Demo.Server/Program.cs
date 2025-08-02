@@ -6,7 +6,7 @@ using XiaoZhi.Net.Server;
 
 IHost? serverHost = null;
 // 获取服务引擎构建器
-IServerBuilder serverBuilder = EngineFactory.GetServerBuilder();
+IServerBuilder serverBuilder = EngineFactory.CreateServerBuilder();
 try
 {
     Console.WriteLine("Hello, Xiao Zhi!");

@@ -15,9 +15,9 @@ namespace XiaoZhi.Net.Test.Filter
             {
                 Console.WriteLine($"arg key: {argument.Key}, arg val: {argument.Value}");
             }
-            context.Result = new FunctionResult(context.Result, "function调用失败，无法打开网站");
+            //context.Result = new FunctionResult(context.Result, "function调用失败，无法打开网站");
 
-            return;
+            //return;
             if (context.Function.Metadata.AdditionalProperties.TryGetValue("sessionId", out var sessionId) && !string.IsNullOrEmpty(sessionId?.ToString()))
             {
                 Console.WriteLine($"当前获取到SessionId: {sessionId}，理论上不继续执行Function");

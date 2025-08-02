@@ -58,8 +58,8 @@ namespace XiaoZhi.Net.Server.Handlers
                 Stopwatch timer = Stopwatch.StartNew();
 
                 int frameDuration = this.Config.AudioSetting.FrameDuration;
-                double startTime = timer.ElapsedMilliseconds;
-                double playPosition = 0;// 已播放时长
+                //double startTime = timer.ElapsedMilliseconds;
+                //double playPosition = 0;// 已播放时长
 
                 // 如果收集到了足够的数据，一次性编码并播放
                 if (preBufferCount > 0)
@@ -73,17 +73,17 @@ namespace XiaoZhi.Net.Server.Handlers
 
                         byte[] opusData = await this._audioEncoder.EncodeAsync(chunk, session.SessionCtsToken);
 
-                        double expectedTime = startTime + (playPosition / 1000);
-                        double currentTime = timer.ElapsedMilliseconds;
-                        int delay = (int)(expectedTime - currentTime);
-                        if (delay > 0)
-                        {
-                            await Task.Delay(delay);
-                        }
-
+                        //double expectedTime = startTime + (playPosition / 1000);
+                        //double currentTime = timer.ElapsedMilliseconds;
+                        //int delay = (int)(expectedTime - currentTime);
+                        //if (delay > 0)
+                        //{
+                        //    await Task.Delay(delay);
+                        //}
+                        await Task.Delay(frameDuration);
                         await this.SendOutter.SendAsync(opusData);
 
-                        playPosition += frameDuration;
+                        //playPosition += frameDuration;
                     }
 
                     await Task.Delay(20);
@@ -106,17 +106,17 @@ namespace XiaoZhi.Net.Server.Handlers
                         opusData = await this._audioEncoder.EncodeAsync(chunk, session.SessionCtsToken);
                     }
 
-                    double expectedTime = startTime + (playPosition / 1000);
-                    double currentTime = timer.ElapsedMilliseconds;
-                    int delay = (int)(expectedTime - currentTime);
-                    if (delay > 0)
-                    {
-                        await Task.Delay(delay);
-                    }
-
+                    //double expectedTime = startTime + (playPosition / 1000);
+                    //double currentTime = timer.ElapsedMilliseconds;
+                    //int delay = (int)(expectedTime - currentTime);
+                    //if (delay > 0)
+                    //{
+                    //    await Task.Delay(delay);
+                    //}
+                    await Task.Delay(frameDuration);
                     await this.SendOutter.SendAsync(opusData);
 
-                    playPosition += frameDuration;
+                    //playPosition += frameDuration;
                 }
 
                 timer.Stop();

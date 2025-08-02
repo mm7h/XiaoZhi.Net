@@ -107,7 +107,7 @@ namespace XiaoZhi.Net.Server.Handlers
             else
             {
                 long noVoiceTime = DateTimeOffset.Now.ToUnixTimeMilliseconds() - sessionContext.VadStatusContext.HaveVoiceLatestTime;
-                long closeConnectionNoVoiceTime = (this.Config.CloseConnectionNoVoiceTime ?? 120) * 1000;
+                long closeConnectionNoVoiceTime = (this.Config.CloseConnectionNoVoiceTime ?? 40) * 1000;
                 if (!sessionContext.CloseAfterChat && noVoiceTime >= closeConnectionNoVoiceTime)
                 {
 

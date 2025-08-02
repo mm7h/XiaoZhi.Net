@@ -1,11 +1,18 @@
-﻿namespace XiaoZhi.Net.Server
+﻿using Microsoft.Extensions.Hosting;
+
+namespace XiaoZhi.Net.Server
 {
-    public sealed class EngineFactory
+    public static class EngineFactory
     {
 
-        public static IServerBuilder GetServerBuilder()
+        public static IServerBuilder CreateServerBuilder()
         {
             return ServerBuilder.CreateServerBuilder();
+        }
+
+        public static IServerBuilder AsXiaoZhiHostBuilder(this IHostBuilder hostBuilder)
+        {
+            return ServerBuilder.CreateServerBuilder(hostBuilder);
         }
     }
 }
