@@ -73,7 +73,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 this._subMcpClients.Add(SubMCPClientTypeNames.ServerMcpClient, serverMcpClient);
             }
 
-            return true;
+            //return true;
             if (this._subMcpClients.Any())
             {
                 //var buildResults = this._subMcpClients.Values
@@ -96,7 +96,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             }
             else
             {
-                this.Logger.LogWarning("No mcp client builed for the Session {sessionId}.");
+                this.Logger.LogWarning("No mcp client builed for the Session {sessionId}.", this._currentSession.SessionId);
                 return false;
             }
         }

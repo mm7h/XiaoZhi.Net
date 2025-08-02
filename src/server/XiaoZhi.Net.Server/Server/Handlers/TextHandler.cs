@@ -95,6 +95,8 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
             }
 
+            this.SendOutter.SendAsync(JsonHelper.Serialize(defultHelloMessage));
+
             if (jsonObj.TryGetPropertyValue("features", out var features) && features is not null)
             {
                 JsonObject featuresObj = features.AsObject();
@@ -103,11 +105,10 @@ namespace XiaoZhi.Net.Server.Handlers
                     bool isSupportMCP = mcp.GetValue<bool>();
                     if (isSupportMCP)
                     {
-                        //this._providerManager.RegisterMCP(session);
+                        this._providerManager.RegisterMCP(session);
                     }
                 }
             }
-            this.SendOutter.SendAsync(JsonHelper.Serialize(defultHelloMessage));
         }
 
         private async Task HandleAbortMessage()
@@ -163,9 +164,13 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private async void HandleMcp(JsonObject jsonObject)
         {
-            Session session = this.SendOutter.GetSession();
-            ISubMcpClient subMcpClient = session.McpClient.GetSubMcpClient(SubMCPClientTypeNames.DeviceMcpClient);
-            await subMcpClient.HandleMcpMessageAsync(jsonObject);
+            if (jsonObject.TryGetPropertyValue("payload", out var payload) && payload is not null && payload is JsonObject payloadObj)
+            {
+                Session session = this.SendOutter.GetSession();
+                ISubMcpClient subMcpClient = session.McpClient.GetSubMcpClient(SubMCPClientTypeNames.DeviceMcpClient);
+                await subMcpClient.HandleMcpMessageAsync(payloadObj);
+            }
+            
         }
 
         public void Dispose()

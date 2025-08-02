@@ -10,11 +10,6 @@ namespace XiaoZhi.Net.Server
             return LoggerManager.RegisterServices(builder, config);
         }
 
-        public static IHostBuilder RegisterSessionManagement(this IHostBuilder builder)
-        {
-            return SessionManager.RegisterServices(builder);
-        }
-
         public static IHostBuilder RegisterProviders(this IHostBuilder builder, XiaoZhiConfig config)
         {
             return ProviderManager.RegisterServices(builder, config);

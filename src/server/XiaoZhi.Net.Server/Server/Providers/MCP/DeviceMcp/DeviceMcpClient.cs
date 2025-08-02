@@ -24,6 +24,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
         public override bool Build()
         {
             this.SendMcpInitializeAsync().ConfigureAwait(false);
+            this.RequestToolsListAsync().ConfigureAwait(false);
 
             return true;
         }
@@ -58,7 +59,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
 
             JsonRpcRequest request = new JsonRpcRequest
             {
-                Method = RequestMethods.ToolsList,
+                Method = RequestMethods.Initialize,
                 Id = new RequestId(1),
                 Params = @params.ToNode()
             };
@@ -72,7 +73,12 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
             {
                 throw new ArgumentNullException(nameof(message), "Message cannot be null.");
             }
-            string jsonMessage = message.ToJson();
+            var mcpMessage = new
+            {
+                Type = "mcp",
+                Payload = message
+            };
+            string jsonMessage = mcpMessage.ToJson();
             await this.CurrentSession.SendOutter.SendAsync(jsonMessage);
         }
 

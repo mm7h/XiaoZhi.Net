@@ -139,7 +139,6 @@ namespace XiaoZhi.Net.Server
                 services.AddTransient<IFunctionInvocationFilter, MCPToolFunctionFilter>();
             })
             .RegisterLogger(config)
-            .RegisterSessionManagement()
             .RegisterProviders(config)
             .RegisterHandlers()
             .RegisterProtocol(config);

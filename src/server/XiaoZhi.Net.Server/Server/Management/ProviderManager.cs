@@ -164,8 +164,6 @@ namespace XiaoZhi.Net.Server.Management
 
                 }
 
-                this.RegisterMCP(session);
-
                 session.PrivateProvider = privateProvider;
             }
             catch (DeviceNotFoundException)
@@ -399,11 +397,6 @@ namespace XiaoZhi.Net.Server.Management
             }
             else
             {
-                IDictionary<string, ISubMcpClient> subMcpClients = mcpClient.GetAllSubMcpClients();
-                foreach (var item in subMcpClients)
-                {
-                    session.Kernel.ImportPluginFromFunctions(item.Key, item.Value.Functions);
-                }
                 session.SetMcpClient(mcpClient);
             }
         }

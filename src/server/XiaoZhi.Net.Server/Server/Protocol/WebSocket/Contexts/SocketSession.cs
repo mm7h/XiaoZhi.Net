@@ -134,7 +134,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
             session.HandlerPipeline.InitHandlerPipeline(this.Server.ServiceProvider, this.Logger);
             session.RefreshLastActivityTime();
 
-            await this._providerManager.InitializePrivateConfig(session);
+            await this._providerManager.InitializePrivateConfig(session).ConfigureAwait(false);
 
             this.XiaoZhiSession = session;
         }

@@ -73,11 +73,11 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
         protected Session CurrentSession { get; }
 
-        public async Task HandleMcpMessageAsync(JsonObject jsonObject)
+        public async Task HandleMcpMessageAsync(JsonObject payloadObj)
         {
-            if (jsonObject.TryGetPropertyValue("result", out var result) && result is not null)
+            if (payloadObj.TryGetPropertyValue("result", out var result) && result is not null)
             {
-                int msgId = result["id"]?.AsValue().GetValue<int>() ?? 0;
+                int msgId = payloadObj["id"]?.AsValue().GetValue<int>() ?? 0;
 
                 if (this._callResults.ContainsKey(msgId))
                 {
@@ -109,7 +109,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 else if (msgId == 2)
                 {
                     // mcp tools list id
-                    this.Logger.LogInformation("Received MCP Initialize message from client: {sessionId}.", this.CurrentSession.SessionId);
+                    this.Logger.LogInformation("Received MCP tool list message from client: {sessionId}.", this.CurrentSession.SessionId);
 
                     if (result is JsonObject resultObj && resultObj.TryGetPropertyValue("tools", out var toolsNode) && toolsNode is JsonArray toolsJson)
                     {
@@ -199,17 +199,17 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                     }
                 }
             }
-            else if (jsonObject.TryGetPropertyValue("method", out var method) && method is not null)
+            else if (payloadObj.TryGetPropertyValue("method", out var method) && method is not null)
             {
                 this.Logger.LogInformation("Received MCP client request: {method}", method.GetValue<string>());
             }
-            else if (jsonObject.TryGetPropertyValue("error", out var error) && error is not null)
+            else if (payloadObj.TryGetPropertyValue("error", out var error) && error is not null)
             {
                 var errorMsg = error["message"]?.GetValue<string>() ?? "未知错误";
 
                 this.Logger.LogError("Received MCP error response: {ErrorMsg}", errorMsg);
 
-                if (jsonObject.TryGetPropertyValue("id", out var msgId) && msgId is not null)
+                if (payloadObj.TryGetPropertyValue("id", out var msgId) && msgId is not null)
                 {
                     this.RejectCallResult(msgId.GetValue<int>(), $"Received MCP error response: {errorMsg}");
                 }
@@ -234,7 +234,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             };
             JsonRpcRequest request = new JsonRpcRequest
             {
-                Method = RequestMethods.ToolsList,
+                Method = RequestMethods.Initialize,
                 Id = new RequestId(1),
                 Params = mcpClientOptions.ToNode()
             };
