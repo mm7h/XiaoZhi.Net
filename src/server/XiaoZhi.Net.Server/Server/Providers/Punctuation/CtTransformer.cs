@@ -53,10 +53,10 @@ namespace XiaoZhi.Net.Server.Providers.Punctuation
                 string result = this._offlinePunctuation.AddPunct(message);
                 return result;
             }
-            catch (OperationCanceledException ex)
+            catch (OperationCanceledException)
             {
                 this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
-                throw ex;
+                throw;
             }
             catch (Exception ex)
             {

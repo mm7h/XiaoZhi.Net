@@ -117,11 +117,11 @@ namespace XiaoZhi.Net.Server.Providers.VAD
 
                 return clientHaveVoice;
             }
-            catch (OperationCanceledException ex)
+            catch (OperationCanceledException)
             {
                 sessionContext.VadStatusContext.Reset();
                 this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
-                throw ex;
+                throw;
             }
             catch (Exception ex)
             {

@@ -37,7 +37,7 @@ namespace XiaoZhi.Net.Server.Helpers
                 opusPacketFrame.Pop(framesToGet);
                 return true;
             }
-            catch (Exception ex)
+            catch
             {
                 data = Array.Empty<float>();
                 return false;

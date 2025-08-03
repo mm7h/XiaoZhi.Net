@@ -84,10 +84,10 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(content));
                 this.OnTokenGenerated?.Invoke(workflow.SessionId, MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(content), @"<think>.*?</think>", "", RegexOptions.Singleline)));
             }
-            catch (OperationCanceledException ex)
+            catch (OperationCanceledException)
             {
                 this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
-                throw ex;
+                throw;
             }
             catch (Exception ex)
             {
@@ -183,10 +183,10 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
                 this.OnTokenGenerated?.Invoke(workflow.SessionId, string.Join(string.Empty, allResponse.Select(a => a.Content)));
             }
-            catch (OperationCanceledException ex)
+            catch (OperationCanceledException)
             {
                 this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
-                throw ex;
+                throw;
             }
             catch (Exception ex)
             {

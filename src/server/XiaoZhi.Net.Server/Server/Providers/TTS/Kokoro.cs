@@ -68,7 +68,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
                 if (this._save2File)
                 {
-                    this._savePath = Environment.CurrentDirectory + (this.ModelSetting.Config.SavePath ?? Path.Combine("data", "tts-cache"));
+                    this._savePath = this.ModelSetting.Config.SavePath ?? Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
                     if (!Directory.Exists(this._savePath))
                         Directory.CreateDirectory(this._savePath);
                 }
@@ -121,7 +121,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     await Task.Run(() =>
                     {
                         string fileName = $"{this.ReplaceMacDelimiters(session.DeviceId)}_{DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString()}.wav";
-                        string filePath = Path.Combine(this._savePath, fileName);
+                        string filePath = Path.Combine(this._savePath!, fileName);
                         if (File.Exists(filePath))
                             File.Delete(filePath);
                         bool saved = audio.SaveToWaveFile(filePath);

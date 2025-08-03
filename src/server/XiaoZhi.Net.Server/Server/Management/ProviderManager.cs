@@ -20,6 +20,7 @@ using XiaoZhi.Net.Server.Providers.Punctuation;
 using XiaoZhi.Net.Server.Providers.TTS;
 using XiaoZhi.Net.Server.Providers.VAD;
 using XiaoZhi.Net.Server.Providers.MCP;
+using XiaoZhi.Net.Server.Providers.IoT;
 using XiaoZhi.Net.Server.Services;
 
 namespace XiaoZhi.Net.Server.Management
@@ -390,7 +391,7 @@ namespace XiaoZhi.Net.Server.Management
         #region IoT
         public void RegisterIoT(Session session)
         {
-            IIoTClient iotClient = new IoTClient(session, this._config, this._logger);
+            IIoTClient iotClient = new IoTClient(session, this._logger);
             if (!iotClient.Build())
             {
                 this._logger.LogWarning("Session {sessionId} failed to build IoT client.", session.SessionId);

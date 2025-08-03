@@ -85,10 +85,10 @@ namespace XiaoZhi.Net.Server.Providers.ASR
                     return string.Empty;
                 }
             }
-            catch (OperationCanceledException ex)
+            catch (OperationCanceledException)
             {
                 this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
-                throw ex;
+                throw;
             }
             catch (Exception ex)
             {

@@ -12,20 +12,18 @@ using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
 
-namespace XiaoZhi.Net.Server.Providers.MCP
+namespace XiaoZhi.Net.Server.Providers.IoT
 {
     internal class IoTClient : BaseProvider, IIoTClient
     {
         private readonly Session _currentSession;
-        private readonly XiaoZhiConfig _config;
 
         private readonly Action _tempMethod = () => { };
         private readonly IList<IoTProperty> _iotProperties;
 
-        public IoTClient(Session session, XiaoZhiConfig config, ILogger logger) : base(logger)
+        public IoTClient(Session session, ILogger logger) : base(logger)
         {
             this._currentSession = session;
-            this._config = config;
             this._iotProperties = new List<IoTProperty>();
         }
 
@@ -84,7 +82,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
         }
 
         private void UpdateIoTPropertyStatus()
-        { 
+        {
             // todo: 更新属性值
         }
 
@@ -183,7 +181,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                             Parameters = methodParameters,
                             AdditionalMetadata = new ReadOnlyDictionary<string, object?>(methodDic)
                         };
-                        KernelFunction methodFunction = KernelFunctionFactory.CreateFromMethod(this._tempMethod, methodFunctionOption);
+                        KernelFunction methodFunction = KernelFunctionFactory.CreateFromMethod(_tempMethod, methodFunctionOption);
 
                         deviceFunctions.Add(methodFunction);
                     }
@@ -257,6 +255,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             if (item is not null)
             {
                 item.StatusValue = itemValue;
+                this.Logger.LogInformation("Session {sessionId} set the iot status / value, key: {key}, value: {value}", this._currentSession.SessionId, propName, itemValue);
             }
         }
 
@@ -277,7 +276,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
         public override void Dispose()
         {
-            throw new NotImplementedException();
+            
         }
     }
 }

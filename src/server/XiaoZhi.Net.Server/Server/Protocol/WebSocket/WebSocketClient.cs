@@ -38,7 +38,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
 
         public event Action? OnOpen;
         public event Action<WebSocketError, string>? OnError;
-        public event Action<WebSocketCloseStatus, string>? OnClose;
+        public event Action<WebSocketCloseStatus, string?>? OnClose;
         public event Action<string>? OnTextMessage;
         public event Action<byte[]>? OnBinaryMessage;
 
@@ -46,7 +46,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
         {
             if (!this.IsOpen && this.WebSocket.CloseStatus.HasValue)
             {
-                this.OnClose?.Invoke(this.WebSocket.CloseStatus.Value, this.WebSocket.CloseStatusDescription ?? string.Empty);
+                this.OnClose?.Invoke(this.WebSocket.CloseStatus.Value, this.WebSocket.CloseStatusDescription);
             }
         }
 
@@ -152,7 +152,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
             }
         }
 
-        public async Task CloseAsync(WebSocketCloseStatus closeStatus = WebSocketCloseStatus.NormalClosure, string closeMessage = null)
+        public async Task CloseAsync(WebSocketCloseStatus closeStatus = WebSocketCloseStatus.NormalClosure, string? closeMessage = null)
         {
             if (!IsOpen) return;
 
