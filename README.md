@@ -198,7 +198,7 @@ finally
 │   └── vad
 │       └── silero
 │           └── model.onnx  # 模型文件
-└── Demo.Server.exe # 测试主程序
+└── XiaoZhi.Net.Sample.Server.exe # 演示程序入口
 ```
 
 ### 二、模型下载
@@ -209,7 +209,7 @@ finally
 
 ### 三、程序运行
 
-点击`Demo.Server.exe`运行后，将会在控制台中显示当前监听的`websocket`地址，将其复制到你的小智客户端中即可。
+点击`XiaoZhi.Net.Sample.Server.exe`运行后，将会在控制台中显示当前监听的`websocket`地址，将其复制到你的小智客户端中即可。
 如果需要完整打印服务端日志，可以在`config.json`中将`LogSetting`项的`LogLevel`改为`DEBUG`。
 
 ## 贡献🙌
