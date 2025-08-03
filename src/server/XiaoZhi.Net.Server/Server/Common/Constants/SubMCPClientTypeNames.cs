@@ -2,6 +2,7 @@
 {
     internal static class SubMCPClientTypeNames
     {
+        public const string DeviceIoTClient = "DeviceIoTClient";
         public const string DeviceMcpClient = "DeviceMcpClient";
         public const string McpEndpointClient = "McpEndpointClient";
         public const string ServerMcpClient = "ServerMcpClient";

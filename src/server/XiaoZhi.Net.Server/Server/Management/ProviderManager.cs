@@ -387,6 +387,21 @@ namespace XiaoZhi.Net.Server.Management
         }
         #endregion
 
+        #region IoT
+        public void RegisterIoT(Session session)
+        {
+            IIoTClient iotClient = new IoTClient(session, this._config, this._logger);
+            if (!iotClient.Build())
+            {
+                this._logger.LogWarning("Session {sessionId} failed to build IoT client.", session.SessionId);
+            }
+            else
+            {
+                session.SetIoTClient(iotClient);
+            }
+        }
+        #endregion
+
         #region MCP
         public void RegisterMCP(Session session)
         {

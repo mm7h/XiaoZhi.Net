@@ -16,6 +16,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private int _isAudioProcessing;
         private CancellationTokenSource _sessionCts = null!;
         private Kernel? _kernel;
+        private IIoTClient? _iotClient;
         private IMcpClient? _mcpClient;
 
         private readonly object _lock = new object();
@@ -55,6 +56,8 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public bool IsDeviceBinded { get; set; }
         public string? BindCode { get; set; }
         public DateTime LastActivityTime { get; private set; }
+        public bool HasIoT { get; private set; }
+        public IIoTClient IoTClient => this._iotClient ?? throw new InvalidOperationException("IoTClient is not set. Please set the iot client before using the session.");
         public IMcpClient McpClient => this._mcpClient ?? throw new InvalidOperationException("MCPClient is not set. Please set the mcp client before using the session.");
         public bool CloseAfterChat { get; set; }
 
@@ -71,6 +74,12 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public void SetKernel(Kernel kernel)
         {
             this._kernel = kernel;
+        }
+
+        public void SetIoTClient(IIoTClient iotClient)
+        {
+            this._iotClient = iotClient;
+            this.HasIoT = true;
         }
 
         public void SetMcpClient(IMcpClient mcpClient)

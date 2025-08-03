@@ -1,5 +1,5 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using Demo.Server.Plugins;
+using XiaoZhi.Net.Sample.Server.Plugins;
 using Microsoft.Extensions.Hosting;
 using XiaoZhi.Net.Server;
 

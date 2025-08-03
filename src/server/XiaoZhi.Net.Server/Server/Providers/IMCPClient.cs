@@ -6,6 +6,6 @@ namespace XiaoZhi.Net.Server.Providers
     internal interface IMcpClient : IProvider
     {
         IDictionary<string, ISubMcpClient> GetAllSubMcpClients();
-        ISubMcpClient GetSubMcpClient(string subTypeName);
+        ISubMcpClient? GetSubMcpClient(string subTypeName);
     }
 }

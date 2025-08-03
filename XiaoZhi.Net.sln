@@ -32,11 +32,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{02EA681E-C7D
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "demo", "demo", "{CCE40800-EE6B-4596-BE91-81D9ADF8AD4B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Demo.Server", "demo\Demo.Server\Demo.Server.csproj", "{7900A5F0-6E19-42A5-8CB5-C77BDD74888F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Sample.Server", "demo\XiaoZhi.Net.Sample.Server\XiaoZhi.Net.Sample.Server.csproj", "{7900A5F0-6E19-42A5-8CB5-C77BDD74888F}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{C5317539-74FE-4FE4-AF07-417A828F9D08}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Demo.OTA.Server", "demo\Demo.OTA.Server\Demo.OTA.Server.csproj", "{BCD78DD0-4221-40DA-BA34-9DBDD06F0AA3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Sample.OTA.Server", "demo\XiaoZhi.Net.Sample.OTA.Server\XiaoZhi.Net.Sample.OTA.Server.csproj", "{BCD78DD0-4221-40DA-BA34-9DBDD06F0AA3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

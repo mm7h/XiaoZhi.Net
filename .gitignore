@@ -18,7 +18,7 @@ tests/XiaoZhi.Net.Test/bin
 tests/XiaoZhi.Net.Test/obj
 *.vssscc
 *.vspscc
-/demo/Demo.Server/bin
-/demo/Demo.Server/obj
-/demo/Demo.OTA.Server/bin
-/demo/Demo.OTA.Server/obj
+/demo/XiaoZhi.Net.Sample.Server/bin
+/demo/XiaoZhi.Net.Sample.Server/obj
+/demo/XiaoZhi.Net.Sample.OTA.Server/bin
+/demo/XiaoZhi.Net.Sample.OTA.Server/obj

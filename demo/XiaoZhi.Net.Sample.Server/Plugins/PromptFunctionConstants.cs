@@ -1,6 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
-namespace Demo.Server.Plugins
+namespace XiaoZhi.Net.Sample.Server.Plugins
 {
     internal static class PromptFunctionConstants
     {

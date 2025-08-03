@@ -62,7 +62,7 @@ namespace XiaoZhi.Net.Server.Handlers
                         this.HandleListen(jsonObj);
                         break;
                     case "iot":
-                        this.HandleIotDescriptors();
+                        this.HandleIotDescriptors(jsonObj);
                         break;
                     case "mcp":
                         await Task.Run(() =>
@@ -157,9 +157,15 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        private void HandleIotDescriptors()
+        private void HandleIotDescriptors(JsonObject jsonObject)
         {
+            Session session = this.SendOutter.GetSession();
+            if (!session.HasIoT)
+            {
+                this._providerManager.RegisterIoT(session);
+            }
 
+            session.IoTClient.HandleIoTMessage(jsonObject);
         }
 
         private async void HandleMcp(JsonObject jsonObject)
@@ -167,10 +173,17 @@ namespace XiaoZhi.Net.Server.Handlers
             if (jsonObject.TryGetPropertyValue("payload", out var payload) && payload is not null && payload is JsonObject payloadObj)
             {
                 Session session = this.SendOutter.GetSession();
-                ISubMcpClient subMcpClient = session.McpClient.GetSubMcpClient(SubMCPClientTypeNames.DeviceMcpClient);
-                await subMcpClient.HandleMcpMessageAsync(payloadObj);
+                ISubMcpClient? subMcpClient = session.McpClient.GetSubMcpClient(SubMCPClientTypeNames.DeviceMcpClient);
+                if (subMcpClient is not null)
+                {
+                    await subMcpClient.HandleMcpMessageAsync(payloadObj);
+                }
+                else
+                {
+                    this.Logger.LogError("DeviceMcpClient not found in session {sessionId}.", session.SessionId);
+                }
             }
-            
+
         }
 
         public void Dispose()

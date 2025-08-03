@@ -7,7 +7,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -20,8 +19,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
     internal abstract class BaseMcpClient : BaseProvider, ISubMcpClient
     {
         private readonly SemaphoreSlim _lockerSlim = new SemaphoreSlim(1, 1);
-        private readonly IDictionary<string, object?> _additionalMetadataDic;
-        private readonly Action tempMethod = () => { };
+        private readonly Action _tempMethod = () => { };
 
         private bool _isReady = false;
         private int _nextId = 1;
@@ -34,7 +32,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
         public BaseMcpClient(Session session, ModelSetting mcpSetting, ILogger logger) : base(mcpSetting, logger)
         {
             this.CurrentSession = session;
-            this._additionalMetadataDic = new Dictionary<string, object?>
+            this.AdditionalMetadataDic = new Dictionary<string, object?>
             {
                 { "session-id", session.SessionId }
             };
@@ -72,8 +70,9 @@ namespace XiaoZhi.Net.Server.Providers.MCP
         public int NextId => Interlocked.Increment(ref this._nextId);
 
         protected Session CurrentSession { get; }
+        protected IDictionary<string, object?> AdditionalMetadataDic { get; }
 
-        public async Task HandleMcpMessageAsync(JsonObject payloadObj)
+        public async virtual Task HandleMcpMessageAsync(JsonObject payloadObj)
         {
             if (payloadObj.TryGetPropertyValue("result", out var result) && result is not null)
             {
@@ -156,9 +155,9 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                                 FunctionName = this.SanitizeToolName(toolName),
                                 Description = toolDescription,
                                 Parameters = kernelParameters,
-                                AdditionalMetadata = new ReadOnlyDictionary<string, object?>(this._additionalMetadataDic)
+                                AdditionalMetadata = new ReadOnlyDictionary<string, object?>(this.AdditionalMetadataDic)
                             };
-                            KernelFunction toolFunction = KernelFunctionFactory.CreateFromMethod(tempMethod, functionOption);
+                            KernelFunction toolFunction = KernelFunctionFactory.CreateFromMethod(this._tempMethod, functionOption);
 
                             this.AddTool(toolName, toolFunction);
                             this.Logger.LogInformation("Tool added: {ToolName}", toolName);
@@ -180,15 +179,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                             this.CurrentSession.Kernel.ImportPluginFromFunctions(this.ProviderType, this._mcpTools.Values);
 
                             this.Logger.LogInformation("All tools have been obtained, MCP client is ready.");
-
-                            //// 刷新工具缓存，确保MCP工具被包含在函数列表中
-                            //if (conn?.FuncHandler?.ToolManager is not null)
-                            //{
-                            //    conn.FuncHandler.ToolManager.RefreshTools();
-                            //    conn.FuncHandler.CurrentSupportFunctions();
-                            //}
                         }
-
 
                         return;
                     }
@@ -319,7 +310,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
             string argJson = arguments.ToJson();
 
-            if (this._mcpTools.TryGetValue(toolName, out KernelFunction mcpTool))
+            if (this._mcpTools.TryGetValue(toolName, out KernelFunction? mcpTool))
             {
                 string realToolName = mcpTool.Name;
 
@@ -375,13 +366,13 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             {
                 this.CleanCallResults(toolCallId);
                 this.Logger.LogError(timeoutException, "Timeout while waiting for MCP tool call response: {toolName}, args: {args}", toolName, argJson);
-                throw timeoutException;
+                throw;
             }
             catch (Exception e)
             {
                 this.CleanCallResults(toolCallId);
                 this.Logger.LogError(e, "Failed to call MCP tool: {toolName}, args: {args}", toolName, argJson);
-                throw e;
+                throw;
             }
         }
 
@@ -414,7 +405,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
         protected virtual void ResolveCallResult(int id, JsonObject result)
         {
-            if (this._callResults.TryGetValue(id, out TaskCompletionSource<JsonObject> tcs) && !tcs.Task.IsCompleted)
+            if (this._callResults.TryGetValue(id, out TaskCompletionSource<JsonObject>? tcs) && !tcs.Task.IsCompleted)
             {
                 tcs.SetResult(result);
             }
@@ -422,7 +413,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
         protected virtual void RejectCallResult(int id, string errorMessage)
         {
-            if (this._callResults.TryGetValue(id, out TaskCompletionSource<JsonObject> tcs) && !tcs.Task.IsCompleted)
+            if (this._callResults.TryGetValue(id, out TaskCompletionSource<JsonObject>? tcs) && !tcs.Task.IsCompleted)
             {
                 tcs.SetException(new Exception(errorMessage));
             }

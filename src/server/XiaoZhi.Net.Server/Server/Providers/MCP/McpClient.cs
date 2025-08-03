@@ -26,15 +26,16 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
         public IDictionary<string, ISubMcpClient> GetAllSubMcpClients() => this._subMcpClients;
 
-        public ISubMcpClient GetSubMcpClient(string subTypeName)
+        public ISubMcpClient? GetSubMcpClient(string subTypeName)
         {
-            if (this._subMcpClients.ContainsKey(subTypeName))
+            if (this._subMcpClients.TryGetValue(subTypeName, out var subMcpClient))
             {
-                return this._subMcpClients[subTypeName];
+                return subMcpClient;
             }
             else
             {
-                throw new KeyNotFoundException($"SubMcpClient with type name '{subTypeName}' not found.");
+                this.Logger.LogError("SubMcpClient with type name '{subTypeName}' not found.", subTypeName);
+                return null;
             }
         }
 
@@ -46,6 +47,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             }
             ModelSetting defaultSetting = new ModelSetting();
 
+            // DeviceMcpClient
             if (this._config.McpSettings.TryGetValue(SubMCPClientTypeNames.DeviceMcpClient, out var deviceSetting))
             {
                 ISubMcpClient deviceMcpClient = new DeviceMcpClient(this._currentSession, deviceSetting, this.Logger);
@@ -61,38 +63,39 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 this._subMcpClients.Add(SubMCPClientTypeNames.DeviceMcpClient, deviceMcpClient);
             }
 
+            // McpEndpointClient and ServerMcpClient
             if (this._config.McpSettings.TryGetValue(SubMCPClientTypeNames.McpEndpointClient, out var endPointSetting))
             {
                 ISubMcpClient mcpEndpointClient = new McpEndpointClient(this._currentSession, endPointSetting, this.Logger);
                 this._subMcpClients.Add(SubMCPClientTypeNames.McpEndpointClient, mcpEndpointClient);
             }
 
+            // ServerMcpClient
             if (this._config.McpSettings.TryGetValue(SubMCPClientTypeNames.ServerMcpClient, out var serverMCPSetting))
             {
                 ISubMcpClient serverMcpClient = new ServerMcpClient(this._currentSession, serverMCPSetting, this.Logger);
                 this._subMcpClients.Add(SubMCPClientTypeNames.ServerMcpClient, serverMcpClient);
             }
 
-            //return true;
             if (this._subMcpClients.Any())
             {
-                //var buildResults = this._subMcpClients.Values
-                //.AsParallel()
-                //.Select(client => client.Build())
-                //.ToArray();
+                var buildResults = this._subMcpClients.Values
+                .AsParallel()
+                .Select(client => client.Build())
+                .ToArray();
 
-                //return buildResults.All(result => result);
+                return buildResults.All(result => result);
 
-                foreach (var subMcpClient in this._subMcpClients.Values)
-                {
-                    if (!subMcpClient.Build())
-                    {
-                        this.Logger.LogError("Failed to build the MCP client: {clientType}.", subMcpClient.ProviderType);
-                        return false;
-                    }
-                }
+                //foreach (var subMcpClient in this._subMcpClients.Values)
+                //{
+                //    if (!subMcpClient.Build())
+                //    {
+                //        this.Logger.LogError("Failed to build the MCP client: {clientType}.", subMcpClient.ProviderType);
+                //        return false;
+                //    }
+                //}
 
-                return true;
+                //return true;
             }
             else
             {
