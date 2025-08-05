@@ -225,7 +225,6 @@ namespace XiaoZhi.Net.Server
         private void BuildComponents(IServiceProvider serviceProvider)
         {
             ProviderManager providerManager = serviceProvider.GetRequiredService<ProviderManager>();
-            HandlerManager handlerManager = serviceProvider.GetRequiredService<HandlerManager>();
             bool builded = providerManager.BuildComponent(serviceProvider);
             if (!builded)
             {

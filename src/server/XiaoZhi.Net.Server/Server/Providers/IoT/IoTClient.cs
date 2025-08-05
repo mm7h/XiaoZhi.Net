@@ -55,11 +55,15 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                 KernelParameterMetadata? metadata = parameterInfos.FirstOrDefault(p => string.Equals(p.Name, argument.Key, StringComparison.OrdinalIgnoreCase));
                 if (metadata is not null)
                 {
-                    resultArgs.Add(argument.Key, IoTTypeMappingHelper.ConvertValue(argument.Value, metadata.ParameterType));
+                    object? val = IoTTypeMappingHelper.ConvertValue(argument.Value, metadata.ParameterType);
+                    resultArgs.Add(argument.Key, val);
+
+                    this.UpdateIoTPropertyStatus(functionName, val, metadata.ParameterType);
                 }
                 else
                 {
                     resultArgs.Add(argument.Key, argument.Value);
+                    this.UpdateIoTPropertyStatus(functionName, argument.Value);
                 }
             }
             var command = new
@@ -68,7 +72,6 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                 Method = functionName,
                 Parameters = resultArgs
             };
-            this.UpdateIoTPropertyStatus();
             await this.SendIoTMessageAsync(command);
         }
 
@@ -81,9 +84,17 @@ namespace XiaoZhi.Net.Server.Providers.IoT
             return property?.StatusValue ?? null;
         }
 
-        private void UpdateIoTPropertyStatus()
+        private void UpdateIoTPropertyStatus(string functionName, object? val, Type? valType = null)
         {
-            // todo: 更新属性值
+            List<string> splitedItems = functionName.Split("_", StringSplitOptions.RemoveEmptyEntries).ToList();
+            string iotDeviceComponentName = splitedItems[1];
+            string propName = splitedItems[2];
+
+            IoTProperty? property = this._iotProperties.FirstOrDefault(i => i.IoTComponentName == iotDeviceComponentName && i.Name == propName && i.Type == (valType is not null ? valType : typeof(string)));
+            if (property is not null)
+            {
+                property.StatusValue = val;
+            }
         }
 
         private void RegisterIoTTools(JsonArray descriptors)
@@ -276,7 +287,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
 
         public override void Dispose()
         {
-            
+
         }
     }
 }
