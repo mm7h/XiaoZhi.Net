@@ -13,7 +13,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 {
     internal sealed class Session
     {
-        private int _isAudioProcessing;
+        private long _isAudioProcessing;
         private CancellationTokenSource _sessionCts = null!;
         private Kernel? _kernel;
         private IIoTClient? _iotClient;
@@ -61,7 +61,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public IMcpClient McpClient => this._mcpClient ?? throw new InvalidOperationException("MCPClient is not set. Please set the mcp client before using the session.");
         public bool CloseAfterChat { get; set; }
 
-        public bool IsIdle => Volatile.Read(ref _isAudioProcessing) == 1;
+        public bool IsIdle => Interlocked.Read(ref _isAudioProcessing) == 1;
 
         public bool ShouldIgnore()
         {

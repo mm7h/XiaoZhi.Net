@@ -58,12 +58,12 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                     object? val = IoTTypeMappingHelper.ConvertValue(argument.Value, metadata.ParameterType);
                     resultArgs.Add(argument.Key, val);
 
-                    this.UpdateIoTPropertyStatus(functionName, val, metadata.ParameterType);
+                    this.UpdateIoTPropertyStatus(iotDeviceComponentName, metadata.Name, val, metadata.ParameterType);
                 }
                 else
                 {
                     resultArgs.Add(argument.Key, argument.Value);
-                    this.UpdateIoTPropertyStatus(functionName, argument.Value);
+                    this.UpdateIoTPropertyStatus(iotDeviceComponentName, argument.Key, argument.Value);
                 }
             }
             var command = new
@@ -84,13 +84,9 @@ namespace XiaoZhi.Net.Server.Providers.IoT
             return property?.StatusValue ?? null;
         }
 
-        private void UpdateIoTPropertyStatus(string functionName, object? val, Type? valType = null)
+        private void UpdateIoTPropertyStatus(string iotDeviceComponentName, string propName, object? val, Type? valType = null)
         {
-            List<string> splitedItems = functionName.Split("_", StringSplitOptions.RemoveEmptyEntries).ToList();
-            string iotDeviceComponentName = splitedItems[1];
-            string propName = splitedItems[2];
-
-            IoTProperty? property = this._iotProperties.FirstOrDefault(i => i.IoTComponentName == iotDeviceComponentName && i.Name == propName && i.Type == (valType is not null ? valType : typeof(string)));
+            IoTProperty? property = this._iotProperties.FirstOrDefault(i => i.IoTComponentName == iotDeviceComponentName.ToLower() && i.Name == propName.ToLower() && i.Type == (valType is not null ? valType : typeof(string)));
             if (property is not null)
             {
                 property.StatusValue = val;
@@ -262,7 +258,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
 
         private void SetIoTPropertyStatusValue<TValue>(string iotDeviceComponentName, string propName, TValue itemValue)
         {
-            IoTProperty? item = this._iotProperties.FirstOrDefault(i => i.IoTComponentName == iotDeviceComponentName && i.Name == propName && i.Type == typeof(TValue));
+            IoTProperty? item = this._iotProperties.FirstOrDefault(i => i.IoTComponentName == iotDeviceComponentName.ToLower() && i.Name == propName.ToLower() && i.Type == typeof(TValue));
             if (item is not null)
             {
                 item.StatusValue = itemValue;
