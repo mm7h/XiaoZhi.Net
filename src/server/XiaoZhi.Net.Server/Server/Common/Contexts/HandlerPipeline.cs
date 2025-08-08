@@ -73,17 +73,17 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         /// </summary>
         /// <param name="audioData">音频数据</param>
         /// <returns>处理任务</returns>
-        public async Task PushAudioToSendAsync(float[] audioData)
+        public async Task PushAudioToSendAsync(OutAudioSegment outAudioSegment)
         {
-            if (audioData == null || audioData.Length == 0)
+            if (outAudioSegment.AudioData is null || outAudioSegment.AudioData.Length == 0)
                 return;
 
-            if (this._audioSendHandler != null)
+            if (this._audioSendHandler is not null)
             {
                 try
                 {
                     // 创建一个包含音频数据的工作流
-                    var workflow = this._currentSession.ToWorkflow(audioData);
+                    var workflow = this._currentSession.ToWorkflow(outAudioSegment);
 
                     // 直接处理音频数据
                     await this._audioSendHandler.Handle(workflow);

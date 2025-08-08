@@ -146,20 +146,9 @@ namespace XiaoZhi.Net.Server.Handlers
                     totalDuration += duration;
                 }
 
-                Func<Task> sendSentenceAction = new Func<Task>(async () =>
-                {
-                    if (session.ShouldIgnore())
-                    {
-                        return;
-                    }
-                    await session.SendOutter.SendSttMessageAsync(text);
-                    await this.SendOutter.SendTtsMessageAsync("start");
-                    await Task.Delay((int)totalDuration, session.SessionCtsToken);
-                    await this.SendOutter.SendLlmMessageAsync(emotion);
-                    await this.SendOutter.SendTtsMessageAsync("stop");
-                });
-                await session.SentenceTimeAxisContext.AddSendSentenceActionAsync(sendSentenceAction, session.SessionCtsToken);
-                await session.HandlerPipeline.PushAudioToSendAsync(totalAudioData.ToArray());
+                OutAudioSegment outAudioSegment = new OutAudioSegment(totalAudioData.ToArray(), totalDuration, new OutSegment(text, true, true));
+
+                await session.HandlerPipeline.PushAudioToSendAsync(outAudioSegment);
             }
             catch (Exception ex)
             {

@@ -32,7 +32,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.SendOutter = sendOutter;
             this.AudioPacketContext = new AudioPacket();
             this.VadStatusContext = new VadStatus();
-            this.SentenceTimeAxisContext = new SentenceTimeAxis();
             this.HandlerPipeline = new HandlerPipeline(this);
             this.Dialogues = new LinkedList<Dialogue>();
             this.CreateCancellationTokenSource();
@@ -46,7 +45,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public ListenMode ListenMode { get; set; }
         public AudioPacket AudioPacketContext { get; }
         public VadStatus VadStatusContext { get; }
-        public SentenceTimeAxis SentenceTimeAxisContext { get; }
         public CancellationToken SessionCtsToken => this._sessionCts.Token;
         public HandlerPipeline HandlerPipeline { get; }
         public IBizSendOutter SendOutter { get; }
@@ -149,7 +147,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.AcceptIncomingAudio();
             this.VadStatusContext.Reset();
             this.AudioPacketContext.Reset();
-            this.SentenceTimeAxisContext.Reset();
         }
         public void Abort()
         {
@@ -172,7 +169,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         {
             this.Reset();
             this.AudioPacketContext.Release();
-            this.SentenceTimeAxisContext.Release();
             this._sessionCts.Cancel();
             this.HandlerPipeline.Release();
             this._sessionCts.Dispose();

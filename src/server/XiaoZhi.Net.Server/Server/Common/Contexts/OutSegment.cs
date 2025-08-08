@@ -1,6 +1,6 @@
 ﻿namespace XiaoZhi.Net.Server.Common.Contexts
 {
-    internal class OutSegment
+    internal record OutSegment
     {
         public OutSegment(string content)
         {

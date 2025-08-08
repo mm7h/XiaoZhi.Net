@@ -1,14 +1,17 @@
 ﻿using Microsoft.Extensions.Logging;
 using SuperSocket.WebSocket;
 using SuperSocket.WebSocket.Server;
+using System.ClientModel;
 using System.Collections.Generic;
 using System.Net;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Management;
+using XiaoZhi.Net.Server.Server.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
 {
@@ -38,14 +41,14 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         }
         public Task SendAsync(string json)
         {
-            this.Logger.LogDebug("Sending json to device {deviceId}: {json}", this.XiaoZhiSession?.DeviceId, json);
+            this.Logger.LogDebug("Sending json to device {deviceId}: {json}", this.XiaoZhiSession?.DeviceId, Regex.Unescape(!string.IsNullOrEmpty(json) ? json : string.Empty));
             return base.SendAsync(json).AsTask();
         }
         public Task SendAsync(byte[] opusPacket)
         {
             return base.SendAsync(opusPacket).AsTask();
         }
-        public Task SendTtsMessageAsync(string state, string? text = null)
+        public Task SendTtsMessageAsync(TtsStatus state, string? text = null)
         {
             if (this.XiaoZhiSession is null)
             {
@@ -55,7 +58,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
             var msg = new Dictionary<string, string>
             {
                 ["type"] = "tts",
-                ["state"] = state,
+                ["state"] = state.GetDescription(),
                 ["session_id"] = this.SessionId
             };
 
@@ -66,7 +69,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
 
             string json = JsonHelper.Serialize(msg);
 
-            if (state == "stop")
+            if (state == TtsStatus.Stop)
             {
                 this.XiaoZhiSession.Reset();
             }

@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
+using XiaoZhi.Net.Server.Server.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Protocol
 {
@@ -8,7 +9,7 @@ namespace XiaoZhi.Net.Server.Protocol
     {
         string SessionId { get; }
         Session GetSession();
-        Task SendTtsMessageAsync(string state, string? text = null);
+        Task SendTtsMessageAsync(TtsStatus state, string? text = null);
         Task SendSttMessageAsync(string sttText);
         Task SendLlmMessageAsync(Emotion emotion);
         Task SendAbortMessageAsync();

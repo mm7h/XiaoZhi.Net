@@ -4,7 +4,7 @@ using XiaoZhi.Net.Server.Common.Dtos;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {
-    internal class DialogueContext
+    internal record DialogueContext
     {
         public DialogueContext(string sessionId, Kernel kernel, string? llmModelName, IEnumerable<Dialogue> dialogues)
         {
@@ -15,7 +15,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         }
 
         public string SessionId { get; }
-        public Kernel Kernel { get; set; }
+        public Kernel Kernel { get; }
         public string? LlmModelName { get; }
         public IEnumerable<Dialogue> Dialogues { get; }
     }

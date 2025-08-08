@@ -3,7 +3,6 @@ using SherpaOnnx;
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -23,7 +22,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
         public event Action<string, OutSegment>? OnBeforeProcessing;
         public event Action<string, float[]>? OnProcessing;
-        public event Action<string, OutSegment, int>? OnProcessed;
+        public event Action<string, float[], OutSegment, double>? OnProcessed;
 
         public Kokoro(XiaoZhiConfig config, ILogger<Kokoro> logger) : this(config.TtsSetting, logger)
         {
@@ -98,23 +97,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 Stopwatch timer = Stopwatch.StartNew();
                 this.OnBeforeProcessing?.Invoke(workflow.SessionId, workflow.Data);
 
-                OfflineTtsGeneratedAudio audio = this._offlineTts.GenerateWithCallbackProgress(segment,
-                        SPEAK_SPPED,
-                        SPERAKER_ID,
-                        (IntPtr samples, int n, float progress) =>
-                        {
-                            if (token.IsCancellationRequested)
-                                return 0;
-                            float[] data = new float[n];
-                            Marshal.Copy(samples, data, 0, n);
-                            this.OnProcessing?.Invoke(workflow.SessionId, data);
+                OfflineTtsGeneratedAudio audio = this._offlineTts.Generate(segment, SPEAK_SPPED, SPERAKER_ID);
 
-                            return 1;
-                        });
+                double duration = Math.Max((this.CalculateDuration(audio.SampleRate, audio.NumSamples) * 1000 - (workflow.Data.IsFirst ? 300 + timer.ElapsedMilliseconds : 0)), 0);
 
-                int duration = Math.Max((int)(this.CalculateDuration(audio.SampleRate, audio.NumSamples) * 1000 - (workflow.Data.IsFirst ? 300 + timer.ElapsedMilliseconds : 0)), 0);
-
-                this.OnProcessed?.Invoke(workflow.SessionId, workflow.Data, duration);
+                this.OnProcessed?.Invoke(workflow.SessionId, audio.Samples, workflow.Data, duration);
 
                 if (this._save2File)
                 {
@@ -147,10 +134,10 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 await Task.CompletedTask;
 
             }
-            catch (OperationCanceledException ex)
+            catch (OperationCanceledException)
             {
                 this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
-                throw ex;
+                throw;
             }
             catch (Exception ex)
             {
@@ -166,7 +153,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         {
             return (double)numSamples / sampleRate;
         }
-        private string FormatDuration(long durationInMillisecond)
+        private string FormatDuration(double durationInMillisecond)
         {
             int durationInSeconds = (int)durationInMillisecond / 1000;
             int minutes = durationInSeconds / 60;

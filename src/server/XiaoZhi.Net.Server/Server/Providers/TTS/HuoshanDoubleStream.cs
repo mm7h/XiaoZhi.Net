@@ -18,7 +18,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
         public event Action<string, OutSegment>? OnBeforeProcessing;
         public event Action<string, float[]>? OnProcessing;
-        public event Action<string, OutSegment, int>? OnProcessed;
+        public event Action<string, float[], OutSegment, double>? OnProcessed;
 
         public int GetTtsSampleRate()
         {

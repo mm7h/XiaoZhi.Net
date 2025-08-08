@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading;
-
-namespace XiaoZhi.Net.Server.Common.Contexts
+﻿namespace XiaoZhi.Net.Server.Common.Contexts
 {
-    internal class Workflow<T>
+    internal record Workflow<T>
     {
         public Workflow(string sessionId, T data)
         {
@@ -18,8 +13,8 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             Data = data;
         }
 
-        public string SessionId { get; private set; }
-        public T Data { get; private set; }
+        public string SessionId { get; }
+        public T Data { get; }
 
         public Workflow<TNew> NextFlow<TNew>(TNew data)
         {

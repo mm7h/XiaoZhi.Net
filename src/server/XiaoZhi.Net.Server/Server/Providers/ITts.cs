@@ -9,7 +9,7 @@ namespace XiaoZhi.Net.Server.Providers
     {
         event Action<string, OutSegment> OnBeforeProcessing;
         event Action<string, float[]> OnProcessing;
-        event Action<string, OutSegment, int> OnProcessed;
+        event Action<string, float[], OutSegment, double> OnProcessed;
         int GetTtsSampleRate();
         Task SynthesisAsync(Workflow<OutSegment> sessionContext, Session session, CancellationToken token);
     }

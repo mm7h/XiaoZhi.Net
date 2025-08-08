@@ -54,12 +54,11 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
             {
                 throw new ArgumentNullException("Please build opus provider first.");
             }
-            byte[]? byteData = null;
+            byte[] byteData = ArrayPool<byte>.Shared.Rent(4000);
             try
             {
                 await this._encodesemaphoreSlim.WaitAsync(token);
 
-                byteData = ArrayPool<byte>.Shared.Rent(4000);
                 int encodedLength = _encoder!.Encode(pcmData, pcmData.Length, byteData, byteData.Length);
 
                 byte[] opusBytes = new byte[encodedLength];
@@ -70,10 +69,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
             finally
             {
                 this._encodesemaphoreSlim.Release();
-                if (byteData != null)
-                {
-                    ArrayPool<byte>.Shared.Return(byteData);
-                }
+                ArrayPool<byte>.Shared.Return(byteData);
             }
         }
 
