@@ -23,7 +23,7 @@ namespace XiaoZhi.Net.Server.Helpers
             (new Regex(@"\[(.*?)\]\(.*?\)", RegexOptions.Compiled), m => m.Groups[1].Value), // 链接
             (new Regex(@"^\s*>+\s*", RegexOptions.Multiline | RegexOptions.Compiled), m => string.Empty), // 引用
             (new Regex(@"(?<table_block>(?:^[^\n]*\|[^\n]*\n)+)", RegexOptions.Multiline | RegexOptions.Compiled), new MatchEvaluator(ReplaceTableBlock)), // 表格
-            (new Regex(@"^\s*[*+-]\s*", RegexOptions.Multiline | RegexOptions.Compiled), m => "- "), // 列表
+            (new Regex(@"^\s*[*+-]\s*", RegexOptions.Multiline | RegexOptions.Compiled), m => "。"), // 列表
             (new Regex(@"\$\$.*?\$\$", RegexOptions.Singleline | RegexOptions.Compiled), m => string.Empty), // 块级公式
             (new Regex(@"(?<![A-Za-z0-9])\$([^\n$]+)\$(?![A-Za-z0-9])", RegexOptions.Compiled), new MatchEvaluator(ReplaceInlineDollar)), // 行内公式
             (new Regex(@"\n{2,}", RegexOptions.Compiled), m => string.Empty), // 多余空行
@@ -142,7 +142,7 @@ namespace XiaoZhi.Net.Server.Helpers
                 }
             }
 
-            return string.Join("\n", linesForTts) + "\n";
+            return string.Join("。", linesForTts);
         }
     }
 } 
