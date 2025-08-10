@@ -23,7 +23,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
             this.SampleRate = audioSetting.SampleRate;
             this.Channels = audioSetting.Channels;
             this.FrameDuration = audioSetting.FrameDuration;
-            this.FrameSize = this.SampleRate * this.FrameDuration * this.Channels / 1000;
+            this.FrameSize = audioSetting.FrameSize;
         }
 
         public override bool Build()

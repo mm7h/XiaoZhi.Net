@@ -1,10 +1,7 @@
 using MP3Sharp;
-using SherpaOnnx;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace XiaoZhi.Net.Server.Helpers
 {
@@ -20,7 +17,7 @@ namespace XiaoZhi.Net.Server.Helpers
         /// <param name="frameSize">每帧大小</param>
         /// <param name="cancellationToken">取消令牌</param>
         /// <returns>包含PCM数据和音频时长(秒)的元组</returns>
-        public static (float[] AudioData, double Duration) DecodeMP3File(string filePath, int frameSize)
+        public static (float[] audioData, double duration) DecodeMP3File(string filePath, int frameSize)
         {
             if (!File.Exists(filePath))
                 throw new FileNotFoundException($"MP3 file not found: {filePath}", filePath);
@@ -64,7 +61,7 @@ namespace XiaoZhi.Net.Server.Helpers
         /// <param name="filePath">WAV文件路径</param>
         /// <param name="cancellationToken">取消令牌</param>
         /// <returns>包含PCM数据和音频时长(秒)的元组</returns>
-        public static (float[] AudioData, double Duration) DecodeWavFile(string filePath)
+        public static (float[] audioData, double duration) DecodeWavFile(string filePath)
         {
             if (!File.Exists(filePath))
                 throw new FileNotFoundException($"WAV file not found: {filePath}", filePath);
@@ -205,7 +202,7 @@ namespace XiaoZhi.Net.Server.Helpers
         /// <param name="frameSize">每帧大小(仅MP3需要)</param>
         /// <param name="cancellationToken">取消令牌</param>
         /// <returns>包含PCM数据和音频时长(秒)的元组</returns>
-        public static (float[] AudioData, double Duration) DecodeAudioFile(string filePath, int frameSize)
+        public static (float[] audioData, double duration) DecodeAudioFile(string filePath, int frameSize)
         {
             if (!File.Exists(filePath))
                 throw new FileNotFoundException($"Audio file not found: {filePath}", filePath);

@@ -2,9 +2,11 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Handlers;
+using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {
@@ -13,9 +15,12 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private readonly Session _currentSession;
 
         private ILogger? _logger;
-        private TextHandler? _textMessageEntry;
-        private AudioReceiveHandler? _binaryMessageEntry;
+        private TextHandler? _textHandler;
+        private AudioReceiveHandler? _audioReceiveHandler;
+        private Audio2TextHandler? _audio2TextHandler;
+        private DialogueHandler? _dialogueHandler;
         private AudioSendHandler? _audioSendHandler;
+        private Text2AudioHandler? _text2AudioHandler;
         private readonly IList<IDisposable> _disposableHandlers;
 
         public HandlerPipeline(Session session)
@@ -28,44 +33,40 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         {
             this._logger = logger;
 
-            TextHandler textHandler = serviceProvider.GetRequiredService<TextHandler>();
-            AudioReceiveHandler audioReceiveHandler = serviceProvider.GetRequiredService<AudioReceiveHandler>();
-            Audio2TextHandler audio2TextHandler = serviceProvider.GetRequiredService<Audio2TextHandler>();
-            DialogueHandler dialogueHandler = serviceProvider.GetRequiredService<DialogueHandler>();
-            Text2AudioHandler text2AudioHandler = serviceProvider.GetRequiredService<Text2AudioHandler>();
-            AudioSendHandler audioSendHandler = serviceProvider.GetRequiredService<AudioSendHandler>();
+            this._textHandler = serviceProvider.GetRequiredService<TextHandler>();
+            this._audioReceiveHandler = serviceProvider.GetRequiredService<AudioReceiveHandler>();
+            this._audio2TextHandler = serviceProvider.GetRequiredService<Audio2TextHandler>();
+            this._dialogueHandler = serviceProvider.GetRequiredService<DialogueHandler>();
+            this._text2AudioHandler = serviceProvider.GetRequiredService<Text2AudioHandler>();
+            this._audioSendHandler = serviceProvider.GetRequiredService<AudioSendHandler>();
 
-            textHandler.OnManualStop += audioReceiveHandler.HandleAudio;
-            audioReceiveHandler.OnNoVoiceCloseConnect += dialogueHandler.NoVoiceCloseConnect;
+            this._textHandler.OnManualStop += this._audioReceiveHandler.HandleAudio;
+            this._audioReceiveHandler.OnNoVoiceCloseConnect += this._dialogueHandler.NoVoiceCloseConnect;
 
-            this.InitializeSendOutter(audioReceiveHandler);
-            this.InitializeSendOutter(audio2TextHandler);
-            this.InitializeSendOutter(textHandler);
-            this.InitializeSendOutter(dialogueHandler);
-            this.InitializeSendOutter(text2AudioHandler);
-            this.InitializeSendOutter(audioSendHandler);
+            this.InitializeSendOutter(this._audioReceiveHandler);
+            this.InitializeSendOutter(this._audio2TextHandler);
+            this.InitializeSendOutter(this._textHandler);
+            this.InitializeSendOutter(this._dialogueHandler);
+            this.InitializeSendOutter(this._text2AudioHandler);
+            this.InitializeSendOutter(this._audioSendHandler);
 
-            this.BuildHandlersWorkflow(audioReceiveHandler, audio2TextHandler);
-            this.BuildHandlersWorkflow(textHandler, audio2TextHandler, dialogueHandler);
-            this.BuildHandlersWorkflow(dialogueHandler, text2AudioHandler);
-            this.BuildHandlersWorkflow(text2AudioHandler, audioSendHandler);
+            this.BuildHandlersWorkflow(this._audioReceiveHandler, this._audio2TextHandler);
+            this.BuildHandlersWorkflow(this._textHandler, this._audio2TextHandler, this._dialogueHandler);
+            this.BuildHandlersWorkflow(this._dialogueHandler, this._text2AudioHandler);
+            this.BuildHandlersWorkflow(this._text2AudioHandler, this._audioSendHandler);
 
-            this.ScheduleOnAbort(textHandler);
-            this.ScheduleOnAbort(audioReceiveHandler);
-            this.ScheduleOnAbort(audio2TextHandler);
-            this.ScheduleOnAbort(dialogueHandler);
-            this.ScheduleOnAbort(text2AudioHandler);
-            this.ScheduleOnAbort(audioSendHandler);
+            this.ScheduleOnAbort(this._textHandler);
+            this.ScheduleOnAbort(this._audioReceiveHandler);
+            this.ScheduleOnAbort(this._audio2TextHandler);
+            this.ScheduleOnAbort(this._dialogueHandler);
+            this.ScheduleOnAbort(this._text2AudioHandler);
+            this.ScheduleOnAbort(this._audioSendHandler);
 
-            this._textMessageEntry = textHandler;
-            this._binaryMessageEntry = audioReceiveHandler;
-            this._audioSendHandler = audioSendHandler;
-
-            this._disposableHandlers.Add(textHandler);
-            this._disposableHandlers.Add(audioReceiveHandler);
-            this._disposableHandlers.Add(audio2TextHandler);
-            this._disposableHandlers.Add(dialogueHandler);
-            this._disposableHandlers.Add(text2AudioHandler);
+            this._disposableHandlers.Add(this._textHandler);
+            this._disposableHandlers.Add(this._audioReceiveHandler);
+            this._disposableHandlers.Add(this._audio2TextHandler);
+            this._disposableHandlers.Add(this._dialogueHandler);
+            this._disposableHandlers.Add(this._text2AudioHandler);
         }
 
         /// <summary>
@@ -101,9 +102,9 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         public void HandleTextMessage(string data)
         {
-            if (this._textMessageEntry is not null)
+            if (this._textHandler is not null)
             {
-                this._textMessageEntry.Handle(data);
+                this._textHandler.Handle(data);
             }
             else
             {
@@ -113,7 +114,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         public async Task HandleBinaryMessageAsync(byte[] data)
         {
-            if (this._binaryMessageEntry is not null)
+            if (this._audioReceiveHandler is not null)
             {
                 if (this._currentSession is null || this._currentSession.ShouldIgnore())
                 {
@@ -129,7 +130,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
                         return;
                     }
 
-                    await this._binaryMessageEntry.Handle(data);
+                    await this._audioReceiveHandler.Handle(data);
                 }
                 catch (Exception ex)
                 {
@@ -140,6 +141,15 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             {
                 this._logger?.LogError("AudioReceiveHandler is not initialized");
             }
+        }
+
+        public async Task HandlePlayAudioFile(string audioFileName)
+        {
+            (float[] audioData, double duration) = AudioFileHelper.DecodeAudioFile(audioFileName, this._currentSession.AudioSetting.FrameSize);
+
+            string text = $"正在播放音乐：{Path.GetFileName(audioFileName)}";
+            OutAudioSegment outAudioSegment = new OutAudioSegment(audioData, duration, text);
+            await this.PushAudioToSendAsync(outAudioSegment);
         }
 
         public void Release()

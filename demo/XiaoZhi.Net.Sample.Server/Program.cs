@@ -1,5 +1,4 @@
-﻿// See https://aka.ms/new-console-template for more information
-using XiaoZhi.Net.Sample.Server.Plugins;
+﻿using XiaoZhi.Net.Sample.Server.Plugins;
 using Microsoft.Extensions.Hosting;
 using XiaoZhi.Net.Server;
 
@@ -30,9 +29,7 @@ try
         // 开始初始化服务
         serverHost = serverBuilder.Initialize(config)
             // 添加插件
-            .WithPlugin<PlayMusic>(nameof(PlayMusic))
             .WithPlugin<GetTime>(nameof(GetTime))
-            //.WithPlugin<ConversationSummary>(nameof(ConversationSummary))
             //构建服务引擎
             .Build();
 

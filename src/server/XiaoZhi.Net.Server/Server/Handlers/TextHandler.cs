@@ -85,14 +85,15 @@ namespace XiaoZhi.Net.Server.Handlers
             if (jsonObj.TryGetPropertyValue("audio_params", out var audioParams) && audioParams is not null)
             {
                 JsonObject audioParamsObj = audioParams.AsObject();
-                if (audioParamsObj.TryGetPropertyValue("format", out var format) && format is not null)
-                {
-                    string formatValue = format.GetValue<string>();
-                    if (!string.IsNullOrEmpty(formatValue))
-                    {
-                        session.AudioFormat = formatValue;
-                    }
-                }
+                string format = audioParamsObj["format"]?.GetValue<string>() ?? "opus";
+                int sampleRate = audioParamsObj["sample_rate"]?.GetValue<int>() ?? 16000;
+                int channels = audioParamsObj["channels"]?.GetValue<int>() ?? 1;
+                int frameDuration = audioParamsObj["frame_duration"]?.GetValue<int>() ?? 60;
+
+                session.AudioSetting.Format = format;
+                session.AudioSetting.SampleRate = sampleRate;
+                session.AudioSetting.Channels = channels;
+                session.AudioSetting.FrameDuration = frameDuration;
             }
 
             this.SendOutter.SendAsync(JsonHelper.Serialize(defultHelloMessage));

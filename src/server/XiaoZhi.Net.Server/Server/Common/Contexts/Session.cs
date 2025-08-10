@@ -30,6 +30,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.AuthToken = authToken;
             this.EndPoint = userEndPoint;
             this.SendOutter = sendOutter;
+            this.AudioSetting = new AudioSetting();
             this.AudioPacketContext = new AudioPacket();
             this.VadStatusContext = new VadStatus();
             this.HandlerPipeline = new HandlerPipeline(this);
@@ -40,7 +41,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public string SessionId { get; }
         public string DeviceId { get; }
         public string AuthToken { get; }
-        public string AudioFormat { get; set; } = "opus";
+        public AudioSetting AudioSetting { get; }
         public IPEndPoint EndPoint { get; }
         public ListenMode ListenMode { get; set; }
         public AudioPacket AudioPacketContext { get; }

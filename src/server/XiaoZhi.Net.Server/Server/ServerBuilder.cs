@@ -14,6 +14,7 @@ using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Management;
+using XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters;
 using XiaoZhi.Net.Server.Services;
 using XiaoZhi.Net.Server.Store;
 
@@ -204,6 +205,16 @@ namespace XiaoZhi.Net.Server
             this._hostBuilder.ConfigureServices((context, services) =>
             {
                 services.AddSingleton<IBasicVerify, T>();
+            });
+
+            return this;
+        }
+
+        public IServerBuilder WithMusicProvider<T>() where T : class, IMusicProvider
+        {
+            this._hostBuilder.ConfigureServices((context, services) =>
+            {
+                services.AddSingleton<IMusicProvider, T>();
             });
 
             return this;

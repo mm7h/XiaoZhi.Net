@@ -2,6 +2,11 @@
 {
     internal record OutAudioSegment : OutSegment
     {
+        public OutAudioSegment(float[] audioData, double duration, string content) : base(content, true, true)
+        {
+            this.AudioData = audioData;
+            this.Duration = duration;
+        }
         public OutAudioSegment(float[] audioData, double duration, OutSegment outSegment) : base(outSegment.Content, outSegment.IsFirst, outSegment.IsLast)
         {
             this.AudioData = audioData;

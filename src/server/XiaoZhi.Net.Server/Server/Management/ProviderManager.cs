@@ -14,13 +14,14 @@ using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Providers;
 using XiaoZhi.Net.Server.Providers.ASR;
 using XiaoZhi.Net.Server.Providers.AudioCodec;
+using XiaoZhi.Net.Server.Providers.IoT;
 using XiaoZhi.Net.Server.Providers.LLM;
+using XiaoZhi.Net.Server.Providers.LLM.Plugins;
+using XiaoZhi.Net.Server.Providers.MCP;
 using XiaoZhi.Net.Server.Providers.Memory;
 using XiaoZhi.Net.Server.Providers.Punctuation;
 using XiaoZhi.Net.Server.Providers.TTS;
 using XiaoZhi.Net.Server.Providers.VAD;
-using XiaoZhi.Net.Server.Providers.MCP;
-using XiaoZhi.Net.Server.Providers.IoT;
 using XiaoZhi.Net.Server.Services;
 
 namespace XiaoZhi.Net.Server.Management
@@ -89,6 +90,10 @@ namespace XiaoZhi.Net.Server.Management
             {
                 Kernel privateKernel = this._globalKernel.Clone();
                 privateKernel.Data.Add("session", session);
+
+                IMusicProvider? musicProvider = this._serviceProvider.GetService<IMusicProvider>();
+                privateKernel.ImportPluginFromObject(new PlayMusic(session, musicProvider), nameof(PlayMusic));
+
                 session.SetKernel(privateKernel);
 
                 PrivateModelsConfig? privateModelsConfig = null;
@@ -191,7 +196,6 @@ namespace XiaoZhi.Net.Server.Management
             var dialogues = session.Dialogues.Where(d => d.Role == AuthorRole.User || d.Role == AuthorRole.Assistant).ToList();
             if (dialogues.Any())
             {
-                //todo: save mempry
                 ManageApiClient? manageApiClient = this._serviceProvider.GetService<ManageApiClient>();
                 if (manageApiClient is not null)
                 {

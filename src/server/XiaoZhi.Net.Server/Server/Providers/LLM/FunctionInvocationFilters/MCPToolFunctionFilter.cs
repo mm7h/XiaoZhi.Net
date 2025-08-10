@@ -1,7 +1,5 @@
-﻿using Microsoft.Extensions.FileSystemGlobbing.Internal;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
-using ModelContextProtocol.Protocol;
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -10,7 +8,7 @@ using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Providers.MCP;
 
-namespace XiaoZhi.Net.Server.Services
+namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
 {
     internal class MCPToolFunctionFilter : IFunctionInvocationFilter
     {
@@ -21,7 +19,7 @@ namespace XiaoZhi.Net.Server.Services
 
         public MCPToolFunctionFilter(ILogger<MCPToolFunctionFilter> logger)
         {
-            this._logger = logger;
+            _logger = logger;
         }
         public async Task OnFunctionInvocationAsync(FunctionInvocationContext context, Func<FunctionInvocationContext, Task> next)
         {
@@ -43,7 +41,7 @@ namespace XiaoZhi.Net.Server.Services
                     }
                     catch (Exception ex)
                     {
-                        this._logger.LogError(ex, "Failed to invoke the MCP tool function: {FunctionName} in plugin: {PluginName}.", context.Function.Name, context.Function.PluginName);
+                        _logger.LogError(ex, "Failed to invoke the MCP tool function: {FunctionName} in plugin: {PluginName}.", context.Function.Name, context.Function.PluginName);
                         string failedMessage = $"Failed to invoke the MCP tool function: {context.Function.Name} in plugin: {context.Function.PluginName}, and the error message is: {ex.Message}.";
                         context.Result = new FunctionResult(context.Result, failedMessage);
                     }
@@ -86,10 +84,14 @@ namespace XiaoZhi.Net.Server.Services
                     }
                     catch (Exception ex)
                     {
-                        this._logger.LogError(ex, "Failed to invoke the IoT tool function: {FunctionName} in plugin: {PluginName}.", context.Function.Name, context.Function.PluginName);
+                        _logger.LogError(ex, "Failed to invoke the IoT tool function: {FunctionName} in plugin: {PluginName}.", context.Function.Name, context.Function.PluginName);
                         string failedMessage = $"Failed to invoke the IoT tool function: {context.Function.Name} in plugin: {context.Function.PluginName}, and the error message is: {ex.Message}.";
                         context.Result = new FunctionResult(context.Result, failedMessage);
                     }
+                }
+                else
+                {
+                    await next(context);
                 }
             }
             else

@@ -62,9 +62,11 @@ namespace XiaoZhi.Net.Server
     }
     public sealed class AudioSetting
     {
-        public int SampleRate { get; set; }
-        public int Channels { get; set; }
-        public int FrameDuration { get; set; }
+        public string Format { get; set; } = "opus";
+        public int SampleRate { get; set; } = 16000;
+        public int Channels { get; set; } = 1;
+        public int FrameDuration { get; set; } = 60;
+        public int FrameSize => this.SampleRate * this.FrameDuration * this.Channels / 1000;
     }
     public sealed class DeviceBindSetting
     {

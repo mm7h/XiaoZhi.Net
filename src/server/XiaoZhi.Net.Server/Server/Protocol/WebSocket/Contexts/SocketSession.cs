@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using SuperSocket.WebSocket;
 using SuperSocket.WebSocket.Server;
-using System.ClientModel;
 using System.Collections.Generic;
 using System.Net;
 using System.Text.RegularExpressions;
