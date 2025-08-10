@@ -20,7 +20,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
             this._musicProvider = musicProvider;
         }
 
-        [KernelFunction, Description("从本地目录项获取音乐文件路径")]
+        [KernelFunction, Description("播放本地音乐文件")]
         public async ValueTask<bool> PlayLocalMusic([Description("是否为随机播放")] bool isRandom, [Description("音乐名称，如果是随机播放，那么不需要此参数")] string? musicName = null)
         {
             if (this._musicProvider is not null)
