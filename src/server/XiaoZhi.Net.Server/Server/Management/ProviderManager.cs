@@ -118,7 +118,11 @@ namespace XiaoZhi.Net.Server.Management
                 if (privateModelsConfig.VadSetting is not null)
                 {
                     IVad privateVad = this.RegisterVad(privateModelsConfig.VadSetting);
-                    privateProvider.InitializeVad(privateVad);
+                    if (!privateVad.Build())
+                    {
+                        throw new ModelBuildException("Failed to build private VAD model.");
+                    }
+                    privateProvider.SetVad(privateVad);
 
                     this._logger.LogInformation("Private VAD {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.VadSetting.ModelName, session.DeviceId, session.SessionId);
                 }
@@ -126,14 +130,18 @@ namespace XiaoZhi.Net.Server.Management
                 if (privateModelsConfig.AsrSetting is not null)
                 {
                     IAsr privateAsr = this.RegisterAsr(privateModelsConfig.AsrSetting);
-                    privateProvider.InitializeAsr(privateAsr);
+                    if (!privateAsr.Build())
+                    {
+                        throw new ModelBuildException("Failed to build private ASR model.");
+                    }
+                    privateProvider.SetAsr(privateAsr);
 
                     this._logger.LogInformation("Private ASR {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.AsrSetting.ModelName, session.DeviceId, session.SessionId);
                 }
 
                 if (privateModelsConfig.LlmSetting is not null)
                 {
-                    privateProvider.InitializeLlm(privateModelsConfig.Prompt, privateModelsConfig.UseStreaming, privateModelsConfig.SummaryMemory, privateModelsConfig.LlmModelName);
+                    privateProvider.SetLlm(privateModelsConfig.Prompt, privateModelsConfig.UseStreaming, privateModelsConfig.SummaryMemory, privateModelsConfig.LlmModelName);
 
                     if (!string.IsNullOrEmpty(privateModelsConfig.Prompt))
                     {
@@ -159,14 +167,16 @@ namespace XiaoZhi.Net.Server.Management
                 if (privateModelsConfig.TtsSetting is not null)
                 {
                     ITts privateTts = this.RegisterTts(privateModelsConfig.TtsSetting);
-                    privateProvider.InitializeTts(privateTts);
+                    if (!privateTts.Build())
+                    {
+                        throw new ModelBuildException("Failed to build private TTS model.");
+                    }
+                    privateProvider.SetTts(privateTts);
+
 
                     this._logger.LogInformation("Private TTS {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.TtsSetting.ModelName, session.DeviceId, session.SessionId);
 
-                    IAudioEncoder audioEncoder = new DefaultOpusEncoder(privateTts.GetTtsSampleRate(), this._config.AudioSetting, this._logger);
-                    audioEncoder.Build();
-                    privateProvider.InitializeAudioEncoder(audioEncoder);
-                    this._logger.LogInformation("Private Audio Encoder initialized for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
+                    
 
                 }
 
@@ -237,6 +247,41 @@ namespace XiaoZhi.Net.Server.Management
         }
 
         #region Register providers
+
+        #region AudioResampler
+        public void RegisterAudioResamplerWithAudioEncoder(Session session)
+        {
+            if (session.PrivateProvider is null)
+            {
+                session.PrivateProvider = new PrivateProvider();
+            }
+            int ttsSampleRate = session.PrivateProvider.Tts?.GetTtsSampleRate() ?? this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS).GetTtsSampleRate();
+
+            if (ttsSampleRate == session.AudioSetting.SampleRate)
+            {
+                return;
+            }
+            this._logger.LogInformation("Session {sessionId} requires audio resampling from {ttsSampleRate} to {deviceSampleRate}.", session.SessionId, ttsSampleRate, session.AudioSetting.SampleRate);
+            IAudioResampler audioResampler = new DefaultResampler(session.AudioSetting.Channels, ttsSampleRate, session.AudioSetting.SampleRate, this._logger);
+            if (!audioResampler.Build())
+            {
+                this._logger.LogWarning("Session {sessionId} failed to build audio resampler.", session.SessionId);
+            }
+            else
+            {
+                session.PrivateProvider.SetAudioResampler(audioResampler);
+            }
+
+            IAudioEncoder audioEncoder = new DefaultOpusEncoder(audioResampler.OutSampleRate, session.AudioSetting, this._logger);
+            if (!audioEncoder.Build())
+            {
+                this._logger.LogWarning("Session {sessionId} failed to build audio encoder.", session.SessionId);
+            }
+            session.PrivateProvider.SetAudioEncoder(audioEncoder);
+            this._logger.LogInformation("Private Audio Encoder initialized for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
+        }
+        #endregion
+
         #region VAD
         private IVad RegisterVad(ModelSetting vadSetting)
         {

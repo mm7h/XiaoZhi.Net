@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using SherpaOnnx;
 using System;
 using System.Buffers;
+using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
@@ -66,18 +67,33 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     session.SessionCtsToken.ThrowIfCancellationRequested();
 
-                    byte[] opusData;
-                    if (session.PrivateProvider is not null && session.PrivateProvider.AudioEncoder is not null)
+                    if (session.PrivateProvider is not null)
                     {
-                        opusData = await session.PrivateProvider.AudioEncoder.EncodeAsync(chunk, session.SessionCtsToken);
+                        float[]? resampledChunk = null;
+                        int? resampledFrameSize = null;
+                        if (session.PrivateProvider.AudioResampler is not null)
+                        {
+                            (resampledChunk, resampledFrameSize) = await session.PrivateProvider.AudioResampler.ResampleAsync(chunk, session.SessionCtsToken);
+
+                            frameDuration = resampledFrameSize.HasValue ? resampledFrameSize.Value * 1000 / (session.PrivateProvider.AudioResampler.OutSampleRate * session.PrivateProvider.AudioResampler.Channels) : frameDuration;
+                        }
+
+                        if (session.PrivateProvider.AudioEncoder is not null)
+                        {
+                            byte[] opusData = await session.PrivateProvider.AudioEncoder.EncodeAsync(resampledChunk ?? chunk, session.SessionCtsToken);
+
+                            await Task.Delay(frameDuration);
+                            await this.SendOutter.SendAsync(opusData);
+                        }
+                        else
+                        {
+                            await this.SendAudioDataByGlobalEncoderAsync(resampledChunk ?? chunk, frameDuration, session.SessionCtsToken);
+                        }
                     }
                     else
                     {
-                        opusData = await this._audioEncoder.EncodeAsync(chunk, session.SessionCtsToken);
+                        await this.SendAudioDataByGlobalEncoderAsync(chunk, frameDuration, session.SessionCtsToken);
                     }
-
-                    await Task.Delay(frameDuration);
-                    await this.SendOutter.SendAsync(opusData);
                 }
 
             }
@@ -102,6 +118,14 @@ namespace XiaoZhi.Net.Server.Handlers
                     await this.SendOutter.CloseSessionAsync("Close Chat");
                 }
             }
+        }
+
+        private async Task SendAudioDataByGlobalEncoderAsync(float[] chunk, int frameDuration, CancellationToken token)
+        {
+            byte[] opusData = await this._audioEncoder.EncodeAsync(chunk, token);
+
+            await Task.Delay(frameDuration);
+            await this.SendOutter.SendAsync(opusData);
         }
     }
 }

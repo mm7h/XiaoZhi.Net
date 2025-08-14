@@ -12,28 +12,33 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public string? SummaryMemory { get; private set; }
         public string? LlmModelName { get; private set; }
         public ITts? Tts { get; private set; }
+        public IAudioResampler? AudioResampler { get; private set; }
         public IAudioEncoder? AudioEncoder { get; private set; }
 
-        public void InitializeVad(IVad vad)
+        public void SetVad(IVad vad)
         {
             this.Vad = vad;
         }
-        public void InitializeAsr(IAsr asr)
+        public void SetAsr(IAsr asr)
         {
             this.Asr = asr;
         }
-        public void InitializeLlm(string prompt, bool useStreaming, string? summaryMemory, string? llmModelName)
+        public void SetLlm(string prompt, bool useStreaming, string? summaryMemory, string? llmModelName)
         {
             this.Prompt = prompt;
             this.UseStreaming = useStreaming;
             this.SummaryMemory = summaryMemory;
             this.LlmModelName = llmModelName;
         }
-        public void InitializeTts(ITts tts)
+        public void SetTts(ITts tts)
         {
             this.Tts = tts;
         }
-        public void InitializeAudioEncoder(IAudioEncoder audioEncoder)
+        public void SetAudioResampler(IAudioResampler audioResampler)
+        {
+            this.AudioResampler = audioResampler;
+        }
+        public void SetAudioEncoder(IAudioEncoder audioEncoder)
         {
             this.AudioEncoder = audioEncoder;
         }

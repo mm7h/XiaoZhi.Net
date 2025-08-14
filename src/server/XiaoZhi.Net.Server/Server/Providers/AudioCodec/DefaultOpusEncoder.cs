@@ -1,5 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
-using OpusSharp.Core;
+﻿using Concentus;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
 using System.Threading;
@@ -11,8 +11,8 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
     {
         private const int DEFAULT_SAMPLE_RATE = 24_000;
 
-        private OpusEncoder? _encoder;
-        private SemaphoreSlim _encodesemaphoreSlim = new SemaphoreSlim(1, 1);
+        private IOpusEncoder? _encoder;
+        private SemaphoreSlim _encodeSemaphoreSlim = new SemaphoreSlim(1, 1);
 
         public new string ModelName => "OpusEncoder";
         public override string ProviderType => "opus audio encoder";
@@ -37,7 +37,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
             try
             {
                 this.FrameSize = this.SampleRate * this.FrameDuration * this.Channels / 1000;
-                this._encoder = new OpusEncoder(this.SampleRate, this.Channels, OpusPredefinedValues.OPUS_APPLICATION_AUDIO);
+                this._encoder = OpusCodecFactory.CreateEncoder(this.SampleRate, this.Channels, Concentus.Enums.OpusApplication.OPUS_APPLICATION_AUDIO);
                 this.Logger.LogInformation("Builded the default {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
@@ -57,9 +57,9 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
             byte[] byteData = ArrayPool<byte>.Shared.Rent(4000);
             try
             {
-                await this._encodesemaphoreSlim.WaitAsync(token);
+                await this._encodeSemaphoreSlim.WaitAsync(token);
 
-                int encodedLength = _encoder!.Encode(pcmData, pcmData.Length, byteData, byteData.Length);
+                int encodedLength = this._encoder!.Encode(pcmData, pcmData.Length, byteData, byteData.Length);
 
                 byte[] opusBytes = new byte[encodedLength];
                 Array.Copy(byteData, opusBytes, encodedLength);
@@ -68,14 +68,16 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
             }
             finally
             {
-                this._encodesemaphoreSlim.Release();
+                this._encodeSemaphoreSlim.Release();
                 ArrayPool<byte>.Shared.Return(byteData);
             }
         }
 
         public override void Dispose()
         {
-            this._encodesemaphoreSlim.Dispose();
+            this._encoder?.ResetState();
+            this._encoder?.Dispose();
+            this._encodeSemaphoreSlim.Dispose();
         }
     }
 }

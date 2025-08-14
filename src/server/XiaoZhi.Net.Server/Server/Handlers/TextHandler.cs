@@ -94,6 +94,8 @@ namespace XiaoZhi.Net.Server.Handlers
                 session.AudioSetting.SampleRate = sampleRate;
                 session.AudioSetting.Channels = channels;
                 session.AudioSetting.FrameDuration = frameDuration;
+
+                this._providerManager.RegisterAudioResamplerWithAudioEncoder(session);
             }
 
             this.SendOutter.SendAsync(JsonHelper.Serialize(defultHelloMessage));

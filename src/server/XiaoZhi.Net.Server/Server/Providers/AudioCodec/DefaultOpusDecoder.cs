@@ -1,5 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
-using OpusSharp.Core;
+﻿using Concentus;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,9 +9,9 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
     internal sealed class DefaultOpusDecoder : BaseProvider, IAudioDecoder
     {
 
-        private OpusDecoder? _decoder;
+        private IOpusDecoder? _decoder;
 
-        private SemaphoreSlim _decodesemaphoreSlim = new SemaphoreSlim(1, 1);
+        private SemaphoreSlim _decodeSemaphoreSlim = new SemaphoreSlim(1, 1);
         public new string ModelName => "OpusDecoder";
         public override string ProviderType => "opus audio decoder";
         public int SampleRate { get; }
@@ -30,7 +30,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
         {
             try
             {
-                this._decoder = new OpusDecoder(this.SampleRate, this.Channels);
+                this._decoder = OpusCodecFactory.CreateDecoder(this.SampleRate, this.Channels);
                 this.Logger.LogInformation("Builded the default {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
@@ -49,21 +49,23 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
             }
             try
             {
-                await this._decodesemaphoreSlim.WaitAsync(token);
+                await this._decodeSemaphoreSlim.WaitAsync(token);
                 var decoded = new float[this.FrameSize];
-                var decodedSamples = _decoder.Decode(opusData, opusData.Length, decoded, this.FrameSize, false);
+                var decodedSamples = _decoder.Decode(opusData, decoded, this.FrameSize, false);
 
                 return decoded;
             }
             finally
             {
-                this._decodesemaphoreSlim.Release();
+                this._decodeSemaphoreSlim.Release();
             }
         }
 
         public override void Dispose()
         {
-            this._decodesemaphoreSlim.Dispose();
+            this._decoder?.ResetState();
+            this._decoder?.Dispose();
+            this._decodeSemaphoreSlim.Dispose();
         }
     }
 }
