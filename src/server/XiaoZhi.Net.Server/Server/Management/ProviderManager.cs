@@ -57,6 +57,8 @@ namespace XiaoZhi.Net.Server.Management
                 RegisterMemory(services, config, GlobalProviderNames.GLOBAL_MEMORY);
                 RegisterTts(services, config, GlobalProviderNames.GLOBAL_TTS);
                 services.AddKeyedSingleton<IAudioEncoder, DefaultOpusEncoder>(GlobalProviderNames.GLOBAL_AUDIO_ENCODER);
+
+                RegisterAudioResampler(services);
                 RegisterIoT(services);
                 RegisterMCP(services);
 
