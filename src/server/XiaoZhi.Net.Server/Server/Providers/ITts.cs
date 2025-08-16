@@ -5,7 +5,7 @@ using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers
 {
-    internal interface ITts : IProvider
+    internal interface ITts : IProvider<ModelSetting>
     {
         event Action<string, OutSegment> OnBeforeProcessing;
         event Action<string, float[]> OnProcessing;

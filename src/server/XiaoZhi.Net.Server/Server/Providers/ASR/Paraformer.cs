@@ -8,19 +8,18 @@ using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.ASR
 {
-    internal class Paraformer : BaseProvider, IAsr
+    internal class Paraformer : BaseProvider<ModelSetting>, IAsr
     {
         private readonly SemaphoreSlim _asrConvertSlim = new SemaphoreSlim(1, 1);
         private OfflineRecognizer? _offlineRecognizer;
-        public Paraformer(XiaoZhiConfig config, ILogger<Paraformer> logger) : this(config.AsrSetting, logger)
+        public Paraformer(ILogger<Paraformer> logger) : base(logger)
         {
         }
-        public Paraformer(ModelSetting asrSetting, ILogger logger) : base(asrSetting, logger)
-        {
-        }
+
+        public override string ModelName => nameof(Paraformer);
         public override string ProviderType => "asr";
 
-        public override bool Build()
+        public override bool Build(ModelSetting modelSetting)
         {
             try
             {
@@ -31,15 +30,15 @@ namespace XiaoZhi.Net.Server.Providers.ASR
                 OfflineRecognizerConfig offlineRecognizerConfig = new OfflineRecognizerConfig();
                 offlineRecognizerConfig.ModelConfig.Paraformer.Model = Path.Combine(this.ModelFileFoler, "model.onnx");
                 offlineRecognizerConfig.ModelConfig.Tokens = Path.Combine(this.ModelFileFoler, "tokens.txt");
-                offlineRecognizerConfig.DecodingMethod = this.ModelSetting.Config?.DecodingMethod ?? "greedy_search";
+                offlineRecognizerConfig.DecodingMethod = modelSetting.Config?.DecodingMethod ?? "greedy_search";
                 if (offlineRecognizerConfig.DecodingMethod == "modified_beam_search")
                 {
-                    offlineRecognizerConfig.MaxActivePaths = this.ModelSetting.Config?.MaxActivePaths ?? 4;
+                    offlineRecognizerConfig.MaxActivePaths = modelSetting.Config?.MaxActivePaths ?? 4;
                 }
-                if (!string.IsNullOrEmpty(this.ModelSetting.Config?.HotwordsFile))
+                if (!string.IsNullOrEmpty(modelSetting.Config?.HotwordsFile))
                 {
                     offlineRecognizerConfig.HotwordsFile = Path.Combine(this.ModelFileFoler, "hotwords.txt");
-                    offlineRecognizerConfig.HotwordsScore = this.ModelSetting.Config?.HotwordsScore ?? 1.5F;
+                    offlineRecognizerConfig.HotwordsScore = modelSetting.Config?.HotwordsScore ?? 1.5F;
                 }
                 //this._config.RuleFsts = this.ModelSetting.Config.RuleFsts;
 

@@ -9,7 +9,7 @@ using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.VAD
 {
-    internal class Silero : BaseProvider, IVad
+    internal class Silero : BaseProvider<ModelSetting>, IVad
     {
 
         private VoiceActivityDetector? _vad;
@@ -20,18 +20,16 @@ namespace XiaoZhi.Net.Server.Providers.VAD
 
         private readonly SemaphoreSlim _vadConvertSlim = new SemaphoreSlim(1, 1);
 
-        public Silero(XiaoZhiConfig config, ILogger<Silero> logger) : this(config.VadSetting, logger)
-        {
-        }
 
-        public Silero(ModelSetting vadSetting, ILogger logger) : base(vadSetting, logger)
+        public Silero(ILogger logger) : base(logger)
         {
         }
 
         public int FrameSize { get; private set; }
 
+        public override string ModelName => nameof(Silero);
         public override string ProviderType => "vad";
-        public override bool Build()
+        public override bool Build(ModelSetting modelSetting)
         {
             try
             {
@@ -41,9 +39,9 @@ namespace XiaoZhi.Net.Server.Providers.VAD
                 }
                 VadModelConfig vadModelConfig = new VadModelConfig();
                 vadModelConfig.SileroVad.Model = Path.Combine(this.ModelFileFoler, "model.onnx");
-                vadModelConfig.SampleRate = this.ModelSetting.Config.SampleRate;
-                this._sampleRate = this.ModelSetting.Config.SampleRate;
-                this._silenceThresholdMs = this.ModelSetting.Config.SilenceThresholdMs ?? 700;
+                vadModelConfig.SampleRate = modelSetting.Config.SampleRate;
+                this._sampleRate = modelSetting.Config.SampleRate;
+                this._silenceThresholdMs = modelSetting.Config.SilenceThresholdMs ?? 700;
                 this.FrameSize = vadModelConfig.SileroVad.WindowSize;
                 this._vad = new VoiceActivityDetector(vadModelConfig, 60);
                 this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);

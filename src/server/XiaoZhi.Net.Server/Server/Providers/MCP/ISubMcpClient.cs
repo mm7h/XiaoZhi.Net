@@ -2,10 +2,11 @@
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Dtos;
 
 namespace XiaoZhi.Net.Server.Providers.MCP
 {
-    internal interface ISubMcpClient : IProvider
+    internal interface ISubMcpClient : IProvider<MCPClientBuildConfig>
     {
         ICollection<KernelFunction> Functions { get; }
         bool IsReady { get; }

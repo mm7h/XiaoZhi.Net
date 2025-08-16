@@ -3,26 +3,33 @@ using ModelContextProtocol.Protocol;
 using System;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
-using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
 {
     internal class DeviceMcpClient : BaseMcpClient
     {
-        private readonly string visionUrl;
-        private readonly string visionToken;
+        private string? _visionUrl;
+        private string? _visionToken;
 
-        public DeviceMcpClient(Session session, ModelSetting mcpSetting, ILogger logger) : base(session, mcpSetting, logger)
+        public DeviceMcpClient(ILogger logger) : base(logger)
         {
-            this.visionUrl = this.ModelSetting?.Config?.VisionUrl ?? "";
-            this.visionToken = this.ModelSetting?.Config?.VisionToken ?? "";
         }
 
-        public override string ProviderType => SubMCPClientTypeNames.DeviceMcpClient;
+        public override string ModelName => SubMCPClientTypeNames.DeviceMcpClient;
+        public override string ProviderType => "mcp client";
 
-        public override bool Build()
+        public override bool Build(MCPClientBuildConfig config)
         {
+            this.InitSession(config);
+            ModelSetting modelSetting = config.ModelSetting;
+
+            this._visionUrl = modelSetting.Config?.VisionUrl ?? "";
+            this._visionToken = modelSetting.Config?.VisionToken ?? "";
+
+            
+
             this.SendMcpInitializeAsync().ConfigureAwait(false);
             this.RequestToolsListAsync().ConfigureAwait(false);
 
@@ -34,8 +41,8 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
 
             var vision = new
             {
-                Url = this.visionUrl,
-                Token = this.visionToken
+                Url = this._visionUrl,
+                Token = this._visionToken
             };
 
             var @params = new

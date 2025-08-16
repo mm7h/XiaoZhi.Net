@@ -9,7 +9,7 @@ using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.TTS
 {
-    internal sealed class Kokoro : BaseProvider, ITts
+    internal sealed class Kokoro : BaseProvider<ModelSetting>, ITts
     {
         private OfflineTts? _offlineTts;
         private const float SPEAK_SPPED = 1.0f;
@@ -24,20 +24,19 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         public event Action<string, float[]>? OnProcessing;
         public event Action<string, float[], OutSegment, double>? OnProcessed;
 
-        public Kokoro(XiaoZhiConfig config, ILogger<Kokoro> logger) : this(config.TtsSetting, logger)
+        public Kokoro(ILogger<Kokoro> logger) : base(logger)
         {
         }
-        public Kokoro(ModelSetting ttsSetting, ILogger logger) : base(ttsSetting, logger)
-        {
-        }
+
+        public override string ModelName => nameof(Kokoro);
         public override string ProviderType => "tts";
 
         public int GetTtsSampleRate()
         {
-            return this._offlineTts?.SampleRate ?? 16000;
+            return this._offlineTts?.SampleRate ?? 24000;
         }
 
-        public override bool Build()
+        public override bool Build(ModelSetting modelSetting)
         {
             try
             {
@@ -52,7 +51,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 config.Model.Kokoro.DataDir = Path.Combine(this.ModelFileFoler, "espeak-ng-data");
                 config.Model.Kokoro.DictDir = Path.Combine(this.ModelFileFoler, "dict");
 
-                string lexicons = this.ModelSetting.Config.Lexicons ?? "";
+                string lexicons = modelSetting.Config.Lexicons ?? "";
                 if (!string.IsNullOrEmpty(lexicons))
                 {
                     //$"{Path.Combine(this.ModelFileFoler, "lexicon-us-en.txt")},{Path.Combine(this.ModelFileFoler, "lexicon-zh.txt")}"
@@ -62,12 +61,12 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 config.Model.NumThreads = 2;
                 config.Model.Provider = "cpu";
 
-                this._save2File = this.ModelSetting.Config.Save2File ?? false;
+                this._save2File = modelSetting.Config.Save2File ?? false;
 
 
                 if (this._save2File)
                 {
-                    this._savePath = this.ModelSetting.Config.SavePath ?? Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
+                    this._savePath = modelSetting.Config.SavePath ?? Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
                     if (!Directory.Exists(this._savePath))
                         Directory.CreateDirectory(this._savePath);
                 }

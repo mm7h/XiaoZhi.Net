@@ -4,7 +4,7 @@ using System;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
-using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Protocol.WebSocket;
 
@@ -12,26 +12,33 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
 {
     internal class McpEndpointClient : BaseMcpClient, ISubMcpClient
     {
-        private readonly string? _endpointUrl;
-        private readonly WebSocketClient _webSocketClient;
+        private string? _endpointUrl;
+        private WebSocketClient? _webSocketClient;
 
-        public McpEndpointClient(Session session, ModelSetting mcpSetting, ILogger logger) : base(session, mcpSetting, logger)
+        public McpEndpointClient(ILogger logger) : base(logger)
         {
-            this._endpointUrl = this.ModelSetting?.Config?.EndpointUrl;
-            this._webSocketClient = new WebSocketClient(this._endpointUrl, this.ModelSetting?.Config?.Headers);
-            this._webSocketClient.OnOpen += this.WebSocketClientEngine_OnOpen;
-            this._webSocketClient.OnTextMessage += this.WebSocketClient_OnMessage;
         }
 
-        public override string ProviderType => SubMCPClientTypeNames.DeviceMcpClient;
+        public override string ModelName => SubMCPClientTypeNames.DeviceMcpClient;
+        public override string ProviderType => "mcp client";
 
-        public override bool Build()
+        public override bool Build(MCPClientBuildConfig config)
         {
+            this.InitSession(config);
+            ModelSetting modelSetting = config.ModelSetting;
+
+            this._endpointUrl = modelSetting?.Config?.EndpointUrl;
+
             if (string.IsNullOrEmpty(this._endpointUrl))
             {
                 this.Logger.LogWarning("Endpoint URL is empty, skip this mcp tpye.");
                 return true;
             }
+
+            this._webSocketClient = new WebSocketClient(this._endpointUrl, modelSetting?.Config?.Headers);
+            this._webSocketClient.OnOpen += this.WebSocketClientEngine_OnOpen;
+            this._webSocketClient.OnTextMessage += this.WebSocketClient_OnMessage;
+
             this._webSocketClient.ConnectAsync().ConfigureAwait(false);
             return true;
         }
@@ -39,16 +46,26 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
 
         protected override Task SendMCPMessageAsync<TMessage>(TMessage message)
         {
-            if (message == null)
+            if (message is null)
             {
                 throw new ArgumentNullException(nameof(message), "Message cannot be null.");
             }
+            
+            if (this._webSocketClient is null)
+            {
+                throw new InvalidOperationException("WebSocket client is not initialized.");
+            }
+
             string json = message.ToJson();
             return this._webSocketClient.SendAsync(json);
         }
 
         public override void Dispose()
         {
+            if (this._webSocketClient is null)
+            {
+                return;
+            }
             this._webSocketClient.CloseAsync().ConfigureAwait(false);
         }
         private async void WebSocketClientEngine_OnOpen()

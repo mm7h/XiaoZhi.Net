@@ -1,36 +1,39 @@
 ﻿using Concentus;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace XiaoZhi.Net.Server.Providers.AudioCodec
 {
-    internal sealed class DefaultOpusDecoder : BaseProvider, IAudioDecoder
+    internal sealed class DefaultOpusDecoder : BaseProvider<AudioSetting>, IAudioDecoder
     {
 
         private IOpusDecoder? _decoder;
 
         private SemaphoreSlim _decodeSemaphoreSlim = new SemaphoreSlim(1, 1);
-        public new string ModelName => "OpusDecoder";
+        public override string ModelName => "OpusDecoder";
         public override string ProviderType => "opus audio decoder";
-        public int SampleRate { get; }
-        public int Channels { get; }
-        public int FrameDuration { get; }
-        public int FrameSize { get; }
-        public DefaultOpusDecoder(AudioSetting audioSetting, ILogger<DefaultOpusDecoder> logger) : base(logger)
+        public int SampleRate { get; private set; }
+        public int Channels { get; private set; }
+        public int FrameDuration { get; private set; }
+        public int FrameSize { get; private set; }
+        public DefaultOpusDecoder(ILogger<DefaultOpusDecoder> logger) : base(logger)
         {
-            this.SampleRate = audioSetting.SampleRate;
-            this.Channels = audioSetting.Channels;
-            this.FrameDuration = audioSetting.FrameDuration;
-            this.FrameSize = audioSetting.FrameSize;
         }
 
-        public override bool Build()
+        [MemberNotNullWhen(true, nameof(SampleRate), nameof(Channels), nameof(FrameDuration), nameof(FrameSize))]
+        public override bool Build(AudioSetting audioSetting)
         {
             try
             {
-                this._decoder = OpusCodecFactory.CreateDecoder(this.SampleRate, this.Channels);
+                this.SampleRate = audioSetting.SampleRate;
+                this.Channels = audioSetting.Channels;
+                this.FrameDuration = audioSetting.FrameDuration;
+                this.FrameSize = audioSetting.FrameSize;
+
+                this._decoder = OpusCodecFactory.CreateDecoder(audioSetting.SampleRate, audioSetting.Channels);
                 this.Logger.LogInformation("Builded the default {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }

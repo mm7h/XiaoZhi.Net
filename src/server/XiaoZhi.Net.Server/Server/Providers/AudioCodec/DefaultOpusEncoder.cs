@@ -2,41 +2,37 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace XiaoZhi.Net.Server.Providers.AudioCodec
 {
-    internal class DefaultOpusEncoder : BaseProvider, IAudioEncoder
+    internal class DefaultOpusEncoder : BaseProvider<AudioSetting>, IAudioEncoder
     {
-        private const int DEFAULT_SAMPLE_RATE = 24_000;
 
         private IOpusEncoder? _encoder;
         private SemaphoreSlim _encodeSemaphoreSlim = new SemaphoreSlim(1, 1);
 
-        public new string ModelName => "OpusEncoder";
+        public override string ModelName => "OpusEncoder";
         public override string ProviderType => "opus audio encoder";
         public int SampleRate { get; private set; }
-        public int Channels { get; }
-        public int FrameDuration { get; }
+        public int Channels { get; private set; }
+        public int FrameDuration { get; private set; }
         public int FrameSize { get; private set; }
-        public DefaultOpusEncoder(AudioSetting audioSetting, ILogger<DefaultOpusEncoder> logger) : base(logger)
-        {
-            this.SampleRate = DEFAULT_SAMPLE_RATE;
-            this.Channels = audioSetting.Channels;
-            this.FrameDuration = audioSetting.FrameDuration;
-        }
-        public DefaultOpusEncoder(int sampleRate, AudioSetting audioSetting, ILogger logger) : base(logger)
-        {
-            this.SampleRate = sampleRate;
-            this.Channels = audioSetting.Channels;
-            this.FrameDuration = audioSetting.FrameDuration;
-        }
-        public override bool Build()
+        public DefaultOpusEncoder(ILogger<DefaultOpusEncoder> logger) : base(logger)
+        {}
+
+        [MemberNotNullWhen(true, nameof(SampleRate), nameof(Channels), nameof(FrameDuration), nameof(FrameSize))]
+        public override bool Build(AudioSetting audioSetting)
         {
             try
             {
-                this.FrameSize = this.SampleRate * this.FrameDuration * this.Channels / 1000;
+                this.SampleRate = audioSetting.SampleRate;
+                this.Channels = audioSetting.Channels;
+                this.FrameDuration = audioSetting.FrameDuration;
+                this.FrameSize = audioSetting.FrameSize;
+
                 this._encoder = OpusCodecFactory.CreateEncoder(this.SampleRate, this.Channels, Concentus.Enums.OpusApplication.OPUS_APPLICATION_AUDIO);
                 this.Logger.LogInformation("Builded the default {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return true;

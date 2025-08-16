@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace XiaoZhi.Net.Server.Providers
 {
-    internal interface IAsr : IProvider
+    internal interface IAsr : IProvider<ModelSetting>
     {
         Task<string> ConvertSpeechText(CircularBuffer voicePackets, int sampleRate, int frameSize, CancellationToken token);
     }

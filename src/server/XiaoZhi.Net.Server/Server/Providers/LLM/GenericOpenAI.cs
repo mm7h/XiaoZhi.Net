@@ -17,16 +17,13 @@ using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
 {
-    internal sealed class GenericOpenAI : BaseProvider, ILlm
+    internal sealed class GenericOpenAI : BaseProvider<ModelSetting>, ILlm
     {
         private readonly SemaphoreSlim _llmSlim = new SemaphoreSlim(1, 1);
         private readonly IServiceProvider _serviceProvider;
         private OpenAIPromptExecutionSettings _chatCompletionOptions;
 
-        public GenericOpenAI(IServiceProvider serviceProvider, XiaoZhiConfig config, ILogger<GenericOpenAI> logger) : this(serviceProvider, config.LlmSettings.First(), logger)
-        {
-        }
-        public GenericOpenAI(IServiceProvider serviceProvider, ModelSetting llmSetting, ILogger logger) : base(llmSetting, logger)
+        public GenericOpenAI(IServiceProvider serviceProvider, ILogger logger) : base(logger)
         {
             this._serviceProvider = serviceProvider;
             this._chatCompletionOptions = new OpenAIPromptExecutionSettings
@@ -37,14 +34,14 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
             };
         }
-
+        public override string ModelName => nameof(GenericOpenAI);
         public override string ProviderType => "llm";
 
         public event Action<string>? OnBeforeTokenGenerate;
         public event Action<string, OutSegment>? OnTokenGenerating;
         public event Action<string, string>? OnTokenGenerated;
 
-        public override bool Build()
+        public override bool Build(ModelSetting modelSetting)
         {
             try
             {

@@ -6,14 +6,14 @@ using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.TTS
 {
-    internal class HuoshanDoubleStream : BaseProvider, ITts
+    internal class HuoshanDoubleStream : BaseProvider<ModelSetting>, ITts
     {
-        public HuoshanDoubleStream(XiaoZhiConfig config, ILogger<HuoshanDoubleStream> logger) : this(config.TtsSetting, logger)
+
+        public HuoshanDoubleStream(ILogger logger) : base(logger)
         {
         }
-        public HuoshanDoubleStream(ModelSetting ttsSetting, ILogger logger) : base(ttsSetting, logger)
-        {
-        }
+
+        public override string ModelName => nameof(HuoshanDoubleStream);
         public override string ProviderType => "tts";
 
         public event Action<string, OutSegment>? OnBeforeProcessing;
@@ -25,7 +25,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             return 16000;
         }
 
-        public override bool Build()
+        public override bool Build(ModelSetting modelSetting)
         {
             return true;
         }

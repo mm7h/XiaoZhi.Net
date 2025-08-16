@@ -7,19 +7,17 @@ using System.Threading.Tasks;
 
 namespace XiaoZhi.Net.Server.Providers.Punctuation
 {
-    internal class CtTransformer : BaseProvider, IPunctuation
+    internal class CtTransformer : BaseProvider<ModelSetting>, IPunctuation
     {
         private OfflinePunctuation? _offlinePunctuation;
         private readonly SemaphoreSlim _punctuationConvertSlim = new SemaphoreSlim(1, 1);
-        public CtTransformer(XiaoZhiConfig config, ILogger<CtTransformer> logger) : base(config.PunctuationSetting, logger)
+        public CtTransformer(ILogger logger) : base(logger)
         {
         }
-        public CtTransformer(ModelSetting punctuationSetting, ILogger logger) : base(punctuationSetting, logger)
-        {
-        }
+        public override string ModelName => nameof(CtTransformer);
         public override string ProviderType => "punctuation";
 
-        public override bool Build()
+        public override bool Build(ModelSetting modelSetting)
         {
             try
             {

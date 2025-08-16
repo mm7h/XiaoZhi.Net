@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace XiaoZhi.Net.Server.Providers
 {
-    internal interface IAudioEncoder : IProvider
+    internal interface IAudioEncoder : IProvider<AudioSetting>
     {
         int SampleRate { get; }
         int Channels { get; }

@@ -7,18 +7,16 @@ using XiaoZhi.Net.Server.Store;
 
 namespace XiaoZhi.Net.Server.Providers.Memory
 {
-    internal sealed class FlashMemory : BaseProvider, IMemory
+    internal sealed class FlashMemory : BaseProvider<ModelSetting>, IMemory
     {
         private readonly IStore _store;
-        public FlashMemory(XiaoZhiConfig config, ILogger<FlashMemory> logger) : this(config.MemorySetting, logger)
-        {
-        }
-        public FlashMemory(ModelSetting memorySetting, ILogger logger) : base(memorySetting, logger)
+        public FlashMemory(ILogger<FlashMemory> logger) : base(logger)
         {
             this._store = new DefaultMemoryStore();
         }
+        public override string ModelName => nameof(FlashMemory);
         public override string ProviderType => "memory";
-        public override bool Build()
+        public override bool Build(ModelSetting modelSetting)
         {
             this.Logger.LogInformation("Builded the default {providerType}: {flashMemory}", this.ProviderType, "flash memory");
             return true;

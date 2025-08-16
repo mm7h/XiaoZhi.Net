@@ -2,10 +2,10 @@
 
 namespace XiaoZhi.Net.Server.Providers
 {
-    internal interface IProvider : IDisposable
+    internal interface IProvider<TSettings> : IDisposable where TSettings : class
     {
         string ProviderType { get; }
         string ModelName { get; }
-        bool Build();
+        bool Build(TSettings settings);
     }
 }

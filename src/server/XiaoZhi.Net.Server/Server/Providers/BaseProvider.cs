@@ -5,34 +5,24 @@ using System.Text.RegularExpressions;
 
 namespace XiaoZhi.Net.Server.Providers
 {
-    internal abstract class BaseProvider : IProvider
+    internal abstract class BaseProvider<TSettings> : IProvider<TSettings> where TSettings : class
     {
         public BaseProvider(ILogger logger)
         {
-            this.ModelName = string.Empty;
-            this.ModelFileFoler = string.Empty;
-            this.ModelSetting = default!;
-            this.Logger = logger;
-        }
-        public BaseProvider(ModelSetting modelSetting, ILogger logger)
-        {
-            this.ModelName = modelSetting.ModelName;
-            this.ModelFileFoler = Path.Combine(Environment.CurrentDirectory, "models", this.ProviderType, this.ModelName);
-            this.ModelSetting = modelSetting;
             this.Logger = logger;
         }
 
         public abstract string ProviderType { get; }
-        public string ModelName { get; }
-        protected string ModelFileFoler { get; }
-        protected ModelSetting ModelSetting { get; }
+        public abstract string ModelName { get; }
+        protected string ModelFileFoler => Path.Combine(Environment.CurrentDirectory, "models", this.ProviderType, this.ModelName);
+
         protected ILogger Logger { get; }
 
-        public abstract bool Build();
+        public abstract bool Build(TSettings settings);
         public abstract void Dispose();
 
         protected bool CheckModelExist()
-        { 
+        {
             string modelFilePath = Path.Combine(this.ModelFileFoler, "model.onnx");
             bool exist = File.Exists(modelFilePath);
             if (!exist)

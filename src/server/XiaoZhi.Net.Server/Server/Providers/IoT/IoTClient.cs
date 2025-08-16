@@ -3,6 +3,7 @@ using Microsoft.SemanticKernel;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -14,24 +15,26 @@ using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.IoT
 {
-    internal class IoTClient : BaseProvider, IIoTClient
+    internal class IoTClient : BaseProvider<Session>, IIoTClient
     {
-        private readonly Session _currentSession;
-
         private readonly Action _tempMethod = () => { };
         private readonly IList<IoTProperty> _iotProperties;
 
-        public IoTClient(Session session, ILogger logger) : base(logger)
+        public IoTClient(ILogger<IoTClient> logger) : base(logger)
         {
-            this._currentSession = session;
             this._iotProperties = new List<IoTProperty>();
         }
 
+        public Session CurrentSession { get; private set; } = null!;
 
-        public override string ProviderType => SubMCPClientTypeNames.DeviceIoTClient;
+        public override string ModelName => SubMCPClientTypeNames.DeviceIoTClient;
+        public override string ProviderType => "iot client";
 
-        public override bool Build()
+
+        [MemberNotNullWhen(true, nameof(CurrentSession))]
+        public override bool Build(Session session)
         {
+            this.CurrentSession = session;
             return true;
         }
 
@@ -127,7 +130,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
 
                         IDictionary<string, object?> propertyDic = new Dictionary<string, object?>
                         {
-                            { "session-id", this._currentSession.SessionId },
+                            { "session-id", this.CurrentSession.SessionId },
                             { "iot_device_component_name", iotDeviceComponentName }
                         };
 
@@ -177,7 +180,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
 
                         IDictionary<string, object?> methodDic = new Dictionary<string, object?>
                         {
-                            { "session-id", this._currentSession.SessionId },
+                            { "session-id", this.CurrentSession.SessionId },
                             { "iot_device_component_name", iotDeviceComponentName }
                         };
 
@@ -194,7 +197,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                     }
                 }
 
-                this._currentSession.Kernel.ImportPluginFromFunctions(pluginName, $"用于管理或者操控 `{(!string.IsNullOrEmpty(iotDeviceComponentName) ? iotDeviceComponentName : deviceDescription)}` 设备状态或者功能的插件。后面的数字序号只是用于编号，没有其他意义。", deviceFunctions);
+                this.CurrentSession.Kernel.ImportPluginFromFunctions(pluginName, $"用于管理或者操控 `{(!string.IsNullOrEmpty(iotDeviceComponentName) ? iotDeviceComponentName : deviceDescription)}` 设备状态或者功能的插件。后面的数字序号只是用于编号，没有其他意义。", deviceFunctions);
             }
         }
 
@@ -262,7 +265,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
             if (item is not null)
             {
                 item.StatusValue = itemValue;
-                this.Logger.LogInformation("Session {sessionId} set the iot status / value, key: {key}, value: {value}", this._currentSession.SessionId, propName, itemValue);
+                this.Logger.LogInformation("Session {sessionId} set the iot status / value, key: {key}, value: {value}", this.CurrentSession.SessionId, propName, itemValue);
             }
         }
 
@@ -278,7 +281,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                 Commands = new List<TMessage> { message }
             };
             string jsonMessage = mcpMessage.ToJson();
-            await this._currentSession.SendOutter.SendAsync(jsonMessage);
+            await this.CurrentSession.SendOutter.SendAsync(jsonMessage);
         }
 
         public override void Dispose()

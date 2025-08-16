@@ -1,6 +1,7 @@
 ﻿using Microsoft.SemanticKernel;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -49,6 +50,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public CancellationToken SessionCtsToken => this._sessionCts.Token;
         public HandlerPipeline HandlerPipeline { get; }
         public IBizSendOutter SendOutter { get; }
+        [DisallowNull]
         public Kernel Kernel => this._kernel ?? throw new InvalidOperationException("Kernel is not set. Please set the kernel before using the session.");
         public ICollection<Dialogue> Dialogues { get; }
         public PrivateProvider? PrivateProvider { get; set; }
@@ -56,7 +58,9 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public string? BindCode { get; set; }
         public DateTime LastActivityTime { get; private set; }
         public bool HasIoT { get; private set; }
+        [DisallowNull]
         public IIoTClient IoTClient => this._iotClient ?? throw new InvalidOperationException("IoTClient is not set. Please set the iot client before using the session.");
+        [DisallowNull]
         public IMcpClient McpClient => this._mcpClient ?? throw new InvalidOperationException("MCPClient is not set. Please set the mcp client before using the session.");
         public bool CloseAfterChat { get; set; }
 

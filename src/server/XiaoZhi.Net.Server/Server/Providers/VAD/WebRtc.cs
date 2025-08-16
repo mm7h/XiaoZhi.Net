@@ -11,26 +11,26 @@ using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.VAD
 {
-    internal class WebRtc : BaseProvider, IVad
+    internal class WebRtc : BaseProvider<ModelSetting>, IVad
     {
         private WebRtcVad? _vad;
         private SampleRate _sampleRate;
         private int? _silenceThresholdMs;
 
         private readonly SemaphoreSlim _vadConvertSlim = new SemaphoreSlim(1, 1);
-        public WebRtc(XiaoZhiConfig config, ILogger<WebRtc> logger) : this(config.VadSetting, logger)
+
+        public WebRtc(ILogger logger) : base(logger)
         {
         }
-        public WebRtc(ModelSetting vadSetting, ILogger logger) : base(vadSetting, logger)
-        {
-        }
+
+        public override string ModelName => nameof(WebRtc);
         public override string ProviderType => "vad";
         public int FrameSize => throw new NotImplementedException();
-        public override bool Build()
+        public override bool Build(ModelSetting modelSetting)
         {
             try
             {
-                string libPath = this.ModelSetting.Config?.LibPath ?? "";
+                string libPath = modelSetting.Config?.LibPath ?? "";
 
                 if (!File.Exists(libPath))
                 {
@@ -38,8 +38,8 @@ namespace XiaoZhi.Net.Server.Providers.VAD
                     return false;
                 }
 
-                int sampleRate = this.ModelSetting.Config?.SampleRate ?? 16000;
-                this._silenceThresholdMs = this.ModelSetting.Config?.SilenceThresholdMs ?? 700;
+                int sampleRate = modelSetting.Config?.SampleRate ?? 16000;
+                this._silenceThresholdMs = modelSetting.Config?.SilenceThresholdMs ?? 700;
                 IntPtr _dllHandle = WebRtc.LoadLibrary(libPath);
 
                 if (_dllHandle == IntPtr.Zero)

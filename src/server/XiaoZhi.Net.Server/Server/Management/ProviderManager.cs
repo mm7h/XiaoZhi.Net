@@ -18,6 +18,9 @@ using XiaoZhi.Net.Server.Providers.IoT;
 using XiaoZhi.Net.Server.Providers.LLM;
 using XiaoZhi.Net.Server.Providers.LLM.Plugins;
 using XiaoZhi.Net.Server.Providers.MCP;
+using XiaoZhi.Net.Server.Providers.MCP.DeviceMcp;
+using XiaoZhi.Net.Server.Providers.MCP.McpEndpoint;
+using XiaoZhi.Net.Server.Providers.MCP.ServerMcp;
 using XiaoZhi.Net.Server.Providers.Memory;
 using XiaoZhi.Net.Server.Providers.Punctuation;
 using XiaoZhi.Net.Server.Providers.TTS;
@@ -54,6 +57,8 @@ namespace XiaoZhi.Net.Server.Management
                 RegisterMemory(services, config, GlobalProviderNames.GLOBAL_MEMORY);
                 RegisterTts(services, config, GlobalProviderNames.GLOBAL_TTS);
                 services.AddKeyedSingleton<IAudioEncoder, DefaultOpusEncoder>(GlobalProviderNames.GLOBAL_AUDIO_ENCODER);
+                RegisterIoT(services);
+                RegisterMCP(services);
 
                 services.AddSingleton<ProviderManager>();
             });
@@ -61,26 +66,83 @@ namespace XiaoZhi.Net.Server.Management
 
         public bool BuildComponent(IServiceProvider serviceProvider)
         {
-            IList<IProvider> providers = new List<IProvider>
-            {
-                serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER),
-                serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR),
-                serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD),
-                serviceProvider.GetRequiredKeyedService<IPunctuation>(GlobalProviderNames.GLOBAL_PUNCTUATION),
-                serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY),
-                serviceProvider.GetRequiredKeyedService<ILlm>(GlobalProviderNames.GLOBAL_LLM),
-                serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS),
-                serviceProvider.GetRequiredKeyedService<IAudioEncoder>(GlobalProviderNames.GLOBAL_AUDIO_ENCODER)
-            };
 
-            foreach (IProvider provider in providers)
+            #region AudioDecoder
+            IAudioDecoder audioDecoder = serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER);
+            if (!audioDecoder.Build(this._config.AudioSetting))
             {
-                if (!provider.Build())
-                {
-                    this._logger.LogError("Failed to build {modelName} provider.", provider.ModelName);
-                    return false;
-                }
+                this._logger.LogError("Failed to build {modelName} provider.", audioDecoder.ModelName);
+                return false;
             }
+            #endregion
+
+            #region Vad
+            IVad vad = serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
+            if (!vad.Build(this._config.VadSetting))
+            {
+                this._logger.LogError("Failed to build {modelName} provider.", vad.ModelName);
+                return false;
+            }
+            #endregion
+
+            #region Asr
+            IAsr asr = serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
+            if (!asr.Build(this._config.AsrSetting))
+            {
+                this._logger.LogError("Failed to build {modelName} provider.", asr.ModelName);
+                return false;
+            }
+            #endregion
+
+            #region Punctuation
+            IPunctuation punctuation = serviceProvider.GetRequiredKeyedService<IPunctuation>(GlobalProviderNames.GLOBAL_PUNCTUATION);
+            if (!punctuation.Build(this._config.PunctuationSetting))
+            {
+                this._logger.LogError("Failed to build {modelName} provider.", punctuation.ModelName);
+                return false;
+            }
+            #endregion
+
+            #region Memory
+            IMemory memory = serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY);
+            if (!memory.Build(this._config.MemorySetting))
+            {
+                this._logger.LogError("Failed to build {modelName} provider.", memory.ModelName);
+                return false;
+            }
+            #endregion
+
+            #region Llm
+            ILlm llm = serviceProvider.GetRequiredKeyedService<ILlm>(GlobalProviderNames.GLOBAL_LLM);
+            if (!llm.Build(this._config.LlmSettings.First()))
+            {
+                this._logger.LogError("Failed to build {modelName} provider.", llm.ModelName);
+                return false;
+            }
+            #endregion
+
+            #region Tts
+            ITts tts = serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
+            if (!tts.Build(this._config.TtsSetting))
+            {
+                this._logger.LogError("Failed to build {modelName} provider.", tts.ModelName);
+                return false;
+            }
+            #endregion
+
+            #region AudioEncoder
+            IAudioEncoder audioEncoder = serviceProvider.GetRequiredKeyedService<IAudioEncoder>(GlobalProviderNames.GLOBAL_AUDIO_ENCODER);
+            AudioSetting audioSetting = new AudioSetting
+            {
+                SampleRate = tts.GetTtsSampleRate()
+            };
+            if (!audioEncoder.Build(audioSetting))
+            {
+                this._logger.LogError("Failed to build {modelName} provider.", audioEncoder.ModelName);
+                return false;
+            }
+            #endregion
+
             return true;
         }
 
@@ -96,7 +158,6 @@ namespace XiaoZhi.Net.Server.Management
 
                 session.SetKernel(privateKernel);
 
-                PrivateModelsConfig? privateModelsConfig = null;
                 ManageApiClient? manageApiClient = this._serviceProvider.GetService<ManageApiClient>();
 
                 if (manageApiClient is null)
@@ -105,7 +166,7 @@ namespace XiaoZhi.Net.Server.Management
                     return;
                 }
 
-                privateModelsConfig = await manageApiClient.LoadConfigFromApi(session.DeviceId, session.SessionId);
+                PrivateModelsConfig? privateModelsConfig = await manageApiClient.LoadConfigFromApi(session.DeviceId, session.SessionId);
 
                 if (privateModelsConfig is null)
                 {
@@ -117,8 +178,8 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig.VadSetting is not null)
                 {
-                    IVad privateVad = this.RegisterVad(privateModelsConfig.VadSetting);
-                    if (!privateVad.Build())
+                    IVad privateVad = this._serviceProvider.GetRequiredKeyedService<IVad>(privateModelsConfig.VadSetting.ModelName);
+                    if (!privateVad.Build(privateModelsConfig.VadSetting))
                     {
                         throw new ModelBuildException("Failed to build private VAD model.");
                     }
@@ -129,8 +190,8 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig.AsrSetting is not null)
                 {
-                    IAsr privateAsr = this.RegisterAsr(privateModelsConfig.AsrSetting);
-                    if (!privateAsr.Build())
+                    IAsr privateAsr = this._serviceProvider.GetRequiredKeyedService<IAsr>(privateModelsConfig.AsrSetting.ModelName);
+                    if (!privateAsr.Build(privateModelsConfig.AsrSetting))
                     {
                         throw new ModelBuildException("Failed to build private ASR model.");
                     }
@@ -166,8 +227,8 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig.TtsSetting is not null)
                 {
-                    ITts privateTts = this.RegisterTts(privateModelsConfig.TtsSetting);
-                    if (!privateTts.Build())
+                    ITts privateTts = this._serviceProvider.GetRequiredKeyedService<ITts>(privateModelsConfig.TtsSetting.ModelName);
+                    if (!privateTts.Build(privateModelsConfig.TtsSetting))
                     {
                         throw new ModelBuildException("Failed to build private TTS model.");
                     }
@@ -176,7 +237,7 @@ namespace XiaoZhi.Net.Server.Management
 
                     this._logger.LogInformation("Private TTS {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.TtsSetting.ModelName, session.DeviceId, session.SessionId);
 
-                    
+
 
                 }
 
@@ -228,7 +289,7 @@ namespace XiaoZhi.Net.Server.Management
 
         public void Dispose(IServiceProvider serviceProvider)
         {
-            IList<IProvider> providers = new List<IProvider>
+            IList<IDisposable> providers = new List<IDisposable>
             {
                 serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER),
                 serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR),
@@ -240,7 +301,7 @@ namespace XiaoZhi.Net.Server.Management
                 serviceProvider.GetRequiredKeyedService<IAudioEncoder>(GlobalProviderNames.GLOBAL_AUDIO_ENCODER)
             };
 
-            foreach (IProvider provider in providers)
+            foreach (IDisposable provider in providers)
             {
                 provider.Dispose();
             }
@@ -249,6 +310,10 @@ namespace XiaoZhi.Net.Server.Management
         #region Register providers
 
         #region AudioResampler
+        private static void RegisterAudioResampler(IServiceCollection services)
+        {
+            services.AddTransient<IAudioResampler, DefaultResampler>();
+        }
         public void RegisterAudioResamplerWithAudioEncoder(Session session)
         {
             if (session.PrivateProvider is null)
@@ -262,8 +327,10 @@ namespace XiaoZhi.Net.Server.Management
                 return;
             }
             this._logger.LogInformation("Session {sessionId} requires audio resampling from {ttsSampleRate} to {deviceSampleRate}.", session.SessionId, ttsSampleRate, session.AudioSetting.SampleRate);
-            IAudioResampler audioResampler = new DefaultResampler(session.AudioSetting.Channels, ttsSampleRate, session.AudioSetting.SampleRate, this._logger);
-            if (!audioResampler.Build())
+
+            ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, ttsSampleRate, session.AudioSetting.SampleRate);
+            IAudioResampler audioResampler = this._serviceProvider.GetRequiredService<IAudioResampler>();
+            if (!audioResampler.Build(resamplerBuildConfig))
             {
                 this._logger.LogWarning("Session {sessionId} failed to build audio resampler.", session.SessionId);
             }
@@ -272,8 +339,15 @@ namespace XiaoZhi.Net.Server.Management
                 session.PrivateProvider.SetAudioResampler(audioResampler);
             }
 
-            IAudioEncoder audioEncoder = new DefaultOpusEncoder(audioResampler.OutSampleRate, session.AudioSetting, this._logger);
-            if (!audioEncoder.Build())
+            AudioSetting encoderAudioSetting = new AudioSetting
+            {
+                SampleRate = audioResampler.OutSampleRate,
+                Channels = session.AudioSetting.Channels,
+                FrameDuration = session.AudioSetting.FrameDuration,
+                Format = session.AudioSetting.Format
+            };
+            IAudioEncoder audioEncoder = this._serviceProvider.GetRequiredService<IAudioEncoder>();
+            if (!audioEncoder.Build(encoderAudioSetting))
             {
                 this._logger.LogWarning("Session {sessionId} failed to build audio encoder.", session.SessionId);
             }
@@ -283,30 +357,19 @@ namespace XiaoZhi.Net.Server.Management
         #endregion
 
         #region VAD
-        private IVad RegisterVad(ModelSetting vadSetting)
-        {
-            switch (vadSetting.ModelName)
-            {
-                case "silero":
-                    Silero silero = new Silero(vadSetting, this._logger);
-                    silero.Build();
-                    return silero;
-                case "webrtc":
-                    WebRtc webrtc = new WebRtc(vadSetting, this._logger);
-                    webrtc.Build();
-                    return webrtc;
-                default:
-                    throw new ModelBuildException("Invalid vad model.");
-            }
-        }
         private static void RegisterVad(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            switch (config.VadSetting.ModelName.ToLower())
+            string modelName = config.TtsSetting.ModelName.ToLower();
+            switch (modelName)
             {
                 case "silero":
-                    services.AddKeyedSingleton<IVad, Silero>(key); break;
+                    services.AddKeyedTransient<IVad, Silero>(modelName);
+                    services.AddKeyedSingleton<IVad, Silero>(key);
+                    break;
                 case "webrtc":
-                    services.AddKeyedSingleton<IVad, WebRtc>(key); break;
+                    services.AddKeyedTransient<IVad, WebRtc>(modelName);
+                    services.AddKeyedSingleton<IVad, WebRtc>(key);
+                    break;
                 default:
                     throw new ModelBuildException("Invalid vad model.");
             }
@@ -314,30 +377,19 @@ namespace XiaoZhi.Net.Server.Management
         #endregion
 
         #region ASR
-        private IAsr RegisterAsr(ModelSetting asrSetting)
-        {
-            switch (asrSetting.ModelName.ToLower())
-            {
-                case "sense-voice":
-                    SenseVoice senseVoice = new SenseVoice(asrSetting, this._logger);
-                    senseVoice.Build();
-                    return senseVoice;
-                case "paraformer":
-                    Paraformer paraformer = new Paraformer(asrSetting, this._logger);
-                    paraformer.Build();
-                    return paraformer;
-                default:
-                    throw new ModelBuildException("Invalid asr model.");
-            }
-        }
         private static void RegisterAsr(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            switch (config.AsrSetting.ModelName.ToLower())
+            string modelName = config.TtsSetting.ModelName.ToLower();
+            switch (modelName)
             {
                 case "sense-voice":
-                    services.AddKeyedSingleton<IAsr, SenseVoice>(key); break;
+                    services.AddKeyedTransient<IAsr, SenseVoice>(modelName);
+                    services.AddKeyedSingleton<IAsr, SenseVoice>(key);
+                    break;
                 case "paraformer":
-                    services.AddKeyedSingleton<IAsr, Paraformer>(key); break;
+                    services.AddKeyedTransient<IAsr, Paraformer>(modelName);
+                    services.AddKeyedSingleton<IAsr, Paraformer>(key);
+                    break;
                 default:
                     throw new ModelBuildException("Invalid asr model.");
             }
@@ -347,10 +399,13 @@ namespace XiaoZhi.Net.Server.Management
         #region Punctuation
         private static void RegisterPunctuation(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            switch (config.PunctuationSetting.ModelName.ToLower())
+            string modelName = config.TtsSetting.ModelName.ToLower();
+            switch (modelName)
             {
                 case "ct-transformer":
-                    services.AddKeyedSingleton<IPunctuation, CtTransformer>(key); break;
+                    services.AddKeyedTransient<IPunctuation, CtTransformer>(modelName);
+                    services.AddKeyedSingleton<IPunctuation, CtTransformer>(key);
+                    break;
                 default:
                     throw new ModelBuildException("Invalid punctuation model.");
             }
@@ -396,12 +451,17 @@ namespace XiaoZhi.Net.Server.Management
         #region Memory
         private static void RegisterMemory(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            switch (config.MemorySetting.ModelName.ToLower())
+            string modelName = config.TtsSetting.ModelName.ToLower();
+            switch (modelName)
             {
                 case "flash-memory":
-                    services.AddKeyedSingleton<IMemory, FlashMemory>(key); break;
+                    services.AddKeyedTransient<IMemory, FlashMemory>(modelName);
+                    services.AddKeyedSingleton<IMemory, FlashMemory>(key);
+                    break;
                 case "database":
-                    services.AddKeyedSingleton<IMemory, Database>(key); break;
+                    services.AddKeyedTransient<IMemory, Database>(modelName);
+                    services.AddKeyedSingleton<IMemory, Database>(key);
+                    break;
                 default:
                     throw new ModelBuildException("Invalid memory model.");
             }
@@ -409,28 +469,19 @@ namespace XiaoZhi.Net.Server.Management
         #endregion
 
         #region TTS
-        private ITts RegisterTts(ModelSetting ttsSetting)
-        {
-            switch (ttsSetting.ModelName.ToLower())
-            {
-                case "kokoro":
-                    Kokoro kokoro = new Kokoro(ttsSetting, this._logger);
-                    kokoro.Build();
-                    return kokoro;
-                case "huoshan-double-stream":
-                    HuoshanDoubleStream huoshanDoubleStream = new HuoshanDoubleStream(ttsSetting, this._logger);
-                    huoshanDoubleStream.Build();
-                    return huoshanDoubleStream;
-                default:
-                    throw new ModelBuildException("Invalid asr model.");
-            }
-        }
         private static void RegisterTts(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            switch (config.TtsSetting.ModelName.ToLower())
+            string modelName = config.TtsSetting.ModelName.ToLower();
+            switch (modelName)
             {
                 case "kokoro":
-                    services.AddKeyedSingleton<ITts, Kokoro>(key); break;
+                    services.AddKeyedTransient<ITts, Kokoro>(modelName);
+                    services.AddKeyedSingleton<ITts, Kokoro>(key);
+                    break;
+                case "huoshan-double-stream":
+                    services.AddKeyedTransient<ITts, HuoshanDoubleStream>(modelName);
+                    services.AddKeyedSingleton<ITts, HuoshanDoubleStream>(key);
+                    break;
                 default:
                     throw new ModelBuildException("Invalid tts model.");
             }
@@ -438,10 +489,14 @@ namespace XiaoZhi.Net.Server.Management
         #endregion
 
         #region IoT
-        public void RegisterIoT(Session session)
+        private static void RegisterIoT(IServiceCollection services)
         {
-            IIoTClient iotClient = new IoTClient(session, this._logger);
-            if (!iotClient.Build())
+            services.AddTransient<IIoTClient, IoTClient>();
+        }
+        public void BuildIoT(Session session)
+        {
+            IIoTClient iotClient = this._serviceProvider.GetRequiredService<IIoTClient>();
+            if (!iotClient.Build(session))
             {
                 this._logger.LogWarning("Session {sessionId} failed to build IoT client.", session.SessionId);
             }
@@ -453,10 +508,30 @@ namespace XiaoZhi.Net.Server.Management
         #endregion
 
         #region MCP
-        public void RegisterMCP(Session session)
+        private static void RegisterMCP(IServiceCollection services)
         {
-            IMcpClient mcpClient = new McpClient(session, this._config, this._logger);
-            if (!mcpClient.Build())
+            services.AddKeyedTransient<ISubMcpClient, DeviceMcpClient>(SubMCPClientTypeNames.DeviceMcpClient);
+            services.AddKeyedTransient<ISubMcpClient, McpEndpointClient>(SubMCPClientTypeNames.McpEndpointClient);
+            services.AddKeyedTransient<ISubMcpClient, ServerMcpClient>(SubMCPClientTypeNames.ServerMcpClient);
+            services.AddTransient<IMcpClient, McpClient>();
+        }
+        public void BuildMCP(Session session)
+        {
+            IMcpClient mcpClient = this._serviceProvider.GetRequiredService<IMcpClient>();
+
+            Dictionary<string, MCPClientBuildConfig> mcpBuildConfigs = new Dictionary<string, MCPClientBuildConfig>();
+            if (this._config.McpSettings is null || !this._config.McpSettings.Any())
+            {
+                mcpBuildConfigs.Add(SubMCPClientTypeNames.DeviceMcpClient, new MCPClientBuildConfig
+                (session, new ModelSetting()));
+            }
+            else
+            {
+                mcpBuildConfigs = this._config.McpSettings.ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => new MCPClientBuildConfig(session, kvp.Value));
+            }
+            if (!mcpClient.Build(mcpBuildConfigs))
             {
                 this._logger.LogWarning("Session {sessionId} failed to build MCP client.", session.SessionId);
             }

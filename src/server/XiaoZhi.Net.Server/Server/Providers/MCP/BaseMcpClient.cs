@@ -12,11 +12,12 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.MCP
 {
-    internal abstract class BaseMcpClient : BaseProvider, ISubMcpClient
+    internal abstract class BaseMcpClient : BaseProvider<MCPClientBuildConfig>, ISubMcpClient
     {
         private readonly SemaphoreSlim _lockerSlim = new SemaphoreSlim(1, 1);
         private readonly Action _tempMethod = () => { };
@@ -27,15 +28,9 @@ namespace XiaoZhi.Net.Server.Providers.MCP
         private IDictionary<string, KernelFunction> _mcpTools = new ConcurrentDictionary<string, KernelFunction>();
         private IDictionary<int, TaskCompletionSource<JsonObject>> _callResults = new ConcurrentDictionary<int, TaskCompletionSource<JsonObject>>();
 
-
-
-        public BaseMcpClient(Session session, ModelSetting mcpSetting, ILogger logger) : base(mcpSetting, logger)
+        public BaseMcpClient(ILogger logger) : base(logger)
         {
-            this.CurrentSession = session;
-            this.AdditionalMetadataDic = new Dictionary<string, object?>
-            {
-                { "session-id", session.SessionId }
-            };
+
         }
         public ICollection<KernelFunction> Functions => this._mcpTools.Values;
 
@@ -68,9 +63,9 @@ namespace XiaoZhi.Net.Server.Providers.MCP
         }
 
         public int NextId => Interlocked.Increment(ref this._nextId);
-
-        protected Session CurrentSession { get; }
-        protected IDictionary<string, object?> AdditionalMetadataDic { get; }
+        
+        protected Session CurrentSession { get; set; } = null!;
+        protected IDictionary<string, object?> AdditionalMetadataDic { get; set; } = null!;
 
         public async virtual Task HandleMcpMessageAsync(JsonObject payloadObj)
         {
@@ -176,7 +171,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                         {
                             this.IsReady = true;
 
-                            this.CurrentSession.Kernel.ImportPluginFromFunctions(this.ProviderType, this._mcpTools.Values);
+                            this.CurrentSession.Kernel.ImportPluginFromFunctions(this.ModelName, this._mcpTools.Values);
 
                             this.Logger.LogInformation("All tools have been obtained, MCP client is ready.");
                         }
@@ -219,7 +214,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 },
                 ClientInfo = new Implementation
                 {
-                    Name = this.ProviderType,
+                    Name = this.ModelName,
                     Version = "1.0.0"
                 }
             };
@@ -276,7 +271,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             await this.SendMCPMessageAsync(request);
         }
 
-       
+
 
         public bool HasTool(string toolName)
         {
@@ -422,6 +417,15 @@ namespace XiaoZhi.Net.Server.Providers.MCP
         protected virtual bool CleanCallResults(int id)
         {
             return this._callResults.Remove(id);
+        }
+
+        protected void InitSession(MCPClientBuildConfig config)
+        {
+            this.CurrentSession = config.Session;
+            this.AdditionalMetadataDic = new Dictionary<string, object?>
+            {
+                { "session-id", this.CurrentSession.SessionId }
+            };
         }
 
         private string SanitizeToolName(string name)

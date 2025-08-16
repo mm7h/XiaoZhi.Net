@@ -108,7 +108,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     bool isSupportMCP = mcp.GetValue<bool>();
                     if (isSupportMCP)
                     {
-                        this._providerManager.RegisterMCP(session);
+                        this._providerManager.BuildMCP(session);
                     }
                 }
             }
@@ -165,7 +165,7 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             if (!session.HasIoT)
             {
-                this._providerManager.RegisterIoT(session);
+                this._providerManager.BuildIoT(session);
             }
 
             session.IoTClient.HandleIoTMessage(jsonObject);

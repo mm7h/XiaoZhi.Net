@@ -5,7 +5,7 @@ using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers
 {
-    internal interface ILlm : IProvider
+    internal interface ILlm : IProvider<ModelSetting>
     {
         event Action<string> OnBeforeTokenGenerate;
         event Action<string, OutSegment> OnTokenGenerating;

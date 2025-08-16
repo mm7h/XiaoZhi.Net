@@ -6,16 +6,14 @@ using XiaoZhi.Net.Server.Common.Dtos;
 
 namespace XiaoZhi.Net.Server.Providers.Memory
 {
-    internal class Database : BaseProvider, IMemory
+    internal class Database : BaseProvider<ModelSetting>, IMemory
     {
-        public Database(XiaoZhiConfig config, ILogger<Database> logger) : this(config.MemorySetting, logger)
+        public Database(ILogger<Database> logger) : base(logger)
         {
         }
-        public Database(ModelSetting memorySetting, ILogger logger) : base(memorySetting, logger)
-        {
-        }
+        public override string ModelName => nameof(Database);
         public override string ProviderType => "memory";
-        public override bool Build()
+        public override bool Build(ModelSetting modelSetting)
         {
             throw new NotImplementedException();
         }

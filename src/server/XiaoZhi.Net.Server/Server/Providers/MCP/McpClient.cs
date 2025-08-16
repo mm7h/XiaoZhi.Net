@@ -1,27 +1,25 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using XiaoZhi.Net.Server.Common.Constants;
-using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Providers.MCP.DeviceMcp;
-using XiaoZhi.Net.Server.Providers.MCP.McpEndpoint;
-using XiaoZhi.Net.Server.Providers.MCP.ServerMcp;
+using XiaoZhi.Net.Server.Common.Dtos;
 
 namespace XiaoZhi.Net.Server.Providers.MCP
 {
-    internal class McpClient : BaseProvider, IMcpClient
+    internal class McpClient : BaseProvider<Dictionary<string, MCPClientBuildConfig>>, IMcpClient
     {
         private readonly Dictionary<string, ISubMcpClient> _subMcpClients = new Dictionary<string, ISubMcpClient>();
 
-        private readonly Session _currentSession;
-        private readonly XiaoZhiConfig _config;
+        private readonly IServiceProvider _serviceProvider;
 
+        public override string ModelName => nameof(McpClient);
         public override string ProviderType => "McpClient";
 
-        public McpClient(Session session, XiaoZhiConfig config, ILogger logger) : base(logger)
+        public McpClient(IServiceProvider serviceProvider, ILogger logger) : base(logger)
         {
-            this._currentSession = session;
-            this._config = config;
+            this._serviceProvider = serviceProvider;
         }
 
         public IDictionary<string, ISubMcpClient> GetAllSubMcpClients() => this._subMcpClients;
@@ -39,69 +37,34 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             }
         }
 
-        public override bool Build()
+        public override bool Build(Dictionary<string, MCPClientBuildConfig> mcpSettings)
         {
-            if (this._config.McpSettings is null)
-            {
-                return true;
-            }
             ModelSetting defaultSetting = new ModelSetting();
 
             // DeviceMcpClient
-            if (this._config.McpSettings.TryGetValue(SubMCPClientTypeNames.DeviceMcpClient, out var deviceSetting))
+            ISubMcpClient deviceMcpClient = this._serviceProvider.GetRequiredKeyedService<ISubMcpClient>(SubMCPClientTypeNames.DeviceMcpClient);
+            this._subMcpClients.Add(SubMCPClientTypeNames.DeviceMcpClient, deviceMcpClient);
+            
+            // McpEndpointClient
+            if (mcpSettings.ContainsKey(SubMCPClientTypeNames.McpEndpointClient))
             {
-                ISubMcpClient deviceMcpClient = new DeviceMcpClient(this._currentSession, deviceSetting, this.Logger);
-                this._subMcpClients.Add(SubMCPClientTypeNames.DeviceMcpClient, deviceMcpClient);
-            }
-            else
-            {
-                ModelSetting defaultDeviceMcpSetting = new ModelSetting
-                {
-                    ModelName = SubMCPClientTypeNames.DeviceMcpClient
-                };
-                ISubMcpClient deviceMcpClient = new DeviceMcpClient(this._currentSession, defaultDeviceMcpSetting, this.Logger);
-                this._subMcpClients.Add(SubMCPClientTypeNames.DeviceMcpClient, deviceMcpClient);
-            }
-
-            // McpEndpointClient and ServerMcpClient
-            if (this._config.McpSettings.TryGetValue(SubMCPClientTypeNames.McpEndpointClient, out var endPointSetting))
-            {
-                ISubMcpClient mcpEndpointClient = new McpEndpointClient(this._currentSession, endPointSetting, this.Logger);
-                this._subMcpClients.Add(SubMCPClientTypeNames.McpEndpointClient, mcpEndpointClient);
+                ISubMcpClient mcpEndpointClient = this._serviceProvider.GetRequiredKeyedService<ISubMcpClient>(SubMCPClientTypeNames.McpEndpointClient);
+                this._subMcpClients.Add(SubMCPClientTypeNames.McpEndpointClient, deviceMcpClient);
             }
 
             // ServerMcpClient
-            if (this._config.McpSettings.TryGetValue(SubMCPClientTypeNames.ServerMcpClient, out var serverMCPSetting))
+            if (mcpSettings.ContainsKey(SubMCPClientTypeNames.ServerMcpClient))
             {
-                ISubMcpClient serverMcpClient = new ServerMcpClient(this._currentSession, serverMCPSetting, this.Logger);
+                ISubMcpClient serverMcpClient = this._serviceProvider.GetRequiredKeyedService<ISubMcpClient>(SubMCPClientTypeNames.ServerMcpClient);
                 this._subMcpClients.Add(SubMCPClientTypeNames.ServerMcpClient, serverMcpClient);
             }
 
-            if (this._subMcpClients.Any())
-            {
-                var buildResults = this._subMcpClients.Values
+            var buildResults = this._subMcpClients.Values
                 .AsParallel()
-                .Select(client => client.Build())
+                .Select(client => client.Build(mcpSettings[client.ModelName]))
                 .ToArray();
 
-                return buildResults.All(result => result);
-
-                //foreach (var subMcpClient in this._subMcpClients.Values)
-                //{
-                //    if (!subMcpClient.Build())
-                //    {
-                //        this.Logger.LogError("Failed to build the MCP client: {clientType}.", subMcpClient.ProviderType);
-                //        return false;
-                //    }
-                //}
-
-                //return true;
-            }
-            else
-            {
-                this.Logger.LogWarning("No mcp client builed for the Session {sessionId}.", this._currentSession.SessionId);
-                return false;
-            }
+            return buildResults.All(result => result);
         }
 
         public override void Dispose()

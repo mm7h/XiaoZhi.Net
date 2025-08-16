@@ -2,33 +2,39 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Dtos;
 
 namespace XiaoZhi.Net.Server.Providers.AudioCodec
 {
-    internal class DefaultResampler : BaseProvider, IAudioResampler
+    internal class DefaultResampler : BaseProvider<ResamplerBuildConfig>, IAudioResampler
     {
         private IResampler? _resampler;
         private SemaphoreSlim _resamplerSemaphoreSlim = new SemaphoreSlim(1, 1);
 
-        public DefaultResampler(int channels, int inSampleRate, int outSampleRate, ILogger logger) : base(logger)
+        public DefaultResampler(ILogger logger) : base(logger)
         {
-            this.Channels = channels;
-            this.InSampleRate = inSampleRate;
-            this.OutSampleRate = outSampleRate;
         }
 
-        public int Channels { get; }
-        public int InSampleRate { get; }
-        public int OutSampleRate { get; }
+        public int Channels { get; private set; }
+        public int InSampleRate { get; private set; }
+        public int OutSampleRate { get; private set; }
 
+        public override string ModelName => "Resampler";
         public override string ProviderType => "default audio resampler";
-        public override bool Build()
+
+        [MemberNotNullWhen(true, nameof(Channels), nameof(InSampleRate), nameof(OutSampleRate))]
+        public override bool Build(ResamplerBuildConfig config)
         {
             try
             {
-                this._resampler = ResamplerFactory.CreateResampler(this.Channels, this.InSampleRate, this.OutSampleRate, 6);
+                this.Channels = config.Channels;
+                this.InSampleRate = config.InSampleRate;
+                this.OutSampleRate = config.OutSampleRate;
+
+                this._resampler = ResamplerFactory.CreateResampler(config.Channels, config.InSampleRate, config.OutSampleRate, 6);
 
                 this.Logger.LogInformation("Built the default {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return true;
