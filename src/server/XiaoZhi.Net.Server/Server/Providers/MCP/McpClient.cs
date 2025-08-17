@@ -8,7 +8,7 @@ using XiaoZhi.Net.Server.Common.Dtos;
 
 namespace XiaoZhi.Net.Server.Providers.MCP
 {
-    internal class McpClient : BaseProvider<Dictionary<string, MCPClientBuildConfig>>, IMcpClient
+    internal class McpClient : BaseProvider<McpClient, Dictionary<string, MCPClientBuildConfig>>, IMcpClient
     {
         private readonly Dictionary<string, ISubMcpClient> _subMcpClients = new Dictionary<string, ISubMcpClient>();
 
@@ -17,7 +17,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
         public override string ModelName => nameof(McpClient);
         public override string ProviderType => "McpClient";
 
-        public McpClient(IServiceProvider serviceProvider, ILogger logger) : base(logger)
+        public McpClient(IServiceProvider serviceProvider, ILogger<McpClient> logger) : base(logger)
         {
             this._serviceProvider = serviceProvider;
         }
@@ -44,7 +44,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             // DeviceMcpClient
             ISubMcpClient deviceMcpClient = this._serviceProvider.GetRequiredKeyedService<ISubMcpClient>(SubMCPClientTypeNames.DeviceMcpClient);
             this._subMcpClients.Add(SubMCPClientTypeNames.DeviceMcpClient, deviceMcpClient);
-            
+
             // McpEndpointClient
             if (mcpSettings.ContainsKey(SubMCPClientTypeNames.McpEndpointClient))
             {

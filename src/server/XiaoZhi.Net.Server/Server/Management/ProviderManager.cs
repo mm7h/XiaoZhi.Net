@@ -49,14 +49,14 @@ namespace XiaoZhi.Net.Server.Management
         {
             return builder.ConfigureServices((context, services) =>
             {
-                services.AddKeyedSingleton<IAudioDecoder, DefaultOpusDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER);
+                RegisterAudioDecoder(services, GlobalProviderNames.GLOBAL_AUDIO_DECODER);
                 RegisterVad(services, config, GlobalProviderNames.GLOBAL_VAD);
                 RegisterAsr(services, config, GlobalProviderNames.GLOBAL_ASR);
                 RegisterPunctuation(services, config, GlobalProviderNames.GLOBAL_PUNCTUATION);
                 RegisterLlm(services, config, GlobalProviderNames.GLOBAL_LLM);
                 RegisterMemory(services, config, GlobalProviderNames.GLOBAL_MEMORY);
                 RegisterTts(services, config, GlobalProviderNames.GLOBAL_TTS);
-                services.AddKeyedSingleton<IAudioEncoder, DefaultOpusEncoder>(GlobalProviderNames.GLOBAL_AUDIO_ENCODER);
+                RegisterAudioEncoder(services, GlobalProviderNames.GLOBAL_AUDIO_ENCODER);
 
                 RegisterAudioResampler(services);
                 RegisterIoT(services);
@@ -311,6 +311,14 @@ namespace XiaoZhi.Net.Server.Management
 
         #region Register providers
 
+        #region AudioDecoder
+        private static void RegisterAudioDecoder(IServiceCollection services, string key)
+        {
+            services.AddTransient<IAudioDecoder, DefaultOpusDecoder>();
+            services.AddKeyedSingleton<IAudioDecoder, DefaultOpusDecoder>(key);
+        }
+        #endregion
+
         #region AudioResampler
         private static void RegisterAudioResampler(IServiceCollection services)
         {
@@ -358,10 +366,18 @@ namespace XiaoZhi.Net.Server.Management
         }
         #endregion
 
+        #region AudioEncoder
+        private static void RegisterAudioEncoder(IServiceCollection services, string key)
+        {
+            services.AddTransient<IAudioEncoder, DefaultOpusEncoder>();
+            services.AddKeyedSingleton<IAudioEncoder, DefaultOpusEncoder>(key);
+        }
+        #endregion
+
         #region VAD
         private static void RegisterVad(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            string modelName = config.TtsSetting.ModelName.ToLower();
+            string modelName = config.VadSetting.ModelName.ToLower();
             switch (modelName)
             {
                 case "silero":
@@ -381,7 +397,7 @@ namespace XiaoZhi.Net.Server.Management
         #region ASR
         private static void RegisterAsr(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            string modelName = config.TtsSetting.ModelName.ToLower();
+            string modelName = config.AsrSetting.ModelName.ToLower();
             switch (modelName)
             {
                 case "sense-voice":
@@ -401,7 +417,7 @@ namespace XiaoZhi.Net.Server.Management
         #region Punctuation
         private static void RegisterPunctuation(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            string modelName = config.TtsSetting.ModelName.ToLower();
+            string modelName = config.PunctuationSetting.ModelName.ToLower();
             switch (modelName)
             {
                 case "ct-transformer":
@@ -453,7 +469,7 @@ namespace XiaoZhi.Net.Server.Management
         #region Memory
         private static void RegisterMemory(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            string modelName = config.TtsSetting.ModelName.ToLower();
+            string modelName = config.MemorySetting.ModelName.ToLower();
             switch (modelName)
             {
                 case "flash-memory":

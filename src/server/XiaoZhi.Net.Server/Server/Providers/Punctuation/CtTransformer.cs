@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 
 namespace XiaoZhi.Net.Server.Providers.Punctuation
 {
-    internal class CtTransformer : BaseProvider<ModelSetting>, IPunctuation
+    internal class CtTransformer : BaseProvider<CtTransformer, ModelSetting>, IPunctuation
     {
         private OfflinePunctuation? _offlinePunctuation;
         private readonly SemaphoreSlim _punctuationConvertSlim = new SemaphoreSlim(1, 1);
-        public CtTransformer(ILogger logger) : base(logger)
+        public CtTransformer(ILogger<CtTransformer> logger) : base(logger)
         {
         }
         public override string ModelName => nameof(CtTransformer);

@@ -6,10 +6,10 @@ using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.TTS
 {
-    internal class HuoshanDoubleStream : BaseProvider<ModelSetting>, ITts
+    internal class HuoshanDoubleStream : BaseProvider<HuoshanDoubleStream, ModelSetting>, ITts
     {
 
-        public HuoshanDoubleStream(ILogger logger) : base(logger)
+        public HuoshanDoubleStream(ILogger<HuoshanDoubleStream> logger) : base(logger)
         {
         }
 

@@ -9,16 +9,16 @@ using XiaoZhi.Net.Server.Common.Dtos;
 
 namespace XiaoZhi.Net.Server.Providers.MCP.ServerMcp
 {
-    internal class ServerMcpClient : BaseMcpClient, ISubMcpClient
+    internal class ServerMcpClient : BaseMcpClient<ServerMcpClient>, ISubMcpClient
     {
         private ModelContextProtocol.Client.IMcpClient? _mcpClient;
 
-        public ServerMcpClient(ILogger logger) : base(logger)
+        public ServerMcpClient(ILogger<ServerMcpClient> logger) : base(logger)
         {
         }
 
         public override string ModelName => SubMCPClientTypeNames.DeviceMcpClient;
-        public override string ProviderType => "mcp client";
+        public override string ProviderType => "SubMcpClient";
 
         public override bool Build(MCPClientBuildConfig config)
         {

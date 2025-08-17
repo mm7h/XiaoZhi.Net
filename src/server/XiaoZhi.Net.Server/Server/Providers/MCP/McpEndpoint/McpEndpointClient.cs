@@ -10,17 +10,17 @@ using XiaoZhi.Net.Server.Protocol.WebSocket;
 
 namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
 {
-    internal class McpEndpointClient : BaseMcpClient, ISubMcpClient
+    internal class McpEndpointClient : BaseMcpClient<McpEndpointClient>, ISubMcpClient
     {
         private string? _endpointUrl;
         private WebSocketClient? _webSocketClient;
 
-        public McpEndpointClient(ILogger logger) : base(logger)
+        public McpEndpointClient(ILogger<McpEndpointClient> logger) : base(logger)
         {
         }
 
         public override string ModelName => SubMCPClientTypeNames.DeviceMcpClient;
-        public override string ProviderType => "mcp client";
+        public override string ProviderType => "SubMcpClient";
 
         public override bool Build(MCPClientBuildConfig config)
         {

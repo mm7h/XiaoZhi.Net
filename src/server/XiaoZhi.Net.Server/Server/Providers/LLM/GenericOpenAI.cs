@@ -17,13 +17,13 @@ using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
 {
-    internal sealed class GenericOpenAI : BaseProvider<ModelSetting>, ILlm
+    internal sealed class GenericOpenAI : BaseProvider<GenericOpenAI, ModelSetting>, ILlm
     {
         private readonly SemaphoreSlim _llmSlim = new SemaphoreSlim(1, 1);
         private readonly IServiceProvider _serviceProvider;
         private OpenAIPromptExecutionSettings _chatCompletionOptions;
 
-        public GenericOpenAI(IServiceProvider serviceProvider, ILogger logger) : base(logger)
+        public GenericOpenAI(IServiceProvider serviceProvider, ILogger<GenericOpenAI> logger) : base(logger)
         {
             this._serviceProvider = serviceProvider;
             this._chatCompletionOptions = new OpenAIPromptExecutionSettings

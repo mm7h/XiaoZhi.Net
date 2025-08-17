@@ -7,7 +7,7 @@ using XiaoZhi.Net.Server.Store;
 
 namespace XiaoZhi.Net.Server.Providers.Memory
 {
-    internal sealed class FlashMemory : BaseProvider<ModelSetting>, IMemory
+    internal sealed class FlashMemory : BaseProvider<FlashMemory, ModelSetting>, IMemory
     {
         private readonly IStore _store;
         public FlashMemory(ILogger<FlashMemory> logger) : base(logger)

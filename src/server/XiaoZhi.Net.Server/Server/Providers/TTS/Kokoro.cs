@@ -9,7 +9,7 @@ using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.TTS
 {
-    internal sealed class Kokoro : BaseProvider<ModelSetting>, ITts
+    internal sealed class Kokoro : BaseProvider<Kokoro, ModelSetting>, ITts
     {
         private OfflineTts? _offlineTts;
         private const float SPEAK_SPPED = 1.0f;

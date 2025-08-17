@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace XiaoZhi.Net.Server.Providers.AudioCodec
 {
-    internal class DefaultOpusEncoder : BaseProvider<AudioSetting>, IAudioEncoder
+    internal class DefaultOpusEncoder : BaseProvider<DefaultOpusEncoder, AudioSetting>, IAudioEncoder
     {
 
         private IOpusEncoder? _encoder;
@@ -21,7 +21,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
         public int FrameDuration { get; private set; }
         public int FrameSize { get; private set; }
         public DefaultOpusEncoder(ILogger<DefaultOpusEncoder> logger) : base(logger)
-        {}
+        { }
 
         [MemberNotNullWhen(true, nameof(SampleRate), nameof(Channels), nameof(FrameDuration), nameof(FrameSize))]
         public override bool Build(AudioSetting audioSetting)

@@ -10,7 +10,6 @@ using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Management;
-using XiaoZhi.Net.Server.Server.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
 {

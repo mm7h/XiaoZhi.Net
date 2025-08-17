@@ -17,7 +17,7 @@ using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.MCP
 {
-    internal abstract class BaseMcpClient : BaseProvider<MCPClientBuildConfig>, ISubMcpClient
+    internal abstract class BaseMcpClient<TLogger> : BaseProvider<TLogger, MCPClientBuildConfig>, ISubMcpClient
     {
         private readonly SemaphoreSlim _lockerSlim = new SemaphoreSlim(1, 1);
         private readonly Action _tempMethod = () => { };
@@ -28,7 +28,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
         private IDictionary<string, KernelFunction> _mcpTools = new ConcurrentDictionary<string, KernelFunction>();
         private IDictionary<int, TaskCompletionSource<JsonObject>> _callResults = new ConcurrentDictionary<int, TaskCompletionSource<JsonObject>>();
 
-        public BaseMcpClient(ILogger logger) : base(logger)
+        public BaseMcpClient(ILogger<TLogger> logger) : base(logger)
         {
 
         }
@@ -63,7 +63,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
         }
 
         public int NextId => Interlocked.Increment(ref this._nextId);
-        
+
         protected Session CurrentSession { get; set; } = null!;
         protected IDictionary<string, object?> AdditionalMetadataDic { get; set; } = null!;
 

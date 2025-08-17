@@ -6,7 +6,7 @@ using XiaoZhi.Net.Server.Common.Dtos;
 
 namespace XiaoZhi.Net.Server.Providers.Memory
 {
-    internal class Database : BaseProvider<ModelSetting>, IMemory
+    internal class Database : BaseProvider<Database, ModelSetting>, IMemory
     {
         public Database(ILogger<Database> logger) : base(logger)
         {

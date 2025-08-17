@@ -8,7 +8,7 @@ using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.ASR
 {
-    internal class Paraformer : BaseProvider<ModelSetting>, IAsr
+    internal class Paraformer : BaseProvider<Paraformer, ModelSetting>, IAsr
     {
         private readonly SemaphoreSlim _asrConvertSlim = new SemaphoreSlim(1, 1);
         private OfflineRecognizer? _offlineRecognizer;

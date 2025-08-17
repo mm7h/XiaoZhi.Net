@@ -9,7 +9,7 @@ using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.VAD
 {
-    internal class Silero : BaseProvider<ModelSetting>, IVad
+    internal class Silero : BaseProvider<Silero, ModelSetting>, IVad
     {
 
         private VoiceActivityDetector? _vad;
@@ -21,7 +21,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD
         private readonly SemaphoreSlim _vadConvertSlim = new SemaphoreSlim(1, 1);
 
 
-        public Silero(ILogger logger) : base(logger)
+        public Silero(ILogger<Silero> logger) : base(logger)
         {
         }
 

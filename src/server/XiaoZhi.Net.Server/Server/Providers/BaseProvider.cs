@@ -5,18 +5,18 @@ using System.Text.RegularExpressions;
 
 namespace XiaoZhi.Net.Server.Providers
 {
-    internal abstract class BaseProvider<TSettings> : IProvider<TSettings> where TSettings : class
+    internal abstract class BaseProvider<TLogger, TSettings> : IProvider<TSettings> where TSettings : class
     {
-        public BaseProvider(ILogger logger)
+        public BaseProvider(ILogger<TLogger> logger)
         {
             this.Logger = logger;
         }
 
         public abstract string ProviderType { get; }
         public abstract string ModelName { get; }
-        protected string ModelFileFoler => Path.Combine(Environment.CurrentDirectory, "models", this.ProviderType, this.ModelName);
+        protected string ModelFileFoler => Path.Combine(Environment.CurrentDirectory, "models", this.ProviderType, this.ConvertToKebabCase(this.ModelName));
 
-        protected ILogger Logger { get; }
+        protected ILogger<TLogger> Logger { get; }
 
         public abstract bool Build(TSettings settings);
         public abstract void Dispose();
@@ -40,6 +40,14 @@ namespace XiaoZhi.Net.Server.Providers
             }
 
             return Regex.Replace(deviceId, @"[^a-fA-F0-9]", newDelimiter);
+        }
+
+        private string ConvertToKebabCase(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return input;
+
+            return Regex.Replace(input, "(?<!^)([A-Z])", "-$1").ToLower();
         }
     }
 }

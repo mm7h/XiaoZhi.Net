@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace XiaoZhi.Net.Server.Providers.AudioCodec
 {
-    internal sealed class DefaultOpusDecoder : BaseProvider<AudioSetting>, IAudioDecoder
+    internal sealed class DefaultOpusDecoder : BaseProvider<DefaultOpusDecoder, AudioSetting>, IAudioDecoder
     {
 
         private IOpusDecoder? _decoder;

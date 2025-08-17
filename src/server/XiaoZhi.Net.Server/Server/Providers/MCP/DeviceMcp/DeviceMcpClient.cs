@@ -8,17 +8,17 @@ using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
 {
-    internal class DeviceMcpClient : BaseMcpClient
+    internal class DeviceMcpClient : BaseMcpClient<DeviceMcpClient>, ISubMcpClient
     {
         private string? _visionUrl;
         private string? _visionToken;
 
-        public DeviceMcpClient(ILogger logger) : base(logger)
+        public DeviceMcpClient(ILogger<DeviceMcpClient> logger) : base(logger)
         {
         }
 
         public override string ModelName => SubMCPClientTypeNames.DeviceMcpClient;
-        public override string ProviderType => "mcp client";
+        public override string ProviderType => "SubMcpClient";
 
         public override bool Build(MCPClientBuildConfig config)
         {

@@ -9,12 +9,12 @@ using XiaoZhi.Net.Server.Common.Dtos;
 
 namespace XiaoZhi.Net.Server.Providers.AudioCodec
 {
-    internal class DefaultResampler : BaseProvider<ResamplerBuildConfig>, IAudioResampler
+    internal class DefaultResampler : BaseProvider<DefaultResampler, ResamplerBuildConfig>, IAudioResampler
     {
         private IResampler? _resampler;
         private SemaphoreSlim _resamplerSemaphoreSlim = new SemaphoreSlim(1, 1);
 
-        public DefaultResampler(ILogger logger) : base(logger)
+        public DefaultResampler(ILogger<DefaultResampler> logger) : base(logger)
         {
         }
 

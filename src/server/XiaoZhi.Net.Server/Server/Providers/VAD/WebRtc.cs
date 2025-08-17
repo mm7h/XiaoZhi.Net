@@ -11,7 +11,7 @@ using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.VAD
 {
-    internal class WebRtc : BaseProvider<ModelSetting>, IVad
+    internal class WebRtc : BaseProvider<WebRtc, ModelSetting>, IVad
     {
         private WebRtcVad? _vad;
         private SampleRate _sampleRate;
@@ -19,7 +19,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD
 
         private readonly SemaphoreSlim _vadConvertSlim = new SemaphoreSlim(1, 1);
 
-        public WebRtc(ILogger logger) : base(logger)
+        public WebRtc(ILogger<WebRtc> logger) : base(logger)
         {
         }
 

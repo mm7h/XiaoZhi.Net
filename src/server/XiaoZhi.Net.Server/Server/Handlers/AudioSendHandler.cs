@@ -12,7 +12,6 @@ using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Protocol;
 using XiaoZhi.Net.Server.Providers;
-using XiaoZhi.Net.Server.Server.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Handlers
 {

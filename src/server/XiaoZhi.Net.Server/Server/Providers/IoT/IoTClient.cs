@@ -15,7 +15,7 @@ using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.IoT
 {
-    internal class IoTClient : BaseProvider<Session>, IIoTClient
+    internal class IoTClient : BaseProvider<IoTClient, Session>, IIoTClient
     {
         private readonly Action _tempMethod = () => { };
         private readonly IList<IoTProperty> _iotProperties;
@@ -28,7 +28,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
         public Session CurrentSession { get; private set; } = null!;
 
         public override string ModelName => SubMCPClientTypeNames.DeviceIoTClient;
-        public override string ProviderType => "iot client";
+        public override string ProviderType => "IoTClient";
 
 
         [MemberNotNullWhen(true, nameof(CurrentSession))]
