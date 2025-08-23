@@ -157,16 +157,16 @@ namespace XiaoZhi.Net.Server.Management
                 privateKernel.Data.Add("session", session);
 
                 #region Global plugins init
-                #region PlayMusic
+                #region LocalMusicPlayer
                 IMusicProvider? musicProvider = this._serviceProvider.GetService<IMusicProvider>();
-                PlayMusic playMusicPlugin = this._serviceProvider.GetRequiredService<PlayMusic>();
+                LocalMusicPlayer musicPlayerPlugin = this._serviceProvider.GetRequiredService<LocalMusicPlayer>();
 
                 LLMPluginConfig<IMusicProvider?> llmPluginConfig = new LLMPluginConfig<IMusicProvider?>(session, musicProvider);
 
-                if (playMusicPlugin.Build(llmPluginConfig))
+                if (musicPlayerPlugin.Build(llmPluginConfig))
                 {
-                    string pluginName = playMusicPlugin.ModelName;
-                    privateKernel.ImportPluginFromObject(playMusicPlugin, pluginName);
+                    string pluginName = musicPlayerPlugin.ModelName;
+                    privateKernel.ImportPluginFromObject(musicPlayerPlugin, pluginName);
                     this._logger.LogInformation("LLM plugin {pluginName} initialized for device: {deviceId} with session: {sessionId}.", pluginName, session.DeviceId, session.SessionId);
                 } 
                 #endregion
@@ -484,7 +484,7 @@ namespace XiaoZhi.Net.Server.Management
         #region LLMPlugins
         private static void RegisterLLMPlugins(IServiceCollection services)
         {
-            services.AddTransient<PlayMusic>();
+            services.AddTransient<LocalMusicPlayer>();
         }
         #endregion
 

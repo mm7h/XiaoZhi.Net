@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace XiaoZhi.Net.Server
 {
@@ -8,6 +9,6 @@ namespace XiaoZhi.Net.Server
         /// 获取本地音乐文件路径列表
         /// </summary>
         /// <returns>文件名，文件路径</returns>
-        IReadOnlyDictionary<string, string> GetLocalMusicFiles();
+        Task<IReadOnlyDictionary<string, string>> GetLocalMusicFilesAsync();
     }
 }

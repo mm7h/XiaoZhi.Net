@@ -70,11 +70,6 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
 
                 foreach (string file in files)
                 {
-                    if (string.IsNullOrWhiteSpace(file) || !File.Exists(file))
-                    {
-                        this.Logger.LogWarning("Invalid audio file path: {filePath}.", file);
-                        continue;
-                    }
                     await this._processingChannel.Writer.WriteAsync(file);
                 }
             }
