@@ -29,7 +29,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._disposableHandlers = new List<IDisposable>(5);
         }
 
-        public void InitHandlerPipeline(IServiceProvider serviceProvider, ILogger logger)
+        public async Task InitHandlerPipelineAsync(IServiceProvider serviceProvider, ILogger logger)
         {
             this._logger = logger;
 
@@ -52,10 +52,10 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.InitializeSendOutter(this._audioSendHandler);
             this.InitializeSendOutter(this._playAudioFileHandler);
 
-            this.BuildHandlersWorkflow(this._audioReceiveHandler, this._audio2TextHandler);
-            this.BuildHandlersWorkflow(this._textHandler, this._audio2TextHandler, this._dialogueHandler);
-            this.BuildHandlersWorkflow(this._dialogueHandler, this._text2AudioHandler);
-            this.BuildHandlersWorkflow(this._text2AudioHandler, this._audioSendHandler);
+            await this.BuildHandlersWorkflow(this._audioReceiveHandler, this._audio2TextHandler);
+            await this.BuildHandlersWorkflow(this._textHandler, this._audio2TextHandler, this._dialogueHandler);
+            await this.BuildHandlersWorkflow(this._dialogueHandler, this._text2AudioHandler);
+            await this.BuildHandlersWorkflow(this._text2AudioHandler, this._audioSendHandler);
 
             this.ScheduleOnAbort(this._textHandler);
             this.ScheduleOnAbort(this._audioReceiveHandler);
@@ -154,7 +154,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             outHandler.SendOutter = this._currentSession.SendOutter;
         }
 
-        private void BuildHandlersWorkflow<T>(IOutHandler<T> previous, IInHandler<T> next)
+        private async Task BuildHandlersWorkflow<T>(IOutHandler<T> previous, IInHandler<T> next)
         {
 #if DEBUG
             int capacity = 100;
@@ -171,11 +171,11 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             previous.NextWriter = channel.Writer;
             next.PreviousReader = channel.Reader;
 
-            Task.Factory.StartNew(next.Handle, TaskCreationOptions.LongRunning).ConfigureAwait(false);
+            await Task.Factory.StartNew(next.Handle, TaskCreationOptions.LongRunning);
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
         }
 
-        private void BuildHandlersWorkflow<T>(IOutHandler<T> previous1, IOutHandler<T> previous2, IInHandler<T, T> next)
+        private async Task BuildHandlersWorkflow<T>(IOutHandler<T> previous1, IOutHandler<T> previous2, IInHandler<T, T> next)
         {
 #if DEBUG
             int capacity = 100;
@@ -191,12 +191,12 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             Channel<Workflow<T>> channel1 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous1.NextWriter = channel1.Writer;
             next.PreviousReader1 = channel1.Reader;
-            Task.Factory.StartNew(async () => await next.Handle1(), TaskCreationOptions.LongRunning).ConfigureAwait(false);
+            await Task.Factory.StartNew(async () => await next.Handle1(), TaskCreationOptions.LongRunning);
 
             Channel<Workflow<T>> channel2 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous2.NextWriter = channel2.Writer;
             next.PreviousReader2 = channel2.Reader;
-            Task.Factory.StartNew(async () => await next.Handle2(), TaskCreationOptions.LongRunning).ConfigureAwait(false);
+            await Task.Factory.StartNew(async () => await next.Handle2(), TaskCreationOptions.LongRunning);
 
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous1.GetType().Name, next.GetType().Name);
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous2.GetType().Name, next.GetType().Name);

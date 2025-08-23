@@ -15,7 +15,7 @@ namespace XiaoZhi.Net.Server.Handlers
 {
     internal class PlayAudioFileHandler : BaseHandler, IHandler
     {
-        public PlayAudioFileHandler(XiaoZhiConfig config, ILogger logger) : base(config, logger)
+        public PlayAudioFileHandler(XiaoZhiConfig config, ILogger<PlayAudioFileHandler> logger) : base(config, logger)
         {
         }
 

@@ -132,10 +132,11 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
             IPEndPoint userEndPoint = (this.RemoteEndPoint as IPEndPoint)!;
 
             Session session = new Session(this.SessionId, deviceId, token, userEndPoint, this);
-            session.HandlerPipeline.InitHandlerPipeline(this.Server.ServiceProvider, this.Logger);
-            session.RefreshLastActivityTime();
 
-            await this._providerManager.InitializePrivateConfig(session).ConfigureAwait(false);
+            await this._providerManager.InitializePrivateConfig(session);
+            await session.HandlerPipeline.InitHandlerPipelineAsync(this.Server.ServiceProvider, this.Logger);
+
+            session.RefreshLastActivityTime();
 
             this.XiaoZhiSession = session;
         }

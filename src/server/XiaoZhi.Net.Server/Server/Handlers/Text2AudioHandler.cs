@@ -13,6 +13,8 @@ namespace XiaoZhi.Net.Server.Handlers
     internal sealed class Text2AudioHandler : BaseHandler, IInHandler<OutSegment>, IOutHandler<OutAudioSegment>
     {
         private readonly ITts _tts;
+        private bool _privateTTSInitialized = false;
+
         public Text2AudioHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_TTS)] ITts tts, XiaoZhiConfig config, ILogger<Text2AudioHandler> logger) : base(config, logger)
         {
             this._tts = tts;
@@ -48,6 +50,12 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 if (session.PrivateProvider is not null && session.PrivateProvider.Tts is not null)
                 {
+                    if (!this._privateTTSInitialized)
+                    {
+                        session.PrivateProvider.Tts.OnBeforeProcessing += this.TTS_OnBeforeProcessing;
+                        session.PrivateProvider.Tts.OnProcessed += this.TTS_OnProcessed;
+                        this._privateTTSInitialized = true;
+                    }
                     await session.PrivateProvider.Tts.SynthesisAsync(workflow, session, session.SessionCtsToken);
                 }
                 else
@@ -65,6 +73,12 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             this._tts.OnBeforeProcessing -= this.TTS_OnBeforeProcessing;
             this._tts.OnProcessed -= this.TTS_OnProcessed;
+            Session session = this.SendOutter.GetSession();
+            if (session is not null && session.PrivateProvider is not null && session.PrivateProvider.Tts is not null && this._privateTTSInitialized)
+            {
+                session.PrivateProvider.Tts.OnBeforeProcessing -= this.TTS_OnBeforeProcessing;
+                session.PrivateProvider.Tts.OnProcessed -= this.TTS_OnProcessed;
+            }
             this.NextWriter.Complete();
         }
 

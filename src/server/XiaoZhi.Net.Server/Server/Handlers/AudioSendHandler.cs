@@ -109,7 +109,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 if (outAudioSegment.IsLast)
                 {
                     await this.SendOutter.SendTtsMessageAsync(TtsStatus.Stop);
-                    await this.SendOutter.SendLlmMessageAsync(Emotion.Confident);
+                    await this.SendOutter.SendLlmMessageAsync(Emotion.Cool);
                 }
 
                 if (session.CloseAfterChat)
