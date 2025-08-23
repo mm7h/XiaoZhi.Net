@@ -61,6 +61,7 @@ namespace XiaoZhi.Net.Server.Management
                 RegisterAudioResampler(services);
                 RegisterIoT(services);
                 RegisterMCP(services);
+                RegisterLLMPlugins(services);
 
                 services.AddSingleton<ProviderManager>();
             });
@@ -155,8 +156,22 @@ namespace XiaoZhi.Net.Server.Management
                 Kernel privateKernel = this._globalKernel.Clone();
                 privateKernel.Data.Add("session", session);
 
+                #region Global plugins init
+                #region PlayMusic
                 IMusicProvider? musicProvider = this._serviceProvider.GetService<IMusicProvider>();
-                privateKernel.ImportPluginFromObject(new PlayMusic(session, musicProvider), nameof(PlayMusic));
+                PlayMusic playMusicPlugin = this._serviceProvider.GetRequiredService<PlayMusic>();
+
+                LLMPluginConfig<IMusicProvider?> llmPluginConfig = new LLMPluginConfig<IMusicProvider?>(session, musicProvider);
+
+                if (playMusicPlugin.Build(llmPluginConfig))
+                {
+                    string pluginName = playMusicPlugin.ModelName;
+                    privateKernel.ImportPluginFromObject(playMusicPlugin, pluginName);
+                    this._logger.LogInformation("LLM plugin {pluginName} initialized for device: {deviceId} with session: {sessionId}.", pluginName, session.DeviceId, session.SessionId);
+                } 
+                #endregion
+
+                #endregion
 
                 session.SetKernel(privateKernel);
 
@@ -463,6 +478,13 @@ namespace XiaoZhi.Net.Server.Management
 
 
             services.AddKeyedSingleton<ILlm, GenericOpenAI>(key);
+        }
+        #endregion
+
+        #region LLMPlugins
+        private static void RegisterLLMPlugins(IServiceCollection services)
+        {
+            services.AddTransient<PlayMusic>();
         }
         #endregion
 

@@ -62,6 +62,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public IIoTClient IoTClient => this._iotClient ?? throw new InvalidOperationException("IoTClient is not set. Please set the iot client before using the session.");
         [DisallowNull]
         public IMcpClient McpClient => this._mcpClient ?? throw new InvalidOperationException("MCPClient is not set. Please set the mcp client before using the session.");
+        public IAudioPlayer? AudioPlayer { get; private set; }
         public bool CloseAfterChat { get; set; }
 
         public bool IsIdle => Interlocked.Read(ref _isAudioProcessing) == 1;
@@ -88,6 +89,11 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public void SetMcpClient(IMcpClient mcpClient)
         {
             this._mcpClient = mcpClient;
+        }
+
+        public void SetAudioPlayer(IAudioPlayer audioPlayer)
+        {
+            this.AudioPlayer = audioPlayer;
         }
 
         public void SetListenMode(string mode)

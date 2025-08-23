@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Protocol;
 using System;
+using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
@@ -35,11 +36,12 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
                 return true;
             }
 
-            this._webSocketClient = new WebSocketClient(this._endpointUrl, modelSetting?.Config?.Headers);
+            Dictionary<string, string>? headers = modelSetting?.Config?.Headers.ToObject<Dictionary<string, string>>();
+            this._webSocketClient = new WebSocketClient(headers);
             this._webSocketClient.OnOpen += this.WebSocketClientEngine_OnOpen;
             this._webSocketClient.OnTextMessage += this.WebSocketClient_OnMessage;
 
-            this._webSocketClient.ConnectAsync().ConfigureAwait(false);
+            this._webSocketClient.ConnectAsync(this._endpointUrl).ConfigureAwait(false);
             return true;
         }
 

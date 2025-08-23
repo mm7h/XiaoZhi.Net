@@ -98,7 +98,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 string text = $"请登录控制面板，输入{session.BindCode}，绑定设备。";
                 await session.SendOutter.SendSttMessageAsync(text);
 
-                // 使用通用解码方法解码音频文件，现在返回元组(音频数据, 时长)
                 string bindCodePromptFile = Path.Combine(Environment.CurrentDirectory, this.Config.DeviceBindSetting.BindCodePromptFilePath);
 
                 List<string> audioFilePaths = new List<string>
@@ -113,7 +112,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     string numPath = Path.Combine(Environment.CurrentDirectory, this.Config.DeviceBindSetting.BindCodeDigitFolderPath, $"{digit}.wav");
                     audioFilePaths.Add(numPath);
                 }
-                await this.PlayAudioFile(session, text, Emotion.Thinking, audioFilePaths.ToArray());
+                await session.HandlerPipeline.PushAudioToSendAsync(text, Emotion.Happy, audioFilePaths.ToArray());
             }
             else
             {
@@ -122,37 +121,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 await session.SendOutter.SendSttMessageAsync(text);
 
                 string bindNotFoundFile = Path.Combine(Environment.CurrentDirectory, this.Config.DeviceBindSetting.BindNotFoundFilePath);
-                await this.PlayAudioFile(session, text, Emotion.Neutral, bindNotFoundFile);
-            }
-        }
-
-        private async Task PlayAudioFile(Session session, string text, Emotion emotion, params string[] audioFilePaths)
-        {
-            try
-            {
-                double totalDuration = 0;
-                List<float> totalAudioData = new List<float>();
-
-                foreach (string audioFilePath in audioFilePaths)
-                {
-                    if (!File.Exists(audioFilePath))
-                    {
-                        this.Logger.LogError("The audio file does not exist: {filePath}", audioFilePath);
-                        continue;
-                    }
-
-                    var (audioData, duration) = AudioFileHelper.DecodeAudioFile(audioFilePath, this._frameSize);
-                    totalAudioData.AddRange(audioData);
-                    totalDuration += duration;
-                }
-
-                OutAudioSegment outAudioSegment = new OutAudioSegment(totalAudioData.ToArray(), totalDuration, new OutSegment(text, true, true));
-
-                await session.HandlerPipeline.PushAudioToSendAsync(outAudioSegment);
-            }
-            catch (Exception ex)
-            {
-                this.Logger.LogError(ex, "播放音频文件失败");
+                await session.HandlerPipeline.PushAudioToSendAsync(text, Emotion.Neutral, bindNotFoundFile);
             }
         }
 

@@ -7,7 +7,7 @@ namespace XiaoZhi.Net.Server
         /// <summary>
         /// 获取本地音乐文件路径列表
         /// </summary>
-        /// <returns></returns>
-        IList<string> GetLocalMusicFiles();
+        /// <returns>文件名，文件路径</returns>
+        IReadOnlyDictionary<string, string> GetLocalMusicFiles();
     }
 }

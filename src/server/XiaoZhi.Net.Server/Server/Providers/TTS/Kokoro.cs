@@ -13,6 +13,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
     {
         private OfflineTts? _offlineTts;
         private const float SPEAK_SPPED = 1.0f;
+        //https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html#map-between-speaker-id-and-speaker-name
         private const int SPERAKER_ID = 50;
 
         private readonly SemaphoreSlim _ttsConvertSlim = new SemaphoreSlim(1, 1);

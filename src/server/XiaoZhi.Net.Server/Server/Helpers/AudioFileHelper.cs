@@ -8,6 +8,7 @@ namespace XiaoZhi.Net.Server.Helpers
     /// <summary>
     /// 音频文件处理工具类
     /// </summary>
+    [Obsolete]
     public static class AudioFileHelper
     {
         /// <summary>

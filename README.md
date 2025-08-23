@@ -56,7 +56,6 @@ try
         // 开始初始化服务
         serverHost = serverBuilder.Initialize(config)
             // 添加插件
-            .WithPlugin<PlayMusic>(nameof(PlayMusic))
             .WithPlugin<GetTime>(nameof(GetTime))
             //构建服务引擎
             .Build();
@@ -217,6 +216,8 @@ finally
 本项目初衷是为 `.Net` 生态贡献一份力，抛砖引玉。
 
 由于目前只实现了基础功能，在项目使用中如果遇到任何问题，欢迎提交 Issues 和 Pull Requests！
+
+At the same time, I will also do my best to develop / maintain this project :D
 
 ## 特别鸣谢
 

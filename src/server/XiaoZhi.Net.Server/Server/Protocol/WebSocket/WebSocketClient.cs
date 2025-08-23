@@ -1,308 +1,145 @@
 ﻿using System;
-using System.Buffers;
 using System.Collections.Generic;
-using System.IO;
 using System.Net.WebSockets;
-using System.Text;
+using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Websocket.Client;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket
 {
-    internal sealed class WebSocketClient : IDisposable
+    internal class WebSocketClient : IDisposable
     {
-        private ClientWebSocket WebSocket;
-        private readonly CancellationTokenSource CancellationTokenSource = new();
-        private CancellationToken CancellationToken => CancellationTokenSource.Token;
-        private const int PollBufferSize = 16384;
-        private readonly MemoryStream MemoryStream = new();
+        private WebsocketClient? _socket;
+        private readonly SemaphoreSlim _socketSemaphore = new(1, 1);
 
-        private readonly int MaxReconnectAttempts = 3;
-        private readonly int ReconnectIntervalSeconds = 5;
+        public bool IsConnected => this._socket?.IsRunning ?? false;
+        private readonly IDictionary<string, string>? _headers;
 
-        private int _currentReconnectAttempts = 0;
-        private bool _isReconnecting = false;
-
-        public WebSocketState State => this.WebSocket.State;
-        public ClientWebSocketOptions Options => this.WebSocket.Options;
-        public Uri Uri { get; private set; }
-        public bool IsOpen => this.State == WebSocketState.Open;
-
-        public WebSocketClient(string endpointUrl, IDictionary<string, string>? headers)
+        public WebSocketClient(IDictionary<string, string>? headers)
         {
-            this.Uri = new Uri(endpointUrl);
-            this.WebSocket = new ClientWebSocket();
+            this._headers = headers;
         }
+
+        public Uri? EndpointUrl { get; private set; }
 
         #region Events
 
         public event Action? OnOpen;
         public event Action<WebSocketError, string>? OnError;
-        public event Action<WebSocketCloseStatus, string?>? OnClose;
+        public event Action<WebSocketCloseStatus?, string?>? OnClose;
         public event Action<string>? OnTextMessage;
         public event Action<byte[]>? OnBinaryMessage;
 
-        private void ThrowIfCloseError()
-        {
-            if (!this.IsOpen && this.WebSocket.CloseStatus.HasValue)
-            {
-                this.OnClose?.Invoke(this.WebSocket.CloseStatus.Value, this.WebSocket.CloseStatusDescription);
-            }
-        }
-
         #endregion
 
-        #region Connection
-
-        public async Task ConnectAsync()
+        public async Task ConnectAsync(string endpointUrl, CancellationToken cancellationToken = default)
         {
-            if (this.IsOpen || this.State == WebSocketState.Connecting) return;
+            this.EndpointUrl = new Uri(endpointUrl);
 
             try
             {
-                await this.WebSocket.ConnectAsync(this.Uri, this.CancellationToken);
+                await this._socketSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
-                // 启动消息接收线程
-                await Task.Factory.StartNew(async () =>
+                if (this._socket is not null)
                 {
-                    while (this.IsOpen) await this.Poll();
-                }, TaskCreationOptions.LongRunning).ConfigureAwait(false);
+                    this._socket.Dispose();
+                    this._socket = null;
+                }
 
-                // 重置重连计数
-                this._currentReconnectAttempts = 0;
+                if (this._socket is null)
+                {
+                    this._socket = new WebsocketClient(this.EndpointUrl, () =>
+                    {
+                        ClientWebSocket socket = new ClientWebSocket();
+                        socket.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
+                        if (this._headers is not null)
+                            foreach (var item in this._headers)
+                            {
+                                socket.Options.SetRequestHeader(item.Key, item.Value);
+                            }
+                        return socket;
+                    })
+                    {
+                        IsReconnectionEnabled = false,
+                        LostReconnectTimeout = null,
+                        ErrorReconnectTimeout = null,
+                        ReconnectTimeout = null
+                    };
+
+                    this._socket.MessageReceived
+                        .Where(msg => msg.MessageType == WebSocketMessageType.Text)
+                        .Where(msg => !string.IsNullOrEmpty(msg.Text))
+                        .Subscribe(msg => this.OnTextMessage?.Invoke(msg.Text!));
+
+                    this._socket.MessageReceived
+                         .Where(msg => msg.MessageType == WebSocketMessageType.Binary)
+                         .Where(msg => msg.Binary is not null)
+                         .Subscribe(msg => this.OnBinaryMessage?.Invoke(msg.Binary!));
+
+                    this._socket.ReconnectionHappened
+                        .Subscribe(e =>
+                        {
+                            Console.WriteLine("ReconnectionHappened: " + e.Type);
+                        });
+
+                    this._socket.DisconnectionHappened
+                        .Subscribe(e =>
+                        {
+                            e.CancelReconnection = true;
+                            this.OnClose?.Invoke(e.CloseStatus, e.CloseStatusDescription);
+
+                        });
+                }
+
+                await this._socket.StartOrFail();
+
                 this.OnOpen?.Invoke();
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                if (exception is WebSocketException wsException)
-                {
-                    this.OnError?.Invoke(wsException.WebSocketErrorCode, wsException.Message);
-                }
-                else
-                {
-                    this.OnError?.Invoke(WebSocketError.Faulted, exception.Message);
-                }
-                this.ThrowIfCloseError();
-
-                // 尝试重连
-                await this.TryReconnectAsync();
-            }
-        }
-
-        private async Task TryReconnectAsync()
-        {
-            if (this._isReconnecting) return;
-
-            this._isReconnecting = true;
-
-            try
-            {
-                while ((this.MaxReconnectAttempts <= 0 || _currentReconnectAttempts < this.MaxReconnectAttempts)
-                       && !IsOpen)
-                {
-                    this._currentReconnectAttempts++;
-
-                    // 等待指定的重连间隔
-                    await Task.Delay(TimeSpan.FromSeconds(this.ReconnectIntervalSeconds));
-
-                    try
-                    {
-                        // 创建新的 WebSocket 实例
-                        this.WebSocket.Dispose();
-                        this.WebSocket = new ClientWebSocket();
-
-                        // 重新连接
-                        await this.WebSocket.ConnectAsync(this.Uri, this.CancellationToken);
-
-                        // 重新启动消息接收线程
-                        await Task.Factory.StartNew(async () =>
-                        {
-                            while (this.IsOpen) await this.Poll();
-                        }, TaskCreationOptions.LongRunning).ConfigureAwait(false);
-
-                        // 连接成功，重置计数器
-                        this._currentReconnectAttempts = 0;
-                        this.OnOpen?.Invoke();
-                        break;
-                    }
-                    catch (Exception ex)
-                    {
-                        if (ex is WebSocketException wsEx)
-                        {
-                            this.OnError?.Invoke(wsEx.WebSocketErrorCode,
-                                $"Re-try to connect {this._currentReconnectAttempts} times but faliled: {wsEx.Message}");
-                        }
-                        else
-                        {
-                            this.OnError?.Invoke(WebSocketError.Faulted,
-                                $"Re-try to connect {this._currentReconnectAttempts} times but faliled: {ex.Message}");
-                        }
-                    }
-                }
-
-                if (!this.IsOpen)
-                {
-                    this.OnError?.Invoke(WebSocketError.Faulted,
-                        $"Re-connect failed to max times: {this.MaxReconnectAttempts}");
-                }
+                this.OnError?.Invoke(WebSocketError.ConnectionClosedPrematurely, ex.Message);
+                return;
             }
             finally
             {
-                this._isReconnecting = false;
+                this._socketSemaphore.Release();
             }
         }
-
-        public async Task CloseAsync(WebSocketCloseStatus closeStatus = WebSocketCloseStatus.NormalClosure, string? closeMessage = null)
+        public Task SendAsync(string text)
         {
-            if (!IsOpen) return;
-
-            try
-            {
-                // 停止重连尝试
-                this._isReconnecting = false;
-                this._currentReconnectAttempts = 0;
-
-                await this.WebSocket.CloseAsync(closeStatus, closeMessage, CancellationToken);
-                this.OnClose?.Invoke(closeStatus, closeMessage);
-            }
-            catch (WebSocketException exception)
-            {
-                this.OnError?.Invoke(exception.WebSocketErrorCode, exception.Message);
-                this.ThrowIfCloseError();
-            }
-            catch (Exception exception)
-            {
-                this.OnError?.Invoke(WebSocketError.Faulted, exception.Message);
-                this.ThrowIfCloseError();
-            }
-            finally
-            {
-                this.CancellationTokenSource.Cancel();
-            }
+            this._socket?.Send(text);
+            return Task.CompletedTask;
+        }
+        public Task SendAsync(byte[] data)
+        {
+            this._socket?.Send(data);
+            return Task.CompletedTask;
         }
 
-        #endregion
-
-        #region Sending
-
-        private async Task InternalSend(ArraySegment<byte> data, WebSocketMessageType messageType = WebSocketMessageType.Binary)
+        public async Task CloseAsync(WebSocketCloseStatus webSocketCloseStatus = WebSocketCloseStatus.Empty, string statusDescription = "")
         {
-            if (!this.IsOpen) return;
-
+            if (!this.IsConnected)
+            {
+                return;
+            }
             try
             {
-                await this.WebSocket.SendAsync(data, messageType, true, this.CancellationToken);
-            }
-            catch (WebSocketException exception)
-            {
-                this.OnError?.Invoke(exception.WebSocketErrorCode, exception.Message);
-                this.ThrowIfCloseError();
-            }
-            catch (Exception ex)
-            {
-                this.OnError?.Invoke(WebSocketError.Faulted, ex.Message);
-                this.ThrowIfCloseError();
-            }
-        }
-        public async Task SendAsync(byte[] data)
-            => await InternalSend(new ArraySegment<byte>(data));
-        public async Task SendAsync(string text)
-            => await InternalSend(new ArraySegment<byte>(Encoding.UTF8.GetBytes(text)), WebSocketMessageType.Text);
-
-        #endregion
-
-        #region Receiving
-
-        private async Task Poll()
-        {
-            try
-            {
-                while (this.IsOpen)
+                this.OnClose?.Invoke(webSocketCloseStatus, statusDescription);
+                if (this._socket is not null)
                 {
-                    WebSocketReceiveResult result = null;
-                    this.MemoryStream.SetLength(0); // Reset stream at start of each message
-
-                    do
-                    {
-                        byte[] buffer = ArrayPool<byte>.Shared.Rent(PollBufferSize);
-
-                        try
-                        {
-                            result = await WebSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken);
-
-                            if (result.MessageType == WebSocketMessageType.Close)
-                            {
-                                await this.CloseAsync();
-                                return;
-                            }
-
-                            if (result.Count > 0)
-                            {
-                                this.MemoryStream.Write(buffer, 0, result.Count);
-                            }
-
-                            if (result.EndOfMessage && this.MemoryStream.Length > 0)
-                            {
-                                switch (result.MessageType)
-                                {
-                                    case WebSocketMessageType.Text:
-                                        string textMessage = Encoding.UTF8.GetString(this.MemoryStream.ToArray());
-                                        this.OnTextMessage?.Invoke(textMessage);
-                                        break;
-                                    case WebSocketMessageType.Binary:
-                                        this.OnBinaryMessage?.Invoke(this.MemoryStream.ToArray());
-                                        break;
-                                }
-
-                            }
-                        }
-                        catch (WebSocketException exception)
-                        {
-                            this.OnError?.Invoke(exception.WebSocketErrorCode, exception.Message);
-                            if (this.WebSocket.State != WebSocketState.Open)
-                            {
-                                this.ThrowIfCloseError();
-                                return; // Exit if connection is closed
-                            }
-                        }
-                        catch (ObjectDisposedException)
-                        {
-                            return; // WebSocket was disposed, exit gracefully
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            return; // Operation was cancelled, exit gracefully
-                        }
-                        catch (Exception ex)
-                        {
-                            this.OnError?.Invoke(WebSocketError.Faulted, ex.Message);
-                            this.ThrowIfCloseError();
-                            return;
-                        }
-                        finally
-                        {
-                            ArrayPool<byte>.Shared.Return(buffer);
-                        }
-                    } while (result != null && !result.EndOfMessage && IsOpen);
+                    await this._socket.StopOrFail(webSocketCloseStatus, statusDescription);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                this.OnError?.Invoke(WebSocketError.Faulted, $"Internal error: {ex.Message}");
-                await this.CloseAsync(WebSocketCloseStatus.InternalServerError, "Internal error");
+                this.OnError?.Invoke(WebSocketError.ConnectionClosedPrematurely, "Failed to close WebSocket connection gracefully.");
             }
         }
-
-        public string ReadString(ArraySegment<byte> message) => Encoding.UTF8.GetString(message);
-
-        #endregion
 
         public void Dispose()
         {
-            this.CancellationTokenSource?.Cancel();
-            this.WebSocket?.Dispose();
-            this.CancellationTokenSource?.Dispose();
-            this.MemoryStream?.Dispose();
+            this._socket?.Dispose();
         }
     }
 }

@@ -2,11 +2,10 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Handlers;
-using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {
@@ -21,6 +20,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private DialogueHandler? _dialogueHandler;
         private AudioSendHandler? _audioSendHandler;
         private Text2AudioHandler? _text2AudioHandler;
+        private PlayAudioFileHandler? _playAudioFileHandler;
         private readonly IList<IDisposable> _disposableHandlers;
 
         public HandlerPipeline(Session session)
@@ -39,6 +39,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._dialogueHandler = serviceProvider.GetRequiredService<DialogueHandler>();
             this._text2AudioHandler = serviceProvider.GetRequiredService<Text2AudioHandler>();
             this._audioSendHandler = serviceProvider.GetRequiredService<AudioSendHandler>();
+            this._playAudioFileHandler = serviceProvider.GetRequiredService<PlayAudioFileHandler>();
 
             this._textHandler.OnManualStop += this._audioReceiveHandler.HandleAudio;
             this._audioReceiveHandler.OnNoVoiceCloseConnect += this._dialogueHandler.NoVoiceCloseConnect;
@@ -49,6 +50,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.InitializeSendOutter(this._dialogueHandler);
             this.InitializeSendOutter(this._text2AudioHandler);
             this.InitializeSendOutter(this._audioSendHandler);
+            this.InitializeSendOutter(this._playAudioFileHandler);
 
             this.BuildHandlersWorkflow(this._audioReceiveHandler, this._audio2TextHandler);
             this.BuildHandlersWorkflow(this._textHandler, this._audio2TextHandler, this._dialogueHandler);
@@ -61,6 +63,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.ScheduleOnAbort(this._dialogueHandler);
             this.ScheduleOnAbort(this._text2AudioHandler);
             this.ScheduleOnAbort(this._audioSendHandler);
+            this.ScheduleOnAbort(this._playAudioFileHandler);
 
             this._disposableHandlers.Add(this._textHandler);
             this._disposableHandlers.Add(this._audioReceiveHandler);
@@ -74,29 +77,23 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         /// </summary>
         /// <param name="audioData">音频数据</param>
         /// <returns>处理任务</returns>
-        public async Task PushAudioToSendAsync(OutAudioSegment outAudioSegment)
+        public async Task PushAudioToSendAsync(string? sttMessage, Emotion emotion = Emotion.Neutral, params string[] audioFiles)
         {
-            if (outAudioSegment.AudioData is null || outAudioSegment.AudioData.Length == 0)
-                return;
-
-            if (this._audioSendHandler is not null)
+            if (this._playAudioFileHandler is not null)
             {
                 try
                 {
-                    // 创建一个包含音频数据的工作流
-                    var workflow = this._currentSession.ToWorkflow(outAudioSegment);
-
                     // 直接处理音频数据
-                    await this._audioSendHandler.Handle(workflow);
+                    await this._playAudioFileHandler.Handle(sttMessage, emotion, audioFiles);
                 }
                 catch (Exception ex)
                 {
-                    this._logger?.LogError(ex, "Failed to push audio data to AudioSendHandler for device: {deviceId}", this._currentSession.DeviceId);
+                    this._logger?.LogError(ex, "Failed to push audio data to PlayAudioFileHandler for device: {deviceId}", this._currentSession.DeviceId);
                 }
             }
             else
             {
-                this._logger?.LogError("AudioSendHandler is not initialized");
+                this._logger?.LogError("PlayAudioFileHandler is not initialized");
             }
         }
 
@@ -143,15 +140,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             }
         }
 
-        public async Task HandlePlayAudioFile(string audioFileName)
-        {
-            (float[] audioData, double duration) = AudioFileHelper.DecodeAudioFile(audioFileName, this._currentSession.AudioSetting.FrameSize);
-
-            string text = $"正在播放音乐：{Path.GetFileName(audioFileName)}";
-            OutAudioSegment outAudioSegment = new OutAudioSegment(audioData, duration, text);
-            await this.PushAudioToSendAsync(outAudioSegment);
-        }
-
         public void Release()
         {
             foreach (IDisposable handler in this._disposableHandlers)
@@ -183,7 +171,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             previous.NextWriter = channel.Writer;
             next.PreviousReader = channel.Reader;
 
-            Task.Factory.StartNew(async () => await next.Handle(), TaskCreationOptions.LongRunning).ConfigureAwait(false);
+            Task.Factory.StartNew(next.Handle, TaskCreationOptions.LongRunning).ConfigureAwait(false);
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
         }
 
