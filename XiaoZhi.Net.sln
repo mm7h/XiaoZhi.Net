@@ -5,6 +5,8 @@ VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server", "src\server\XiaoZhi.Net.Server\XiaoZhi.Net.Server.csproj", "{3BE4F5E5-001F-416F-82A8-35BD08D2B619}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server.AudioPlayer", "src\server\XiaoZhi.Net.Server.AudioPlayer\XiaoZhi.Net.Server.AudioPlayer.csproj", "{3B7D3048-A465-4300-B311-45AAD4A93CDF}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Test", "tests\XiaoZhi.Net.Test\XiaoZhi.Net.Test.csproj", "{74F41D2A-4D24-4944-B76A-880C5DC665BA}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{B1EC5935-24E5-4DD5-ABDC-99E86B925140}"
@@ -80,6 +82,10 @@ Global
 		{BCD78DD0-4221-40DA-BA34-9DBDD06F0AA3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BCD78DD0-4221-40DA-BA34-9DBDD06F0AA3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BCD78DD0-4221-40DA-BA34-9DBDD06F0AA3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3B7D3048-A465-4300-B311-45AAD4A93CDF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3B7D3048-A465-4300-B311-45AAD4A93CDF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3B7D3048-A465-4300-B311-45AAD4A93CDF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3B7D3048-A465-4300-B311-45AAD4A93CDF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -96,6 +102,7 @@ Global
 		{DB999C6B-96B0-4981-B0AB-020F6DABC6D3} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{7900A5F0-6E19-42A5-8CB5-C77BDD74888F} = {CCE40800-EE6B-4596-BE91-81D9ADF8AD4B}
 		{BCD78DD0-4221-40DA-BA34-9DBDD06F0AA3} = {CCE40800-EE6B-4596-BE91-81D9ADF8AD4B}
+		{3B7D3048-A465-4300-B311-45AAD4A93CDF} = {DB999C6B-96B0-4981-B0AB-020F6DABC6D3}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {3E8E1B85-DF08-433B-AB5F-28120905F507}

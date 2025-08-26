@@ -55,5 +55,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 }
             }
         }
+
+        static async Task TestTheSoundFlow()
+        {
+            
+        }
     }
 }
