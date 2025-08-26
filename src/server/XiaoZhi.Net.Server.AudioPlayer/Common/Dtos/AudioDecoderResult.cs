@@ -3,7 +3,7 @@
 /// <summary>
 /// Represents result structure returned by audio decoder while reading audio frame.
 /// </summary>
-public readonly struct AudioDecoderResult
+internal readonly struct AudioDecoderResult
 {
     /// <summary>
     /// Initializes <see cref="AudioDecoderResult"/> structure.

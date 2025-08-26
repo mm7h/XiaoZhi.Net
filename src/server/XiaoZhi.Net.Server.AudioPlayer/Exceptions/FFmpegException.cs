@@ -6,7 +6,7 @@ namespace XiaoZhi.Net.Server.AudioPlayer.Exceptions;
 /// An exception that is thrown when errors occured in internal FFmpeg processes.
 /// <para>Implements: <see cref="Exception"/>.</para>
 /// </summary>
-public class FFmpegException : Exception
+internal class FFmpegException : Exception
 {
     /// <summary>
     /// Initializes <see cref="FFmpegException"/>.

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace XiaoZhi.Net.Server.Store
+﻿namespace XiaoZhi.Net.Server.Abstractions.Store
 {
     public interface IStore : IDisposable
     {

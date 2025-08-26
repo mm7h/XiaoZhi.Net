@@ -14,6 +14,8 @@ src/api/XiaoZhi.Net.WebApi/logs
 src/api/XiaoZhi.Net.WebApi/appsettings.Development.json
 src/server/XiaoZhi.Net.Server/bin
 src/server/XiaoZhi.Net.Server/obj
+src/server/XiaoZhi.Net.Server.Abstractions/bin
+src/server/XiaoZhi.Net.Server.Abstractions/obj
 src/server/XiaoZhi.Net.Server.AudioPlayer/bin
 src/server/XiaoZhi.Net.Server.AudioPlayer/obj
 tests/XiaoZhi.Net.Test/bin

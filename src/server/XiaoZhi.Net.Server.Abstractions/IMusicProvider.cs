@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
-
-namespace XiaoZhi.Net.Server
+﻿namespace XiaoZhi.Net.Server.Abstractions
 {
     public interface IMusicProvider
     {

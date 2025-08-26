@@ -1,6 +1,6 @@
-﻿using XiaoZhi.Net.Server.AudioPlayer.Common.Enums;
+﻿using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 
-namespace XiaoZhi.Net.Server.AudioPlayer;
+namespace XiaoZhi.Net.Server.Abstractions.AudioPlayer;
 
 /// <summary>
 /// An interface for loading and controlling audio playback.
@@ -56,25 +56,7 @@ public interface IAudioPlayer : IDisposable
     /// <summary>
     /// Gets or sets custom sample processor.
     /// </summary>
-    ISampleProcessor CustomSampleProcessor { get; set; }
-
-    /// <summary>
-    /// Loads an audio URL to the player.
-    /// </summary>
-    /// <param name="url">Audio URL or audio file path.</param>
-    /// <param name="outputSampleRate">Desired output sample rate.</param>
-    /// <param name="outputChannels">Desired output channel count.</param>
-    /// <returns><c>true</c> if successfully loaded, otherwise, <c>false</c>.</returns>
-    Task<bool> LoadAsync(string url, int outputSampleRate, int outputChannels);
-
-    /// <summary>
-    /// Loads an audio stream to the player.
-    /// </summary>
-    /// <param name="stream">Source audio stream.</param>
-    /// <param name="outputSampleRate">Desired output sample rate.</param>
-    /// <param name="outputChannels">Desired output channel count.</param>
-    /// <returns><c>true</c> if successfully loaded, otherwise, <c>false</c>.</returns>
-    Task<bool> LoadAsync(Stream stream, int outputSampleRate, int outputChannels);
+    ISampleProcessor? CustomSampleProcessor { get; set; }
 
     /// <summary>
     /// Starts audio playback.

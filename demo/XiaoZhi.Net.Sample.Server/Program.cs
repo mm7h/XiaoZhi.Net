@@ -1,6 +1,7 @@
 ﻿using XiaoZhi.Net.Sample.Server.Plugins;
 using Microsoft.Extensions.Hosting;
 using XiaoZhi.Net.Server;
+using XiaoZhi.Net.Server.Abstractions;
 
 
 IHost? serverHost = null;
@@ -31,6 +32,7 @@ try
             // 添加插件
             .WithPlugin<GetTime>(nameof(GetTime))
             //构建服务引擎
+            .WithAudioPlayer()
             .Build();
 
         await serverHost.RunAsync();

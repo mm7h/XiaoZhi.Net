@@ -10,11 +10,12 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions;
+using XiaoZhi.Net.Server.Abstractions.Store;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Management;
-using XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters;
 using XiaoZhi.Net.Server.Services;
 using XiaoZhi.Net.Server.Store;
 
@@ -25,22 +26,22 @@ namespace XiaoZhi.Net.Server
         private static readonly Lazy<IServerBuilder> lazyInstance = new Lazy<IServerBuilder>(() => new ServerBuilder());
         internal static IServerBuilder CreateServerBuilder() => lazyInstance.Value;
 
-        private IHostBuilder _hostBuilder;
-
         private ServerBuilder()
         {
-            this._hostBuilder = Host.CreateDefaultBuilder();
+            this.HostBuilder = Host.CreateDefaultBuilder();
         }
 
         internal ServerBuilder(IHostBuilder hostBuilder)
         {
-            this._hostBuilder = hostBuilder;
+            this.HostBuilder = hostBuilder;
         }
 
         public static IServerBuilder CreateServerBuilder(IHostBuilder hostBuilder)
         { 
             return new ServerBuilder(hostBuilder);
         }
+
+        public IHostBuilder HostBuilder { get; private set; }
 
         /// <summary>
         /// 通过Remote API初始化服务
@@ -73,7 +74,7 @@ namespace XiaoZhi.Net.Server
                     .GetJsonAsync<ApiResponse<XiaoZhiConfig>>();
 
 
-                this._hostBuilder.ConfigureServices((context, services) =>
+                this.HostBuilder.ConfigureServices((context, services) =>
                 {
                     services.AddSingleton(context.HostingEnvironment);
                     services.AddSingleton(context.Configuration);
@@ -129,7 +130,7 @@ namespace XiaoZhi.Net.Server
             {
                 throw new ArgumentNullException(nameof(config), "Config cannot be null.");
             }
-            this._hostBuilder = this._hostBuilder.ConfigureServices((context, services) =>
+            this.HostBuilder = this.HostBuilder.ConfigureServices((context, services) =>
             {
                 services.AddSingleton(config);
                 services.AddSingleton(config.AudioSetting);
@@ -137,7 +138,6 @@ namespace XiaoZhi.Net.Server
                 services.AddSingleton(connectionStore);
 
                 services.AddKernel();
-                services.AddTransient<IFunctionInvocationFilter, MCPToolFunctionFilter>();
             })
             .RegisterLogger(config)
             .RegisterProviders(config)
@@ -145,9 +145,9 @@ namespace XiaoZhi.Net.Server
             .RegisterProtocol(config);
 
 #if DEBUG
-            this._hostBuilder.UseEnvironment("Development");
+            this.HostBuilder.UseEnvironment("Development");
 #else
-            this._hostBuilder.UseEnvironment("Production");
+            this.HostBuilder.UseEnvironment("Production");
 #endif
 
             return this;
@@ -166,7 +166,7 @@ namespace XiaoZhi.Net.Server
             {
                 throw new ArgumentNullException(nameof(pluginName), "Plugin name cannot be null or empty.");
             }
-            this._hostBuilder.ConfigureServices((context, services) =>
+            this.HostBuilder.ConfigureServices((context, services) =>
             {
                 services.AddSingleton<KernelPlugin>(sp => KernelPluginFactory.CreateFromType<TPlugin>(pluginName, sp));
             });
@@ -193,7 +193,7 @@ namespace XiaoZhi.Net.Server
             }
 
             IEnumerable<KernelFunction> kernelFunctions = functions.Select(f => KernelFunctionFactory.CreateFromMethod(f.Method, f.FunctionName, f.Description));
-            this._hostBuilder.ConfigureServices((context, services) =>
+            this.HostBuilder.ConfigureServices((context, services) =>
             {
                 services.AddSingleton<KernelPlugin>(sp => KernelPluginFactory.CreateFromFunctions(pluginName, kernelFunctions));
             });
@@ -202,7 +202,7 @@ namespace XiaoZhi.Net.Server
 
         public IServerBuilder WithVerify<T>() where T : class, IBasicVerify
         {
-            this._hostBuilder.ConfigureServices((context, services) =>
+            this.HostBuilder.ConfigureServices((context, services) =>
             {
                 services.AddSingleton<IBasicVerify, T>();
             });
@@ -212,7 +212,7 @@ namespace XiaoZhi.Net.Server
 
         public IServerBuilder WithMusicProvider<T>() where T : class, IMusicProvider
         {
-            this._hostBuilder.ConfigureServices((context, services) =>
+            this.HostBuilder.ConfigureServices((context, services) =>
             {
                 services.AddSingleton<IMusicProvider, T>();
             });
@@ -226,7 +226,7 @@ namespace XiaoZhi.Net.Server
         /// <returns></returns>
         public IHost Build()
         {
-            IHost host = this._hostBuilder.Build();
+            IHost host = this.HostBuilder.Build();
 
             this.BuildComponents(host.Services);
 

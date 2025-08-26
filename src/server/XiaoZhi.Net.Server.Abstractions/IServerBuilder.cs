@@ -1,13 +1,14 @@
 ﻿using Microsoft.Extensions.Hosting;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Store;
+using XiaoZhi.Net.Server.Abstractions.Store;
 
-namespace XiaoZhi.Net.Server
+namespace XiaoZhi.Net.Server.Abstractions
 {
     public interface IServerBuilder
     {
+        /// <summary>
+        /// 获取当前的HostBuilder
+        /// </summary>
+        IHostBuilder HostBuilder { get; }
         /// <summary>
         /// 从manage api初始化服务
         /// </summary>

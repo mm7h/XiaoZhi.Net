@@ -4,7 +4,7 @@
 /// Containing audio stream information that is usually retrieved by audio codec.
 /// This class cannot be inherited.
 /// </summary>
-public readonly struct AudioStreamInfo
+internal readonly struct AudioStreamInfo
 {
     /// <summary>
     /// Initializes <see cref="AudioStreamInfo"/> structure.

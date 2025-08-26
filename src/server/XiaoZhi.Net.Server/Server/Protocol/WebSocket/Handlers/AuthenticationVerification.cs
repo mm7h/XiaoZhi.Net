@@ -4,6 +4,7 @@ using SuperSocket.WebSocket;
 using SuperSocket.WebSocket.Server;
 using System.Net;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
 {

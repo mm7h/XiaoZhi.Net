@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading;
-
-namespace XiaoZhi.Net.Server.Common.Contexts
+﻿namespace XiaoZhi.Net.Server.Common.Contexts
 {
     internal class VadStatus
     {

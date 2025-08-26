@@ -19,11 +19,7 @@ internal sealed unsafe class FFmpegUrlDecoder : IAudioDecoder
     private readonly AVPacket* _currentPacket;
     private readonly AVFrame* _currentFrame;
     private readonly FFmpegResampler _resampler;
-    private avio_alloc_context_read_packet? _reads;
-    private avio_alloc_context_seek? _seeks;
     private readonly int _streamIndex;
-    private readonly Stream? _inputStream;
-    private readonly byte[]? _inputStreamBuffer;
     private bool _disposed;
 
     /// <summary>
@@ -86,7 +82,7 @@ internal sealed unsafe class FFmpegUrlDecoder : IAudioDecoder
         var duration = _formatCtx->streams[_streamIndex]->duration * rational * 1000.00;
         duration = duration > 0 ? duration : _formatCtx->duration / 1000.00;
 
-        StreamInfo = new AudioStreamInfo(_codecCtx->ch_layout.nb_channels, _codecCtx->sample_rate, duration.Milliseconds());
+        StreamInfo = new AudioStreamInfo(_codecCtx->ch_layout.nb_channels, _codecCtx->sample_rate, TimeSpan.FromMicroseconds(duration));
 
         _currentPacket = ffmpeg.av_packet_alloc();
         _currentFrame = ffmpeg.av_frame_alloc();
@@ -189,19 +185,12 @@ internal sealed unsafe class FFmpegUrlDecoder : IAudioDecoder
         ffmpeg.av_frame_free(&frame);
 
         var formatCtx = _formatCtx;
-        if (_inputStream != null)
-        {
-            ffmpeg.av_freep(&formatCtx->pb->buffer);
-            ffmpeg.avio_context_free(&formatCtx->pb);
-        }
 
         ffmpeg.avformat_close_input(&formatCtx);
         var codecCtx = _codecCtx;
         ffmpeg.avcodec_free_context(&codecCtx);
 
         _resampler?.Dispose();
-        _reads = null;
-        _seeks = null;
         _disposed = true;
     }
 }

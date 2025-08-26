@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Hosting;
+using XiaoZhi.Net.Server.Abstractions;
 
 namespace XiaoZhi.Net.Server
 {

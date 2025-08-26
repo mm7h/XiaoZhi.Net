@@ -1,4 +1,4 @@
-﻿namespace XiaoZhi.Net.Server.AudioPlayer.Processors;
+﻿namespace XiaoZhi.Net.Server.Abstractions.AudioPlayer.Processors;
 
 /// <summary>
 /// Provides basic implementation of <see cref="ISampleProcessor"/> interface.

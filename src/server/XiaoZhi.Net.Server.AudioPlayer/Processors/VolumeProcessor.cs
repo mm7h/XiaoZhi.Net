@@ -1,11 +1,13 @@
-﻿namespace XiaoZhi.Net.Server.AudioPlayer.Processors;
+﻿using XiaoZhi.Net.Server.Abstractions.AudioPlayer.Processors;
+
+namespace XiaoZhi.Net.Server.AudioPlayer.Processors;
 
 /// <summary>
 /// A sample processor that simply multiply given audio sample to a desired volume.
 /// This class cannot be inherited.
 /// <para>Implements: <see cref="SampleProcessorBase"/>.</para>
 /// </summary>
-public sealed class VolumeProcessor : SampleProcessorBase
+internal sealed class VolumeProcessor : SampleProcessorBase
 {
     /// <summary>
     /// Initializes <see cref="VolumeProcessor"/>. The volume range should between 0f to 1f.

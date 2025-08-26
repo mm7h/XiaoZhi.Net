@@ -1,4 +1,4 @@
-﻿namespace XiaoZhi.Net.Server.AudioPlayer.Common.Enums;
+﻿namespace XiaoZhi.Net.Server.Abstractions.Common.Enums;
 
 /// <summary> 
 /// Enumeration represents audio playback state.

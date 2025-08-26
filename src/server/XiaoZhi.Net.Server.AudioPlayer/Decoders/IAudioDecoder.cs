@@ -6,7 +6,7 @@ namespace XiaoZhi.Net.Server.AudioPlayer.Decoders;
 /// An interface for decoding audio frames from given audio source.
 /// <para>Implements: <see cref="IDisposable"/>.</para>
 /// </summary>
-public interface IAudioDecoder : IDisposable
+internal interface IAudioDecoder : IDisposable
 {
     /// <summary>
     /// Gets the information about loaded audio source.

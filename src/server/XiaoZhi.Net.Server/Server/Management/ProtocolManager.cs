@@ -5,7 +5,7 @@ using SuperSocket.Server.Host;
 using SuperSocket.WebSocket.Server;
 using System;
 using System.Collections.Generic;
-using XiaoZhi.Net.Server.Common.Enums;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Protocol.WebSocket;
 using XiaoZhi.Net.Server.Protocol.WebSocket.Contexts;
 using XiaoZhi.Net.Server.Protocol.WebSocket.Handlers;

@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
@@ -16,6 +17,7 @@ using XiaoZhi.Net.Server.Providers.ASR;
 using XiaoZhi.Net.Server.Providers.AudioCodec;
 using XiaoZhi.Net.Server.Providers.IoT;
 using XiaoZhi.Net.Server.Providers.LLM;
+using XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters;
 using XiaoZhi.Net.Server.Providers.LLM.Plugins;
 using XiaoZhi.Net.Server.Providers.MCP;
 using XiaoZhi.Net.Server.Providers.MCP.DeviceMcp;
@@ -477,6 +479,7 @@ namespace XiaoZhi.Net.Server.Management
             }
 
 
+            services.AddTransient<IFunctionInvocationFilter, MCPToolFunctionFilter>();
             services.AddKeyedSingleton<ILlm, GenericOpenAI>(key);
         }
         #endregion

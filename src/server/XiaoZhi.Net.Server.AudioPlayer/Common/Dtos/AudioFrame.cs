@@ -5,7 +5,7 @@
 /// and raw of audio that can be written into output device.
 /// This class cannot be inherited.
 /// </summary>
-public sealed record AudioFrame
+internal sealed record AudioFrame
 {
     /// <summary>
     /// Initializes <see cref="AudioFrame"/> object.

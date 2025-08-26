@@ -5,8 +5,8 @@ using SuperSocket.WebSocket;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.Store;
 using XiaoZhi.Net.Server.Protocol.WebSocket.Contexts;
-using XiaoZhi.Net.Server.Store;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket.Middlewares
 {

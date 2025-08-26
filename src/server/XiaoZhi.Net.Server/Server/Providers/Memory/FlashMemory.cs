@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.Store;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Store;
 

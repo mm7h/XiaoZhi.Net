@@ -103,7 +103,7 @@ internal sealed unsafe class FFmpegStreamDecoder : IAudioDecoder
         var duration = _formatCtx->streams[_streamIndex]->duration * rational * 1000.00;
         duration = duration > 0 ? duration : _formatCtx->duration / 1000.00;
 
-        StreamInfo = new AudioStreamInfo(_codecCtx->ch_layout.nb_channels, _codecCtx->sample_rate, duration.Milliseconds());
+        StreamInfo = new AudioStreamInfo(_codecCtx->ch_layout.nb_channels, _codecCtx->sample_rate, TimeSpan.FromMicroseconds(duration));
 
         _currentPacket = ffmpeg.av_packet_alloc();
         _currentFrame = ffmpeg.av_frame_alloc();

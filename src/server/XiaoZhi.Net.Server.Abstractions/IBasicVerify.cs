@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace XiaoZhi.Net.Server
+namespace XiaoZhi.Net.Server.Abstractions
 {
     public interface IBasicVerify
     {

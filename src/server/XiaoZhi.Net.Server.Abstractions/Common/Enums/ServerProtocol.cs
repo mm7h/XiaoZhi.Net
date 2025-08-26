@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel;
 
-namespace XiaoZhi.Net.Server.Common.Enums
+namespace XiaoZhi.Net.Server.Abstractions.Common.Enums
 {
     public enum ServerProtocol
     {

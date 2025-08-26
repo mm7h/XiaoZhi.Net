@@ -1,11 +1,8 @@
-﻿using System;
-using System.Threading;
-
-namespace XiaoZhi.Net.Server.AudioPlayer.Utilities.Extensions;
+﻿namespace XiaoZhi.Net.Server.AudioPlayer.Utilities.Extensions;
 
 internal static class ThreadExtensions
 {
-    public static void EnsureThreadDone(this Thread thread, Func<bool> breaker = default)
+    public static void EnsureThreadDone(this Thread thread, Func<bool>? breaker = default)
     {
         while (thread.IsAlive)
         {

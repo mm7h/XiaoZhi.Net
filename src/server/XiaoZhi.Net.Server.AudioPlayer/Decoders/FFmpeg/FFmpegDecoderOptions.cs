@@ -4,7 +4,7 @@
 /// Options for decoding (and, or) resampling specified audio source that can be passed
 /// through <see cref="FFmpegDecoder"/> class. This class cannot be inherited.
 /// </summary>
-public sealed record FFmpegDecoderOptions
+internal sealed record FFmpegDecoderOptions
 {
     /// <summary>
     /// Initializes <see cref="FFmpegDecoderOptions"/> object.
