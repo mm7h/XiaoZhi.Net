@@ -1,4 +1,4 @@
-﻿using XiaoZhi.Net.Server.Abstractions.AudioPlayer.Processors;
+﻿using XiaoZhi.Net.Server.AudioPlayer.Abstractions.Processors;
 
 namespace XiaoZhi.Net.Server.AudioPlayer.Processors;
 

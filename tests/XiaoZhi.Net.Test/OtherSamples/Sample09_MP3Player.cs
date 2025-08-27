@@ -1,5 +1,7 @@
 ﻿using MP3Sharp;
 using NAudio.Wave;
+using XiaoZhi.Net.Server.AudioPlayer;
+using XiaoZhi.Net.Server.AudioPlayer.Abstractions;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {
@@ -7,7 +9,8 @@ namespace XiaoZhi.Net.Test.OtherSamples
     {
         public static async Task Run()
         {
-            await TestTheMP3Player();
+            //await TestTheMP3Player();
+            await TestTheAudioPlayer();
         }
 
         static async Task TestTheMP3Player()
@@ -56,9 +59,14 @@ namespace XiaoZhi.Net.Test.OtherSamples
             }
         }
 
-        static async Task TestTheSoundFlow()
+        static async Task TestTheAudioPlayer()
         {
-            
+            if (!AudioPlayerFactory.InitializeFFmpeg())
+            {
+                Console.WriteLine("Failed to initialize the ffmpeg.");
+                return;
+            }
+            IUrlAudioPlayer audioPlayer = AudioPlayerFactory.CreateUrlAudioPlayer();
         }
     }
 }

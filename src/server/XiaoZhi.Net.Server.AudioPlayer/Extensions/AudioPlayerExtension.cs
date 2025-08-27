@@ -1,15 +1,14 @@
 ﻿using FFmpeg.AutoGen;
 using Microsoft.Extensions.DependencyInjection;
 using XiaoZhi.Net.Server.Abstractions;
-using XiaoZhi.Net.Server.Abstractions.AudioPlayer;
+using XiaoZhi.Net.Server.AudioPlayer;
+using XiaoZhi.Net.Server.AudioPlayer.Abstractions;
 using XiaoZhi.Net.Server.AudioPlayer.Players;
 
 namespace XiaoZhi.Net.Server
 {
     public static class AudioPlayerExtension
     {
-        private const string FFmpegRootPath = "./ffmpeg/";
-
         /// <summary>
         /// Initialize audio player.
         /// </summary>
@@ -18,9 +17,10 @@ namespace XiaoZhi.Net.Server
         /// <returns></returns>
         public static IServerBuilder WithAudioPlayer(this IServerBuilder builder, string? ffmpegPath = null)
         {
-            ffmpeg.RootPath = ffmpegPath ?? FFmpegRootPath;
-
-            //todo: validate the ffmpeg path, if not, throw the exception
+            if (!string.IsNullOrEmpty(ffmpegPath))
+            {
+                ffmpeg.RootPath = AudioPlayerBase.FFmpegRootPath = ffmpegPath;
+            }
 
             builder.HostBuilder.ConfigureServices((context, services) =>
             {

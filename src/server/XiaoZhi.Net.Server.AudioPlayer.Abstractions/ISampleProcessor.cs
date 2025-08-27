@@ -1,4 +1,4 @@
-﻿namespace XiaoZhi.Net.Server.Abstractions.AudioPlayer;
+﻿namespace XiaoZhi.Net.Server.AudioPlayer.Abstractions;
 
 /// <summary>
 /// An interface that is intended to manipulate specified audio sample in <c>Float32</c> format

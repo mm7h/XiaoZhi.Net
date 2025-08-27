@@ -42,6 +42,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Sample.OTA.Serv
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server.Abstractions", "src\server\XiaoZhi.Net.Server.Abstractions\XiaoZhi.Net.Server.Abstractions.csproj", "{4EE5A774-5F67-4890-8DE8-5A2C50A9415B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server.AudioPlayer.Abstractions", "src\server\XiaoZhi.Net.Server.AudioPlayer.Abstractions\XiaoZhi.Net.Server.AudioPlayer.Abstractions.csproj", "{EE75618F-F646-4D8B-98A3-CDD45BA35C43}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -92,6 +94,10 @@ Global
 		{4EE5A774-5F67-4890-8DE8-5A2C50A9415B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4EE5A774-5F67-4890-8DE8-5A2C50A9415B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4EE5A774-5F67-4890-8DE8-5A2C50A9415B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EE75618F-F646-4D8B-98A3-CDD45BA35C43}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EE75618F-F646-4D8B-98A3-CDD45BA35C43}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EE75618F-F646-4D8B-98A3-CDD45BA35C43}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EE75618F-F646-4D8B-98A3-CDD45BA35C43}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -110,6 +116,7 @@ Global
 		{7900A5F0-6E19-42A5-8CB5-C77BDD74888F} = {CCE40800-EE6B-4596-BE91-81D9ADF8AD4B}
 		{BCD78DD0-4221-40DA-BA34-9DBDD06F0AA3} = {CCE40800-EE6B-4596-BE91-81D9ADF8AD4B}
 		{4EE5A774-5F67-4890-8DE8-5A2C50A9415B} = {DB999C6B-96B0-4981-B0AB-020F6DABC6D3}
+		{EE75618F-F646-4D8B-98A3-CDD45BA35C43} = {DB999C6B-96B0-4981-B0AB-020F6DABC6D3}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {3E8E1B85-DF08-433B-AB5F-28120905F507}

@@ -2,32 +2,32 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Dtos;
-using XiaoZhi.Net.Server.Common.Enums;
+using XiaoZhi.Net.Server.AudioPlayer.Abstractions;
+using XiaoZhi.Net.Server.AudioPlayer.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Providers.AudioPlayer
 {
-    internal class StreamAudioPlayer : BaseProvider<StreamAudioPlayer, AudioPlayerConfig>, IAudioPlayer
+    internal class StreamAudioPlayer : BaseProvider<StreamAudioPlayer, AudioSetting>, IAudioPlayer
     {
-        private readonly ManualResetEventSlim _pauseEvent = new ManualResetEventSlim(true);
         private readonly SemaphoreSlim _audioPlayerSlim = new SemaphoreSlim(1, 1);
+        private readonly IStreamAudioPlayer _streamAudioPlayer;
 
         public override string ProviderType => "audio player";
 
         public override string ModelName => nameof(StreamAudioPlayer);
 
-        public PlayingStatus PlayingStatus { get; private set; }
+        public PlaybackState PlaybackState => this._streamAudioPlayer.State;
 
         public event Action<string>? OnBeforeProcessing;
         public event Action<string, float[]>? OnProcessing; // use Memory then to span?
         public event Action<string, bool>? OnProcessed;
 
-        public StreamAudioPlayer(ILogger<StreamAudioPlayer> logger) : base(logger)
+        public StreamAudioPlayer(IStreamAudioPlayer streamAudioPlayer, ILogger<StreamAudioPlayer> logger) : base(logger)
         {
-
+            this._streamAudioPlayer = streamAudioPlayer;
         }
 
-        public override bool Build(AudioPlayerConfig settings)
+        public override bool Build(AudioSetting settings)
         {
             throw new NotImplementedException();
         }
@@ -55,8 +55,6 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
                 await this._audioPlayerSlim.WaitAsync();
 
 
-                this._pauseEvent.Reset();
-
 
             }
             finally
@@ -70,9 +68,6 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
             try
             {
                 await this._audioPlayerSlim.WaitAsync();
-
-
-                this._pauseEvent.Set();
 
 
             }
@@ -118,7 +113,6 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
         public override void Dispose()
         {
             this._audioPlayerSlim.Dispose();
-            this._pauseEvent.Dispose();
         }
     }
 }

@@ -18,6 +18,8 @@ src/server/XiaoZhi.Net.Server.Abstractions/bin
 src/server/XiaoZhi.Net.Server.Abstractions/obj
 src/server/XiaoZhi.Net.Server.AudioPlayer/bin
 src/server/XiaoZhi.Net.Server.AudioPlayer/obj
+src/server/XiaoZhi.Net.Server.AudioPlayer.Abstractions/bin
+src/server/XiaoZhi.Net.Server.AudioPlayer.Abstractions/obj
 tests/XiaoZhi.Net.Test/bin
 tests/XiaoZhi.Net.Test/obj
 *.vssscc

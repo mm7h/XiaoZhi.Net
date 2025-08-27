@@ -1,6 +1,6 @@
-﻿using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+﻿using XiaoZhi.Net.Server.AudioPlayer.Abstractions.Common.Enums;
 
-namespace XiaoZhi.Net.Server.Abstractions.AudioPlayer;
+namespace XiaoZhi.Net.Server.AudioPlayer.Abstractions;
 
 /// <summary>
 /// An interface for loading and controlling audio playback.
@@ -22,6 +22,11 @@ public interface IAudioPlayer : IDisposable
     /// Event that is raised when audio data is available.
     /// </summary>
     event Action<byte[]> OnAudioDataAvailable;
+
+    /// <summary>
+    /// Gets a value indicating whether FFmpeg has been successfully initialized.
+    /// </summary>
+    public bool IsFFmpegInitialized { get; }
 
     /// <summary>
     /// Gets whether or not an audio source is loaded and ready for playback.
@@ -57,6 +62,15 @@ public interface IAudioPlayer : IDisposable
     /// Gets or sets custom sample processor.
     /// </summary>
     ISampleProcessor? CustomSampleProcessor { get; set; }
+
+    /// <summary>
+    /// Checks whether FFmpeg is installed and initialized for use.
+    /// </summary>
+    /// <remarks>This method verifies the initialization status of FFmpeg. If FFmpeg is not
+    /// initialized, it attempts to initialize it. If an error occurs during initialization, the method logs the
+    /// error and returns <see langword="false"/>.</remarks>
+    /// <returns><see langword="true"/> if FFmpeg is successfully initialized; otherwise, <see langword="false"/>.</returns>
+    bool CheckFFmpegInstalled();
 
     /// <summary>
     /// Starts audio playback.

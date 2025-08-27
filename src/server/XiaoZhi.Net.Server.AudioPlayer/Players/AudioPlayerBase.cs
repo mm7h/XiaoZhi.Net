@@ -1,16 +1,28 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using FFmpeg.AutoGen;
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
-using XiaoZhi.Net.Server.Abstractions.AudioPlayer;
-using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.AudioPlayer.Abstractions;
+using XiaoZhi.Net.Server.AudioPlayer.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.AudioPlayer.Common.Dtos;
 using XiaoZhi.Net.Server.AudioPlayer.Decoders;
+using XiaoZhi.Net.Server.AudioPlayer.Exceptions;
 using XiaoZhi.Net.Server.AudioPlayer.Processors;
 using XiaoZhi.Net.Server.AudioPlayer.Utilities.Extensions;
 
 namespace XiaoZhi.Net.Server.AudioPlayer
 {
-    internal abstract class AudioPlayerBase<TDecoderType, TLogger>
+    internal abstract class AudioPlayerBase
+    {
+        internal static string FFmpegRootPath = "./ffmpeg/";
+
+        /// <summary>
+        /// Gets a value indicating whether FFmpeg has been successfully initialized.
+        /// </summary>
+        public bool IsFFmpegInitialized { get; protected set; }
+    }
+
+    internal abstract class AudioPlayerBase<TDecoderType, TLogger> : AudioPlayerBase, IAudioPlayer
     {
         private const int MinQueueSize = 8;
         private const int MaxQueueSize = 128;
@@ -22,7 +34,6 @@ namespace XiaoZhi.Net.Server.AudioPlayer
             VolumeProcessor = new VolumeProcessor { Volume = 1 };
             Queue = new ConcurrentQueue<AudioFrame>();
         }
-
 
         /// <inheritdoc />
         public event Action<PlaybackState>? StateChanged;
@@ -95,9 +106,41 @@ namespace XiaoZhi.Net.Server.AudioPlayer
         /// </summary>
         protected bool IsEOF { get; private set; }
 
+        /// <summary>
+        /// Checks whether FFmpeg is installed and initialized for use.
+        /// </summary>
+        /// <remarks>This method verifies the initialization status of FFmpeg. If FFmpeg is not
+        /// initialized, it attempts to initialize it. If an error occurs during initialization, the method logs the
+        /// error and returns <see langword="false"/>.</remarks>
+        /// <returns><see langword="true"/> if FFmpeg is successfully initialized; otherwise, <see langword="false"/>.</returns>
+        public bool CheckFFmpegInstalled()
+        {
+            try
+            {
+                if (IsFFmpegInitialized)
+                {
+                    return true;
+                }
+                Logger.LogInformation("Initialized the ffmpeg, version: {v}", ffmpeg.av_version_info());
+                ffmpeg.av_log_set_level(ffmpeg.AV_LOG_QUIET);
+                IsFFmpegInitialized = true;
+                return true;
+            }
+            catch
+            {
+                IsFFmpegInitialized = false;
+                return false;
+            }
+        }
+
         /// <inheritdoc />
         public void Play()
         {
+            if (!IsFFmpegInitialized)
+            {
+                throw new FFmpegException("FFmpeg is not initialized yet, please invoke the function \"CheckFFmpegInstalled()\" first.");
+            }
+
             if (IsLoaded)
             {
                 // "No loaded audio for playback."
@@ -132,6 +175,10 @@ namespace XiaoZhi.Net.Server.AudioPlayer
         /// <inheritdoc />
         public void Pause()
         {
+            if (!IsFFmpegInitialized)
+            {
+                throw new FFmpegException("FFmpeg is not initialized yet, please invoke the function \"CheckFFmpegInstalled()\" first.");
+            }
             if (State is PlaybackState.Playing or PlaybackState.Buffering)
             {
                 SetAndRaiseStateChanged(PlaybackState.Paused);
@@ -141,6 +188,10 @@ namespace XiaoZhi.Net.Server.AudioPlayer
         /// <inheritdoc />
         public void Seek(TimeSpan position)
         {
+            if (!IsFFmpegInitialized)
+            {
+                throw new FFmpegException("FFmpeg is not initialized yet, please invoke the function \"CheckFFmpegInstalled()\" first.");
+            }
             if (!IsLoaded || IsSeeking || CurrentDecoder == null)
             {
                 return;
@@ -173,6 +224,10 @@ namespace XiaoZhi.Net.Server.AudioPlayer
         /// <inheritdoc />
         public void Stop()
         {
+            if (!IsFFmpegInitialized)
+            {
+                throw new FFmpegException("FFmpeg is not initialized yet, please invoke the function \"CheckFFmpegInstalled()\" first.");
+            }
             if (State == PlaybackState.Idle)
             {
                 return;

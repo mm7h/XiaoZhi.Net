@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="MP3Sharp" Version="1.0.5" />
     <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>
 

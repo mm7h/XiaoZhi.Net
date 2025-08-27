@@ -1,4 +1,4 @@
-﻿namespace XiaoZhi.Net.Server.Abstractions.AudioPlayer
+﻿namespace XiaoZhi.Net.Server.AudioPlayer.Abstractions
 {
     public interface IStreamAudioPlayer : IAudioPlayer
     {

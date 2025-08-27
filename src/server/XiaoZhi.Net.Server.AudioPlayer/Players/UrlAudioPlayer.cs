@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using XiaoZhi.Net.Server.Abstractions.AudioPlayer;
-using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.AudioPlayer.Abstractions;
+using XiaoZhi.Net.Server.AudioPlayer.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.AudioPlayer.Common.Dtos;
 using XiaoZhi.Net.Server.AudioPlayer.Decoders;
 using XiaoZhi.Net.Server.AudioPlayer.Decoders.FFmpeg;

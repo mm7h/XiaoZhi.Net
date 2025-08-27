@@ -1,43 +1,46 @@
 ﻿using Microsoft.Extensions.Logging;
-using MP3Sharp;
 using System;
-using System.Buffers;
 using System.IO;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Dtos;
-using XiaoZhi.Net.Server.Common.Enums;
-using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.AudioPlayer.Abstractions;
+using XiaoZhi.Net.Server.AudioPlayer.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Providers.AudioPlayer
 {
-    internal class FileAudioPlayer : BaseProvider<FileAudioPlayer, AudioPlayerConfig>, IAudioPlayer
+    internal class FileAudioPlayer : BaseProvider<FileAudioPlayer, AudioSetting>, IAudioPlayer
     {
-        private readonly ManualResetEventSlim _pauseEvent = new ManualResetEventSlim(true);
         private readonly SemaphoreSlim _audioPlayerSlim = new SemaphoreSlim(1, 1);
+        private readonly IUrlAudioPlayer _urlAudioPlayer;
 
         private Channel<string>? _processingChannel;
         private CancellationTokenSource? _cancellationTokenSource;
-        private int _frameDurationMs = 60; // 每帧的时长，单位毫秒
+        private AudioSetting? _audioSetting;
 
         public override string ProviderType => "audio player";
 
         public override string ModelName => nameof(FileAudioPlayer);
 
-        public PlayingStatus PlayingStatus { get; private set; }
+        public PlaybackState PlaybackState => this._urlAudioPlayer.State;
 
         public event Action<string>? OnBeforeProcessing;
         public event Action<string, float[]>? OnProcessing; // use Memory then to span?
         public event Action<string, bool>? OnProcessed;
 
-        public FileAudioPlayer(ILogger<FileAudioPlayer> logger) : base(logger)
+        public FileAudioPlayer(IUrlAudioPlayer urlAudioPlayer, ILogger<FileAudioPlayer> logger) : base(logger)
         {
-
+            this._urlAudioPlayer = urlAudioPlayer;
         }
 
-        public override bool Build(AudioPlayerConfig settings)
+        public override bool Build(AudioSetting audioSetting)
         {
+            if (!this._urlAudioPlayer.CheckFFmpegInstalled())
+            {
+                this.Logger.LogError("Failed to initialize FFmpeg, please double check your the ffmpeg path configuration.");
+                return false;
+            }
+            this._audioSetting = audioSetting;
             int capacity = 50;
             BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(capacity)
             {
@@ -81,75 +84,63 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
 
         public async Task PauseAsync()
         {
-            if (this.PlayingStatus == PlayingStatus.Idle)
+            if (this.PlaybackState == PlaybackState.Idle)
             {
-                this.Logger.LogInformation("The audio player status is {status}, skip the pausing.", this.PlayingStatus);
+                this.Logger.LogInformation("The audio player status is {status}, skip the pausing.", this.PlaybackState);
                 return;
             }
             try
             {
                 await this._audioPlayerSlim.WaitAsync();
-
-
-                this._pauseEvent.Reset();
-
-
+                this._urlAudioPlayer.Pause();
             }
             finally
             {
-                this.PlayingStatus = PlayingStatus.Paused;
                 this._audioPlayerSlim.Release();
             }
         }
 
         public async Task ResumeAsync()
         {
-            if (this.PlayingStatus == PlayingStatus.Idle)
+            if (this.PlaybackState == PlaybackState.Idle)
             {
-                this.Logger.LogInformation("The audio player status is {status}, skip the resuming.", this.PlayingStatus);
+                this.Logger.LogInformation("The audio player status is {status}, skip the resuming.", this.PlaybackState);
                 return;
             }
             try
             {
                 await this._audioPlayerSlim.WaitAsync();
-
-
-                this._pauseEvent.Set();
-
-
+                this._urlAudioPlayer.Play();
             }
             finally
             {
-                this.PlayingStatus = PlayingStatus.Playing;
                 this._audioPlayerSlim.Release();
             }
         }
 
         public async Task StopAsync()
         {
-            if (this.PlayingStatus == PlayingStatus.Idle)
+            if (this.PlaybackState == PlaybackState.Idle)
             {
-                this.Logger.LogInformation("The audio player status is {status}, skip the stopping.", this.PlayingStatus);
+                this.Logger.LogInformation("The audio player status is {status}, skip the stopping.", this.PlaybackState);
                 return;
             }
             try
             {
                 await this._audioPlayerSlim.WaitAsync();
-
+                this._urlAudioPlayer.Stop();
                 this._cancellationTokenSource?.Cancel();
-
 
             }
             finally
             {
-                this.PlayingStatus = PlayingStatus.Idle;
                 this._audioPlayerSlim.Release();
             }
         }
 
         public async Task SeekAsync(long positionMs)
         {
-            if (this.PlayingStatus == PlayingStatus.Idle)
+            if (this.PlaybackState == PlaybackState.Idle)
             {
                 return;
             }
@@ -178,37 +169,27 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
 
         private async Task AudioFileProcessingAsync(string file)
         {
+            if (this._audioSetting is null)
+            {
+                this.Logger.LogError("The audio player is not built yet.");
+                return;
+            }
             this._cancellationTokenSource = new CancellationTokenSource();
             CancellationToken token = this._cancellationTokenSource.Token;
 
-            var mp3Stream = new MP3Stream(file);
             string fileName = Path.GetFileName(file);
 
             this.OnBeforeProcessing?.Invoke(fileName);
 
-            int sampleRate = mp3Stream.Frequency;
-            int channels = mp3Stream.ChannelCount;
-
-            this.Logger.LogDebug("Start processing audio file: {file}, sample rate: {sampleRate}, channels: {channels}.", fileName, sampleRate, channels);
-
-            int bufferSize = (sampleRate * this._frameDurationMs / 1000) * 2 * channels; // 每帧的字节数
-
-            byte[] pcmData = ArrayPool<byte>.Shared.Rent(bufferSize);
+            this.Logger.LogDebug("Start processing audio file: {file}.", fileName);
 
             try
             {
-                this.PlayingStatus = PlayingStatus.Playing;
+                await this._urlAudioPlayer.LoadAsync(file, this._audioSetting.SampleRate, this._audioSetting.Channels);
 
-                int bytesRead;
-                while ((bytesRead = await mp3Stream.ReadAsync(pcmData, 0, pcmData.Length)) > 0)
-                {
-                    this._pauseEvent.Wait(token);
+                this.Logger.LogDebug("Loaded audio file: {file}, start playing.", fileName);
+                this._urlAudioPlayer.Play();
 
-                    this.OnProcessing?.Invoke(fileName, pcmData.Bytes2Float());
-                    await Task.Delay(this._frameDurationMs, token);
-
-                    token.ThrowIfCancellationRequested();
-                }
                 this.OnProcessed?.Invoke(fileName, true);
                 this.Logger.LogDebug("Completed processing audio file: {file}.", fileName);
             }
@@ -224,17 +205,13 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
             }
             finally
             {
-                this.PlayingStatus = PlayingStatus.Idle;
-                mp3Stream.Dispose();
                 this._cancellationTokenSource.Dispose();
-                ArrayPool<byte>.Shared.Return(pcmData);
             }
         }
 
         public override void Dispose()
         {
             this._audioPlayerSlim.Dispose();
-            this._pauseEvent.Dispose();
         }
     }
 }
