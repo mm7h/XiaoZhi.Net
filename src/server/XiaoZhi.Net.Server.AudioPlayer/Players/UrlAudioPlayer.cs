@@ -37,15 +37,14 @@ internal class UrlAudioPlayer : AudioPlayerBase<string, UrlAudioPlayer>, IUrlAud
     {
         if (string.IsNullOrEmpty(url))
         {
-
             return Task.FromResult(false);
         }
-        if (State == PlaybackState.Idle)
+        if (State != PlaybackState.Idle)
         {
             // Playback thread is currently running.
             return Task.FromResult(false);
         }
-        FFmpegDecoderOptions decoderOptions = new(outputChannels, outputSampleRate);
+        FFmpegDecoderOptions decoderOptions = new(outputSampleRate, outputChannels);
         _decoderOptions = decoderOptions;
 
         LoadInternal(() => CreateDecoder(url));

@@ -141,14 +141,15 @@ namespace XiaoZhi.Net.Server.AudioPlayer
                 throw new FFmpegException("FFmpeg is not initialized yet, please invoke the function \"CheckFFmpegInstalled()\" first.");
             }
 
-            if (IsLoaded)
+            if (!IsLoaded)
             {
-                // "No loaded audio for playback."
+                Logger.LogDebug("No loaded audio for playback.");
                 return;
             }
 
             if (State is PlaybackState.Playing or PlaybackState.Buffering)
             {
+                Logger.LogDebug("The player is running.");
                 return;
             }
 

@@ -67,6 +67,43 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 return;
             }
             IUrlAudioPlayer audioPlayer = AudioPlayerFactory.CreateUrlAudioPlayer();
+            if (!audioPlayer.CheckFFmpegInstalled())
+            {
+                Console.WriteLine("Failed to initialize the ffmpeg.");
+                return;
+            }
+            //audioPlayer.Volume = 0.1f;
+
+            const int sampleRate = 44100;
+            const int channels = 2;
+
+            using (var waveOut = new WaveOutEvent())
+            {
+                var provider = new BufferedWaveProvider(WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels));
+                provider.BufferLength = sampleRate * 2 * channels * 4;
+                waveOut.Init(provider);
+                waveOut.Play(); 
+
+                audioPlayer.OnAudioDataAvailable += (pcmData) =>
+                {
+                    while (provider.BufferedBytes + pcmData.Length > provider.BufferLength)
+                    {
+                        Thread.Sleep(100);
+                    }
+                    provider.AddSamples(pcmData, 0, pcmData.Length);
+                };
+
+                //todo: not support .wav file yet, need to udpate the resampler init
+
+                await audioPlayer.LoadAsync(@"./audioFile/Perfect.mp3", sampleRate, channels);
+
+                audioPlayer.Play();
+
+                Console.WriteLine("Play completed.");
+                Console.Read();
+            }
+
+
         }
     }
 }
