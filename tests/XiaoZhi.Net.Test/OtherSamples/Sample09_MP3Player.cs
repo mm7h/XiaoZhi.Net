@@ -93,9 +93,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     provider.AddSamples(pcmData, 0, pcmData.Length);
                 };
 
-                //todo: not support .wav file yet, need to udpate the resampler init
-
-                await audioPlayer.LoadAsync(@"./audioFile/Perfect.mp3", sampleRate, channels);
+                await audioPlayer.LoadAsync(@"./audioFile/Perfect.aac", sampleRate, channels);
 
                 audioPlayer.Play();
 

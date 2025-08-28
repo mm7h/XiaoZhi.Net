@@ -66,9 +66,24 @@ internal sealed unsafe class FFmpegUrlDecoder : IAudioDecoder
         options ??= new FFmpegDecoderOptions();
 
         var srcChannelLayout = _codecCtx->ch_layout;
-        if (srcChannelLayout.nb_channels == 0)
+
+        // Validate sample rate
+        if (_codecCtx->sample_rate <= 0)
         {
-            ffmpeg.av_channel_layout_default(&srcChannelLayout, _codecCtx->ch_layout.nb_channels);
+            throw new InvalidOperationException($"Invalid sample rate: {_codecCtx->sample_rate}. Unable to decode audio stream from: {url}");
+        }
+
+        // Ensure we have a proper channel layout
+        if (srcChannelLayout.nb_channels == 0 || (srcChannelLayout.order == AVChannelOrder.AV_CHANNEL_ORDER_UNSPEC && srcChannelLayout.u.mask == 0))
+        {
+            // If channel layout is not specified, try to get channel count from codec context
+            var channelCount = _codecCtx->ch_layout.nb_channels;
+            if (channelCount <= 0)
+            {
+                throw new InvalidOperationException($"Unable to determine channel count for audio stream from: {url}. Channel layout is unspecified and channel count is {channelCount}.");
+            }
+
+            ffmpeg.av_channel_layout_default(&srcChannelLayout, channelCount);
         }
 
         _resampler = new FFmpegResampler(
@@ -82,7 +97,7 @@ internal sealed unsafe class FFmpegUrlDecoder : IAudioDecoder
         var duration = _formatCtx->streams[_streamIndex]->duration * rational * 1000.00;
         duration = duration > 0 ? duration : _formatCtx->duration / 1000.00;
 
-        StreamInfo = new AudioStreamInfo(_codecCtx->ch_layout.nb_channels, _codecCtx->sample_rate, TimeSpan.FromMicroseconds(duration));
+        StreamInfo = new AudioStreamInfo(srcChannelLayout.nb_channels, _codecCtx->sample_rate, TimeSpan.FromMicroseconds(duration));
 
         _currentPacket = ffmpeg.av_packet_alloc();
         _currentFrame = ffmpeg.av_frame_alloc();
@@ -129,9 +144,16 @@ internal sealed unsafe class FFmpegUrlDecoder : IAudioDecoder
             }
 
             // Handle unknown channel layout so the resampler can process the frame
-            if (_currentFrame->ch_layout.nb_channels <= 0)
+            if (_currentFrame->ch_layout.nb_channels <= 0 || (_currentFrame->ch_layout.order == AVChannelOrder.AV_CHANNEL_ORDER_UNSPEC && _currentFrame->ch_layout.u.mask == 0))
             {
-                ffmpeg.av_channel_layout_default(&_currentFrame->ch_layout, _codecCtx->ch_layout.nb_channels);
+                var channelCount = _codecCtx->ch_layout.nb_channels;
+                if (channelCount <= 0)
+                {
+                    return new AudioDecoderResult(null, false, false,
+                        "Unable to determine channel count for current frame. Both frame and codec context have invalid channel information.");
+                }
+
+                ffmpeg.av_channel_layout_default(&_currentFrame->ch_layout, channelCount);
             }
 
             // Converts samples from received frame using resampler
