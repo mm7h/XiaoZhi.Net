@@ -20,6 +20,11 @@ internal sealed unsafe class FFmpegUrlDecoder : IAudioDecoder
     private readonly AVFrame* _currentFrame;
     private readonly FFmpegResampler _resampler;
     private readonly int _streamIndex;
+    private readonly int _frameSampleCount;
+    private readonly int _outputChannels;
+    private readonly int _outputSampleRate;
+    private readonly int _frameDurationMs;
+    private List<byte> _sampleBuffer = new();
     private bool _disposed;
 
     /// <summary>
@@ -93,6 +98,11 @@ internal sealed unsafe class FFmpegUrlDecoder : IAudioDecoder
             options.Channels,
             options.SampleRate);
 
+        _outputChannels = options.Channels;
+        _outputSampleRate = options.SampleRate;
+        _frameDurationMs = options.FrameDuration;
+        _frameSampleCount = _outputSampleRate * _frameDurationMs / 1000 * _outputChannels;
+
         var rational = ffmpeg.av_q2d(_formatCtx->streams[_streamIndex]->time_base);
         var duration = _formatCtx->streams[_streamIndex]->duration * rational * 1000.00;
         duration = duration > 0 ? duration : _formatCtx->duration / 1000.00;
@@ -111,67 +121,67 @@ internal sealed unsafe class FFmpegUrlDecoder : IAudioDecoder
     {
         lock (_syncLock)
         {
-            ffmpeg.av_frame_unref(_currentFrame);
-
-            while (true)
+            while (_sampleBuffer.Count < _frameSampleCount * sizeof(float))
             {
-                int code;
-
-                do
+                ffmpeg.av_frame_unref(_currentFrame);
+                while (true)
                 {
-                    ffmpeg.av_packet_unref(_currentPacket);
-                    code = ffmpeg.av_read_frame(_formatCtx, _currentPacket);
-
-                    // This might be end-of-file error
-                    if (code.FFIsError())
+                    int code;
+                    do
                     {
                         ffmpeg.av_packet_unref(_currentPacket);
-                        return new AudioDecoderResult(null, false, code.FFIsEOF(), code.FFErrorToText());
+                        code = ffmpeg.av_read_frame(_formatCtx, _currentPacket);
+                        if (code.FFIsError())
+                        {
+                            ffmpeg.av_packet_unref(_currentPacket);
+                            if (_sampleBuffer.Count > 0)
+                            {
+                                var lastData = _sampleBuffer.ToArray();
+                                _sampleBuffer.Clear();
+                                return new AudioDecoderResult(new AudioFrame(0, lastData), true, true);
+                            }
+                            return new AudioDecoderResult(null, false, code.FFIsEOF(), code.FFErrorToText());
+                        }
+                    } while (_currentPacket->stream_index != _streamIndex);
+
+                    ffmpeg.avcodec_send_packet(_codecCtx, _currentPacket);
+                    ffmpeg.av_packet_unref(_currentPacket);
+                    code = ffmpeg.avcodec_receive_frame(_codecCtx, _currentFrame);
+                    if (code != ffmpeg.AVERROR(ffmpeg.EAGAIN))
+                    {
+                        break;
                     }
-
-                } while (_currentPacket->stream_index != _streamIndex);
-
-                ffmpeg.avcodec_send_packet(_codecCtx, _currentPacket);
-                ffmpeg.av_packet_unref(_currentPacket);
-
-                code = ffmpeg.avcodec_receive_frame(_codecCtx, _currentFrame);
-
-                // Break if all inputs was received
-                if (code != ffmpeg.AVERROR(ffmpeg.EAGAIN))
+                }
+                if (_currentFrame->ch_layout.nb_channels <= 0 || (_currentFrame->ch_layout.order == AVChannelOrder.AV_CHANNEL_ORDER_UNSPEC && _currentFrame->ch_layout.u.mask == 0))
                 {
-                    break;
+                    var channelCount = _codecCtx->ch_layout.nb_channels;
+                    if (channelCount <= 0)
+                    {
+                        return new AudioDecoderResult(null, false, false,
+                            "Unable to determine channel count for current frame. Both frame and codec context have invalid channel information.");
+                    }
+                    ffmpeg.av_channel_layout_default(&_currentFrame->ch_layout, channelCount);
+                }
+                if (!_resampler.TryConvert(*_currentFrame, out byte[]? data, out string? error))
+                {
+                    return new AudioDecoderResult(null, false, false, error);
+                }
+                if (data != null && data.Length > 0)
+                {
+                    _sampleBuffer.AddRange(data);
                 }
             }
-
-            // Handle unknown channel layout so the resampler can process the frame
-            if (_currentFrame->ch_layout.nb_channels <= 0 || (_currentFrame->ch_layout.order == AVChannelOrder.AV_CHANNEL_ORDER_UNSPEC && _currentFrame->ch_layout.u.mask == 0))
-            {
-                var channelCount = _codecCtx->ch_layout.nb_channels;
-                if (channelCount <= 0)
-                {
-                    return new AudioDecoderResult(null, false, false,
-                        "Unable to determine channel count for current frame. Both frame and codec context have invalid channel information.");
-                }
-
-                ffmpeg.av_channel_layout_default(&_currentFrame->ch_layout, channelCount);
-            }
-
-            // Converts samples from received frame using resampler
-            if (!_resampler.TryConvert(*_currentFrame, out byte[]? data, out string? error))
-            {
-                return new AudioDecoderResult(null, false, false, error);
-            }
+            // output frame
+            var frameData = _sampleBuffer.GetRange(0, _frameSampleCount * sizeof(float)).ToArray();
+            _sampleBuffer.RemoveRange(0, _frameSampleCount * sizeof(float));
 
             // Retrieve the best or most accurate presentation timestamp
-            var pts = _currentFrame->best_effort_timestamp;
-            pts = pts >= 0 ? pts : _currentFrame->pts;
-            pts = pts >= 0 ? pts : 0;
-
+            var pts = _currentFrame->best_effort_timestamp >= 0 ? _currentFrame->best_effort_timestamp : _currentFrame->pts >= 0 ? _currentFrame->pts : 0;
+            
             // Calculate FFmpeg's presentation timestamp in milliseconds value
             var rational = ffmpeg.av_q2d(_formatCtx->streams[_streamIndex]->time_base);
             var presentationTime = Math.Round(pts * rational * 1000.0, 2);
-
-            return new AudioDecoderResult(new AudioFrame(presentationTime, data!), true, false);
+            return new AudioDecoderResult(new AudioFrame(presentationTime, frameData), true, false);
         }
     }
 
@@ -186,6 +196,11 @@ internal sealed unsafe class FFmpegUrlDecoder : IAudioDecoder
 
             var code = ffmpeg.avformat_seek_file(_formatCtx, _streamIndex, 0, ts, long.MaxValue, 0);
             ffmpeg.avcodec_flush_buffers(_codecCtx);
+
+            if (!code.FFIsError())
+            {
+                _sampleBuffer.Clear();
+            }
 
             error = code.FFIsError() ? code.FFErrorToText() : null;
             return !code.FFIsError();

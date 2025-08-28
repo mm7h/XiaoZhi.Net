@@ -93,7 +93,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
             }
         }
 
-        public async Task SeekAsync(long positionMs)
+        public async Task SeekAsync(TimeSpan position)
         {
             try
             {

@@ -73,9 +73,11 @@ public interface IAudioPlayer : IDisposable
     bool CheckFFmpegInstalled();
 
     /// <summary>
-    /// Starts audio playback.
+    /// Plays the audio or media associated with this instance.
     /// </summary>
-    void Play();
+    /// <param name="waitDone">A value indicating whether the method should block execution until playback is complete.  <see langword="true"/>
+    /// to wait for playback to finish; otherwise, <see langword="false"/>.</param>
+    void Play(bool waitDone = false);
 
     /// <summary>
     /// Suspends the player for sending buffers to output device.

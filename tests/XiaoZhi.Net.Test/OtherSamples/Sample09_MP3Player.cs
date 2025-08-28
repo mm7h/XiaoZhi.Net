@@ -66,23 +66,36 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 Console.WriteLine("Failed to initialize the ffmpeg.");
                 return;
             }
-            IUrlAudioPlayer audioPlayer = AudioPlayerFactory.CreateUrlAudioPlayer();
+            //IUrlAudioPlayer audioPlayer = AudioPlayerFactory.CreateUrlAudioPlayer();
+            IStreamAudioPlayer audioPlayer = AudioPlayerFactory.CreateStreamAudioPlayer();
+
             if (!audioPlayer.CheckFFmpegInstalled())
             {
                 Console.WriteLine("Failed to initialize the ffmpeg.");
                 return;
             }
-            //audioPlayer.Volume = 0.1f;
+            audioPlayer.Volume = 0.2f;
 
-            const int sampleRate = 44100;
-            const int channels = 2;
+            const int sampleRate = 16000;
+            const int channels = 1;
+            const int frameDurationMs = 60;
 
             using (var waveOut = new WaveOutEvent())
             {
                 var provider = new BufferedWaveProvider(WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels));
                 provider.BufferLength = sampleRate * 2 * channels * 4;
                 waveOut.Init(provider);
-                waveOut.Play(); 
+                waveOut.Play();
+
+                audioPlayer.StateChanged += (s) =>
+                {
+                    Console.WriteLine($"StateChanged: {s}");
+                };
+
+                audioPlayer.PositionChanged += (p) =>
+                {
+                    Console.WriteLine($"PositionChanged: {p}");
+                };
 
                 audioPlayer.OnAudioDataAvailable += (pcmData) =>
                 {
@@ -93,11 +106,17 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     provider.AddSamples(pcmData, 0, pcmData.Length);
                 };
 
-                await audioPlayer.LoadAsync(@"./audioFile/Perfect.aac", sampleRate, channels);
+                //await audioPlayer.LoadAsync(@"./audioFile/Perfect.flac", sampleRate, channels, frameDurationMs);
+                //audioPlayer.Play();
 
-                audioPlayer.Play();
+                using (var stream = File.OpenRead(@"./audioFile/Perfect.wav"))
+                {
+                    await audioPlayer.LoadAsync(stream, sampleRate, channels, frameDurationMs);
 
-                Console.WriteLine("Play completed.");
+                    audioPlayer.Play(true);
+
+                    Console.WriteLine("Play completed.");
+                }
                 Console.Read();
             }
 

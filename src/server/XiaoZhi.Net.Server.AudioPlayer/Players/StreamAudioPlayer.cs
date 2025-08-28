@@ -31,7 +31,7 @@ internal class StreamAudioPlayer : AudioPlayerBase<Stream, StreamAudioPlayer>, I
 
     /// <inheritdoc />
     /// <exception cref="ArgumentNullException">Thrown when given stream is null.</exception>
-    public Task<bool> LoadAsync(Stream stream, int outputSampleRate, int outputChannels)
+    public Task<bool> LoadAsync(Stream stream, int outputSampleRate, int outputChannels, int frameDuration)
     {
         if (stream is null)
         {
@@ -43,7 +43,7 @@ internal class StreamAudioPlayer : AudioPlayerBase<Stream, StreamAudioPlayer>, I
             // Playback thread is currently running.
             return Task.FromResult(false);
         }
-        FFmpegDecoderOptions decoderOptions = new(outputSampleRate,outputChannels);
+        FFmpegDecoderOptions decoderOptions = new(outputSampleRate, outputChannels, frameDuration);
         _decoderOptions = decoderOptions;
 
         LoadInternal(() => CreateDecoder(stream));

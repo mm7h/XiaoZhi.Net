@@ -138,7 +138,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
             }
         }
 
-        public async Task SeekAsync(long positionMs)
+        public async Task SeekAsync(TimeSpan position)
         {
             if (this.PlaybackState == PlaybackState.Idle)
             {
@@ -148,7 +148,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
             {
                 await this._audioPlayerSlim.WaitAsync();
 
-
+                this._urlAudioPlayer.Seek(position);
 
 
             }
@@ -185,7 +185,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
 
             try
             {
-                await this._urlAudioPlayer.LoadAsync(file, this._audioSetting.SampleRate, this._audioSetting.Channels);
+                await this._urlAudioPlayer.LoadAsync(file, this._audioSetting.SampleRate, this._audioSetting.Channels, this._audioSetting.FrameDuration);
 
                 this.Logger.LogDebug("Loaded audio file: {file}, start playing.", fileName);
                 this._urlAudioPlayer.Play();

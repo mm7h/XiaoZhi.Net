@@ -33,7 +33,7 @@ internal class UrlAudioPlayer : AudioPlayerBase<string, UrlAudioPlayer>, IUrlAud
 
     /// <inheritdoc />
     /// <exception cref="ArgumentNullException">Thrown when given url is null.</exception>
-    public Task<bool> LoadAsync(string url, int outputSampleRate, int outputChannels)
+    public Task<bool> LoadAsync(string url, int outputSampleRate, int outputChannels, int frameDuration)
     {
         if (string.IsNullOrEmpty(url))
         {
@@ -44,7 +44,7 @@ internal class UrlAudioPlayer : AudioPlayerBase<string, UrlAudioPlayer>, IUrlAud
             // Playback thread is currently running.
             return Task.FromResult(false);
         }
-        FFmpegDecoderOptions decoderOptions = new(outputSampleRate, outputChannels);
+        FFmpegDecoderOptions decoderOptions = new(outputSampleRate, outputChannels, frameDuration);
         _decoderOptions = decoderOptions;
 
         LoadInternal(() => CreateDecoder(url));

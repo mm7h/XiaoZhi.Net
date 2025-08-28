@@ -134,7 +134,7 @@ namespace XiaoZhi.Net.Server.AudioPlayer
         }
 
         /// <inheritdoc />
-        public void Play()
+        public void Play(bool waitDone = false)
         {
             if (!IsFFmpegInitialized)
             {
@@ -171,6 +171,11 @@ namespace XiaoZhi.Net.Server.AudioPlayer
 
             DecoderThread.Start();
             EngineThread.Start();
+
+            if (waitDone)
+            {
+                // todo: fix blocking issue
+            }
         }
 
         /// <inheritdoc />

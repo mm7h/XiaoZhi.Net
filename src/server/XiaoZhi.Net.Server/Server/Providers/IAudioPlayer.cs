@@ -14,7 +14,7 @@ namespace XiaoZhi.Net.Server.Providers
         Task PlayAsync(params string[] sources);
         Task PauseAsync();
         Task ResumeAsync();
-        Task SeekAsync(long positionMs);
+        Task SeekAsync(TimeSpan position);
         Task StopAsync();
     }
 }
