@@ -6,6 +6,7 @@ using XiaoZhi.Net.Server.AudioPlayer.Abstractions;
 using XiaoZhi.Net.Server.AudioPlayer.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.AudioPlayer.Common.Dtos;
 using XiaoZhi.Net.Server.AudioPlayer.Decoders;
+using XiaoZhi.Net.Server.AudioPlayer.Decoders.FFmpeg;
 using XiaoZhi.Net.Server.AudioPlayer.Exceptions;
 using XiaoZhi.Net.Server.AudioPlayer.Processors;
 using XiaoZhi.Net.Server.AudioPlayer.Utilities.Extensions;
@@ -27,6 +28,7 @@ namespace XiaoZhi.Net.Server.AudioPlayer
         private const int MinQueueSize = 8;
         private const int MaxQueueSize = 128;
         private bool _disposed;
+        private ManualResetEventSlim? _playbackCompletionEvent;
 
         public AudioPlayerBase(ILogger<TLogger> logger)
         {
@@ -41,7 +43,7 @@ namespace XiaoZhi.Net.Server.AudioPlayer
         /// <inheritdoc />
         public event Action<TimeSpan>? PositionChanged;
 
-        public event Action<byte[]>? OnAudioDataAvailable;
+        public event Action<float[]>? OnAudioDataAvailable;
 
         /// <inheritdoc />
         public abstract string AudioPlayerName { get; }
@@ -107,6 +109,16 @@ namespace XiaoZhi.Net.Server.AudioPlayer
         protected bool IsEOF { get; private set; }
 
         /// <summary>
+        /// Tracks the playback start time for timing synchronization.
+        /// </summary>
+        private DateTime _playbackStartTime;
+
+        /// <summary>
+        /// Tracks whether this is the first frame being processed.
+        /// </summary>
+        private bool _firstFrame;
+
+        /// <summary>
         /// Checks whether FFmpeg is installed and initialized for use.
         /// </summary>
         /// <remarks>This method verifies the initialization status of FFmpeg. If FFmpeg is not
@@ -164,6 +176,17 @@ namespace XiaoZhi.Net.Server.AudioPlayer
             Seek(Position);
             IsEOF = false;
 
+            // Reset timing tracking for new playback
+            _playbackStartTime = DateTime.Now;
+            _firstFrame = true;
+
+            // Create completion event if waitDone is requested
+            if (waitDone)
+            {
+                _playbackCompletionEvent?.Dispose();
+                _playbackCompletionEvent = new ManualResetEventSlim(false);
+            }
+
             DecoderThread = new Thread(RunDecoder) { Name = $"Decoder_Thread_{AudioPlayerName}", IsBackground = true };
             EngineThread = new Thread(RunEngine) { Name = $"Engine_Thread_{AudioPlayerName}", IsBackground = true };
 
@@ -174,7 +197,22 @@ namespace XiaoZhi.Net.Server.AudioPlayer
 
             if (waitDone)
             {
-                // todo: fix blocking issue
+                try
+                {
+                    Logger.LogDebug("Waiting for playback to complete...");
+                    _playbackCompletionEvent?.Wait();
+                    Logger.LogDebug("Playback completed.");
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Event was disposed, which means playback was stopped
+                    Logger.LogDebug("Playback was stopped.");
+                }
+                finally
+                {
+                    _playbackCompletionEvent?.Dispose();
+                    _playbackCompletionEvent = null;
+                }
             }
         }
 
@@ -221,6 +259,10 @@ namespace XiaoZhi.Net.Server.AudioPlayer
                 return;
             }
 
+            // Reset timing tracking when seeking
+            _playbackStartTime = DateTime.Now - position;
+            _firstFrame = true;
+
             IsSeeking = false;
             SetAndRaisePositionChanged(position);
 
@@ -240,7 +282,18 @@ namespace XiaoZhi.Net.Server.AudioPlayer
             }
 
             State = PlaybackState.Idle;
+
+            // Interrupt the decoder if it supports interruption
+            if (CurrentDecoder is FFmpegStreamDecoder streamDecoder)
+            {
+                streamDecoder.Interrupt();
+            }
+
             EnsureThreadsDone();
+
+            // Signal completion event before invoking StateChanged
+            _playbackCompletionEvent?.Set();
+
             StateChanged?.Invoke(State);
         }
 
@@ -267,6 +320,12 @@ namespace XiaoZhi.Net.Server.AudioPlayer
             if (raise && StateChanged != null)
             {
                 StateChanged.Invoke(State);
+            }
+
+            // Signal completion when state changes to Idle
+            if (state == PlaybackState.Idle && _playbackCompletionEvent != null)
+            {
+                _playbackCompletionEvent.Set();
             }
         }
 
@@ -337,7 +396,7 @@ namespace XiaoZhi.Net.Server.AudioPlayer
         private void RunDecoder()
         {
             Logger.LogDebug("Decoder thread is started.");
-
+            Console.WriteLine("Decoder thread is started.");
             while (State != PlaybackState.Idle)
             {
                 while (IsSeeking)
@@ -349,6 +408,10 @@ namespace XiaoZhi.Net.Server.AudioPlayer
 
                     Queue.Clear();
                     Thread.Sleep(10);
+                }
+                if (State == PlaybackState.Idle)
+                {
+                    break;
                 }
                 if (CurrentDecoder is null)
                 {
@@ -396,24 +459,37 @@ namespace XiaoZhi.Net.Server.AudioPlayer
 
                     Thread.Sleep(100);
                 }
-
+                if (State == PlaybackState.Idle)
+                {
+                    break;
+                }
                 if (result.Frame is not null)
                 {
                     Queue.Enqueue(result.Frame);
                 }
             }
-
+            Console.WriteLine("Decoder thread is completed.");
             Logger.LogDebug("Decoder thread is completed.");
         }
 
         private void RunEngine()
         {
             Logger.LogDebug("Engine thread is started.");
+            Console.WriteLine("Engine thread is started.");
+
+            double lastPresentationTime = 0;
+            DateTime lastFrameTime = DateTime.Now;
 
             while (State != PlaybackState.Idle)
             {
                 if (State == PlaybackState.Paused || IsSeeking)
                 {
+                    // Update the start time when resuming from pause to account for pause duration
+                    if (State == PlaybackState.Paused)
+                    {
+                        var pauseDuration = DateTime.Now - lastFrameTime;
+                        _playbackStartTime = _playbackStartTime.Add(pauseDuration);
+                    }
                     Thread.Sleep(10);
                     continue;
                 }
@@ -440,9 +516,39 @@ namespace XiaoZhi.Net.Server.AudioPlayer
                 ProcessSampleProcessors(samples);
 
                 SetAndRaiseStateChanged(PlaybackState.Playing);
-                this.OnAudioDataAvailable?.Invoke(frame.Data);
+                this.OnAudioDataAvailable?.Invoke(samples.ToArray());
 
-                SetAndRaisePositionChanged(TimeSpan.FromMilliseconds(frame.PresentationTime));
+                var framePresentationTime = frame.PresentationTime;
+
+                // If this is the first frame, initialize timing
+                if (_firstFrame)
+                {
+                    _playbackStartTime = DateTime.Now - TimeSpan.FromMilliseconds(framePresentationTime);
+                    _firstFrame = false;
+                }
+
+                // Calculate when this frame should be played
+                var targetPlayTime = _playbackStartTime.AddMilliseconds(framePresentationTime);
+                var currentTime = DateTime.Now;
+                var timeToWait = targetPlayTime - currentTime;
+
+                // If we're ahead of schedule, wait
+                if (timeToWait.TotalMilliseconds > 0)
+                {
+                    // Cap the wait time to avoid extremely long delays and ensure responsiveness
+                    var waitMs = Math.Min((int)timeToWait.TotalMilliseconds, 100);
+                    if (waitMs > 0)
+                    {
+                        Thread.Sleep(waitMs);
+                    }
+                }
+
+                // Update timing tracking
+                lastFrameTime = DateTime.Now;
+                lastPresentationTime = framePresentationTime;
+
+                // Update the position to reflect the actual playback timing
+                SetAndRaisePositionChanged(TimeSpan.FromMilliseconds(framePresentationTime));
             }
 
             // Don't calls Seek(), the Play() method will do the job! The Seek() method will sets IsSeeking to true.
@@ -453,6 +559,7 @@ namespace XiaoZhi.Net.Server.AudioPlayer
             // Just fire and forget, and it should be non-blocking event.
             Task.Run(() => SetAndRaiseStateChanged(PlaybackState.Idle));
 
+            Console.WriteLine("Engine thread is completed.");
             Logger.LogDebug("Engine thread is completed.");
         }
 
@@ -484,7 +591,18 @@ namespace XiaoZhi.Net.Server.AudioPlayer
             }
 
             State = PlaybackState.Idle;
+
+            // Interrupt the decoder if it supports interruption
+            if (CurrentDecoder is FFmpegStreamDecoder streamDecoder)
+            {
+                streamDecoder.Interrupt();
+            }
+
             EnsureThreadsDone();
+
+            // Dispose completion event
+            _playbackCompletionEvent?.Dispose();
+            _playbackCompletionEvent = null;
 
             CurrentDecoder?.Dispose();
             Queue.Clear();

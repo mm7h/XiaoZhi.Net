@@ -176,7 +176,7 @@ internal sealed unsafe class FFmpegUrlDecoder : IAudioDecoder
             _sampleBuffer.RemoveRange(0, _frameSampleCount * sizeof(float));
 
             // Retrieve the best or most accurate presentation timestamp
-            var pts = _currentFrame->best_effort_timestamp >= 0 ? _currentFrame->best_effort_timestamp : _currentFrame->pts >= 0 ? _currentFrame->pts : 0;
+            long pts = _currentFrame->best_effort_timestamp >= 0 ? _currentFrame->best_effort_timestamp : _currentFrame->pts >= 0 ? _currentFrame->pts : 0;
             
             // Calculate FFmpeg's presentation timestamp in milliseconds value
             var rational = ffmpeg.av_q2d(_formatCtx->streams[_streamIndex]->time_base);

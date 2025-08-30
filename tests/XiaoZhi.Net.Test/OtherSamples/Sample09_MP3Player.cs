@@ -10,7 +10,8 @@ namespace XiaoZhi.Net.Test.OtherSamples
         public static async Task Run()
         {
             //await TestTheMP3Player();
-            await TestTheAudioPlayer();
+            await TestTheUrlAudioPlayer();
+            //await TestTheStreamAudioPlayer();
         }
 
         static async Task TestTheMP3Player()
@@ -59,22 +60,21 @@ namespace XiaoZhi.Net.Test.OtherSamples
             }
         }
 
-        static async Task TestTheAudioPlayer()
+        static async Task TestTheUrlAudioPlayer()
         {
             if (!AudioPlayerFactory.InitializeFFmpeg())
             {
                 Console.WriteLine("Failed to initialize the ffmpeg.");
                 return;
             }
-            //IUrlAudioPlayer audioPlayer = AudioPlayerFactory.CreateUrlAudioPlayer();
-            IStreamAudioPlayer audioPlayer = AudioPlayerFactory.CreateStreamAudioPlayer();
+            IUrlAudioPlayer audioPlayer = AudioPlayerFactory.CreateUrlAudioPlayer();
 
             if (!audioPlayer.CheckFFmpegInstalled())
             {
                 Console.WriteLine("Failed to initialize the ffmpeg.");
                 return;
             }
-            audioPlayer.Volume = 0.2f;
+            audioPlayer.Volume = 0.3f;
 
             const int sampleRate = 16000;
             const int channels = 1;
@@ -89,34 +89,145 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
                 audioPlayer.StateChanged += (s) =>
                 {
-                    Console.WriteLine($"StateChanged: {s}");
+                    Console.WriteLine($"StateChanged: {s} at {DateTime.Now:HH:mm:ss.fff}");
                 };
 
+                DateTime lastPositionUpdate = DateTime.Now;
                 audioPlayer.PositionChanged += (p) =>
                 {
-                    Console.WriteLine($"PositionChanged: {p}");
+                    var now = DateTime.Now;
+                    var timeSinceLastUpdate = (now - lastPositionUpdate).TotalMilliseconds;
+                    Console.WriteLine($"PositionChanged: {p} (Real time: {timeSinceLastUpdate:F0}ms since last update) at {now:HH:mm:ss.fff}");
+                    lastPositionUpdate = now;
                 };
 
                 audioPlayer.OnAudioDataAvailable += (pcmData) =>
                 {
-                    while (provider.BufferedBytes + pcmData.Length > provider.BufferLength)
+                    var byteData = new byte[pcmData.Length * 4];
+                    Buffer.BlockCopy(pcmData, 0, byteData, 0, byteData.Length);
+
+                    while (provider.BufferedBytes + byteData.Length > provider.BufferLength)
                     {
                         Thread.Sleep(100);
                     }
-                    provider.AddSamples(pcmData, 0, pcmData.Length);
+                    provider.AddSamples(byteData, 0, byteData.Length);
                 };
 
-                //await audioPlayer.LoadAsync(@"./audioFile/Perfect.flac", sampleRate, channels, frameDurationMs);
-                //audioPlayer.Play();
+                await audioPlayer.LoadAsync(@"./audioFile/max_output_size.wav", sampleRate, channels, frameDurationMs);
 
-                using (var stream = File.OpenRead(@"./audioFile/Perfect.wav"))
+                Console.WriteLine("Starting non-blocking playback...");
+                audioPlayer.Play(false); // Non-blocking
+
+                Console.WriteLine("Pausing playback after 2 seconds...");
+                await Task.Delay(2000);
+                audioPlayer.Pause();
+
+                Console.WriteLine("Resuming playback after 2 seconds...");
+                await Task.Delay(2000);
+                audioPlayer.Play();
+
+                Console.WriteLine("Seeking to 0 seconds to replay after 2 seconds...");
+                await Task.Delay(2000);
+                audioPlayer.Seek(TimeSpan.Zero);
+
+                Console.WriteLine("Stopping playback after 4 seconds...");
+                await Task.Delay(4000);
+                audioPlayer.Stop();
+
+                Console.WriteLine("Replaying the audio after 3 seconds...");
+                await Task.Delay(3000);
+                Console.WriteLine();
+
+                Console.WriteLine("Starting blocking playback...");
+                var startTime = DateTime.Now;
+                audioPlayer.Play(true); // This will block until playback completes
+                var endTime = DateTime.Now;
+                
+                Console.WriteLine($"Blocking playback completed after {(endTime - startTime).TotalSeconds:F2} seconds");
+
+                Console.WriteLine("All url player tests completed.");
+                Console.Read();
+            }
+        }
+
+        static async Task TestTheStreamAudioPlayer()
+        {
+            if (!AudioPlayerFactory.InitializeFFmpeg())
+            {
+                Console.WriteLine("Failed to initialize the ffmpeg.");
+                return;
+            }
+            IStreamAudioPlayer audioPlayer = AudioPlayerFactory.CreateStreamAudioPlayer();
+
+            if (!audioPlayer.CheckFFmpegInstalled())
+            {
+                Console.WriteLine("Failed to initialize the ffmpeg.");
+                return;
+            }
+            audioPlayer.Volume = 0.3f;
+
+            const int sampleRate = 16000;
+            const int channels = 1;
+            const int frameDurationMs = 60;
+
+            using (var waveOut = new WaveOutEvent())
+            {
+                var provider = new BufferedWaveProvider(WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels));
+                provider.BufferLength = sampleRate * 2 * channels * 4;
+                waveOut.Init(provider);
+                waveOut.Play();
+
+                audioPlayer.StateChanged += (s) =>
+                {
+                    Console.WriteLine($"StateChanged: {s} at {DateTime.Now:HH:mm:ss.fff}");
+                };
+
+                DateTime lastPositionUpdate = DateTime.Now;
+                audioPlayer.PositionChanged += (p) =>
+                {
+                    var now = DateTime.Now;
+                    var timeSinceLastUpdate = (now - lastPositionUpdate).TotalMilliseconds;
+                    Console.WriteLine($"PositionChanged: {p} (Real time: {timeSinceLastUpdate:F0}ms since last update) at {now:HH:mm:ss.fff}");
+                    lastPositionUpdate = now;
+                };
+
+                audioPlayer.OnAudioDataAvailable += (pcmData) =>
+                {
+                    var byteData = new byte[pcmData.Length * 4];
+                    Buffer.BlockCopy(pcmData, 0, byteData, 0, byteData.Length);
+
+                    while (provider.BufferedBytes + byteData.Length > provider.BufferLength)
+                    {
+                        Thread.Sleep(100);
+                    }
+                    provider.AddSamples(byteData, 0, byteData.Length);
+                };
+
+                using (var stream = File.OpenRead(@"./audioFile/max_output_size.wav"))
                 {
                     await audioPlayer.LoadAsync(stream, sampleRate, channels, frameDurationMs);
+                    Console.WriteLine("Starting non-blocking playback...");
+                    audioPlayer.Play(false); // Non-blocking
 
-                    audioPlayer.Play(true);
+                    Console.WriteLine("Pausing playback after 2 seconds...");
+                    await Task.Delay(2000);
+                    audioPlayer.Pause();
 
-                    Console.WriteLine("Play completed.");
+                    Console.WriteLine("Resuming playback after 2 seconds...");
+                    await Task.Delay(2000);
+                    audioPlayer.Play();
+
+                    Console.WriteLine("Seeking to 0 seconds to replay after 2 seconds...");
+                    await Task.Delay(2000);
+                    audioPlayer.Seek(TimeSpan.Zero);
+
+                    Console.WriteLine("Stopping playback after 4 seconds...");
+                    await Task.Delay(4000);
+                    audioPlayer.Stop();
+
+                    Console.WriteLine("Stream audio player cannot support to replay the same file stream.");
                 }
+                Console.WriteLine("All stream player tests completed.");
                 Console.Read();
             }
 

@@ -10,8 +10,4 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.7" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="AudioPlayer\" />
-  </ItemGroup>
-
 </Project>

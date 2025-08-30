@@ -22,7 +22,7 @@ internal class StreamAudioPlayer : AudioPlayerBase<Stream, StreamAudioPlayer>, I
     public StreamAudioPlayer(ILogger<StreamAudioPlayer> logger) : base(logger)
     {
     }
-    public override string AudioPlayerName => nameof(UrlAudioPlayer);
+    public override string AudioPlayerName => nameof(StreamAudioPlayer);
 
     /// <summary>
     /// Gets or sets current specified audio stream.
@@ -70,6 +70,7 @@ internal class StreamAudioPlayer : AudioPlayerBase<Stream, StreamAudioPlayer>, I
         {
             throw new ArgumentNullException("Decoder options is not set.");
         }
+
         return new FFmpegStreamDecoder(stream, _decoderOptions);
     }
 
@@ -93,6 +94,7 @@ internal class StreamAudioPlayer : AudioPlayerBase<Stream, StreamAudioPlayer>, I
             IsLoaded = false;
             return false;
         }
+
         while (CurrentDecoder is null)
         {
             if (State == PlaybackState.Idle)

@@ -21,7 +21,7 @@ public interface IAudioPlayer : IDisposable
     /// <summary>
     /// Event that is raised when audio data is available.
     /// </summary>
-    event Action<byte[]> OnAudioDataAvailable;
+    event Action<float[]> OnAudioDataAvailable;
 
     /// <summary>
     /// Gets a value indicating whether FFmpeg has been successfully initialized.
