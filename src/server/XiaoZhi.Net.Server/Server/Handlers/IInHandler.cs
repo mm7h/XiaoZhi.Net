@@ -10,21 +10,15 @@ namespace XiaoZhi.Net.Server.Handlers
         ChannelReader<Workflow<TIn>> PreviousReader { get; set; }
     }
 
-    internal interface IInHandler<TIn1, TIn2> : IHandler
+    internal interface IInHandler<TIn1, TIn2> : IInHandler<TIn1>
     {
-        Task Handle1();
         Task Handle2();
-        ChannelReader<Workflow<TIn1>> PreviousReader1 { get; set; }
         ChannelReader<Workflow<TIn2>> PreviousReader2 { get; set; }
     }
 
-    internal interface IInHandler<TIn1, TIn2, TIn3> : IHandler
+    internal interface IInHandler<TIn1, TIn2, TIn3> : IInHandler<TIn1, TIn2>
     {
-        Task Handle1();
-        Task Handle2();
         Task Handle3();
-        ChannelReader<Workflow<TIn1>> PreviousReader1 { get; set; }
-        ChannelReader<Workflow<TIn2>> PreviousReader2 { get; set; }
         ChannelReader<Workflow<TIn3>> PreviousReader3 { get; set; }
     }
 }

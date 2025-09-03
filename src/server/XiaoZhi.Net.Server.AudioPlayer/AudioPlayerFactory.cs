@@ -31,7 +31,6 @@ namespace XiaoZhi.Net.Server.AudioPlayer
                     return false;
                 }
                 ffmpeg.RootPath = AudioPlayerBase.FFmpegRootPath = ffmpegPath;
-                Console.WriteLine(ffmpeg.av_version_info());
                 return true;
             }
             catch

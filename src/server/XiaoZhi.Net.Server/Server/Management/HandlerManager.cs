@@ -16,7 +16,6 @@ namespace XiaoZhi.Net.Server.Management
                 services.AddTransient<DialogueHandler>();
                 services.AddTransient<Text2AudioHandler>();
                 services.AddTransient<AudioSendHandler>();
-                services.AddTransient<PlayAudioFileHandler>();
 
                 services.AddSingleton<HandlerManager>();
             });

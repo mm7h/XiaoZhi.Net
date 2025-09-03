@@ -32,6 +32,11 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
         {
             this._currentSession = settings.Session;
             this._audioPlayer = settings.Session.AudioPlayer;
+            if (settings.Setting is null)
+            {
+                return false;
+            }
+            this._musicProvider = settings.Setting;
             return true;
         }
 
@@ -106,7 +111,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
                 }
 
                 string text = $"正在播放音乐：{musicName}";
-                await this._audioPlayer.PlayAsync(musicFilePath);
+                await this._audioPlayer.PlayAsync(this._currentSession.SessionCtsToken, musicFilePath);
 
                 this._logger.LogInformation("{ProviderType} - {ModelName}, Playing the music file {musicFilePath} for session {sessionId}.", this.ProviderType, this.ModelName, musicFilePath, this._currentSession.SessionId);
 
@@ -118,6 +123,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
 
 
 
-        public void Dispose(){}
+        public void Dispose() { }
     }
 }

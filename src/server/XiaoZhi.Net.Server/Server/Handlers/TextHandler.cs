@@ -95,6 +95,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 session.AudioSetting.Channels = channels;
                 session.AudioSetting.FrameDuration = frameDuration;
 
+                this._providerManager.BuildAudioPlayer(session);
                 this._providerManager.RegisterAudioResamplerWithAudioEncoder(session);
             }
 
@@ -143,10 +144,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 else if (state == "stop")
                 {
                     session.ManualStop();
-                    if (session.CheckAsrData())
-                    {
-                        this.OnManualStop?.Invoke(session);
-                    }
+                    this.OnManualStop?.Invoke(session);
                 }
                 else if (state == "detect")
                 {

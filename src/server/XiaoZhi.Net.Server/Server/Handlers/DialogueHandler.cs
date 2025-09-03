@@ -34,18 +34,18 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override string HandlerName => nameof(DialogueHandler);
         public IBizSendOutter SendOutter { get; set; } = null!;
-        public ChannelReader<Workflow<string>> PreviousReader1 { get; set; } = null!;
+        public ChannelReader<Workflow<string>> PreviousReader { get; set; } = null!;
         public ChannelReader<Workflow<string>> PreviousReader2 { get; set; } = null!;
         public ChannelWriter<Workflow<OutSegment>> NextWriter { get; set; } = null!;
 
-        public async Task Handle1()
+        public async Task Handle()
         {
-            await foreach (var reader in PreviousReader1.ReadAllAsync()) await this.Handle(reader);
+            await foreach (var reader in this.PreviousReader.ReadAllAsync()) await this.Handle(reader);
         }
 
         public async Task Handle2()
         {
-            await foreach (var reader in PreviousReader2.ReadAllAsync()) await this.Handle(reader);
+            await foreach (var reader in this.PreviousReader2.ReadAllAsync()) await this.Handle(reader);
         }
 
         public async Task Handle(Workflow<string> workflow, bool addToChatHistory = true)
@@ -53,6 +53,12 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
             {
+                return;
+            }
+            if (!session.IsDeviceBinded)
+            {
+                OutSegment outSegment = new OutSegment("NOT_BIND", true, true);
+                await this.NextWriter.WriteAsync(workflow.NextFlow(outSegment));
                 return;
             }
             try

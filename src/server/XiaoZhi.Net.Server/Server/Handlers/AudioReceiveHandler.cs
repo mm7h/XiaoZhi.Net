@@ -16,10 +16,13 @@ namespace XiaoZhi.Net.Server.Handlers
     {
         private readonly IVad _vad;
         private readonly IAudioDecoder _audioDecoder;
+        private readonly CircularBuffer _receivedPcmPacketFrame;
+
         public AudioReceiveHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_VAD)] IVad vad, [FromKeyedServices(GlobalProviderNames.GLOBAL_AUDIO_DECODER)] IAudioDecoder audioDecoder, XiaoZhiConfig config, ILogger<AudioReceiveHandler> logger) : base(config, logger)
         {
             this._vad = vad;
             this._audioDecoder = audioDecoder;
+            this._receivedPcmPacketFrame = new CircularBuffer(960 * 100);
         }
 
         public event Action<Workflow<string>>? OnNoVoiceCloseConnect;
@@ -45,7 +48,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     session.AudioPacketContext.VadPacket.Push(pcmData);
                 }
-                session.AudioPacketContext.AsrPackets.Push(pcmData);
+                this._receivedPcmPacketFrame.Push(pcmData);
                 bool haveVoice = false;
 
                 if (session.ListenMode != ListenMode.Manual)
@@ -55,7 +58,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 if (!haveVoice && !session.VadStatusContext.HaveVoice)
                 {
-                    session.AudioPacketContext.AsrPackets.Pop(Math.Max(0, session.AudioPacketContext.AsrPackets.Size - 50));
+                    this._receivedPcmPacketFrame.Pop(Math.Max(0, this._receivedPcmPacketFrame.Size - 50));
                     this.NoVoiceCloseConnect(session);
                     return;
                 }
@@ -67,22 +70,22 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        public void HandleAudio(Session sessionContext)
+        public void HandleAudio(Session session)
         {
-            if (sessionContext.VadStatusContext.VoiceStop)
+            if (session.VadStatusContext.VoiceStop)
             {
-                sessionContext.SessionCtsToken.ThrowIfCancellationRequested();
-                sessionContext.RejectIncomingAudio();
+                session.SessionCtsToken.ThrowIfCancellationRequested();
+                session.RejectIncomingAudio();
 
-                if (sessionContext.AudioPacketContext.AsrPackets.Size < 50)
+                if (this._receivedPcmPacketFrame.Size < 50)
                 {
                     //音频太短了，无法识别
-                    this.Logger.LogDebug("The voice is too short.");
-                    sessionContext.Reset();
+                    this.Logger.LogDebug("The voice is too short for the session {sesssionId}.", session.SessionId);
+                    session.Reset();
                     return;
                 }
 
-                this.OnVoiceDetected(sessionContext);
+                this.OnVoiceDetected(session);
             }
         }
 
@@ -95,7 +98,7 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             sessionContext.AudioPacketContext.VadPacket.Reset();
 
-            Workflow<CircularBuffer> session = sessionContext.ToWorkflow(sessionContext.AudioPacketContext.AsrPackets);
+            Workflow<CircularBuffer> session = sessionContext.ToWorkflow(this._receivedPcmPacketFrame);
             await this.NextWriter.WriteAsync(session);
         }
         private void NoVoiceCloseConnect(Session sessionContext)

@@ -135,24 +135,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             Interlocked.Exchange(ref _isAudioProcessing, 1);
         }
 
-        /// <summary>
-        /// 当用户手动停止语音讲话时，检查是否有足够的音频数据进行识别。
-        /// </summary>
-        /// <returns></returns>
-        public bool CheckAsrData()
-        {
-            int asrPacketSize = AudioPacketContext.AsrPackets.Size;
-            if (IsIdle && ListenMode == ListenMode.Manual && asrPacketSize > 50)
-            {
-                return true;
-            }
-            else
-            {
-                this.Reset();
-                return false;
-            }
-        }
-
         public void Reset()
         {
             this.AcceptIncomingAudio();

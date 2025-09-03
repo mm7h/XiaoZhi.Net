@@ -7,20 +7,20 @@ namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample09_MP3Player
     {
+        const string PLAYING_AUDIO_FILE_PATH = "./audioFile/Perfect.mp3";
         public static async Task Run()
         {
             //await TestTheMP3Player();
-            await TestTheUrlAudioPlayer();
-            //await TestTheStreamAudioPlayer();
+            //await TestTheUrlAudioPlayer();
+            await TestTheStreamAudioPlayer();
         }
 
         static async Task TestTheMP3Player()
         {
-            string filePath = @"./audioFile/Perfect.mp3";
             int frameDurationMs = 60; // 每帧的时长，单位毫秒
 
             // 1. 创建 MP3Stream（来自 MP3Sharp）
-            using (var mp3Stream = new MP3Stream(filePath))
+            using (var mp3Stream = new MP3Stream(PLAYING_AUDIO_FILE_PATH))
             {
                 // 2. 创建 NAudio 的播放器
                 using (var waveOut = new WaveOutEvent())
@@ -113,7 +113,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     provider.AddSamples(byteData, 0, byteData.Length);
                 };
 
-                await audioPlayer.LoadAsync(@"./audioFile/max_output_size.wav", sampleRate, channels, frameDurationMs);
+                await audioPlayer.LoadAsync(PLAYING_AUDIO_FILE_PATH, sampleRate, channels, frameDurationMs);
 
                 Console.WriteLine("Starting non-blocking playback...");
                 audioPlayer.Play(false); // Non-blocking
@@ -203,7 +203,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     provider.AddSamples(byteData, 0, byteData.Length);
                 };
 
-                using (var stream = File.OpenRead(@"./audioFile/max_output_size.wav"))
+                using (var stream = File.OpenRead(PLAYING_AUDIO_FILE_PATH))
                 {
                     await audioPlayer.LoadAsync(stream, sampleRate, channels, frameDurationMs);
                     Console.WriteLine("Starting non-blocking playback...");

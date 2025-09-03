@@ -15,6 +15,8 @@ using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Providers;
 using XiaoZhi.Net.Server.Providers.ASR;
 using XiaoZhi.Net.Server.Providers.AudioCodec;
+using XiaoZhi.Net.Server.Providers.AudioPlayer;
+using XiaoZhi.Net.Server.Providers.DeviceBindingPlayer;
 using XiaoZhi.Net.Server.Providers.IoT;
 using XiaoZhi.Net.Server.Providers.LLM;
 using XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters;
@@ -59,11 +61,13 @@ namespace XiaoZhi.Net.Server.Management
                 RegisterMemory(services, config, GlobalProviderNames.GLOBAL_MEMORY);
                 RegisterTts(services, config, GlobalProviderNames.GLOBAL_TTS);
                 RegisterAudioEncoder(services, GlobalProviderNames.GLOBAL_AUDIO_ENCODER);
+                RegisterDeviceBindingPlayer(services, GlobalProviderNames.GLOBAL_DEVICE_BINDING_PLAYER);
 
                 RegisterAudioResampler(services);
                 RegisterIoT(services);
                 RegisterMCP(services);
                 RegisterLLMPlugins(services);
+                RegisterAudioPlayer(services);
 
                 services.AddSingleton<ProviderManager>();
             });
@@ -148,6 +152,16 @@ namespace XiaoZhi.Net.Server.Management
             }
             #endregion
 
+            #region DeviceBindPlayer
+            IDeviceBindingPlayer deviceBindPlayer = serviceProvider.GetRequiredKeyedService<IDeviceBindingPlayer>(GlobalProviderNames.GLOBAL_DEVICE_BINDING_PLAYER);
+            if (!deviceBindPlayer.Build(this._config.DeviceBindSetting))
+            {
+                this._logger.LogError("Failed to build {modelName} provider.", deviceBindPlayer.ModelName);
+                return false;
+            }
+            #endregion
+
+
             return true;
         }
 
@@ -170,7 +184,7 @@ namespace XiaoZhi.Net.Server.Management
                     string pluginName = musicPlayerPlugin.ModelName;
                     privateKernel.ImportPluginFromObject(musicPlayerPlugin, pluginName);
                     this._logger.LogInformation("LLM plugin {pluginName} initialized for device: {deviceId} with session: {sessionId}.", pluginName, session.DeviceId, session.SessionId);
-                } 
+                }
                 #endregion
 
                 #endregion
@@ -317,13 +331,15 @@ namespace XiaoZhi.Net.Server.Management
                 serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY),
                 serviceProvider.GetRequiredKeyedService<ILlm>(GlobalProviderNames.GLOBAL_LLM),
                 serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS),
-                serviceProvider.GetRequiredKeyedService<IAudioEncoder>(GlobalProviderNames.GLOBAL_AUDIO_ENCODER)
+                serviceProvider.GetRequiredKeyedService<IAudioEncoder>(GlobalProviderNames.GLOBAL_AUDIO_ENCODER),
+                serviceProvider.GetRequiredKeyedService<IDeviceBindingPlayer>(GlobalProviderNames.GLOBAL_DEVICE_BINDING_PLAYER)
             };
 
             foreach (IDisposable provider in providers)
             {
                 provider.Dispose();
             }
+
         }
 
         #region Register providers
@@ -584,6 +600,35 @@ namespace XiaoZhi.Net.Server.Management
             }
         }
         #endregion
+
+        #region DeviceBindingPlayer
+        private static void RegisterDeviceBindingPlayer(IServiceCollection services, string key)
+        {
+            services.AddKeyedSingleton<IDeviceBindingPlayer, DefaultBindingPlayer>(key);
+        } 
+        #endregion
+
+        #region AudioPlayer
+        private static void RegisterAudioPlayer(IServiceCollection services)
+        {
+            services.AddTransient<IAudioPlayer, FileAudioPlayer>();
+            //services.AddTransient<IAudioPlayer, StreamAudioPlayer>();
+        }
+
+        public void BuildAudioPlayer(Session session)
+        {
+            IAudioPlayer audioPlayer = this._serviceProvider.GetRequiredService<IAudioPlayer>();
+            if (!audioPlayer.Build(session.AudioSetting))
+            {
+                this._logger.LogWarning("Session {sessionId} failed to build audio player.", session.SessionId);
+            }
+            else
+            {
+                session.SetAudioPlayer(audioPlayer);
+            }
+        }
+        #endregion
+
         #endregion
     }
 }

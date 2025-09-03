@@ -119,6 +119,11 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
+        public async Task Handle(Workflow<float[]> workflow)
+        { 
+            
+        }
+
         private async Task SendAudioDataByGlobalEncoderAsync(float[] chunk, int frameDuration, CancellationToken token)
         {
             byte[] opusData = await this._audioEncoder.EncodeAsync(chunk, token);

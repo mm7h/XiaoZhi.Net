@@ -55,7 +55,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
             return true;
         }
 
-        public async Task PlayAsync(params string[] files)
+        public async Task PlayAsync(CancellationToken cancellationToken = default, params string[] files)
         {
             if (this._processingChannel is null)
             {
@@ -70,6 +70,12 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
             try
             {
                 await this._audioPlayerSlim.WaitAsync();
+
+                this._cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                this._cancellationTokenSource.Token.Register(() =>
+                {
+                    this.StopAsync().ConfigureAwait(false);
+                });
 
                 foreach (string file in files)
                 {
@@ -174,8 +180,6 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
                 this.Logger.LogError("The audio player is not built yet.");
                 return;
             }
-            this._cancellationTokenSource = new CancellationTokenSource();
-            CancellationToken token = this._cancellationTokenSource.Token;
 
             string fileName = Path.GetFileName(file);
 
@@ -205,13 +209,14 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
             }
             finally
             {
-                this._cancellationTokenSource.Dispose();
+                this._cancellationTokenSource?.Dispose();
             }
         }
 
         public override void Dispose()
         {
             this._audioPlayerSlim.Dispose();
+            this._urlAudioPlayer.Dispose();
         }
     }
 }

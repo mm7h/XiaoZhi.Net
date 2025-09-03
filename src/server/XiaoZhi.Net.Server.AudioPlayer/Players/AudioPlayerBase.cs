@@ -20,7 +20,7 @@ namespace XiaoZhi.Net.Server.AudioPlayer
         /// <summary>
         /// Gets a value indicating whether FFmpeg has been successfully initialized.
         /// </summary>
-        public bool IsFFmpegInitialized { get; protected set; }
+        internal static bool FFmpegInitialized { get; set; }
     }
 
     internal abstract class AudioPlayerBase<TDecoderType, TLogger> : AudioPlayerBase, IAudioPlayer
@@ -47,6 +47,8 @@ namespace XiaoZhi.Net.Server.AudioPlayer
 
         /// <inheritdoc />
         public abstract string AudioPlayerName { get; }
+
+        public bool IsFFmpegInitialized => AudioPlayerBase.FFmpegInitialized;
 
         /// <inheritdoc />
         public bool IsLoaded { get; protected set; }
@@ -135,12 +137,12 @@ namespace XiaoZhi.Net.Server.AudioPlayer
                 }
                 Logger.LogInformation("Initialized the ffmpeg, version: {v}", ffmpeg.av_version_info());
                 ffmpeg.av_log_set_level(ffmpeg.AV_LOG_QUIET);
-                IsFFmpegInitialized = true;
+                AudioPlayerBase.FFmpegInitialized = true;
                 return true;
             }
             catch
             {
-                IsFFmpegInitialized = false;
+                AudioPlayerBase.FFmpegInitialized = false;
                 return false;
             }
         }
@@ -396,7 +398,6 @@ namespace XiaoZhi.Net.Server.AudioPlayer
         private void RunDecoder()
         {
             Logger.LogDebug("Decoder thread is started.");
-            Console.WriteLine("Decoder thread is started.");
             while (State != PlaybackState.Idle)
             {
                 while (IsSeeking)
@@ -468,14 +469,12 @@ namespace XiaoZhi.Net.Server.AudioPlayer
                     Queue.Enqueue(result.Frame);
                 }
             }
-            Console.WriteLine("Decoder thread is completed.");
             Logger.LogDebug("Decoder thread is completed.");
         }
 
         private void RunEngine()
         {
             Logger.LogDebug("Engine thread is started.");
-            Console.WriteLine("Engine thread is started.");
 
             double lastPresentationTime = 0;
             DateTime lastFrameTime = DateTime.Now;
@@ -559,7 +558,6 @@ namespace XiaoZhi.Net.Server.AudioPlayer
             // Just fire and forget, and it should be non-blocking event.
             Task.Run(() => SetAndRaiseStateChanged(PlaybackState.Idle));
 
-            Console.WriteLine("Engine thread is completed.");
             Logger.LogDebug("Engine thread is completed.");
         }
 

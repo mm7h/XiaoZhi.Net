@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.AudioPlayer.Abstractions.Common.Enums;
 
@@ -11,7 +12,7 @@ namespace XiaoZhi.Net.Server.Providers
         event Action<string, bool>? OnProcessed;
 
         PlaybackState PlaybackState { get; }
-        Task PlayAsync(params string[] sources);
+        Task PlayAsync(CancellationToken cancellationToken = default, params string[] sources);
         Task PauseAsync();
         Task ResumeAsync();
         Task SeekAsync(TimeSpan position);

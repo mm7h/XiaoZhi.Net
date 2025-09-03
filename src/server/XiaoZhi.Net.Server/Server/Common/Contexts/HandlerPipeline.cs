@@ -20,7 +20,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private DialogueHandler? _dialogueHandler;
         private AudioSendHandler? _audioSendHandler;
         private Text2AudioHandler? _text2AudioHandler;
-        private PlayAudioFileHandler? _playAudioFileHandler;
         private readonly IList<IDisposable> _disposableHandlers;
 
         public HandlerPipeline(Session session)
@@ -39,7 +38,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._dialogueHandler = serviceProvider.GetRequiredService<DialogueHandler>();
             this._text2AudioHandler = serviceProvider.GetRequiredService<Text2AudioHandler>();
             this._audioSendHandler = serviceProvider.GetRequiredService<AudioSendHandler>();
-            this._playAudioFileHandler = serviceProvider.GetRequiredService<PlayAudioFileHandler>();
 
             this._textHandler.OnManualStop += this._audioReceiveHandler.HandleAudio;
             this._audioReceiveHandler.OnNoVoiceCloseConnect += this._dialogueHandler.NoVoiceCloseConnect;
@@ -50,7 +48,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.InitializeSendOutter(this._dialogueHandler);
             this.InitializeSendOutter(this._text2AudioHandler);
             this.InitializeSendOutter(this._audioSendHandler);
-            this.InitializeSendOutter(this._playAudioFileHandler);
 
             await this.BuildHandlersWorkflow(this._audioReceiveHandler, this._audio2TextHandler);
             await this.BuildHandlersWorkflow(this._textHandler, this._audio2TextHandler, this._dialogueHandler);
@@ -63,38 +60,12 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.ScheduleOnAbort(this._dialogueHandler);
             this.ScheduleOnAbort(this._text2AudioHandler);
             this.ScheduleOnAbort(this._audioSendHandler);
-            this.ScheduleOnAbort(this._playAudioFileHandler);
 
             this._disposableHandlers.Add(this._textHandler);
             this._disposableHandlers.Add(this._audioReceiveHandler);
             this._disposableHandlers.Add(this._audio2TextHandler);
             this._disposableHandlers.Add(this._dialogueHandler);
             this._disposableHandlers.Add(this._text2AudioHandler);
-        }
-
-        /// <summary>
-        /// 将音频数据直接推送到AudioSendHandler处理
-        /// </summary>
-        /// <param name="audioData">音频数据</param>
-        /// <returns>处理任务</returns>
-        public async Task PushAudioToSendAsync(string? sttMessage, Emotion emotion = Emotion.Neutral, params string[] audioFiles)
-        {
-            if (this._playAudioFileHandler is not null)
-            {
-                try
-                {
-                    // 直接处理音频数据
-                    await this._playAudioFileHandler.Handle(sttMessage, emotion, audioFiles);
-                }
-                catch (Exception ex)
-                {
-                    this._logger?.LogError(ex, "Failed to push audio data to PlayAudioFileHandler for device: {deviceId}", this._currentSession.DeviceId);
-                }
-            }
-            else
-            {
-                this._logger?.LogError("PlayAudioFileHandler is not initialized");
-            }
         }
 
         public void HandleTextMessage(string data)
@@ -190,13 +161,13 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             };
             Channel<Workflow<T>> channel1 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous1.NextWriter = channel1.Writer;
-            next.PreviousReader1 = channel1.Reader;
-            await Task.Factory.StartNew(async () => await next.Handle1(), TaskCreationOptions.LongRunning);
+            next.PreviousReader = channel1.Reader;
+            await Task.Factory.StartNew(next.Handle, TaskCreationOptions.LongRunning);
 
             Channel<Workflow<T>> channel2 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous2.NextWriter = channel2.Writer;
             next.PreviousReader2 = channel2.Reader;
-            await Task.Factory.StartNew(async () => await next.Handle2(), TaskCreationOptions.LongRunning);
+            await Task.Factory.StartNew(next.Handle2, TaskCreationOptions.LongRunning);
 
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous1.GetType().Name, next.GetType().Name);
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous2.GetType().Name, next.GetType().Name);

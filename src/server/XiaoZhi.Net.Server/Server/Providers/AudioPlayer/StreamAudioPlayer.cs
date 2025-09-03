@@ -32,7 +32,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
             throw new NotImplementedException();
         }
 
-        public async Task PlayAsync(params string[] urls)
+        public async Task PlayAsync(CancellationToken cancellationToken = default, params string[] urls)
         {
             try
             {
