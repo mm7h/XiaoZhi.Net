@@ -7,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
@@ -162,7 +161,7 @@ namespace XiaoZhi.Net.Server.Management
             {
                 Kernel privateKernel = this._globalKernel.Clone();
                 privateKernel.Data.Add("session", session);
-
+                session.IsDeviceBinded = true;
                 #region Global plugins init
                 #region LocalMusicPlayer
                 LocalMusicPlayer musicPlayerPlugin = this._serviceProvider.GetRequiredService<LocalMusicPlayer>();

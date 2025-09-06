@@ -29,5 +29,13 @@ namespace XiaoZhi.Net.Server
         {
             return ProtocolManager.RegisterServices(builder, config);
         }
+
+        //public static IHostBuilder RegisterObjectPools(this IHostBuilder builder)
+        //{
+        //    return builder.ConfigureServices((context, services) =>
+        //    {
+        //        services.AddPooled<Workflow<OutAudioSegment>>();
+        //    });
+        //}
     }
 }

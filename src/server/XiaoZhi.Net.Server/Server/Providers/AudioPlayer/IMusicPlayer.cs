@@ -7,10 +7,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
 {
     internal interface IMusicPlayer : IProvider<AudioSetting>
     {
-        event Action<string>? OnBeforeProcessing;
-        event Action<string, float[]>? OnProcessing;
-        event Action<string, bool>? OnProcessed;
-
+        string? PlayingMusicName { get; }
         PlaybackState PlaybackState { get; }
         Task PlayAsync(CancellationToken cancellationToken = default, params string[] sources);
         Task PauseAsync();

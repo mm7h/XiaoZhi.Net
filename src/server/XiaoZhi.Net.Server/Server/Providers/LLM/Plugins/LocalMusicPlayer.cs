@@ -34,12 +34,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
             return true;
         }
 
-        [KernelFunction, Description("获取本地音乐文件列表，返回值为\"是否获取成功\"、\"获取结果是否成功的描述信息\"和\"音乐文件名称列表\"")]
-        public (bool, string, IList<string>?) GetLocalMusicFilesAsync()
+        [KernelFunction, Description("获取本地音乐文件列表，返回包含音乐文件名称的列表信息")]
+        public string GetLocalMusicFilesAsync()
         {
             if (this._currentSession is null)
             {
-                return (false, "Failed to get local music files, the current session is not initialized.", null);
+                return "Failed to get local music files, the current session is not initialized.";
             }
             if (this._musicProvider is not null)
             {
@@ -47,29 +47,29 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
                 if (localMusicFiles is null || !localMusicFiles.Any())
                 {
                     this._logger.LogWarning("{ProviderType} - {ModelName}, Failed to get local music files due to no files existing for session {sessionId}.", this.ProviderType, this.ModelName, this._currentSession.SessionId);
-                    return (false, "Failed to get local music files due to no files existing.", null);
+                    return "Failed to get local music files due to no files existing.";
                 }
 
                 List<string> musicNames = localMusicFiles.Keys.ToList();
                 this._logger.LogInformation("{ProviderType} - {ModelName}, Got {fileCount} local music files success for session {sessionId}.", this.ProviderType, this.ModelName, musicNames.Count, this._currentSession.SessionId);
 
-                return (true, "Get the local music files success", musicNames);
+                return $"Get the local music files success. Available music files: {string.Join(", ", musicNames)}";
             }
             else
-                return (false, "Failed to play local music, the music provider is not initialized yet.", null);
+                return "Failed to get local music files, the music provider is not initialized yet.";
         }
 
-        [KernelFunction, Description("播放本地音乐文件（需要先调用方法 `" + nameof(GetLocalMusicFilesAsync) + "` 来获取本地有哪些音乐文件），返回值为\"是否播放成功\"和\"播放结果是否成功的描述信息\"")]
-        public async ValueTask<(bool, string)> PlayLocalMusic([Description("是否为随机播放")] bool isRandom, [Description("音乐名称，如果是随机播放，那么不需要此参数")] string? musicName = null)
+        [KernelFunction, Description("播放本地音乐文件（需要先调用方法 `" + nameof(GetLocalMusicFilesAsync) + "` 来获取本地有哪些音乐文件），返回播放结果的描述信息，你需要播报正在播放的音乐文件名称。")]
+        public async ValueTask<string> PlayLocalMusic([Description("是否为随机播放")] bool isRandom, [Description("音乐名称，如果是随机播放，那么不需要此参数")] string? musicName = null)
         {
             if (this._currentSession is null)
             {
-                return (false, "Failed to play local music, the current session is not initialized.");
+                return "Failed to play local music, the current session is not initialized.";
             }
 
             if (this._currentSession.AudioPlayerClient is null)
             {
-                return (false, "Failed to play local music, the plaery is not initialized.");
+                return "Failed to play local music, the player is not initialized.";
             }
 
             if (this._musicProvider is not null)
@@ -77,45 +77,54 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
                 IReadOnlyDictionary<string, string> localMusicFiles = this._musicProvider.MusicFiles;
                 if (localMusicFiles is null || !localMusicFiles.Any())
                 {
-                    return (false, "Failed to play local music, there's no music files in local.");
+                    return "Failed to play local music, there's no music files in local.";
                 }
 
                 string musicFilePath = string.Empty;
+                string selectedMusicName = string.Empty;
 
                 if (isRandom)
                 {
                     int randomIndex = Random.Shared.Next(localMusicFiles.Count);
-                    musicFilePath = localMusicFiles.ElementAt(randomIndex).Value;
+                    var selectedMusic = localMusicFiles.ElementAt(randomIndex);
+                    musicFilePath = selectedMusic.Value;
+                    selectedMusicName = selectedMusic.Key;
                 }
                 else
                 {
                     if (string.IsNullOrEmpty(musicName))
                     {
-                        return (false, "Failed to play local music, the field musicName is empty.");
+                        return "Failed to play local music, the field musicName is empty.";
                     }
                     if (localMusicFiles.ContainsKey(musicName))
                     {
                         musicFilePath = localMusicFiles[musicName];
+                        selectedMusicName = musicName;
                     }
                 }
 
                 if (string.IsNullOrEmpty(musicFilePath))
                 {
-                    return (false, "Failed to play local music, there's no music files in local.");
+                    return "Failed to play local music, the specified music file was not found.";
                 }
 
-                string text = $"正在播放音乐：{musicName}";
-                await this._currentSession.AudioPlayerClient.MusicPlayer.PlayAsync(this._currentSession.SessionCtsToken, musicFilePath);
+                try
+                {
+                    await this._currentSession.AudioPlayerClient.MusicPlayer.PlayAsync(this._currentSession.SessionCtsToken, musicFilePath);
 
-                this._logger.LogInformation("{ProviderType} - {ModelName}, Playing the music file {musicFilePath} for session {sessionId}.", this.ProviderType, this.ModelName, musicFilePath, this._currentSession.SessionId);
+                    this._logger.LogInformation("{ProviderType} - {ModelName}, Playing the music file {musicFilePath} for session {sessionId}.", this.ProviderType, this.ModelName, musicFilePath, this._currentSession.SessionId);
 
-                return (true, $"Playing the music {musicName} success.");
+                    return $"Successfully started playing music: {selectedMusicName}";
+                }
+                catch (Exception ex)
+                {
+                    this._logger.LogError(ex, "Failed to play music file {musicFilePath} for session {sessionId}.", musicFilePath, this._currentSession.SessionId);
+                    return $"Failed to play music: {selectedMusicName}. Error: {ex.Message}";
+                }
             }
             else
-                return (false, "Failed to play local music, the music provider is not initialized yet.");
+                return "Failed to play local music, the music provider is not initialized yet.";
         }
-
-
 
         public void Dispose() { }
     }

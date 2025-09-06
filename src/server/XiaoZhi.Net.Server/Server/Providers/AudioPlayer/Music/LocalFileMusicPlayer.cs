@@ -22,15 +22,16 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
         public override string ModelName => nameof(LocalFileMusicPlayer);
 
-        public PlaybackState PlaybackState => _urlAudioPlayer.State;
+        public PlaybackState PlaybackState => this._urlAudioPlayer.State;
 
-        public event Action<string>? OnBeforeProcessing;
-        public event Action<string, float[]>? OnProcessing; // use Memory then to span?
-        public event Action<string, bool>? OnProcessed;
+        public string? PlayingMusicName { get; private set; }
+
+        public event Action<float[], bool, bool>? OnAudioData;
 
         public LocalFileMusicPlayer(IUrlAudioPlayer urlAudioPlayer, ILogger<LocalFileMusicPlayer> logger) : base(logger)
         {
             this._urlAudioPlayer = urlAudioPlayer;
+            this._urlAudioPlayer.OnAudioDataAvailable += this.FireAudioData;
         }
 
         public override bool Build(AudioSetting audioSetting)
@@ -183,28 +184,26 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
             string fileName = Path.GetFileName(file);
 
-            this.OnBeforeProcessing?.Invoke(fileName);
-
             this.Logger.LogDebug("Start processing audio file: {file}.", fileName);
 
             try
             {
+                this.PlayingMusicName = fileName;
                 await this._urlAudioPlayer.LoadAsync(file, this._audioSetting.SampleRate, this._audioSetting.Channels, this._audioSetting.FrameDuration);
 
                 this.Logger.LogDebug("Loaded audio file: {file}, start playing.", fileName);
-                this._urlAudioPlayer.Play();
+                this._urlAudioPlayer.Play(true);
 
-                this.OnProcessed?.Invoke(fileName, true);
                 this.Logger.LogDebug("Completed processing audio file: {file}.", fileName);
             }
             catch (OperationCanceledException)
             {
-                this.OnProcessed?.Invoke(fileName, false);
+                this.PlayingMusicName = null;
                 this.Logger.LogDebug("Canceled playing audio file: {file}.", fileName);
             }
             catch (Exception ex)
             {
-                this.OnProcessed?.Invoke(fileName, false);
+                this.PlayingMusicName = null;
                 this.Logger.LogError(ex, "Error processing audio file: {file}.", fileName);
             }
             finally
@@ -212,11 +211,16 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                 this._cancellationTokenSource?.Dispose();
             }
         }
+        private void FireAudioData(float[] pcmData, bool isFirst, bool isLast)
+        {
+            this.OnAudioData?.Invoke(pcmData, isFirst, isLast);
+        }
 
         public override void Dispose()
         {
-            this._audioPlayerSlim.Dispose();
+            this._urlAudioPlayer.OnAudioDataAvailable -= this.FireAudioData;
             this._urlAudioPlayer.Dispose();
+            this._audioPlayerSlim.Dispose();
         }
     }
 }
