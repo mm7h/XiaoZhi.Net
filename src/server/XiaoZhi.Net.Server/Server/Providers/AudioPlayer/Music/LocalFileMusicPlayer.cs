@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.AudioPlayer.Abstractions;
 using XiaoZhi.Net.Server.AudioPlayer.Abstractions.Common.Enums;
 
-namespace XiaoZhi.Net.Server.Providers.AudioPlayer
+namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 {
-    internal class FileAudioPlayer : BaseProvider<FileAudioPlayer, AudioSetting>, IAudioPlayer
+    internal class LocalFileMusicPlayer : BaseProvider<LocalFileMusicPlayer, AudioSetting>, IMusicPlayer
     {
         private readonly SemaphoreSlim _audioPlayerSlim = new SemaphoreSlim(1, 1);
         private readonly IUrlAudioPlayer _urlAudioPlayer;
@@ -20,15 +20,15 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
 
         public override string ProviderType => "audio player";
 
-        public override string ModelName => nameof(FileAudioPlayer);
+        public override string ModelName => nameof(LocalFileMusicPlayer);
 
-        public PlaybackState PlaybackState => this._urlAudioPlayer.State;
+        public PlaybackState PlaybackState => _urlAudioPlayer.State;
 
         public event Action<string>? OnBeforeProcessing;
         public event Action<string, float[]>? OnProcessing; // use Memory then to span?
         public event Action<string, bool>? OnProcessed;
 
-        public FileAudioPlayer(IUrlAudioPlayer urlAudioPlayer, ILogger<FileAudioPlayer> logger) : base(logger)
+        public LocalFileMusicPlayer(IUrlAudioPlayer urlAudioPlayer, ILogger<LocalFileMusicPlayer> logger) : base(logger)
         {
             this._urlAudioPlayer = urlAudioPlayer;
         }
@@ -37,7 +37,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
         {
             if (!this._urlAudioPlayer.CheckFFmpegInstalled())
             {
-                this.Logger.LogError("Failed to initialize FFmpeg, please double check your the ffmpeg path configuration.");
+                this.Logger.LogError("Failed to initialize FFmpeg, please check your the ffmpeg path configuration.");
                 return false;
             }
             this._audioSetting = audioSetting;
@@ -110,7 +110,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
         {
             if (this.PlaybackState == PlaybackState.Idle)
             {
-                this.Logger.LogInformation("The audio player status is {status}, skip the resuming.", this.PlaybackState);
+                this.Logger.LogInformation("The audio player status is {status}, skip the resuming.", PlaybackState);
                 return;
             }
             try
@@ -128,7 +128,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
         {
             if (this.PlaybackState == PlaybackState.Idle)
             {
-                this.Logger.LogInformation("The audio player status is {status}, skip the stopping.", this.PlaybackState);
+                this.Logger.LogInformation("The audio player status is {status}, skip the stopping.", PlaybackState);
                 return;
             }
             try

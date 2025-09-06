@@ -37,9 +37,9 @@
     "FrameDuration": 60
   },
   "DeviceBindSetting": {
-    "BindCodePromptFilePath": "config/assets/bind_code.wav",
-    "BindCodeDigitFolderPath": "config/assets/bind_codes",
-    "BindNotFoundFilePath": "config/assets/bind_not_found.wav"
+    "BindCodePromptFilePath": "configs/assets/bind_code.wav",
+    "BindCodeDigitFolderPath": "configs/assets/bind_codes",
+    "BindNotFoundFilePath": "configs/assets/bind_not_found.wav"
   },
   "VadSetting": {
     "ModelName": "silero",

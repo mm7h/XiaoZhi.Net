@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.AudioPlayer.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Protocol;
@@ -15,18 +14,13 @@ namespace XiaoZhi.Net.Server.Handlers
     {
         private readonly ITts _tts;
         private bool _privateTTSInitialized = false;
-        private readonly IDeviceBindingPlayer _deviceBindPlayer;
+        private bool _privateSystemNotificationInitialized = false;
 
-        public Text2AudioHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_TTS)] ITts tts,
-            [FromKeyedServices(GlobalProviderNames.GLOBAL_DEVICE_BINDING_PLAYER)] IDeviceBindingPlayer deviceBindPlayer, XiaoZhiConfig config, ILogger<Text2AudioHandler> logger) : base(config, logger)
+        public Text2AudioHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_TTS)] ITts tts,XiaoZhiConfig config, ILogger<Text2AudioHandler> logger) : base(config, logger)
         {
             this._tts = tts;
             this._tts.OnBeforeProcessing += this.TTS_OnBeforeProcessing;
             this._tts.OnProcessed += this.TTS_OnProcessed;
-
-            this._deviceBindPlayer = deviceBindPlayer;
-            this._deviceBindPlayer.OnPlayStateChanged += this.OnPlayerStateChanged;
-            this._deviceBindPlayer.OnAudioData += this.OnPlayerAudioDataAsync;
         }
 
 
@@ -84,6 +78,18 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private async Task CheckBindDevice(Session session)
         {
+            if (session.AudioPlayerClient is null)
+            {
+                this.Logger.LogError("AudioPlayerClient is not built for the device {deviceId} yet", session.DeviceId);
+                return;
+            }
+
+            if (!this._privateSystemNotificationInitialized)
+            {
+                session.AudioPlayerClient.SystemNotification.OnAudioData += this.OnPlayerAudioDataAsync;
+                this._privateSystemNotificationInitialized = true;
+            }
+
             if (!string.IsNullOrEmpty(session.BindCode) && session.BindCode.Length == 6)
             {
                 if (session.BindCode.Length != 6)
@@ -97,7 +103,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 string text = $"请登录控制面板，输入{session.BindCode}，绑定设备。";
                 await session.SendOutter.SendSttMessageAsync(text);
 
-                await this._deviceBindPlayer.PlayBindCodeAsync(session.BindCode, session.AudioSetting);
+                await session.AudioPlayerClient.SystemNotification.PlayBindCodeAsync(session.BindCode);
             }
             else
             {
@@ -105,35 +111,44 @@ namespace XiaoZhi.Net.Server.Handlers
                 string text = "没有找到该设备的版本信息，请正确配置 OTA地址，然后重新编译固件。";
                 await session.SendOutter.SendSttMessageAsync(text);
 
-                await this._deviceBindPlayer.PlayNotFoundAsync(session.AudioSetting);
+                await session.AudioPlayerClient.SystemNotification.PlayNotFoundAsync();
             }
         }
 
-        private async void OnPlayerAudioDataAsync(float[] pcmData)
+        private async void OnPlayerAudioDataAsync(float[] pcmData, bool isFirst, bool isLast)
         {
-            //await this.NextWriter2.WriteAsync(this.SendOutter.GetSession().ToWorkflow(pcmData));
-        }
-
-        private void OnPlayerStateChanged(PlaybackState state)
-        {
-
+            OutAudioSegment outAudioSegment = new OutAudioSegment(pcmData, isFirst, isLast, false);
+            await this.NextWriter.WriteAsync(new Workflow<OutAudioSegment>(this.SendOutter.SessionId, outAudioSegment));
         }
 
         public void Dispose()
         {
             this._tts.OnBeforeProcessing -= this.TTS_OnBeforeProcessing;
             this._tts.OnProcessed -= this.TTS_OnProcessed;
+
             Session session = this.SendOutter.GetSession();
-            if (session is not null && session.PrivateProvider is not null && session.PrivateProvider.Tts is not null && this._privateTTSInitialized)
+            if (session is not null)
             {
-                session.PrivateProvider.Tts.OnBeforeProcessing -= this.TTS_OnBeforeProcessing;
-                session.PrivateProvider.Tts.OnProcessed -= this.TTS_OnProcessed;
+                if (session.PrivateProvider is not null && session.PrivateProvider.Tts is not null && this._privateTTSInitialized)
+                {
+                    session.PrivateProvider.Tts.OnBeforeProcessing -= this.TTS_OnBeforeProcessing;
+                    session.PrivateProvider.Tts.OnProcessed -= this.TTS_OnProcessed;
+                    session.PrivateProvider.Tts.Dispose();
+                    this._privateTTSInitialized = false;
+                }
+                if (session.AudioPlayerClient is not null && this._privateSystemNotificationInitialized)
+                {
+                    session.AudioPlayerClient.SystemNotification.OnAudioData -= this.OnPlayerAudioDataAsync;
+                }
             }
             this.NextWriter.Complete();
         }
 
         private void TTS_OnBeforeProcessing(string sessionId, OutSegment segment)
         {
+            // 避免使用全局的单例 TTS provider时，事件影响其他会话
+            if (sessionId != this.SendOutter.SessionId)
+                return;
             if (segment.IsFirst)
             {
                 this.Logger.LogInformation("Send the first audio from segment: {content}", segment.Content);
@@ -142,7 +157,9 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private void TTS_OnProcessed(string sessionId, float[] audioData, OutSegment segment, double duration)
         {
-            OutAudioSegment outAudioSegment = new OutAudioSegment(audioData, duration, segment);
+            if (sessionId != this.SendOutter.SessionId)
+                return;
+            OutAudioSegment outAudioSegment = new OutAudioSegment(audioData, segment);
             this.NextWriter.WriteAsync(new Workflow<OutAudioSegment>(sessionId, outAudioSegment));
         }
     }

@@ -33,6 +33,9 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Middlewares
 
         public override void Shutdown(IServer server)
         {
+            ResourceManager resourceManager = server.ServiceProvider.GetRequiredService<ResourceManager>();
+            resourceManager.Dispose(server.ServiceProvider);
+
             ProviderManager providerManager = server.ServiceProvider.GetRequiredService<ProviderManager>();
             providerManager.Dispose(server.ServiceProvider);
 

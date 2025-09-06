@@ -3,54 +3,37 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
-using XiaoZhi.Net.Server.AudioPlayer.Abstractions;
-using XiaoZhi.Net.Server.AudioPlayer.Abstractions.Common.Enums;
 
-namespace XiaoZhi.Net.Server.Providers.DeviceBindingPlayer
+namespace XiaoZhi.Net.Server.Resources.DeviceBinding
 {
-    internal class DefaultBindingPlayer : BaseProvider<DefaultBindingPlayer, DeviceBindSetting>, IDeviceBindingPlayer
+    internal class DefaultDeviceBinding : BaseResource<DefaultDeviceBinding, DeviceBindSetting>, IDeviceBinding
     {
         private const string BIND_CODE_PROMPT = "BindCodePrompt";
         private const string BIND_NOT_FOUND = "BindNotFound";
-        private readonly IStreamAudioPlayer _audioPlayer;
-        private readonly IDictionary<string, byte[]> _digitAudioCache;
 
-        private bool _isAllWavFormat = false;
+        private readonly IDictionary<string, byte[]> _audioFilesCache;
+        private bool _isAllWavFormat = true;
 
-        public DefaultBindingPlayer(IStreamAudioPlayer audioPlayer, XiaoZhiConfig config, ILogger<DefaultBindingPlayer> logger) : base(logger)
+        public DefaultDeviceBinding(ILogger<DefaultDeviceBinding> logger) : base(logger)
         {
-            this._audioPlayer = audioPlayer;
-            this._audioPlayer.OnAudioDataAvailable += this.OnAudioData;
-            this._audioPlayer.StateChanged += this.OnPlayStateChanged;
-            this._digitAudioCache = new Dictionary<string, byte[]>();
+            this._audioFilesCache = new Dictionary<string, byte[]>();
         }
-        public override string ProviderType => "audio player";
 
-        public override string ModelName => nameof(DefaultBindingPlayer);
+        public override string ResourceName => "DeviceBinding";
 
-        public event Action<PlaybackState>? OnPlayStateChanged;
-        public event Action<float[]>? OnAudioData;
-
-        public override bool Build(DeviceBindSetting settings)
+        public override bool Load(DeviceBindSetting settings)
         {
             try
             {
-                if (!_audioPlayer.CheckFFmpegInstalled())
-                {
-                    Logger.LogError("Failed to initialize FFmpeg, please check your the ffmpeg path configuration.");
-                    return false;
-                }
-
                 string bindCodePromptFilePath = Path.Combine(Environment.CurrentDirectory, settings.BindCodePromptFilePath);
                 if (File.Exists(bindCodePromptFilePath))
                 {
                     byte[] fileData = File.ReadAllBytes(bindCodePromptFilePath);
-                    _digitAudioCache[BIND_CODE_PROMPT] = fileData;
+                    this._audioFilesCache[BIND_CODE_PROMPT] = fileData;
                 }
                 else
                 {
-                    Logger.LogError("The bind code prompt file does not exist: {filePath}", bindCodePromptFilePath);
+                    this.Logger.LogError("The bind code prompt file does not exist: {filePath}", bindCodePromptFilePath);
                     return false;
                 }
 
@@ -58,112 +41,106 @@ namespace XiaoZhi.Net.Server.Providers.DeviceBindingPlayer
                 if (File.Exists(bindNotFoundFilePath))
                 {
                     byte[] fileData = File.ReadAllBytes(bindNotFoundFilePath);
-                    _digitAudioCache[BIND_NOT_FOUND] = fileData;
+                    this._audioFilesCache[BIND_NOT_FOUND] = fileData;
                 }
                 else
                 {
-                    Logger.LogError("The bind not found file does not exist: {filePath}", bindNotFoundFilePath);
+                    this.Logger.LogError("The bind not found file does not exist: {filePath}", bindNotFoundFilePath);
                     return false;
                 }
 
                 string[] digitFiles = Directory.GetFiles(Path.Combine(Environment.CurrentDirectory, settings.BindCodeDigitFolderPath));
                 if (digitFiles.Length != 10)
                 {
-                    Logger.LogError("The digit files folder must contain exactly 10 files for digits 0-9.");
+                    this.Logger.LogError("The digit files folder must contain exactly 10 files for digits 0-9.");
                     return false;
                 }
                 foreach (string digitFile in digitFiles)
                 {
                     string fileName = Path.GetFileNameWithoutExtension(digitFile);
 
-                    _isAllWavFormat = _isAllWavFormat && Path.GetExtension(digitFile).Equals(".wav", StringComparison.OrdinalIgnoreCase);
+                    this._isAllWavFormat = this._isAllWavFormat && Path.GetExtension(digitFile).Equals(".wav", StringComparison.OrdinalIgnoreCase);
 
                     if (int.TryParse(fileName, out int digit) && digit >= 0 && digit <= 9)
                     {
                         byte[] fileData = File.ReadAllBytes(digitFile);
-                        _digitAudioCache[digit.ToString()] = fileData;
+                        this._audioFilesCache[digit.ToString()] = fileData;
                     }
                     else
                     {
-                        Logger.LogWarning("Invalid digit file: {fileName}", fileName);
+                        this.Logger.LogWarning("Invalid digit file: {fileName}", fileName);
                         return false;
                     }
                 }
-
                 return true;
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", ProviderType, ModelName);
+                this.Logger.LogError(ex, "Invalid resource loadings for {resourceName}", this.ResourceName);
                 return false;
             }
         }
 
-
-        public async Task PlayBindCodeAsync(string bindCode, AudioSetting sessionAudioSetting)
+        public Stream? GetDeviceNotFoundAudioStream()
         {
-            if (string.IsNullOrEmpty(bindCode))
+            if (this._audioFilesCache.TryGetValue(BIND_NOT_FOUND, out byte[]? audioData))
             {
-                Logger.LogError("Bind code is null or empty.");
-                return;
-            }
-            byte[] promptAudio = _digitAudioCache[BIND_CODE_PROMPT];
-
-            using var promptStream = new CombinedAudioStream([promptAudio]);
-            await _audioPlayer.LoadAsync(promptStream, sessionAudioSetting.SampleRate, sessionAudioSetting.Channels, sessionAudioSetting.FrameDuration);
-            _audioPlayer.Play(true);
-
-            List<byte[]> audioSegments = new List<byte[]>();
-            // 添加每个数字的音频
-            foreach (char digit in bindCode)
-            {
-                if (_digitAudioCache.TryGetValue(digit.ToString(), out byte[]? digitAudio))
-                {
-                    audioSegments.Add(digitAudio);
-                }
-                else
-                {
-                    Logger.LogWarning("Audio for digit '{digit}' not found in cache.", digit);
-                    return;
-                }
-            }
-
-
-            if (_isAllWavFormat)
-            {
-                // 合并音频段
-                using var combinedStream = new CombinedWavStream(audioSegments);
-                // 播放合并后的音频
-                await _audioPlayer.LoadAsync(combinedStream, sessionAudioSetting.SampleRate, sessionAudioSetting.Channels, sessionAudioSetting.FrameDuration);
-                _audioPlayer.Play(true);
+                return new CombinedAudioStream([audioData]);
             }
             else
             {
-                using var combinedStream = new CombinedAudioStream(audioSegments);
-                // 播放合并后的音频
-                await _audioPlayer.LoadAsync(combinedStream, sessionAudioSetting.SampleRate, sessionAudioSetting.Channels, sessionAudioSetting.FrameDuration);
-                _audioPlayer.Play(true);
+                this.Logger.LogError("The bind not found audio file is not loaded.");
+                return null;
             }
-
         }
 
-        public async Task PlayNotFoundAsync(AudioSetting sessionAudioSetting)
+        public Stream? GetDeviceBindCodeAudioStream(string bindCode)
         {
-            byte[] notFoundAudio = _digitAudioCache[BIND_NOT_FOUND];
-            using var notFoundStream = new CombinedAudioStream([notFoundAudio]);
-            await _audioPlayer.LoadAsync(notFoundStream, sessionAudioSetting.SampleRate, sessionAudioSetting.Channels, sessionAudioSetting.FrameDuration);
-            _audioPlayer.Play(true);
+            if (string.IsNullOrWhiteSpace(bindCode) || bindCode.Length != 6 || !bindCode.All(char.IsDigit))
+            {
+                this.Logger.LogError("Invalid bind code: {bindCode}, it must be a 6-digit numeric string.", bindCode);
+                return null;
+            }
+            List<byte[]> audioDataList = new();
+            if (this._audioFilesCache.TryGetValue(BIND_CODE_PROMPT, out byte[]? promptData))
+            {
+                audioDataList.Add(promptData);
+            }
+            else
+            {
+                this.Logger.LogError("The bind code prompt audio file is not loaded.");
+                return null;
+            }
+            foreach (char digit in bindCode)
+            {
+                if (this._audioFilesCache.TryGetValue(digit.ToString(), out byte[]? digitData))
+                {
+                    audioDataList.Add(digitData);
+                }
+                else
+                {
+                    this.Logger.LogError("The audio file for digit '{digit}' is not loaded.", digit);
+                    return null;
+                }
+            }
+            if (this._isAllWavFormat)
+            {
+                return new CombinedWavStream(audioDataList);
+            }
+            else
+            {
+                return new CombinedAudioStream(audioDataList);
+            }
         }
 
         public override void Dispose()
         {
-            _digitAudioCache.Clear();
-            _audioPlayer.Dispose();
+            this._audioFilesCache.Clear();
         }
     }
 
     /// <summary>
-    /// 专门用于合并WAV文件的流类，正确处理WAV文件头和数据部分
+    /// 用于合并WAV文件的流类，正确处理WAV文件头和数据部分
     /// </summary>
     file class CombinedWavStream : Stream
     {
@@ -242,8 +219,6 @@ namespace XiaoZhi.Net.Server.Providers.DeviceBindingPlayer
                 Array.Copy(pcmData, 0, result, offset, pcmData.Length);
                 offset += pcmData.Length;
             }
-
-            Console.WriteLine($"Combined WAV: {wavFiles.Count} files, total size: {totalFileSize} bytes, PCM data: {totalPcmDataLength} bytes");
 
             return result;
         }

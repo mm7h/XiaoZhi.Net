@@ -5,22 +5,22 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
+using XiaoZhi.Net.Server.Resources;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
 {
     [Description("播放音乐的插件")]
-    internal class LocalMusicPlayer : ILLMPlugin<IMusicProvider?>
+    internal class LocalMusicPlayer : ILLMPlugin
     {
+        private readonly IMusics _musicProvider;
         private readonly ILogger<LocalMusicPlayer> _logger;
         private Session? _currentSession;
-        private IAudioPlayer? _audioPlayer;
-        private IMusicProvider? _musicProvider;
 
-        public LocalMusicPlayer(ILogger<LocalMusicPlayer> logger)
+        public LocalMusicPlayer(IMusics musicProvider, ILogger<LocalMusicPlayer> logger)
         {
+            this._musicProvider = musicProvider;
             this._logger = logger;
         }
 
@@ -28,20 +28,14 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
 
         public string ModelName => nameof(LocalMusicPlayer);
 
-        public bool Build(LLMPluginConfig<IMusicProvider?> settings)
+        public bool Build(LLMPluginConfig config)
         {
-            this._currentSession = settings.Session;
-            this._audioPlayer = settings.Session.AudioPlayer;
-            if (settings.Setting is null)
-            {
-                return false;
-            }
-            this._musicProvider = settings.Setting;
+            this._currentSession = config.Session;
             return true;
         }
 
         [KernelFunction, Description("获取本地音乐文件列表，返回值为\"是否获取成功\"、\"获取结果是否成功的描述信息\"和\"音乐文件名称列表\"")]
-        public async ValueTask<(bool, string, IList<string>?)> GetLocalMusicFilesAsync()
+        public (bool, string, IList<string>?) GetLocalMusicFilesAsync()
         {
             if (this._currentSession is null)
             {
@@ -49,7 +43,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
             }
             if (this._musicProvider is not null)
             {
-                IReadOnlyDictionary<string, string> localMusicFiles = await this._musicProvider.GetLocalMusicFilesAsync();
+                IReadOnlyDictionary<string, string> localMusicFiles = this._musicProvider.MusicFiles;
                 if (localMusicFiles is null || !localMusicFiles.Any())
                 {
                     this._logger.LogWarning("{ProviderType} - {ModelName}, Failed to get local music files due to no files existing for session {sessionId}.", this.ProviderType, this.ModelName, this._currentSession.SessionId);
@@ -73,14 +67,14 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
                 return (false, "Failed to play local music, the current session is not initialized.");
             }
 
-            if (this._audioPlayer is null)
+            if (this._currentSession.AudioPlayerClient is null)
             {
-                return (false, "Failed to play local music, the audio player for current session is not initialized yet.");
+                return (false, "Failed to play local music, the plaery is not initialized.");
             }
 
             if (this._musicProvider is not null)
             {
-                IReadOnlyDictionary<string, string> localMusicFiles = await this._musicProvider.GetLocalMusicFilesAsync();
+                IReadOnlyDictionary<string, string> localMusicFiles = this._musicProvider.MusicFiles;
                 if (localMusicFiles is null || !localMusicFiles.Any())
                 {
                     return (false, "Failed to play local music, there's no music files in local.");
@@ -111,7 +105,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
                 }
 
                 string text = $"正在播放音乐：{musicName}";
-                await this._audioPlayer.PlayAsync(this._currentSession.SessionCtsToken, musicFilePath);
+                await this._currentSession.AudioPlayerClient.MusicPlayer.PlayAsync(this._currentSession.SessionCtsToken, musicFilePath);
 
                 this._logger.LogInformation("{ProviderType} - {ModelName}, Playing the music file {musicFilePath} for session {sessionId}.", this.ProviderType, this.ModelName, musicFilePath, this._currentSession.SessionId);
 

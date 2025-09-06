@@ -12,6 +12,7 @@ using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Protocol;
 using XiaoZhi.Net.Server.Providers;
+using static System.Collections.Specialized.BitVector32;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
@@ -29,6 +30,7 @@ namespace XiaoZhi.Net.Server.Handlers
         public override string HandlerName => nameof(AudioSendHandler);
         public IBizSendOutter SendOutter { get; set; } = null!;
         public ChannelReader<Workflow<OutAudioSegment>> PreviousReader { get; set; } = null!;
+        public ChannelReader<Workflow<float[]>> PreviousReader2 { get; set; } = null!;
 
         public async Task Handle()
         {
@@ -43,8 +45,9 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
             int frameSize = session.PrivateProvider is not null && session.PrivateProvider.AudioEncoder is not null ? session.PrivateProvider.AudioEncoder.FrameSize : this._audioEncoder.FrameSize;
-            int frameDuration = this.Config.AudioSetting.FrameDuration;
+            int frameDuration = session.AudioSetting.FrameDuration;
 
+            bool isContentNotEmpty = !string.IsNullOrWhiteSpace(workflow.Data.Content);
             float[] chunk = ArrayPool<float>.Shared.Rent(frameSize);
 
             OutAudioSegment outAudioSegment = workflow.Data;
@@ -55,12 +58,22 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 if (outAudioSegment.IsFirst)
                 {
-                    this.Logger.LogInformation("Send the first audio from segment: {content}", outAudioSegment.Content);
+                    if (isContentNotEmpty)
+                    {
+                        this.Logger.LogInformation("Send the first audio from the device: {deviceId}, the segment: {content}.", session.DeviceId, outAudioSegment.Content);
+                    }
+                    else
+                    {
+                        this.Logger.LogInformation("Send the first audio from the device: {deviceId}.", session.DeviceId);
+                    }
                     await this.SendOutter.SendTtsMessageAsync(TtsStatus.Start);
                     await this.SendOutter.SendLlmMessageAsync(Emotion.Cool);
                 }
 
-                await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceStart, outAudioSegment.Content);
+                if (isContentNotEmpty)
+                {
+                    await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceStart, outAudioSegment.Content);
+                }
 
                 while (this._sendOpusPacketFrame.GetFrames(frameSize, out chunk))
                 {
@@ -70,7 +83,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     {
                         float[]? resampledChunk = null;
                         int? resampledFrameSize = null;
-                        if (session.PrivateProvider.AudioResampler is not null)
+                        if (outAudioSegment.NeedResample && session.PrivateProvider.AudioResampler is not null)
                         {
                             (resampledChunk, resampledFrameSize) = await session.PrivateProvider.AudioResampler.ResampleAsync(chunk, session.SessionCtsToken);
 
@@ -105,7 +118,10 @@ namespace XiaoZhi.Net.Server.Handlers
                 ArrayPool<float>.Shared.Return(chunk);
                 this._sendOpusPacketFrame.Reset();
 
-                await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceEnd, outAudioSegment.Content);
+                if (isContentNotEmpty)
+                {
+                    await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceEnd, outAudioSegment.Content);
+                }
                 if (outAudioSegment.IsLast)
                 {
                     await this.SendOutter.SendTtsMessageAsync(TtsStatus.Stop);
@@ -117,11 +133,6 @@ namespace XiaoZhi.Net.Server.Handlers
                     await this.SendOutter.CloseSessionAsync("Close Chat");
                 }
             }
-        }
-
-        public async Task Handle(Workflow<float[]> workflow)
-        { 
-            
         }
 
         private async Task SendAudioDataByGlobalEncoderAsync(float[] chunk, int frameDuration, CancellationToken token)

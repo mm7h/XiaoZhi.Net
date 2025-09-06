@@ -7,12 +7,12 @@ namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample09_MP3Player
     {
-        const string PLAYING_AUDIO_FILE_PATH = "./audioFile/Perfect.mp3";
+        const string PLAYING_AUDIO_FILE_PATH = "./audioFile/bind_not_found.wav";
         public static async Task Run()
         {
             //await TestTheMP3Player();
-            //await TestTheUrlAudioPlayer();
-            await TestTheStreamAudioPlayer();
+            await TestTheUrlAudioPlayer();
+            //await TestTheStreamAudioPlayer();
         }
 
         static async Task TestTheMP3Player()
@@ -101,7 +101,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     lastPositionUpdate = now;
                 };
 
-                audioPlayer.OnAudioDataAvailable += (pcmData) =>
+                int firstCount = 0;
+                int lastCount = 0;
+                audioPlayer.OnAudioDataAvailable += (pcmData, isFirst, isLast) =>
                 {
                     var byteData = new byte[pcmData.Length * 4];
                     Buffer.BlockCopy(pcmData, 0, byteData, 0, byteData.Length);
@@ -111,6 +113,17 @@ namespace XiaoZhi.Net.Test.OtherSamples
                         Thread.Sleep(100);
                     }
                     provider.AddSamples(byteData, 0, byteData.Length);
+
+                    if (isFirst)
+                    {
+                        firstCount++;
+                        Console.WriteLine($"*** First audio frame received #{firstCount} - playback started");
+                    }
+                    if (isLast)
+                    {
+                        lastCount++;
+                        Console.WriteLine($"*** Last audio frame received #{lastCount} - playback ending (pause/stop/complete)");
+                    }
                 };
 
                 await audioPlayer.LoadAsync(PLAYING_AUDIO_FILE_PATH, sampleRate, channels, frameDurationMs);
@@ -144,6 +157,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 var endTime = DateTime.Now;
                 
                 Console.WriteLine($"Blocking playback completed after {(endTime - startTime).TotalSeconds:F2} seconds");
+                Console.WriteLine($"Summary: First events: {firstCount}, Last events: {lastCount}");
 
                 Console.WriteLine("All url player tests completed.");
                 Console.Read();
@@ -191,16 +205,26 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     lastPositionUpdate = now;
                 };
 
-                audioPlayer.OnAudioDataAvailable += (pcmData) =>
+                audioPlayer.OnAudioDataAvailable += (pcmData, isFirst, isLast) =>
                 {
                     var byteData = new byte[pcmData.Length * 4];
                     Buffer.BlockCopy(pcmData, 0, byteData, 0, byteData.Length);
 
-                    while (provider.BufferedBytes + byteData.Length > provider.BufferLength)
+                    var maxBufferedSamples = sampleRate * channels * 2; // 2 seconds of audio
+                    while (provider.BufferedBytes > maxBufferedSamples * 4)
                     {
-                        Thread.Sleep(100);
+                        Thread.Sleep(10);
                     }
                     provider.AddSamples(byteData, 0, byteData.Length);
+
+                    if (isFirst)
+                    {
+                        Console.WriteLine("*** First audio frame received - playback started");
+                    }
+                    if (isLast)
+                    {
+                        Console.WriteLine("*** Last audio frame received - playback ending (pause/stop/complete)");
+                    }
                 };
 
                 using (var stream = File.OpenRead(PLAYING_AUDIO_FILE_PATH))
@@ -217,8 +241,8 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     await Task.Delay(2000);
                     audioPlayer.Play();
 
-                    Console.WriteLine("Seeking to 0 seconds to replay after 2 seconds...");
-                    await Task.Delay(2000);
+                    Console.WriteLine("Seeking to 0 seconds to replay after 10 seconds...");
+                    await Task.Delay(10000);
                     audioPlayer.Seek(TimeSpan.Zero);
 
                     Console.WriteLine("Stopping playback after 4 seconds...");

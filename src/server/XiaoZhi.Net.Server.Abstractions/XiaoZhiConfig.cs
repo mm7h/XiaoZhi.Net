@@ -16,6 +16,7 @@ namespace XiaoZhi.Net.Server
         public bool AuthEnabled { get; set; }
         public LogSetting LogSetting { get; set; } = new LogSetting();
         public WebSocketServerOption WebSocketServerOption { get; set; } = new WebSocketServerOption();
+        public LocalMusicSetting LocalMusicSetting { get; set; } = new LocalMusicSetting();
         public DeviceBindSetting DeviceBindSetting { get; set; } = new DeviceBindSetting();
         public AudioSetting AudioSetting { get; set; } = null!;
         public ModelSetting VadSetting { get; set; } = null!;
@@ -67,11 +68,15 @@ namespace XiaoZhi.Net.Server
         public int FrameDuration { get; set; } = 60;
         public int FrameSize => this.SampleRate * this.FrameDuration * this.Channels / 1000;
     }
+    public sealed class LocalMusicSetting
+    {
+        public string MusicFolderPath { get; set; } = "musics";
+    }
     public sealed class DeviceBindSetting
     {
-        public string BindCodePromptFilePath { get; set; } = "config/assets/bind_code.wav";
-        public string BindCodeDigitFolderPath { get; set; } = "config/assets/bind_code";
-        public string BindNotFoundFilePath { get; set; } = "config/assets/bind_not_found.wav";
+        public string BindCodePromptFilePath { get; set; } = "configs/assets/bind_code.wav";
+        public string BindCodeDigitFolderPath { get; set; } = "configs/assets/bind_code";
+        public string BindNotFoundFilePath { get; set; } = "configs/assets/bind_not_found.wav";
     }
 
 }

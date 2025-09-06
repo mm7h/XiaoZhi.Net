@@ -2,15 +2,15 @@
 
 namespace XiaoZhi.Net.Server.Common.Dtos
 {
-    internal class LLMPluginConfig<TPluginSetting>
+    internal record LLMPluginConfig(Session Session);
+
+    internal record LLMPluginConfig<TPluginSetting> : LLMPluginConfig
     {
-        public LLMPluginConfig(Session session, TPluginSetting setting)
+        public LLMPluginConfig(Session session, TPluginSetting setting) : base(session)
         {
-            this.Session = session;
             this.Setting = setting;
         }
 
-        public Session Session { get; set; }
-        public TPluginSetting Setting { get; set; }
+        public TPluginSetting Setting { get; }
     }
 }

@@ -21,7 +21,10 @@ public interface IAudioPlayer : IDisposable
     /// <summary>
     /// Event that is raised when audio data is available.
     /// </summary>
-    event Action<float[]> OnAudioDataAvailable;
+    /// <param name="audioData">The audio data samples.</param>
+    /// <param name="isFirst">Indicates whether this is the first audio frame.</param>
+    /// <param name="isLast">Indicates whether this is the last audio frame.</param>
+    event Action<float[], bool, bool> OnAudioDataAvailable;
 
     /// <summary>
     /// Gets a value indicating whether FFmpeg has been successfully initialized.

@@ -3,9 +3,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.AudioPlayer.Abstractions.Common.Enums;
 
-namespace XiaoZhi.Net.Server.Providers
+namespace XiaoZhi.Net.Server.Providers.AudioPlayer
 {
-    internal interface IAudioPlayer : IProvider<AudioSetting>
+    internal interface IMusicPlayer : IProvider<AudioSetting>
     {
         event Action<string>? OnBeforeProcessing;
         event Action<string, float[]>? OnProcessing;

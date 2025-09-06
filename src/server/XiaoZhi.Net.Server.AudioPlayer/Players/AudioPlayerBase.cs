@@ -43,7 +43,7 @@ namespace XiaoZhi.Net.Server.AudioPlayer
         /// <inheritdoc />
         public event Action<TimeSpan>? PositionChanged;
 
-        public event Action<float[]>? OnAudioDataAvailable;
+        public event Action<float[], bool, bool>? OnAudioDataAvailable;
 
         /// <inheritdoc />
         public abstract string AudioPlayerName { get; }
@@ -119,6 +119,16 @@ namespace XiaoZhi.Net.Server.AudioPlayer
         /// Tracks whether this is the first frame being processed.
         /// </summary>
         private bool _firstFrame;
+
+        /// <summary>
+        /// Tracks total pause duration to adjust playback timing.
+        /// </summary>
+        private TimeSpan _totalPauseDuration;
+
+        /// <summary>
+        /// Tracks when seeking occurred to reset pause tracking.
+        /// </summary>
+        private bool _seekOccurred;
 
         /// <summary>
         /// Checks whether FFmpeg is installed and initialized for use.
@@ -264,6 +274,8 @@ namespace XiaoZhi.Net.Server.AudioPlayer
             // Reset timing tracking when seeking
             _playbackStartTime = DateTime.Now - position;
             _firstFrame = true;
+            _totalPauseDuration = TimeSpan.Zero;
+            _seekOccurred = true;
 
             IsSeeking = false;
             SetAndRaisePositionChanged(position);
@@ -478,19 +490,51 @@ namespace XiaoZhi.Net.Server.AudioPlayer
 
             double lastPresentationTime = 0;
             DateTime lastFrameTime = DateTime.Now;
+            DateTime pauseStartTime = DateTime.MinValue;
+            TimeSpan totalPauseDuration = _totalPauseDuration;
+            bool isFirstAudioFrame = true; // mark if this is the first audio frame
+            float[]? lastProcessedSamples = null; // save the last processed audio samples
+            bool lastEventSent = false; // mark if the last frame event has been sent
 
             while (State != PlaybackState.Idle)
             {
                 if (State == PlaybackState.Paused || IsSeeking)
                 {
-                    // Update the start time when resuming from pause to account for pause duration
-                    if (State == PlaybackState.Paused)
+                    // record the pause start time for calculating total pause duration
+                    if (State == PlaybackState.Paused && pauseStartTime == DateTime.MinValue)
                     {
-                        var pauseDuration = DateTime.Now - lastFrameTime;
-                        _playbackStartTime = _playbackStartTime.Add(pauseDuration);
+                        pauseStartTime = DateTime.Now;
                     }
+
+                    // when paused, if there are last processed samples and the last event has not been sent, send the event with isLast=true
+                    if (State == PlaybackState.Paused && lastProcessedSamples != null && !lastEventSent)
+                    {
+                        this.OnAudioDataAvailable?.Invoke(lastProcessedSamples, false, true);
+                        lastEventSent = true; // mark as sent
+                    }
+
                     Thread.Sleep(10);
                     continue;
+                }
+
+                if (_seekOccurred)
+                {
+                    totalPauseDuration = TimeSpan.Zero;
+                    pauseStartTime = DateTime.MinValue;
+                    _seekOccurred = false;
+                    isFirstAudioFrame = true; // reset to first frame on seek
+                    lastProcessedSamples = null; // clear last samples on seek
+                    lastEventSent = false; // reset the last event sent flag
+                }
+
+                // calculate total pause duration when resuming from pause
+                if (pauseStartTime != DateTime.MinValue)
+                {
+                    var pauseDuration = DateTime.Now - pauseStartTime;
+                    totalPauseDuration = totalPauseDuration.Add(pauseDuration);
+                    _totalPauseDuration = totalPauseDuration;
+                    pauseStartTime = DateTime.MinValue;
+                    lastEventSent = false; // reset the flag when resuming playback
                 }
 
                 if (Queue.Count < MinQueueSize && !IsEOF)
@@ -504,6 +548,12 @@ namespace XiaoZhi.Net.Server.AudioPlayer
                 {
                     if (IsEOF)
                     {
+                        // send the last processed samples if available and not sent yet
+                        if (lastProcessedSamples != null && !lastEventSent)
+                        {
+                            this.OnAudioDataAvailable?.Invoke(lastProcessedSamples, false, true);
+                            lastEventSent = true; // set the flag as sent
+                        }
                         break;
                     }
 
@@ -515,7 +565,26 @@ namespace XiaoZhi.Net.Server.AudioPlayer
                 ProcessSampleProcessors(samples);
 
                 SetAndRaiseStateChanged(PlaybackState.Playing);
-                this.OnAudioDataAvailable?.Invoke(samples.ToArray());
+
+                // check if this is the last audio frame: queue is empty and reached EOF
+                bool isLastAudioFrame = Queue.IsEmpty && IsEOF;
+                
+                var samplesArray = samples.ToArray();
+                lastProcessedSamples = samplesArray; // save the current processed samples
+
+                this.OnAudioDataAvailable?.Invoke(samplesArray, isFirstAudioFrame, isLastAudioFrame);
+
+                // make sure to send isLast=true only once
+                if (isLastAudioFrame)
+                {
+                    lastEventSent = true;
+                }
+
+                // process the first frame flag
+                if (isFirstAudioFrame)
+                {
+                    isFirstAudioFrame = false;
+                }
 
                 var framePresentationTime = frame.PresentationTime;
 
@@ -527,14 +596,13 @@ namespace XiaoZhi.Net.Server.AudioPlayer
                 }
 
                 // Calculate when this frame should be played
-                var targetPlayTime = _playbackStartTime.AddMilliseconds(framePresentationTime);
+                var targetPlayTime = _playbackStartTime.AddMilliseconds(framePresentationTime).Add(totalPauseDuration);
                 var currentTime = DateTime.Now;
                 var timeToWait = targetPlayTime - currentTime;
 
                 // If we're ahead of schedule, wait
                 if (timeToWait.TotalMilliseconds > 0)
                 {
-                    // Cap the wait time to avoid extremely long delays and ensure responsiveness
                     var waitMs = Math.Min((int)timeToWait.TotalMilliseconds, 100);
                     if (waitMs > 0)
                     {
@@ -550,12 +618,15 @@ namespace XiaoZhi.Net.Server.AudioPlayer
                 SetAndRaisePositionChanged(TimeSpan.FromMilliseconds(framePresentationTime));
             }
 
-            // Don't calls Seek(), the Play() method will do the job! The Seek() method will sets IsSeeking to true.
-            // This can be an endless cycle since the decoder thread will spins and wait the engine thread
-            // to complete, and break the spin when IsSeeking value is true.
+            // once the engine thread ends, if there are last processed samples and the last event has not been sent, send the event with isLast=true
+            if (lastProcessedSamples != null && !lastEventSent)
+            {
+                this.OnAudioDataAvailable?.Invoke(lastProcessedSamples, false, true);
+                lastEventSent = true;
+            }
+
             SetAndRaisePositionChanged(TimeSpan.Zero);
 
-            // Just fire and forget, and it should be non-blocking event.
             Task.Run(() => SetAndRaiseStateChanged(PlaybackState.Idle));
 
             Logger.LogDebug("Engine thread is completed.");

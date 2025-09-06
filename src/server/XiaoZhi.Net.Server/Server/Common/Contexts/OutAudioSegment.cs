@@ -2,15 +2,15 @@
 {
     internal record OutAudioSegment : OutSegment
     {
-        public OutAudioSegment(float[] audioData, double duration, string content) : base(content, true, true)
+        public OutAudioSegment(float[] audioData, bool isFirst, bool isLast, bool needResample = true) : base(string.Empty, isFirst, isLast)
         {
             this.AudioData = audioData;
-            this.Duration = duration;
+            this.NeedResample = needResample;
         }
-        public OutAudioSegment(float[] audioData, double duration, OutSegment outSegment) : base(outSegment.Content, outSegment.IsFirst, outSegment.IsLast)
+        public OutAudioSegment(float[] audioData, OutSegment outSegment, bool needResample = true) : base(outSegment.Content, outSegment.IsFirst, outSegment.IsLast)
         {
             this.AudioData = audioData;
-            this.Duration = duration;
+            this.NeedResample = needResample;
         }
 
         /// <summary>
@@ -19,8 +19,8 @@
         public float[] AudioData { get; }
 
         /// <summary>
-        /// 音频流时长
+        /// 是否需要重采样
         /// </summary>
-        public double Duration { get; }
+        public bool NeedResample { get; }
     }
 }

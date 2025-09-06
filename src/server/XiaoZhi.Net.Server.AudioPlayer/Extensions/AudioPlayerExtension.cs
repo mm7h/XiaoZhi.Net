@@ -13,9 +13,9 @@ namespace XiaoZhi.Net.Server
         /// Initialize audio player.
         /// </summary>
         /// <param name="builder">current builder</param>
-        /// <param name="ffmpegPath">the root path of ffmpeg</param>
+        /// <param name="ffmpegPath">the root path of ffmpeg; Defaults to "./ffmpeg/" if not specified. Must not be null or empty.</param>
         /// <returns></returns>
-        public static IServerBuilder WithAudioPlayer(this IServerBuilder builder, string? ffmpegPath = null)
+        public static IServerBuilder WithAudioPlayer(this IServerBuilder builder, string? ffmpegPath = "./ffmpeg/")
         {
             if (!string.IsNullOrEmpty(ffmpegPath))
             {
@@ -24,8 +24,8 @@ namespace XiaoZhi.Net.Server
 
             builder.HostBuilder.ConfigureServices((context, services) =>
             {
-                services.AddTransient<IAudioPlayer, UrlAudioPlayer>();
-                services.AddTransient<IAudioPlayer, StreamAudioPlayer>();
+                services.AddTransient<IUrlAudioPlayer, UrlAudioPlayer>();
+                services.AddTransient<IStreamAudioPlayer, StreamAudioPlayer>();
             });
             return builder;
         }

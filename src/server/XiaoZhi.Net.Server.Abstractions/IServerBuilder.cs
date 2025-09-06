@@ -62,12 +62,6 @@ namespace XiaoZhi.Net.Server.Abstractions
         /// <returns></returns>
         IServerBuilder WithVerify<T>() where T : class, IBasicVerify;
         /// <summary>
-        /// 添加本地音乐文件提供器
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
-        IServerBuilder WithMusicProvider<T>() where T : class, IMusicProvider;
-        /// <summary>
         /// 构建服务引擎
         /// </summary>
         /// <returns></returns>

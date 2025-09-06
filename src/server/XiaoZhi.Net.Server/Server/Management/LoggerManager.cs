@@ -7,10 +7,6 @@ namespace XiaoZhi.Net.Server.Management
 {
     internal class LoggerManager
     {
-
-        public LoggerManager()
-        {
-        }
         public static IHostBuilder RegisterServices(IHostBuilder builder, XiaoZhiConfig config)
         {
             return builder.ConfigureLogging((context, loggerBuilder) =>

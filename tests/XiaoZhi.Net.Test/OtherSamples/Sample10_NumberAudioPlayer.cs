@@ -286,7 +286,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     lastPositionUpdate = now;
                 };
 
-                audioPlayer.OnAudioDataAvailable += (pcmData) =>
+                audioPlayer.OnAudioDataAvailable += (pcmData, isFirst, isLast) =>
                 {
                     var byteData = new byte[pcmData.Length * 4];
                     Buffer.BlockCopy(pcmData, 0, byteData, 0, byteData.Length);
@@ -296,6 +296,15 @@ namespace XiaoZhi.Net.Test.OtherSamples
                         Thread.Sleep(10);
                     }
                     provider.AddSamples(byteData, 0, byteData.Length);
+
+                    if (isFirst)
+                    {
+                        Console.WriteLine($"*** [{description}] First audio frame received - playback started");
+                    }
+                    if (isLast)
+                    {
+                        Console.WriteLine($"*** [{description}] Last audio frame received - playback ending (pause/stop/complete)");
+                    }
                 };
 
                 try

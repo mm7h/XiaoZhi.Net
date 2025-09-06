@@ -10,7 +10,5 @@
         public const string GLOBAL_LLM = "GlobalLlm";
         public const string GLOBAL_TTS = "GlobalTts";
         public const string GLOBAL_AUDIO_ENCODER = "GlobalAudioEncoder";
-        public const string GLOBAL_AUDIO_PLAYER = "GlobalAudioPlayer";
-        public const string GLOBAL_DEVICE_BINDING_PLAYER = "GlobalDeviceBindingPlayer";
     }
 }

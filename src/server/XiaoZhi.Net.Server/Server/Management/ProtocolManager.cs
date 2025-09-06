@@ -14,12 +14,6 @@ namespace XiaoZhi.Net.Server.Management
 {
     internal sealed class ProtocolManager
     {
-
-        public ProtocolManager()
-        {
-
-        }
-
         public static IHostBuilder RegisterServices(IHostBuilder builder, XiaoZhiConfig config)
         {
             if (config.ServerProtocol == ServerProtocol.WebSocket)

@@ -140,6 +140,7 @@ namespace XiaoZhi.Net.Server
                 services.AddKernel();
             })
             .RegisterLogger(config)
+            .RegisterResources()
             .RegisterProviders(config)
             .RegisterHandlers()
             .RegisterProtocol(config);
@@ -210,16 +211,6 @@ namespace XiaoZhi.Net.Server
             return this;
         }
 
-        public IServerBuilder WithMusicProvider<T>() where T : class, IMusicProvider
-        {
-            this.HostBuilder.ConfigureServices((context, services) =>
-            {
-                services.AddSingleton<IMusicProvider, T>();
-            });
-
-            return this;
-        }
-
         /// <summary>
         /// 构建服务引擎
         /// </summary>
@@ -235,7 +226,13 @@ namespace XiaoZhi.Net.Server
 
         private void BuildComponents(IServiceProvider serviceProvider)
         {
+            ResourceManager resourceManager = serviceProvider.GetRequiredService<ResourceManager>();
             ProviderManager providerManager = serviceProvider.GetRequiredService<ProviderManager>();
+            bool loaded = resourceManager.BuildComponent(serviceProvider);
+            if (!loaded)
+            {
+                throw new ApplicationException("Failed to load resource components. Please check the configuration and resource implementations.");
+            }
             bool builded = providerManager.BuildComponent(serviceProvider);
             if (!builded)
             {
