@@ -24,6 +24,8 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
         public PlaybackState PlaybackState => this._urlAudioPlayer.State;
 
+        public bool IsPlaying => this._urlAudioPlayer.State is PlaybackState.Playing or PlaybackState.Buffering;
+
         public string? PlayingMusicName { get; private set; }
 
         public event Action<float[], bool, bool>? OnAudioData;

@@ -11,7 +11,9 @@ namespace XiaoZhi.Net.Server.AudioPlayer
     /// playback scenarios.
     /// </summary>
     /// <remarks>This factory class includes methods to create audio players for different  input sources,
-    /// such as URLs and streams. The created audio players are  pre-configured with default logging behavior.</remarks>
+    /// such as URLs and streams. The created audio players are  pre-configured with default logging behavior.
+    /// Thanks to https://github.com/luthfiampas/Bufdio for the FFmpeg integration approach.
+    /// </remarks>
     public static class AudioPlayerFactory
     {
         /// <summary>

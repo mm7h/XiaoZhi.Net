@@ -9,6 +9,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
     {
         string? PlayingMusicName { get; }
         PlaybackState PlaybackState { get; }
+        bool IsPlaying { get; }
         Task PlayAsync(CancellationToken cancellationToken = default, params string[] sources);
         Task PauseAsync();
         Task ResumeAsync();
