@@ -58,6 +58,7 @@ public interface IAudioPlayer : IDisposable
 
     /// <summary>
     /// Gets or sets audio volume.
+    /// 0 ~ 1.0f, default is 0.8f.
     /// </summary>
     float Volume { get; set; }
 

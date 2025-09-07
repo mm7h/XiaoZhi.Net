@@ -94,6 +94,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public void SetAudioPlayerClient(IAudioPlayerClient audioPlayer)
         {
             this.AudioPlayerClient = audioPlayer;
+            this.HandlerPipeline.SetAudioPlayerClient(audioPlayer);
         }
 
         public void SetListenMode(string mode)

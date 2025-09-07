@@ -20,7 +20,7 @@ namespace XiaoZhi.Net.Server.Management
             return builder.ConfigureServices((context, services) =>
             {
                 services.AddSingleton<IDeviceBinding, DefaultDeviceBinding>();
-                services.AddSingleton<IMusics, LocalMusic>();
+                services.AddSingleton<IMusics, MusicProvider>();
 
                 services.AddSingleton<ResourceManager>();
             });
@@ -38,7 +38,7 @@ namespace XiaoZhi.Net.Server.Management
 
             #region Musics
             IMusics musics = serviceProvider.GetRequiredService<IMusics>();
-            if (!musics.Load(this._config.LocalMusicSetting))
+            if (!musics.Load(this._config.MusicProviderSetting))
             {
                 return false;
             }

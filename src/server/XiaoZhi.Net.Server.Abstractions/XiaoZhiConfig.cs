@@ -16,7 +16,7 @@ namespace XiaoZhi.Net.Server
         public bool AuthEnabled { get; set; }
         public LogSetting LogSetting { get; set; } = new LogSetting();
         public WebSocketServerOption WebSocketServerOption { get; set; } = new WebSocketServerOption();
-        public LocalMusicSetting LocalMusicSetting { get; set; } = new LocalMusicSetting();
+        public MusicProviderSetting MusicProviderSetting { get; set; } = new MusicProviderSetting();
         public DeviceBindSetting DeviceBindSetting { get; set; } = new DeviceBindSetting();
         public AudioSetting AudioSetting { get; set; } = null!;
         public ModelSetting VadSetting { get; set; } = null!;
@@ -68,7 +68,7 @@ namespace XiaoZhi.Net.Server
         public int FrameDuration { get; set; } = 60;
         public int FrameSize => this.SampleRate * this.FrameDuration * this.Channels / 1000;
     }
-    public sealed class LocalMusicSetting
+    public sealed class MusicProviderSetting
     {
         public string MusicFolderPath { get; set; } = "musics";
     }

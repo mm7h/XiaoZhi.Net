@@ -12,7 +12,6 @@ using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Protocol;
 using XiaoZhi.Net.Server.Providers;
-using static System.Collections.Specialized.BitVector32;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
@@ -66,6 +65,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     {
                         this.Logger.LogInformation("Send the first audio from the device: {deviceId}.", session.DeviceId);
                     }
+
                     await this.SendOutter.SendTtsMessageAsync(TtsStatus.Start);
                     await this.SendOutter.SendLlmMessageAsync(Emotion.Cool);
                 }
@@ -94,7 +94,7 @@ namespace XiaoZhi.Net.Server.Handlers
                         {
                             byte[] opusData = await session.PrivateProvider.AudioEncoder.EncodeAsync(resampledChunk ?? chunk, session.SessionCtsToken);
 
-                            await Task.Delay(frameDuration);
+                            await Task.Delay((int)(frameDuration * 0.8));
                             await this.SendOutter.SendAsync(opusData);
                         }
                         else
@@ -139,7 +139,7 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             byte[] opusData = await this._audioEncoder.EncodeAsync(chunk, token);
 
-            await Task.Delay(frameDuration);
+            await Task.Delay((int)(frameDuration * 0.8));
             await this.SendOutter.SendAsync(opusData);
         }
     }

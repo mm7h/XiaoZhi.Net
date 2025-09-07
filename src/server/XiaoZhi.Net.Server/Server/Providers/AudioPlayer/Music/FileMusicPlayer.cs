@@ -9,7 +9,7 @@ using XiaoZhi.Net.Server.AudioPlayer.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 {
-    internal class LocalFileMusicPlayer : BaseProvider<LocalFileMusicPlayer, AudioSetting>, IMusicPlayer
+    internal class FileMusicPlayer : BaseProvider<FileMusicPlayer, AudioSetting>, IMusicPlayer
     {
         private readonly SemaphoreSlim _audioPlayerSlim = new SemaphoreSlim(1, 1);
         private readonly IUrlAudioPlayer _urlAudioPlayer;
@@ -20,7 +20,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
         public override string ProviderType => "audio player";
 
-        public override string ModelName => nameof(LocalFileMusicPlayer);
+        public override string ModelName => nameof(FileMusicPlayer);
 
         public PlaybackState PlaybackState => this._urlAudioPlayer.State;
 
@@ -28,9 +28,15 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
         public string? PlayingMusicName { get; private set; }
 
+        public float Volume
+        {
+            get => this._urlAudioPlayer.Volume;
+            set => this._urlAudioPlayer.Volume = value;
+        }
+
         public event Action<float[], bool, bool>? OnAudioData;
 
-        public LocalFileMusicPlayer(IUrlAudioPlayer urlAudioPlayer, ILogger<LocalFileMusicPlayer> logger) : base(logger)
+        public FileMusicPlayer(IUrlAudioPlayer urlAudioPlayer, ILogger<FileMusicPlayer> logger) : base(logger)
         {
             this._urlAudioPlayer = urlAudioPlayer;
             this._urlAudioPlayer.OnAudioDataAvailable += this.FireAudioData;

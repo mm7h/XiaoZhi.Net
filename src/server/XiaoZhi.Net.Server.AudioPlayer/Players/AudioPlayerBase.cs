@@ -33,7 +33,7 @@ namespace XiaoZhi.Net.Server.AudioPlayer
         public AudioPlayerBase(ILogger<TLogger> logger)
         {
             Logger = logger;
-            VolumeProcessor = new VolumeProcessor { Volume = 1 };
+            VolumeProcessor = new VolumeProcessor { Volume = 0.8f };
             Queue = new ConcurrentQueue<AudioFrame>();
         }
 

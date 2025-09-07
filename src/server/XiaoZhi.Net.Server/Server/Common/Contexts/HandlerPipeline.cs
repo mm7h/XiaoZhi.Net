@@ -6,6 +6,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Handlers;
+using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {
@@ -118,6 +119,11 @@ namespace XiaoZhi.Net.Server.Common.Contexts
                 handler.Dispose();
             }
             this._disposableHandlers.Clear();
+        }
+
+        public void SetAudioPlayerClient(IAudioPlayerClient audioPlayerClient)
+        { 
+            this._text2AudioHandler?.SetAudioPlayerClient(audioPlayerClient);
         }
 
         private void InitializeSendOutter(IHandler outHandler)

@@ -161,10 +161,9 @@ namespace XiaoZhi.Net.Server.Management
             {
                 Kernel privateKernel = this._globalKernel.Clone();
                 privateKernel.Data.Add("session", session);
-                session.IsDeviceBinded = true;
                 #region Global plugins init
                 #region LocalMusicPlayer
-                LocalMusicPlayer musicPlayerPlugin = this._serviceProvider.GetRequiredService<LocalMusicPlayer>();
+                MusicPlayer musicPlayerPlugin = this._serviceProvider.GetRequiredService<MusicPlayer>();
 
                 LLMPluginConfig llmPluginConfig = new LLMPluginConfig(session);
 
@@ -347,15 +346,16 @@ namespace XiaoZhi.Net.Server.Management
         }
         public void RegisterAudioResamplerWithAudioEncoder(Session session)
         {
-            if (session.PrivateProvider is null)
-            {
-                session.PrivateProvider = new PrivateProvider();
-            }
-            int ttsSampleRate = session.PrivateProvider.Tts?.GetTtsSampleRate() ?? this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS).GetTtsSampleRate();
+            int ttsSampleRate = session.PrivateProvider?.Tts?.GetTtsSampleRate() ?? this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS).GetTtsSampleRate();
 
             if (ttsSampleRate == session.AudioSetting.SampleRate)
             {
                 return;
+            }
+
+            if (session.PrivateProvider is null)
+            {
+                session.PrivateProvider = new PrivateProvider();
             }
             this._logger.LogInformation("Session {sessionId} requires audio resampling from {ttsSampleRate} to {deviceSampleRate}.", session.SessionId, ttsSampleRate, session.AudioSetting.SampleRate);
 
@@ -491,7 +491,7 @@ namespace XiaoZhi.Net.Server.Management
         #region LLMPlugins
         private static void RegisterLLMPlugins(IServiceCollection services)
         {
-            services.AddTransient<LocalMusicPlayer>();
+            services.AddTransient<MusicPlayer>();
         }
         #endregion
 
@@ -592,7 +592,7 @@ namespace XiaoZhi.Net.Server.Management
         #region AudioPlayer
         private static void RegisterAudioPlayer(IServiceCollection services)
         {
-            services.AddTransient<IMusicPlayer, LocalFileMusicPlayer>();
+            services.AddTransient<IMusicPlayer, FileMusicPlayer>();
             services.AddTransient<ISystemNotification, NotificationPlayer>();
             services.AddTransient<IAudioPlayerClient, AudioPlayerClient>();
         }

@@ -5,22 +5,22 @@ using System.Linq;
 
 namespace XiaoZhi.Net.Server.Resources.Musics
 {
-    internal class LocalMusic : BaseResource<LocalMusic, LocalMusicSetting>, IMusics
+    internal class MusicProvider : BaseResource<MusicProvider, MusicProviderSetting>, IMusics
     {
-        private LocalMusicSetting? _setting;
+        private MusicProviderSetting? _setting;
         private readonly IDictionary<string, string> _musicFiles;
 
-        public LocalMusic(ILogger<LocalMusic> logger) : base(logger)
+        public MusicProvider(ILogger<MusicProvider> logger) : base(logger)
         {
             this._musicFiles = new Dictionary<string, string>();
             this.MusicFiles = this._musicFiles.AsReadOnly();
         }
-        public override string ResourceName => "LocalMusic";
+        public override string ResourceName => "MusicProvider";
 
         public bool HasMusicFiles { get; private set; }
         public IReadOnlyDictionary<string, string> MusicFiles { get; private set; }
 
-        public override bool Load(LocalMusicSetting settings)
+        public override bool Load(MusicProviderSetting settings)
         {
             if (string.IsNullOrEmpty(settings.MusicFolderPath))
             {
