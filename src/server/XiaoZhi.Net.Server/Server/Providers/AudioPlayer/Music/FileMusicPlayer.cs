@@ -4,8 +4,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.AudioPlayer.Abstractions;
-using XiaoZhi.Net.Server.AudioPlayer.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.FFmpeg.Abstractions;
+using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 {

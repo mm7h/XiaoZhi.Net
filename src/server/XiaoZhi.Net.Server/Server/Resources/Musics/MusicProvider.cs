@@ -47,6 +47,8 @@ namespace XiaoZhi.Net.Server.Resources.Musics
                 }
             }
             this.MusicFiles = this._musicFiles.AsReadOnly();
+            this._setting = settings;
+
             return true;
         }
 

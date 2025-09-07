@@ -405,10 +405,6 @@ namespace XiaoZhi.Net.Server.Management
                     services.AddKeyedTransient<IVad, Silero>(modelName);
                     services.AddKeyedSingleton<IVad, Silero>(key);
                     break;
-                case "webrtc":
-                    services.AddKeyedTransient<IVad, WebRtc>(modelName);
-                    services.AddKeyedSingleton<IVad, WebRtc>(key);
-                    break;
                 default:
                     throw new ModelBuildException("Invalid vad model.");
             }
