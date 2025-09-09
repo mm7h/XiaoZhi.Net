@@ -1,6 +1,6 @@
 using NAudio.Wave;
-using XiaoZhi.Net.Server.AudioPlayer;
-using XiaoZhi.Net.Server.AudioPlayer.Abstractions;
+using XiaoZhi.Net.Server.FFmpeg;
+using XiaoZhi.Net.Server.FFmpeg.Abstractions;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {
@@ -245,13 +245,13 @@ namespace XiaoZhi.Net.Test.OtherSamples
         /// </summary>
         private static async Task PlayAudioStream(Stream audioStream, string description)
         {
-            if (!AudioPlayerFactory.InitializeFFmpeg())
+            if (!MediaFactory.InitializeFFmpeg())
             {
                 Console.WriteLine("Failed to initialize the ffmpeg.");
                 return;
             }
             
-            IStreamAudioPlayer audioPlayer = AudioPlayerFactory.CreateStreamAudioPlayer();
+            IStreamAudioPlayer audioPlayer = MediaFactory.CreateStreamAudioPlayer();
 
             if (!audioPlayer.CheckFFmpegInstalled())
             {

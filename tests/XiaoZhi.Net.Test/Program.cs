@@ -8,8 +8,9 @@ namespace XiaoZhi.Net.Test
     {
         static async Task Main(string[] args)
         {
-            await Sample09_MP3Player.Run();
+            //await Sample09_MP3Player.Run();
             //await Sample10_NumberAudioPlayer.Run();
+            await Sample11_AudioMixer.Run();
             //ModelsInit();
         }
 

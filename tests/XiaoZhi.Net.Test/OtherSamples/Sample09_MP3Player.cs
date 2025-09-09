@@ -1,13 +1,13 @@
 ﻿using MP3Sharp;
 using NAudio.Wave;
-using XiaoZhi.Net.Server.AudioPlayer;
-using XiaoZhi.Net.Server.AudioPlayer.Abstractions;
+using XiaoZhi.Net.Server.FFmpeg;
+using XiaoZhi.Net.Server.FFmpeg.Abstractions;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample09_MP3Player
     {
-        const string PLAYING_AUDIO_FILE_PATH = "./audioFile/bind_not_found.wav";
+        const string PLAYING_AUDIO_FILE_PATH = "./audioFile/Perfect.flac";
         public static async Task Run()
         {
             //await TestTheMP3Player();
@@ -62,19 +62,19 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
         static async Task TestTheUrlAudioPlayer()
         {
-            if (!AudioPlayerFactory.InitializeFFmpeg())
+            if (!MediaFactory.InitializeFFmpeg())
             {
                 Console.WriteLine("Failed to initialize the ffmpeg.");
                 return;
             }
-            IUrlAudioPlayer audioPlayer = AudioPlayerFactory.CreateUrlAudioPlayer();
+            IUrlAudioPlayer audioPlayer = MediaFactory.CreateUrlAudioPlayer();
 
             if (!audioPlayer.CheckFFmpegInstalled())
             {
                 Console.WriteLine("Failed to initialize the ffmpeg.");
                 return;
             }
-            audioPlayer.Volume = 0.3f;
+            //audioPlayer.Volume = 0.3f;
 
             const int sampleRate = 16000;
             const int channels = 1;
@@ -166,12 +166,12 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
         static async Task TestTheStreamAudioPlayer()
         {
-            if (!AudioPlayerFactory.InitializeFFmpeg())
+            if (!MediaFactory.InitializeFFmpeg())
             {
                 Console.WriteLine("Failed to initialize the ffmpeg.");
                 return;
             }
-            IStreamAudioPlayer audioPlayer = AudioPlayerFactory.CreateStreamAudioPlayer();
+            IStreamAudioPlayer audioPlayer = MediaFactory.CreateStreamAudioPlayer();
 
             if (!audioPlayer.CheckFFmpegInstalled())
             {

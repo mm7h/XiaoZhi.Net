@@ -2,19 +2,22 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using XiaoZhi.Net.Server.FFmpeg.Abstractions;
+using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Dtos;
+using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.FFmpeg.Mixers;
 using XiaoZhi.Net.Server.FFmpeg.Players;
 
 namespace XiaoZhi.Net.Server.FFmpeg
 {
     /// <summary>
-    /// Provides factory methods for creating instances of <see cref="IAudioPlayer"/>  configured for specific audio
-    /// playback scenarios.
+    /// Provides factory methods for creating instances of meadia providers.
     /// </summary>
-    /// <remarks>This factory class includes methods to create audio players for different  input sources,
-    /// such as URLs and streams. The created audio players are  pre-configured with default logging behavior.
+    /// <remarks>This factory class includes methods to create audio players for different input sources,
+    /// such as URLs and streams. 
+    /// The created audio players are  pre-configured with default logging behavior.
     /// Thanks to https://github.com/luthfiampas/Bufdio for the FFmpeg integration approach.
     /// </remarks>
-    public static class AudioPlayerFactory
+    public static class MediaFactory
     {
         /// <summary>
         /// Initializes the FFmpeg library with the specified root path.
@@ -59,6 +62,27 @@ namespace XiaoZhi.Net.Server.FFmpeg
         public static IStreamAudioPlayer CreateStreamAudioPlayer()
         {
             return new StreamAudioPlayer(NullLoggerFactory.Instance.CreateLogger<StreamAudioPlayer>());
+        }
+
+        /// <summary>
+        /// Creates a new instance of FFmpeg-native audio mixer for real-time multi-stream audio mixing.
+        /// </summary>
+        /// <param name="sampleRate">Output sample rate in Hz</param>
+        /// <param name="channels">Number of output channels</param>
+        /// <param name="frameDuration">Frame duration in milliseconds</param>
+        /// <param name="config">Optional configuration for the audio mixer</param>
+        /// <returns>An <see cref="IAudioMixer"/> instance configured for multi-stream audio mixing using FFmpeg filters</returns>
+        public static IAudioMixer CreateAudioMixer(int sampleRate, int channels, int frameDuration, AudioMixerConfig? config = null)
+        {
+            IAudioMixer mixer = new FFmpegAudioMixer(NullLoggerFactory.Instance.CreateLogger<FFmpegAudioMixer>());
+            
+            if (!mixer.Initialize(sampleRate, channels, frameDuration, config))
+            {
+                mixer.Dispose();
+                throw new InvalidOperationException($"Failed to initialize FFmpegAudioMixer with parameters: sampleRate={sampleRate}, channels={channels}, frameDuration={frameDuration}");
+            }
+
+            return mixer;
         }
     }
 }

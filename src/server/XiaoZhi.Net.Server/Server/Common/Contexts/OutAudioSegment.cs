@@ -1,4 +1,4 @@
-﻿using XiaoZhi.Net.Server.Common.Enums;
+﻿using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {

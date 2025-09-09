@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\server\XiaoZhi.Net.Server\XiaoZhi.Net.Server.csproj" />
+    <ProjectReference Include="..\..\src\server\XiaoZhi.Net.Server.FFmpeg\XiaoZhi.Net.Server.FFmpeg.csproj" />
   </ItemGroup>
 
 </Project>

@@ -11,4 +11,8 @@
     <PackageProjectUrl>https://github.com/mm7h/XiaoZhi.Net</PackageProjectUrl>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\XiaoZhi.Net.Server.Abstractions\XiaoZhi.Net.Server.Abstractions.csproj" />
+  </ItemGroup>
+
 </Project>

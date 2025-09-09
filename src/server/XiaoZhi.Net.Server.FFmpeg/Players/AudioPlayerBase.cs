@@ -33,7 +33,7 @@ namespace XiaoZhi.Net.Server.FFmpeg
         public AudioPlayerBase(ILogger<TLogger> logger)
         {
             Logger = logger;
-            VolumeProcessor = new VolumeProcessor { Volume = 0.8f };
+            VolumeProcessor = new VolumeProcessor { Volume = 1.0f };
             Queue = new ConcurrentQueue<AudioFrame>();
         }
 

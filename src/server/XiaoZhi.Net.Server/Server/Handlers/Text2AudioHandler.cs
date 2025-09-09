@@ -3,9 +3,9 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Protocol;
 using XiaoZhi.Net.Server.Providers;
 

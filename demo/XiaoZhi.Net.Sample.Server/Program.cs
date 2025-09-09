@@ -31,8 +31,11 @@ try
         serverHost = serverBuilder.Initialize(config)
             // 添加插件
             .WithPlugin<GetTime>(nameof(GetTime))
-            //构建服务引擎
+            // ffmpeg音频支持
+            .InitializeFFmpeg()
             .WithAudioPlayer()
+            .WithAudioMixer()
+            // 构建服务引擎
             .Build();
 
         await serverHost.RunAsync();

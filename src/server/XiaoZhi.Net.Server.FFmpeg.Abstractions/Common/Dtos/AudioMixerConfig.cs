@@ -1,0 +1,51 @@
+﻿using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Enums;
+
+namespace XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Dtos
+{
+    /// <summary>
+    /// 音频混音器配置
+    /// </summary>
+    public class AudioMixerConfig
+    {
+        /// <summary>
+        /// 音量过渡时间（毫秒）
+        /// </summary>
+        public int VolumeTransitionDurationMs { get; set; } = 500;
+
+        /// <summary>
+        /// 音量过渡曲线类型
+        /// </summary>
+        public VolumeTransitionCurve TransitionCurve { get; set; } = VolumeTransitionCurve.Logarithmic;
+
+        /// <summary>
+        /// 是否启用平滑音量控制
+        /// </summary>
+        public bool EnableSmoothVolumeControl { get; set; } = true;
+
+        /// <summary>
+        /// 新流启动时的缓冲容忍度（允许的最小帧百分比）
+        /// </summary>
+        public float NewStreamBufferTolerance { get; set; } = 0.25f;
+
+        /// <summary>
+        /// 最大缓冲帧数
+        /// </summary>
+        public int MaxBufferFrames { get; set; } = 15;
+
+        /// <summary>
+        /// 系统通知类型的音量配置
+        /// </summary>
+        public AudioVolumeConfig SystemNotificationVolumeConfig { get; set; } = new AudioVolumeConfig(AudioType.SystemNotification, 1.0f, 1.0f);
+
+        /// <summary>
+        /// TTS类型的音量配置
+        /// </summary>
+        public AudioVolumeConfig TTSVolumeConfig { get; set; } = new AudioVolumeConfig(AudioType.SystemNotification, 1.0f, 0.2f);
+
+        /// <summary>
+        /// 音乐类型的音量配置
+        /// </summary>
+        public AudioVolumeConfig MusicVolumeConfig { get; set; } = new AudioVolumeConfig(AudioType.SystemNotification, 1.0f, 0.1f);
+    }
+}
