@@ -103,7 +103,9 @@ namespace XiaoZhi.Net.Server.Handlers
                 session.AudioSetting.FrameDuration = frameDuration;
 
                 this._providerManager.BuildAudioPlayer(session);
-                this._providerManager.RegisterAudioResamplerWithAudioEncoder(session);
+                this._providerManager.BuildAudioMixer(session);
+                this._providerManager.RegisterAudioResampler(session);
+                this._providerManager.RegisterAudioEncoder(session);
             }
 
             this.SendOutter.SendAsync(JsonHelper.Serialize(defultHelloMessage));
@@ -176,12 +178,12 @@ namespace XiaoZhi.Net.Server.Handlers
         private void HandleIotDescriptors(JsonObject jsonObject)
         {
             Session session = this.SendOutter.GetSession();
-            if (!session.HasIoT)
+            if (!session.PrivateProvider.HasIoT)
             {
                 this._providerManager.BuildIoT(session);
             }
 
-            session.IoTClient.HandleIoTMessage(jsonObject);
+            session.PrivateProvider.IoTClient.HandleIoTMessage(jsonObject);
         }
 
         private async void HandleMcp(JsonObject jsonObject)
@@ -189,7 +191,7 @@ namespace XiaoZhi.Net.Server.Handlers
             if (jsonObject.TryGetPropertyValue("payload", out var payload) && payload is not null && payload is JsonObject payloadObj)
             {
                 Session session = this.SendOutter.GetSession();
-                ISubMcpClient? subMcpClient = session.McpClient.GetSubMcpClient(SubMCPClientTypeNames.DeviceMcpClient);
+                ISubMcpClient? subMcpClient = session.PrivateProvider.McpClient.GetSubMcpClient(SubMCPClientTypeNames.DeviceMcpClient);
                 if (subMcpClient is not null)
                 {
                     await subMcpClient.HandleMcpMessageAsync(payloadObj);

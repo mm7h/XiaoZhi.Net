@@ -73,7 +73,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     };
 
                     int frameCount = 0;
-                    mixer.OnMixedAudioDataAvailable += (pcmData, isFirst, isLast) =>
+                    mixer.OnMixedAudioDataAvailable += (pcmData, isFirst, isLast, contentMap) =>
                     {
                         var byteData = new byte[pcmData.Length * 4];
                         Buffer.BlockCopy(pcmData, 0, byteData, 0, byteData.Length);
@@ -89,7 +89,15 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
                         if (isFirst)
                         {
-                            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] *** First mixed audio frame received (Frame #{frameCount})");
+                            var activeContent = string.Join(", ", contentMap
+                                .Where(kvp => !string.IsNullOrEmpty(kvp.Value))
+                                .Select(kvp => $"{kvp.Key}: '{kvp.Value}'"));
+                            
+                            var logMessage = !string.IsNullOrEmpty(activeContent) 
+                                ? $" with content [{activeContent}]" 
+                                : "";
+                                
+                            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] *** First mixed audio frame received (Frame #{frameCount}){logMessage}");
                         }
                         if (isLast)
                         {
@@ -192,12 +200,20 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
                 audioPlayer.OnAudioDataAvailable += (pcmData, isFirst, isLast) =>
                 {
-                    audioMixer.AddAudioData(audioType, pcmData, isFirst, isLast);
+                    string content = audioType switch
+                    {
+                        AudioType.Music => "Background Music",
+                        AudioType.TTS => "Text-to-Speech Content",
+                        AudioType.SystemNotification => "System Notification",
+                        _ => "Unknown Audio"
+                    };
+                    
+                    audioMixer.AddAudioData(audioType, pcmData, isFirst, isLast, content);
                     framesSent++;
 
                     if (isFirst && !firstFrameSent)
                     {
-                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {audioType}: First frame sent to mixer - volume transition should start");
+                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {audioType}: First frame sent to mixer with content '{content}' - volume transition should start");
                         firstFrameSent = true;
                     }
 

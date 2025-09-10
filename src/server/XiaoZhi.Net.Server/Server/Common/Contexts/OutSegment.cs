@@ -26,11 +26,6 @@
         /// </summary>
         public bool IsLast { get; set; }
 
-        protected void SetContent(string content)
-        {
-            this._content = content;
-        }
-
         public void Initialize(string content)
         {
             this._content = content;
@@ -45,7 +40,7 @@
             this.IsLast = isLast;
         }
 
-        public virtual void Reset()
+        public void Reset()
         {
             this._content = string.Empty;
             this.IsFirst = false;

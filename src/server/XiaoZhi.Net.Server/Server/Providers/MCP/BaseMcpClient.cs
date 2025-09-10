@@ -171,7 +171,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                         {
                             this.IsReady = true;
 
-                            this.CurrentSession.Kernel.ImportPluginFromFunctions(this.ModelName, this._mcpTools.Values);
+                            this.CurrentSession.PrivateProvider.Kernel.ImportPluginFromFunctions(this.ModelName, this._mcpTools.Values);
 
                             this.Logger.LogInformation("All tools have been obtained, MCP client is ready.");
                         }

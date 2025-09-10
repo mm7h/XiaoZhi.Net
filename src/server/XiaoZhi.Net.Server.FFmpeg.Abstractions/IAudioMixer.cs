@@ -1,5 +1,6 @@
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Dtos;
+using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.FFmpeg.Abstractions
 {
@@ -16,7 +17,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Abstractions
         /// <summary>
         /// 混音后的音频数据事件
         /// </summary>
-        event Action<float[], bool, bool> OnMixedAudioDataAvailable;
+        event Action<float[], bool, bool, Dictionary<AudioType, string?>>? OnMixedAudioDataAvailable;
 
         /// <summary>
         /// 音频统计信息事件
@@ -60,7 +61,8 @@ namespace XiaoZhi.Net.Server.FFmpeg.Abstractions
         /// <param name="audioData">音频数据</param>
         /// <param name="isFirst">是否为第一帧</param>
         /// <param name="isLast">是否为最后一帧</param>
-        void AddAudioData(AudioType audioType, float[] audioData, bool isFirst, bool isLast);
+        /// <param name="content">音频内容描述</param>
+        void AddAudioData(AudioType audioType, float[] audioData, bool isFirst, bool isLast, string? content = null);
 
         /// <summary>
         /// 停止指定类型的音频流
@@ -77,51 +79,5 @@ namespace XiaoZhi.Net.Server.FFmpeg.Abstractions
         /// 获取当前混音统计信息
         /// </summary>
         AudioMixerStats GetCurrentStats();
-    }
-
-    /// <summary>
-    /// 音频混音器状态
-    /// </summary>
-    public enum AudioMixerState
-    {
-        Idle,
-        Mixing,
-        Stopped
-    }
-
-    /// <summary>
-    /// 音频混音器统计信息
-    /// </summary>
-    public sealed class AudioMixerStats
-    {
-        /// <summary>
-        /// 当前输出 RMS 电平
-        /// </summary>
-        public float CurrentRms { get; set; }
-
-        /// <summary>
-        /// 当前输出峰值
-        /// </summary>
-        public float CurrentPeak { get; set; }
-
-        /// <summary>
-        /// 当前动态增益（dB）
-        /// </summary>
-        public float CurrentGainDb { get; set; }
-
-        /// <summary>
-        /// 限制器触发次数
-        /// </summary>
-        public long LimiterTriggerCount { get; set; }
-
-        /// <summary>
-        /// 活跃的音频流数量
-        /// </summary>
-        public int ActiveStreamCount { get; set; }
-
-        /// <summary>
-        /// 各音频流的延迟补偿（毫秒）
-        /// </summary>
-        public Dictionary<AudioType, float> DelayCompensation { get; set; } = new();
     }
 }

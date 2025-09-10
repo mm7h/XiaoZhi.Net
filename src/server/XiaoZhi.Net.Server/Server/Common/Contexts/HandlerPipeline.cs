@@ -121,11 +121,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._disposableHandlers.Clear();
         }
 
-        public void SetAudioPlayerClient(IAudioPlayerClient audioPlayerClient)
-        { 
-            this._text2AudioHandler?.SetAudioPlayerClient(audioPlayerClient);
-        }
-
         private void InitializeSendOutter(IHandler outHandler)
         {
             outHandler.SendOutter = this._currentSession.SendOutter;

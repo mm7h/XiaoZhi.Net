@@ -71,7 +71,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
 
                 string speechText;
-                if (session.PrivateProvider is not null && session.PrivateProvider.Asr is not null)
+                if (session.PrivateProvider.Asr is not null)
                 {
                     speechText = await session.PrivateProvider.Asr.ConvertSpeechText(workflow.Data, session.AudioSetting.SampleRate, session.AudioSetting.FrameSize, session.SessionCtsToken);
                 }
@@ -91,7 +91,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 this.Logger.LogDebug("Device {deviceId} speak the text: {speechText}", session.DeviceId, speechText);
                 speechText = await this._punctuation.AppendPunctuationAsync(speechText!, session.SessionCtsToken);
 
-                // 从对象池获取新的workflow对象
                 var nextWorkflow = this._stringWorkflowPool.Get();
                 try
                 {
@@ -109,7 +108,6 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             finally
             {
-                // 归还原始workflow
                 this._circularBufferWorkflowPool.Return(workflow);
             }
         }

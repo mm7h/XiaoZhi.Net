@@ -49,8 +49,4 @@ Dotnet backend service for xiaozhi-esp32, helps you quickly build an ESP32 devic
       <ProjectReference Include="..\XiaoZhi.Net.Server.FFmpeg\XiaoZhi.Net.Server.FFmpeg.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Server\Providers\AudioMixer\" />
-    </ItemGroup>
-
 </Project>

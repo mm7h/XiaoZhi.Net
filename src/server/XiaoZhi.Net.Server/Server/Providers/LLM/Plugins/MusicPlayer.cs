@@ -67,7 +67,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
                 return "Failed to play music, the current session is not initialized.";
             }
 
-            if (this._currentSession.AudioPlayerClient is null)
+            if (this._currentSession.PrivateProvider.AudioPlayerClient is null)
             {
                 return "Failed to play music, the player is not initialized.";
             }
@@ -110,7 +110,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
 
                 try
                 {
-                    await this._currentSession.AudioPlayerClient.MusicPlayer.PlayAsync(this._currentSession.SessionCtsToken, musicFilePath);
+                    await this._currentSession.PrivateProvider.AudioPlayerClient.MusicPlayer.PlayAsync(this._currentSession.SessionCtsToken, musicFilePath);
 
                     this._logger.LogInformation("{ProviderType} - {ModelName}, Playing the music file {musicFilePath} for device {deviceId}.", this.ProviderType, this.ModelName, musicFilePath, this._currentSession.DeviceId);
 

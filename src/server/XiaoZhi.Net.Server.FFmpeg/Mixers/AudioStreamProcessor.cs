@@ -20,6 +20,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
         private volatile bool _isComplete = false;
         private volatile bool _stopRequested = false;
         private volatile int _processedFrameCount = 0;
+        private string? _currentContent = null;
 
         public AudioType AudioType => _audioType;
         public bool IsFirstFrame => _isFirstFrame;
@@ -27,6 +28,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
         public bool IsComplete => _isComplete;
         public int ProcessedFrameCount => _processedFrameCount;
         public int AvailableDataCount => _bufferQueue.Count;
+        public string? CurrentContent => _currentContent;
 
         public AudioStreamProcessor(AudioType audioType, int sampleRate, int channels, int frameDuration, AudioMixerConfig config)
         {
@@ -35,7 +37,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             _config = config;
         }
 
-        public void AddData(float[] audioData, bool isFirst, bool isLast)
+        public void AddData(float[] audioData, bool isFirst, bool isLast, string? content = null)
         {
             if (_disposed || audioData == null || audioData.Length == 0 || _stopRequested)
             {
@@ -50,6 +52,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     _isComplete = false;
                     _stopRequested = false;
                     _processedFrameCount = 0;
+                    _currentContent = content;
                 }
 
                 if (isLast)
@@ -57,7 +60,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     _isLastFrame = true;
                 }
 
-                // 使用配置的最大缓冲帧数
                 int maxBufferSize = _config.MaxBufferFrames * _frameSampleCount;
                 int currentBufferSize = _bufferQueue.Count;
                 int newDataSize = audioData.Length;
@@ -198,6 +200,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 _isComplete = false;
                 _stopRequested = false;
                 _processedFrameCount = 0;
+                _currentContent = null;
             }
         }
 

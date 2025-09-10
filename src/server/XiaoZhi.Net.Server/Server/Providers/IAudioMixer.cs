@@ -1,22 +1,18 @@
 using System;
+using System.Collections.Generic;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Providers
 {
     /// <summary>
-    /// 音频混音器提供程序接口
+    /// 音频混音器
     /// </summary>
     internal interface IAudioMixer : IProvider<AudioSetting>
     {
         /// <summary>
         /// 混音后的音频数据事件
         /// </summary>
-        event Action<float[], bool, bool> OnMixedAudioDataAvailable;
-
-        /// <summary>
-        /// 获取是否已初始化
-        /// </summary>
-        bool IsInitialized { get; }
+        event Action<float[], bool, bool, Dictionary<AudioType, string?>>? OnMixedAudioDataAvailable;
 
         /// <summary>
         /// 添加音频数据
@@ -25,7 +21,8 @@ namespace XiaoZhi.Net.Server.Providers
         /// <param name="audioData">音频数据</param>
         /// <param name="isFirst">是否为第一帧</param>
         /// <param name="isLast">是否为最后一帧</param>
-        void AddAudioData(AudioType audioType, float[] audioData, bool isFirst, bool isLast);
+        /// <param name="content">音频内容描述</param>
+        void AddAudioData(AudioType audioType, float[] audioData, bool isFirst, bool isLast, string? content = null);
 
         /// <summary>
         /// 停止音频流

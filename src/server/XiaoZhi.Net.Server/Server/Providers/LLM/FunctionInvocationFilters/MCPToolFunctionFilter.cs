@@ -29,7 +29,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
                 {
                     try
                     {
-                        ISubMcpClient? subMcpClient = session.McpClient.GetSubMcpClient(context.Function.PluginName);
+                        ISubMcpClient? subMcpClient = session.PrivateProvider.McpClient.GetSubMcpClient(context.Function.PluginName);
 
                         if (subMcpClient is null)
                         {
@@ -60,7 +60,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
                             }
                             else
                             {
-                                object? result = session.IoTClient.GetIoTPropertyStatus(context.Function.Name, returnValueType);
+                                object? result = session.PrivateProvider.IoTClient.GetIoTPropertyStatus(context.Function.Name, returnValueType);
                                 context.Result = new FunctionResult(context.Result, result);
                             }
                         }
@@ -72,7 +72,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
                             if (match.Success)
                             {
                                 string iotDeviceComponentName = match.Groups[1].Value;
-                                await session.IoTClient.ExecuteIoTCommand(iotDeviceComponentName, context.Function.Name, context.Function.Metadata.Parameters, context.Arguments);
+                                await session.PrivateProvider.IoTClient.ExecuteIoTCommand(iotDeviceComponentName, context.Function.Name, context.Function.Metadata.Parameters, context.Arguments);
 
                                 context.Result = new FunctionResult(context.Result, "Invoke the iot command successfully.");
                             }

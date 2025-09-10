@@ -16,9 +16,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
     {
         private long _isAudioProcessing;
         private CancellationTokenSource _sessionCts = null!;
-        private Kernel? _kernel;
-        private IIoTClient? _iotClient;
-        private IMcpClient? _mcpClient;
 
         private readonly object _lock = new object();
         private bool _isCanceling = false;
@@ -36,6 +33,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.VadStatusContext = new VadStatus();
             this.HandlerPipeline = new HandlerPipeline(this);
             this.Dialogues = new LinkedList<Dialogue>();
+            this.PrivateProvider = new PrivateProvider();
             this.CreateCancellationTokenSource();
         }
 
@@ -50,19 +48,11 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public CancellationToken SessionCtsToken => this._sessionCts.Token;
         public HandlerPipeline HandlerPipeline { get; }
         public IBizSendOutter SendOutter { get; }
-        [DisallowNull]
-        public Kernel Kernel => this._kernel ?? throw new InvalidOperationException("Kernel is not set. Please set the kernel before using the session.");
         public ICollection<Dialogue> Dialogues { get; }
-        public PrivateProvider? PrivateProvider { get; set; }
+        public PrivateProvider PrivateProvider { get; }
         public bool IsDeviceBinded { get; set; }
         public string? BindCode { get; set; }
         public DateTime LastActivityTime { get; private set; }
-        public bool HasIoT { get; private set; }
-        [DisallowNull]
-        public IIoTClient IoTClient => this._iotClient ?? throw new InvalidOperationException("IoTClient is not set. Please set the iot client before using the session.");
-        [DisallowNull]
-        public IMcpClient McpClient => this._mcpClient ?? throw new InvalidOperationException("MCPClient is not set. Please set the mcp client before using the session.");
-        public IAudioPlayerClient? AudioPlayerClient { get; private set; }
         public bool CloseAfterChat { get; set; }
 
         public bool IsIdle => Interlocked.Read(ref _isAudioProcessing) == 1;
@@ -73,28 +63,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             {
                 return this._isCanceling && DateTime.Now < this._cancelCoolingTime;
             }
-        }
-
-        public void SetKernel(Kernel kernel)
-        {
-            this._kernel = kernel;
-        }
-
-        public void SetIoTClient(IIoTClient iotClient)
-        {
-            this._iotClient = iotClient;
-            this.HasIoT = true;
-        }
-
-        public void SetMcpClient(IMcpClient mcpClient)
-        {
-            this._mcpClient = mcpClient;
-        }
-
-        public void SetAudioPlayerClient(IAudioPlayerClient audioPlayer)
-        {
-            this.AudioPlayerClient = audioPlayer;
-            this.HandlerPipeline.SetAudioPlayerClient(audioPlayer);
         }
 
         public void SetListenMode(string mode)
@@ -165,6 +133,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.AudioPacketContext.Release();
             this._sessionCts.Cancel();
             this.HandlerPipeline.Release();
+            this.PrivateProvider.Release();
             this._sessionCts.Dispose();
         }
 

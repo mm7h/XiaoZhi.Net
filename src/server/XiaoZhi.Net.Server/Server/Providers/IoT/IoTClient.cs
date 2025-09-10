@@ -197,7 +197,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                     }
                 }
 
-                this.CurrentSession.Kernel.ImportPluginFromFunctions(pluginName, $"用于管理或者操控 `{(!string.IsNullOrEmpty(iotDeviceComponentName) ? iotDeviceComponentName : deviceDescription)}` 设备状态或者功能的插件。后面的数字序号只是用于编号，没有其他意义。", deviceFunctions);
+                this.CurrentSession.PrivateProvider.Kernel.ImportPluginFromFunctions(pluginName, $"用于管理或者操控 `{(!string.IsNullOrEmpty(iotDeviceComponentName) ? iotDeviceComponentName : deviceDescription)}` 设备状态或者功能的插件。后面的数字序号只是用于编号，没有其他意义。", deviceFunctions);
             }
         }
 

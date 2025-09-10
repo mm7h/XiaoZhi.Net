@@ -14,6 +14,7 @@ using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Providers;
 using XiaoZhi.Net.Server.Providers.ASR;
 using XiaoZhi.Net.Server.Providers.AudioCodec;
+using XiaoZhi.Net.Server.Providers.AudioMixer;
 using XiaoZhi.Net.Server.Providers.AudioPlayer;
 using XiaoZhi.Net.Server.Providers.AudioPlayer.Music;
 using XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification;
@@ -60,9 +61,10 @@ namespace XiaoZhi.Net.Server.Management
                 RegisterLlm(services, config, GlobalProviderNames.GLOBAL_LLM);
                 RegisterMemory(services, config, GlobalProviderNames.GLOBAL_MEMORY);
                 RegisterTts(services, config, GlobalProviderNames.GLOBAL_TTS);
-                RegisterAudioEncoder(services, GlobalProviderNames.GLOBAL_AUDIO_ENCODER);
 
+                RegisterAudioEncoder(services);
                 RegisterAudioResampler(services);
+                RegisterAudioMixer(services);
                 RegisterIoT(services);
                 RegisterMCP(services);
                 RegisterLLMPlugins(services);
@@ -138,20 +140,6 @@ namespace XiaoZhi.Net.Server.Management
             }
             #endregion
 
-            #region AudioEncoder
-            IAudioEncoder audioEncoder = serviceProvider.GetRequiredKeyedService<IAudioEncoder>(GlobalProviderNames.GLOBAL_AUDIO_ENCODER);
-            AudioSetting audioSetting = new AudioSetting
-            {
-                SampleRate = tts.GetTtsSampleRate()
-            };
-            if (!audioEncoder.Build(audioSetting))
-            {
-                this._logger.LogError("Failed to build {modelName} provider.", audioEncoder.ModelName);
-                return false;
-            }
-            #endregion
-
-
             return true;
         }
 
@@ -177,7 +165,7 @@ namespace XiaoZhi.Net.Server.Management
 
                 #endregion
 
-                session.SetKernel(privateKernel);
+                session.PrivateProvider.SetKernel(privateKernel);
 
                 ManageApiClient? manageApiClient = this._serviceProvider.GetService<ManageApiClient>();
 
@@ -195,8 +183,6 @@ namespace XiaoZhi.Net.Server.Management
                     return;
                 }
 
-                PrivateProvider privateProvider = new PrivateProvider();
-
                 if (privateModelsConfig.VadSetting is not null)
                 {
                     IVad privateVad = this._serviceProvider.GetRequiredKeyedService<IVad>(privateModelsConfig.VadSetting.ModelName);
@@ -204,7 +190,7 @@ namespace XiaoZhi.Net.Server.Management
                     {
                         throw new ModelBuildException("Failed to build private VAD model.");
                     }
-                    privateProvider.SetVad(privateVad);
+                    session.PrivateProvider.SetVad(privateVad);
 
                     this._logger.LogInformation("Private VAD {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.VadSetting.ModelName, session.DeviceId, session.SessionId);
                 }
@@ -216,14 +202,14 @@ namespace XiaoZhi.Net.Server.Management
                     {
                         throw new ModelBuildException("Failed to build private ASR model.");
                     }
-                    privateProvider.SetAsr(privateAsr);
+                    session.PrivateProvider.SetAsr(privateAsr);
 
                     this._logger.LogInformation("Private ASR {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.AsrSetting.ModelName, session.DeviceId, session.SessionId);
                 }
 
                 if (privateModelsConfig.LlmSetting is not null)
                 {
-                    privateProvider.SetLlm(privateModelsConfig.Prompt, privateModelsConfig.UseStreaming, privateModelsConfig.SummaryMemory, privateModelsConfig.LlmModelName);
+                    session.PrivateProvider.SetLlm(privateModelsConfig.Prompt, privateModelsConfig.UseStreaming, privateModelsConfig.SummaryMemory, privateModelsConfig.LlmModelName);
 
                     if (!string.IsNullOrEmpty(privateModelsConfig.Prompt))
                     {
@@ -253,32 +239,24 @@ namespace XiaoZhi.Net.Server.Management
                     {
                         throw new ModelBuildException("Failed to build private TTS model.");
                     }
-                    privateProvider.SetTts(privateTts);
+                    session.PrivateProvider.SetTts(privateTts);
 
 
                     this._logger.LogInformation("Private TTS {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.TtsSetting.ModelName, session.DeviceId, session.SessionId);
-
-
-
                 }
-
-                session.PrivateProvider = privateProvider;
             }
             catch (DeviceNotFoundException)
             {
                 session.IsDeviceBinded = false;
-                session.PrivateProvider = null;
             }
             catch (DeviceBindException deviceBindException)
             {
                 session.IsDeviceBinded = false;
-                session.PrivateProvider = null;
                 session.BindCode = deviceBindException.BindCode;
             }
             catch (Exception ex)
             {
                 session.IsDeviceBinded = false;
-                session.PrivateProvider = null;
                 this._logger.LogError(ex, "Failed to load private models config for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
             }
         }
@@ -318,8 +296,6 @@ namespace XiaoZhi.Net.Server.Management
                 serviceProvider.GetRequiredKeyedService<IPunctuation>(GlobalProviderNames.GLOBAL_PUNCTUATION),
                 serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY),
                 serviceProvider.GetRequiredKeyedService<ILlm>(GlobalProviderNames.GLOBAL_LLM),
-                serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS),
-                serviceProvider.GetRequiredKeyedService<IAudioEncoder>(GlobalProviderNames.GLOBAL_AUDIO_ENCODER),
             };
 
             foreach (IDisposable provider in providers)
@@ -344,19 +320,15 @@ namespace XiaoZhi.Net.Server.Management
         {
             services.AddTransient<IAudioResampler, DefaultResampler>();
         }
-        public void RegisterAudioResamplerWithAudioEncoder(Session session)
+        public void RegisterAudioResampler(Session session)
         {
-            int ttsSampleRate = session.PrivateProvider?.Tts?.GetTtsSampleRate() ?? this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS).GetTtsSampleRate();
+            int ttsSampleRate = session.PrivateProvider.Tts?.GetTtsSampleRate() ?? this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS).GetTtsSampleRate();
 
             if (ttsSampleRate == session.AudioSetting.SampleRate)
             {
                 return;
             }
 
-            if (session.PrivateProvider is null)
-            {
-                session.PrivateProvider = new PrivateProvider();
-            }
             this._logger.LogInformation("Session {sessionId} requires audio resampling from {ttsSampleRate} to {deviceSampleRate}.", session.SessionId, ttsSampleRate, session.AudioSetting.SampleRate);
 
             ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, ttsSampleRate, session.AudioSetting.SampleRate);
@@ -369,29 +341,23 @@ namespace XiaoZhi.Net.Server.Management
             {
                 session.PrivateProvider.SetAudioResampler(audioResampler);
             }
-
-            AudioSetting encoderAudioSetting = new AudioSetting
-            {
-                SampleRate = audioResampler.OutSampleRate,
-                Channels = session.AudioSetting.Channels,
-                FrameDuration = session.AudioSetting.FrameDuration,
-                Format = session.AudioSetting.Format
-            };
-            IAudioEncoder audioEncoder = this._serviceProvider.GetRequiredService<IAudioEncoder>();
-            if (!audioEncoder.Build(encoderAudioSetting))
-            {
-                this._logger.LogWarning("Session {sessionId} failed to build audio encoder.", session.SessionId);
-            }
-            session.PrivateProvider.SetAudioEncoder(audioEncoder);
-            this._logger.LogInformation("Private Audio Encoder initialized for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
         }
         #endregion
 
         #region AudioEncoder
-        private static void RegisterAudioEncoder(IServiceCollection services, string key)
+        private static void RegisterAudioEncoder(IServiceCollection services)
         {
             services.AddTransient<IAudioEncoder, DefaultOpusEncoder>();
-            services.AddKeyedSingleton<IAudioEncoder, DefaultOpusEncoder>(key);
+        }
+
+        public void RegisterAudioEncoder(Session session)
+        {
+            IAudioEncoder audioEncoder = this._serviceProvider.GetRequiredService<IAudioEncoder>();
+            if (!audioEncoder.Build(session.AudioSetting))
+            {
+                this._logger.LogWarning("Session {sessionId} failed to build audio encoder.", session.SessionId);
+            }
+            session.PrivateProvider.SetAudioEncoder(audioEncoder);
         }
         #endregion
 
@@ -545,7 +511,7 @@ namespace XiaoZhi.Net.Server.Management
             }
             else
             {
-                session.SetIoTClient(iotClient);
+                session.PrivateProvider.SetIoTClient(iotClient);
             }
         }
         #endregion
@@ -580,7 +546,7 @@ namespace XiaoZhi.Net.Server.Management
             }
             else
             {
-                session.SetMcpClient(mcpClient);
+                session.PrivateProvider.SetMcpClient(mcpClient);
             }
         }
         #endregion
@@ -602,11 +568,30 @@ namespace XiaoZhi.Net.Server.Management
             }
             else
             {
-                session.SetAudioPlayerClient(audioPlayerClient);
+                session.PrivateProvider.SetAudioPlayerClient(audioPlayerClient);
             }
         }
         #endregion
 
+        #region AudioMixer
+        private static void RegisterAudioMixer(IServiceCollection services)
+        {
+            services.AddTransient<IAudioMixer, DefaultAudioMixer>();
+        }
+
+        public void BuildAudioMixer(Session session)
+        {
+            IAudioMixer audioMixer = this._serviceProvider.GetRequiredService<IAudioMixer>();
+            if (!audioMixer.Build(session.AudioSetting))
+            {
+                this._logger.LogWarning("Session {sessionId} failed to build audio mixer.", session.SessionId);
+            }
+            else
+            {
+                session.PrivateProvider.SetAudioMixer(audioMixer);
+            }
+        }
+        #endregion
         #endregion
     }
 }

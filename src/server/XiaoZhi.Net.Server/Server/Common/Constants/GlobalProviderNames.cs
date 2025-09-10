@@ -9,6 +9,5 @@
         public const string GLOBAL_MEMORY = "GlobalMemory";
         public const string GLOBAL_LLM = "GlobalLlm";
         public const string GLOBAL_TTS = "GlobalTts";
-        public const string GLOBAL_AUDIO_ENCODER = "GlobalAudioEncoder";
     }
 }
