@@ -28,3 +28,5 @@ tests/XiaoZhi.Net.Test/obj
 /demo/XiaoZhi.Net.Sample.Server/obj
 /demo/XiaoZhi.Net.Sample.OTA.Server/bin
 /demo/XiaoZhi.Net.Sample.OTA.Server/obj
+*.user
+*.pubxml

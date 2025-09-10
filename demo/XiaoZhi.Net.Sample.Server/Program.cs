@@ -56,4 +56,6 @@ finally
         await serverHost.StopAsync();
     }
     Console.WriteLine("The server stopped.");
+    Console.WriteLine("Press any key to exit...");
+    Console.ReadKey();
 }
