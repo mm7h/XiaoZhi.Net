@@ -2,34 +2,58 @@
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {
-    internal record OutAudioSegment : OutSegment
+    internal class OutAudioSegment : OutSegment
     {
-        public OutAudioSegment(float[] audioData, AudioType audioType, bool isFirst, bool isLast, bool needResample = true) : base(string.Empty, isFirst, isLast)
+        private float[] _audioData = null!;
+        private AudioType _audioType;
+        private bool _needResample;
+
+        public OutAudioSegment() : base()
         {
-            this.AudioData = audioData;
-            this.AudioType = audioType;
-            this.NeedResample = needResample;
-        }
-        public OutAudioSegment(float[] audioData, AudioType audioType, OutSegment outSegment, bool needResample = true) : base(outSegment.Content, outSegment.IsFirst, outSegment.IsLast)
-        {
-            this.AudioData = audioData;
-            this.AudioType = audioType;
-            this.NeedResample = needResample;
         }
 
         /// <summary>
         /// 段落内容
         /// </summary>
-        public float[] AudioData { get; }
+        public float[] AudioData => _audioData;
 
         /// <summary>
         /// 是否需要重采样
         /// </summary>
-        public bool NeedResample { get; }
+        public bool NeedResample => _needResample;
 
         /// <summary>
         /// 发送的音频类型
         /// </summary>
-        public AudioType AudioType { get; }
+        public AudioType AudioType => _audioType;
+
+        // 为对象池提供初始化方法
+        public void Initialize(float[] audioData, AudioType audioType, bool isFirst, bool isLast, bool needResample = true)
+        {
+            this._audioData = audioData;
+            this._audioType = audioType;
+            this._needResample = needResample;
+            this.IsFirst = isFirst;
+            this.IsLast = isLast;
+            this.SetContent(string.Empty);
+        }
+
+        public void Initialize(float[] audioData, AudioType audioType, OutSegment outSegment, bool needResample = true)
+        {
+            this._audioData = audioData;
+            this._audioType = audioType;
+            this._needResample = needResample;
+            this.IsFirst = outSegment.IsFirst;
+            this.IsLast = outSegment.IsLast;
+            this.SetContent(outSegment.Content);
+        }
+
+        public override void Reset()
+        {
+            this._audioData = null!;
+            this._audioType = default;
+            this._needResample = default;
+            base.Reset();
+        }
     }
 }

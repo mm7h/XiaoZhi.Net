@@ -1,25 +1,33 @@
 ﻿namespace XiaoZhi.Net.Server.Common.Contexts
 {
-    internal record Workflow<T>
+    internal class Workflow<T>
     {
-        public Workflow(string sessionId, T data)
+        private string _sessionId = null!;
+        private T _data = default!;
+
+        public Workflow()
         {
-            SessionId = sessionId;
-            Data = data;
-        }
-        public Workflow(Session context, T data)
-        {
-            SessionId = context.SessionId;
-            Data = data;
         }
 
-        public string SessionId { get; }
-        public T Data { get; }
+        public string SessionId => this._sessionId;
+        public T Data => this._data;
 
-        public Workflow<TNew> NextFlow<TNew>(TNew data)
+        public void Initialize(string sessionId, T data)
         {
-            return new Workflow<TNew>(this.SessionId, data);
+            this._sessionId = sessionId;
+            this._data = data;
         }
 
+        public void Initialize(Session context, T data)
+        {
+            this._sessionId = context.SessionId;
+            this._data = data;
+        }
+
+        public void Reset()
+        {
+            this._sessionId = null!;
+            this._data = default!;
+        }
     }
 }

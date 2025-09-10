@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.ObjectPool;
 using SherpaOnnx;
 using System;
 using System.Buffers;
@@ -18,11 +19,19 @@ namespace XiaoZhi.Net.Server.Handlers
     internal sealed class AudioSendHandler : BaseHandler, IInHandler<OutAudioSegment>
     {
         private readonly IAudioEncoder _audioEncoder;
+        private readonly ObjectPool<OutAudioSegment> _outAudioSegmentPool;
+        private readonly ObjectPool<Workflow<OutAudioSegment>> _workflowPool;
         private readonly CircularBuffer _sendOpusPacketFrame;
 
-        public AudioSendHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_AUDIO_ENCODER)] IAudioEncoder audioEncoder, XiaoZhiConfig config, ILogger<AudioSendHandler> logger) : base(config, logger)
+        public AudioSendHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_AUDIO_ENCODER)] IAudioEncoder audioEncoder, 
+            ObjectPool<OutAudioSegment> outAudioSegmentPool,
+            ObjectPool<Workflow<OutAudioSegment>> workflowPool,
+            XiaoZhiConfig config, 
+            ILogger<AudioSendHandler> logger) : base(config, logger)
         {
             this._audioEncoder = audioEncoder;
+            this._outAudioSegmentPool = outAudioSegmentPool;
+            this._workflowPool = workflowPool;
             this._sendOpusPacketFrame = new CircularBuffer(960 * 100);
         }
 
@@ -41,8 +50,11 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
             {
+                this._outAudioSegmentPool.Return(workflow.Data);
+                this._workflowPool.Return(workflow);
                 return;
             }
+            
             int frameSize = session.PrivateProvider is not null && session.PrivateProvider.AudioEncoder is not null ? session.PrivateProvider.AudioEncoder.FrameSize : this._audioEncoder.FrameSize;
             int frameDuration = session.AudioSetting.FrameDuration;
 
@@ -52,7 +64,6 @@ namespace XiaoZhi.Net.Server.Handlers
             OutAudioSegment outAudioSegment = workflow.Data;
             try
             {
-
                 this._sendOpusPacketFrame.Push(outAudioSegment.AudioData);
 
                 if (outAudioSegment.IsFirst)
@@ -132,6 +143,9 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     await this.SendOutter.CloseSessionAsync("Close Chat");
                 }
+
+                this._outAudioSegmentPool.Return(workflow.Data);
+                this._workflowPool.Return(workflow);
             }
         }
 

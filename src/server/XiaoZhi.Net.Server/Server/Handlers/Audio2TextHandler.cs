@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.ObjectPool;
 using SherpaOnnx;
 using System;
 using System.Threading.Channels;
@@ -16,13 +17,20 @@ namespace XiaoZhi.Net.Server.Handlers
     {
         private readonly IAsr _asr;
         private readonly IPunctuation _punctuation;
+        private readonly ObjectPool<Workflow<CircularBuffer>> _circularBufferWorkflowPool;
+        private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;
 
         public Audio2TextHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_ASR)] IAsr asr, 
-            [FromKeyedServices(GlobalProviderNames.GLOBAL_PUNCTUATION)] IPunctuation punctuation,  
-            XiaoZhiConfig config, ILogger<Audio2TextHandler> logger) : base(config, logger)
+            [FromKeyedServices(GlobalProviderNames.GLOBAL_PUNCTUATION)] IPunctuation punctuation,
+            ObjectPool<Workflow<CircularBuffer>> circularBufferWorkflowPool,
+            ObjectPool<Workflow<string>> stringWorkflowPool,
+            XiaoZhiConfig config, 
+            ILogger<Audio2TextHandler> logger) : base(config, logger)
         {
             this._asr = asr;
             this._punctuation = punctuation;
+            this._circularBufferWorkflowPool = circularBufferWorkflowPool;
+            this._stringWorkflowPool = stringWorkflowPool;
         }
 
         public override string HandlerName => nameof(Audio2TextHandler);
@@ -40,13 +48,25 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
             {
+                this._circularBufferWorkflowPool.Return(workflow);
                 return;
             }
+            
             try
             {
                 if (!session.IsDeviceBinded)
                 {
-                    await this.NextWriter.WriteAsync(workflow.NextFlow("NOT_BIND"));
+                    var notBindWorkflow = this._stringWorkflowPool.Get();
+                    try
+                    {
+                        notBindWorkflow.Initialize(workflow.SessionId, "NOT_BIND");
+                        await this.NextWriter.WriteAsync(notBindWorkflow);
+                    }
+                    finally
+                    {
+                        this._stringWorkflowPool.Return(notBindWorkflow);
+                        this._circularBufferWorkflowPool.Return(workflow);
+                    }
                     return;
                 }
 
@@ -71,11 +91,26 @@ namespace XiaoZhi.Net.Server.Handlers
                 this.Logger.LogDebug("Device {deviceId} speak the text: {speechText}", session.DeviceId, speechText);
                 speechText = await this._punctuation.AppendPunctuationAsync(speechText!, session.SessionCtsToken);
 
-                await this.NextWriter.WriteAsync(workflow.NextFlow(speechText));
+                // 从对象池获取新的workflow对象
+                var nextWorkflow = this._stringWorkflowPool.Get();
+                try
+                {
+                    nextWorkflow.Initialize(workflow.SessionId, speechText);
+                    await this.NextWriter.WriteAsync(nextWorkflow);
+                }
+                finally
+                {
+                    this._stringWorkflowPool.Return(nextWorkflow);
+                }
             }
             catch (OperationCanceledException)
             {
                 this.FireAbort(session.DeviceId, session.SessionId, "audio to text");
+            }
+            finally
+            {
+                // 归还原始workflow
+                this._circularBufferWorkflowPool.Return(workflow);
             }
         }
 

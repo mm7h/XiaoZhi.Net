@@ -1,4 +1,9 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.ObjectPool;
+using SherpaOnnx;
+using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.ObjectPoolPolicies;
 using XiaoZhi.Net.Server.Management;
 
 namespace XiaoZhi.Net.Server
@@ -30,12 +35,69 @@ namespace XiaoZhi.Net.Server
             return ProtocolManager.RegisterServices(builder, config);
         }
 
-        //public static IHostBuilder RegisterObjectPools(this IHostBuilder builder)
-        //{
-        //    return builder.ConfigureServices((context, services) =>
-        //    {
-        //        services.AddPooled<Workflow<OutAudioSegment>>();
-        //    });
-        //}
+        public static IHostBuilder RegisterObjectPools(this IHostBuilder builder)
+        {
+            return builder.ConfigureServices((context, services) =>
+            {
+                // 注册对象池提供者
+                services.AddSingleton<ObjectPoolProvider, DefaultObjectPoolProvider>();
+                
+                // 注册 OutSegment 对象池
+                services.AddSingleton<ObjectPool<OutSegment>>(serviceProvider =>
+                {
+                    var provider = serviceProvider.GetRequiredService<ObjectPoolProvider>();
+                    var policy = new OutSegmentPolicy();
+                    return provider.Create(policy);
+                });
+                
+                // 注册 OutAudioSegment 对象池
+                services.AddSingleton<ObjectPool<OutAudioSegment>>(serviceProvider =>
+                {
+                    var provider = serviceProvider.GetRequiredService<ObjectPoolProvider>();
+                    var policy = new OutAudioSegmentPolicy();
+                    return provider.Create(policy);
+                });
+
+                // 注册 Workflow<OutAudioSegment> 对象池
+                services.AddSingleton<ObjectPool<Workflow<OutAudioSegment>>>(serviceProvider =>
+                {
+                    var provider = serviceProvider.GetRequiredService<ObjectPoolProvider>();
+                    var policy = new WorkflowPolicy<OutAudioSegment>();
+                    return provider.Create(policy);
+                });
+
+                // 注册 Workflow<string> 对象池
+                services.AddSingleton<ObjectPool<Workflow<string>>>(serviceProvider =>
+                {
+                    var provider = serviceProvider.GetRequiredService<ObjectPoolProvider>();
+                    var policy = new WorkflowPolicy<string>();
+                    return provider.Create(policy);
+                });
+
+                // 注册 Workflow<CircularBuffer> 对象池
+                services.AddSingleton<ObjectPool<Workflow<CircularBuffer>>>(serviceProvider =>
+                {
+                    var provider = serviceProvider.GetRequiredService<ObjectPoolProvider>();
+                    var policy = new WorkflowPolicy<CircularBuffer>();
+                    return provider.Create(policy);
+                });
+
+                // 注册 Workflow<OutSegment> 对象池
+                services.AddSingleton<ObjectPool<Workflow<OutSegment>>>(serviceProvider =>
+                {
+                    var provider = serviceProvider.GetRequiredService<ObjectPoolProvider>();
+                    var policy = new WorkflowPolicy<OutSegment>();
+                    return provider.Create(policy);
+                });
+
+                // 注册 Workflow<DialogueContext> 对象池
+                services.AddSingleton<ObjectPool<Workflow<DialogueContext>>>(serviceProvider =>
+                {
+                    var provider = serviceProvider.GetRequiredService<ObjectPoolProvider>();
+                    var policy = new WorkflowPolicy<DialogueContext>();
+                    return provider.Create(policy);
+                });
+            });
+        }
     }
 }

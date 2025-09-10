@@ -182,10 +182,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             });
         }
 
-        public Workflow<TData> ToWorkflow<TData>(TData data)
-        {
-            return new Workflow<TData>(this, data);
-        }
         public override string ToString()
         {
             return $"DeviceId: {DeviceId}, SessionId: {SessionId}";

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.ObjectPool;
 using System;
 using System.Text.Json.Nodes;
 using System.Threading.Channels;
@@ -16,11 +17,17 @@ namespace XiaoZhi.Net.Server.Handlers
     internal sealed class TextHandler : BaseHandler, IOutHandler<string>
     {
         private readonly ProviderManager _providerManager;
+        private readonly ObjectPool<Workflow<string>> _workflowPool;
 
-        public TextHandler(ProviderManager providerManager, XiaoZhiConfig config, ILogger<TextHandler> logger) : base(config, logger)
+        public TextHandler(ProviderManager providerManager, 
+            ObjectPool<Workflow<string>> workflowPool,
+            XiaoZhiConfig config, 
+            ILogger<TextHandler> logger) : base(config, logger)
         {
             this._providerManager = providerManager;
+            this._workflowPool = workflowPool;
         }
+        
         public event Action<Session>? OnManualStop;
         public override string HandlerName => nameof(TextHandler);
         public IBizSendOutter SendOutter { get; set; } = null!;
@@ -151,8 +158,16 @@ namespace XiaoZhi.Net.Server.Handlers
                     string? text = jsonObject["text"]?.GetValue<string>()?.ToLower();
                     if (!string.IsNullOrEmpty(text))
                     {
-                        // startToChat
-                        await this.NextWriter.WriteAsync(new Workflow<string>(session, text));
+                        var workflow = this._workflowPool.Get();
+                        try
+                        {
+                            workflow.Initialize(session, text);
+                            await this.NextWriter.WriteAsync(workflow);
+                        }
+                        finally
+                        {
+                            this._workflowPool.Return(workflow);
+                        }
                     }
                 }
             }

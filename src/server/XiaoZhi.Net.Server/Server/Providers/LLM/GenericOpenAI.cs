@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.ObjectPool;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
@@ -21,11 +22,15 @@ namespace XiaoZhi.Net.Server.Providers.LLM
     {
         private readonly SemaphoreSlim _llmSlim = new SemaphoreSlim(1, 1);
         private readonly IServiceProvider _serviceProvider;
+        private readonly ObjectPool<OutSegment> _outSegmentPool;
         private OpenAIPromptExecutionSettings _chatCompletionOptions;
 
-        public GenericOpenAI(IServiceProvider serviceProvider, ILogger<GenericOpenAI> logger) : base(logger)
+        public GenericOpenAI(IServiceProvider serviceProvider, 
+            ObjectPool<OutSegment> outSegmentPool,
+            ILogger<GenericOpenAI> logger) : base(logger)
         {
             this._serviceProvider = serviceProvider;
+            this._outSegmentPool = outSegmentPool;
             this._chatCompletionOptions = new OpenAIPromptExecutionSettings
             {
                 Temperature = 0.5f,
@@ -98,6 +103,8 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
         public async Task ChatByStreamingAsync(Workflow<DialogueContext> workflow, CancellationToken token)
         {
+            List<OutSegment> allResponse = new List<OutSegment>();
+            
             try
             {
                 await this._llmSlim.WaitAsync(token);
@@ -116,7 +123,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 }
 
                 StringBuilder segmentResponse = new StringBuilder();
-                List<OutSegment> allResponse = new List<OutSegment>();
 
                 await foreach (var item in chatCompletionService.GetStreamingChatMessageContentsAsync(chatHistory, this._chatCompletionOptions, workflow.Data.Kernel, token))
                 {
@@ -134,11 +140,22 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                         string sentence = currentSegment.Substring(0, splitPosition);
                         string remaining = currentSegment.Substring(splitPosition);
 
-                        OutSegment outSegment = new OutSegment(sentence);
-                        if (allResponse.Count == 0) outSegment.IsFirst = true;
+                        // 从对象池获取 OutSegment 对象
+                        var outSegment = this._outSegmentPool.Get();
+                        try
+                        {
+                            outSegment.Initialize(sentence);
+                            if (allResponse.Count == 0) outSegment.IsFirst = true;
 
-                        allResponse.Add(outSegment);
-                        this.OnTokenGenerating?.Invoke(workflow.SessionId, outSegment);
+                            allResponse.Add(outSegment);
+                            this.OnTokenGenerating?.Invoke(workflow.SessionId, outSegment);
+                        }
+                        catch
+                        {
+                            // 如果出错，归还对象到池中
+                            this._outSegmentPool.Return(outSegment);
+                            throw;
+                        }
 
                         // 重置累积内容为剩余部分
                         segmentResponse.Clear();
@@ -146,17 +163,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                         currentSegment = remaining;
                         match = DialogueHelper.SENTENCE_SPLIT_REGEX.Match(currentSegment);
                     }
-                    //if (text.Contains("<think>"))
-                    //{
-                    //    isActive = false;
-                    //    text = text.Split("<think>", StringSplitOptions.RemoveEmptyEntries)[0];
-                    //}
-                    //if (text.Contains("</think>"))
-                    //{
-                    //    isActive = true;
-                    //    text = text.Split("</think>", StringSplitOptions.RemoveEmptyEntries)[-1];
-                    //}
-
                 }
 
                 // 处理流结束的情况
@@ -170,10 +176,18 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                     // 处理LLM回复的内容无法被句子分隔的问题
                     if (segmentResponse.Length > 0)
                     {
-                        OutSegment segment = new OutSegment(segmentResponse.ToString());
-                        segment.IsFirst = true;
-                        segment.IsLast = true;
-                        this.OnTokenGenerating?.Invoke(workflow.SessionId, segment);
+                        var segment = this._outSegmentPool.Get();
+                        try
+                        {
+                            segment.Initialize(segmentResponse.ToString(), true, true);
+                            allResponse.Add(segment);
+                            this.OnTokenGenerating?.Invoke(workflow.SessionId, segment);
+                        }
+                        catch
+                        {
+                            this._outSegmentPool.Return(segment);
+                            throw;
+                        }
                     }
                 }
                 segmentResponse.Clear();
@@ -191,10 +205,17 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
             finally
             {
+                // 归还所有使用的 OutSegment 对象到池中
+                foreach (var segment in allResponse)
+                {
+                    this._outSegmentPool.Return(segment);
+                }
+                allResponse.Clear();
+                
                 this._llmSlim.Release();
             }
-
         }
+        
         public override void Dispose()
         {
 

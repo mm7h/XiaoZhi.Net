@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.ObjectPool;
 using System;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -14,17 +15,27 @@ namespace XiaoZhi.Net.Server.Handlers
     internal sealed class Text2AudioHandler : BaseHandler, IInHandler<OutSegment>, IOutHandler<OutAudioSegment>
     {
         private readonly ITts _tts;
+        private readonly ObjectPool<OutAudioSegment> _outAudioSegmentPool;
+        private readonly ObjectPool<Workflow<OutAudioSegment>> _workflowPool;
+        private readonly ObjectPool<Workflow<OutSegment>> _outSegmentWorkflowPool;
         private bool _privateTTSInitialized = false;
 
         private IAudioPlayerClient? _audioPlayerClient;
 
-        public Text2AudioHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_TTS)] ITts tts,XiaoZhiConfig config, ILogger<Text2AudioHandler> logger) : base(config, logger)
+        public Text2AudioHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_TTS)] ITts tts,
+            ObjectPool<OutAudioSegment> outAudioSegmentPool,
+            ObjectPool<Workflow<OutAudioSegment>> workflowPool,
+            ObjectPool<Workflow<OutSegment>> outSegmentWorkflowPool,
+            XiaoZhiConfig config, 
+            ILogger<Text2AudioHandler> logger) : base(config, logger)
         {
             this._tts = tts;
+            this._outAudioSegmentPool = outAudioSegmentPool;
+            this._workflowPool = workflowPool;
+            this._outSegmentWorkflowPool = outSegmentWorkflowPool;
             this._tts.OnBeforeProcessing += this.TTS_OnBeforeProcessing;
             this._tts.OnProcessed += this.TTS_OnProcessed;
         }
-
 
         public override string HandlerName => nameof(Text2AudioHandler);
         public IBizSendOutter SendOutter { get; set; } = null!;
@@ -48,13 +59,19 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
             {
+                // 归还对象到池中
+                this._outSegmentWorkflowPool.Return(workflow);
                 return;
             }
+            
             if (!session.IsDeviceBinded)
             {
                 await this.CheckBindDevice(session);
+                // 归还对象到池中
+                this._outSegmentWorkflowPool.Return(workflow);
                 return;
             }
+            
             try
             {
                 if (string.IsNullOrEmpty(workflow.Data.Content))
@@ -82,6 +99,11 @@ namespace XiaoZhi.Net.Server.Handlers
             catch (OperationCanceledException)
             {
                 this.FireAbort(session.DeviceId, session.SessionId, "text to audio");
+            }
+            finally
+            {
+                // 归还对象到池中
+                this._outSegmentWorkflowPool.Return(workflow);
             }
         }
 
@@ -120,14 +142,42 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private async void OnNotificationAudioDataAsync(float[] pcmData, bool isFirst, bool isLast)
         {
-            OutAudioSegment outAudioSegment = new OutAudioSegment(pcmData, AudioType.SystemNotification, isFirst, isLast, false);
-            await this.NextWriter.WriteAsync(new Workflow<OutAudioSegment>(this.SendOutter.SessionId, outAudioSegment));
+            var outAudioSegment = this._outAudioSegmentPool.Get();
+            var workflow = this._workflowPool.Get();
+            
+            try
+            {
+                outAudioSegment.Initialize(pcmData, AudioType.SystemNotification, isFirst, isLast, false);
+                workflow.Initialize(this.SendOutter.SessionId, outAudioSegment);
+                
+                await this.NextWriter.WriteAsync(workflow);
+            }
+            finally
+            {
+                this._outAudioSegmentPool.Return(outAudioSegment);
+                this._workflowPool.Return(workflow);
+            }
         }
+
         private async void OnMusicAudioDataAsync(float[] pcmData, bool isFirst, bool isLast)
         {
-            OutAudioSegment outAudioSegment = new OutAudioSegment(pcmData, AudioType.Music, isFirst, isLast, false);
-            await this.NextWriter.WriteAsync(new Workflow<OutAudioSegment>(this.SendOutter.SessionId, outAudioSegment));
+            var outAudioSegment = this._outAudioSegmentPool.Get();
+            var workflow = this._workflowPool.Get();
+            
+            try
+            {
+                outAudioSegment.Initialize(pcmData, AudioType.Music, isFirst, isLast, false);
+                workflow.Initialize(this.SendOutter.SessionId, outAudioSegment);
+                
+                await this.NextWriter.WriteAsync(workflow);
+            }
+            finally
+            {
+                this._outAudioSegmentPool.Return(outAudioSegment);
+                this._workflowPool.Return(workflow);
+            }
         }
+
         public void Dispose()
         {
             this._tts.OnBeforeProcessing -= this.TTS_OnBeforeProcessing;
@@ -167,8 +217,22 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             if (sessionId != this.SendOutter.SessionId)
                 return;
-            OutAudioSegment outAudioSegment = new OutAudioSegment(audioData, AudioType.TTS, segment);
-            this.NextWriter.WriteAsync(new Workflow<OutAudioSegment>(sessionId, outAudioSegment));
+
+            var outAudioSegment = this._outAudioSegmentPool.Get();
+            var workflow = this._workflowPool.Get();
+            
+            try
+            {
+                outAudioSegment.Initialize(audioData, AudioType.TTS, segment);
+                workflow.Initialize(sessionId, outAudioSegment);
+                
+                this.NextWriter.WriteAsync(workflow);
+            }
+            finally
+            {
+                this._outAudioSegmentPool.Return(outAudioSegment);
+                this._workflowPool.Return(workflow);
+            }
         }
     }
 }

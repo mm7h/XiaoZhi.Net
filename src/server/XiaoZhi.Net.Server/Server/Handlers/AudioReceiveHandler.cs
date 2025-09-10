@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.ObjectPool;
 using SherpaOnnx;
 using System;
 using System.Threading.Channels;
@@ -7,6 +8,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
+using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Protocol;
 using XiaoZhi.Net.Server.Providers;
 
@@ -16,12 +18,21 @@ namespace XiaoZhi.Net.Server.Handlers
     {
         private readonly IVad _vad;
         private readonly IAudioDecoder _audioDecoder;
+        private readonly ObjectPool<Workflow<CircularBuffer>> _workflowPool;
+        private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;
         private readonly CircularBuffer _receivedPcmPacketFrame;
 
-        public AudioReceiveHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_VAD)] IVad vad, [FromKeyedServices(GlobalProviderNames.GLOBAL_AUDIO_DECODER)] IAudioDecoder audioDecoder, XiaoZhiConfig config, ILogger<AudioReceiveHandler> logger) : base(config, logger)
+        public AudioReceiveHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_VAD)] IVad vad, 
+            [FromKeyedServices(GlobalProviderNames.GLOBAL_AUDIO_DECODER)] IAudioDecoder audioDecoder,
+            ObjectPool<Workflow<CircularBuffer>> workflowPool,
+            ObjectPool<Workflow<string>> stringWorkflowPool,
+            XiaoZhiConfig config, 
+            ILogger<AudioReceiveHandler> logger) : base(config, logger)
         {
             this._vad = vad;
             this._audioDecoder = audioDecoder;
+            this._workflowPool = workflowPool;
+            this._stringWorkflowPool = stringWorkflowPool;
             this._receivedPcmPacketFrame = new CircularBuffer(960 * 100);
         }
 
@@ -98,9 +109,18 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             sessionContext.AudioPacketContext.VadPacket.Reset();
 
-            Workflow<CircularBuffer> session = sessionContext.ToWorkflow(this._receivedPcmPacketFrame);
-            await this.NextWriter.WriteAsync(session);
+            var workflow = this._workflowPool.Get();
+            try
+            {
+                workflow.Initialize(sessionContext.SessionId, this._receivedPcmPacketFrame);
+                await this.NextWriter.WriteAsync(workflow);
+            }
+            finally
+            {
+                this._workflowPool.Return(workflow);
+            }
         }
+
         private void NoVoiceCloseConnect(Session sessionContext)
         {
             if (sessionContext.VadStatusContext.HaveVoiceLatestTime == 0)
@@ -113,10 +133,19 @@ namespace XiaoZhi.Net.Server.Handlers
                 long closeConnectionNoVoiceTime = (this.Config.CloseConnectionNoVoiceTime ?? 40) * 1000;
                 if (!sessionContext.CloseAfterChat && noVoiceTime >= closeConnectionNoVoiceTime)
                 {
-
                     sessionContext.CloseAfterChat = true;
-                    string prompt = "请你以“时间过得真快”为来头，用富有感情、依依不舍的话来结束这场对话吧。";
-                    this.OnNoVoiceCloseConnect?.Invoke(sessionContext.ToWorkflow(prompt));
+                    string prompt = "请你以\"时间过得真快\"为来头，用富有感情、依依不舍的话来结束这场对话吧。";
+                    
+                    var workflow = this._stringWorkflowPool.Get();
+                    try
+                    {
+                        workflow.Initialize(sessionContext.SessionId, prompt);
+                        this.OnNoVoiceCloseConnect?.Invoke(workflow);
+                    }
+                    finally
+                    {
+                        this._stringWorkflowPool.Return(workflow);
+                    }
                 }
             }
         }

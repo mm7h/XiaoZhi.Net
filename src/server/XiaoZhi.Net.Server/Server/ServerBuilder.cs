@@ -143,6 +143,7 @@ namespace XiaoZhi.Net.Server
             .RegisterResources()
             .RegisterProviders(config)
             .RegisterHandlers()
+            .RegisterObjectPools()
             .RegisterProtocol(config);
 
 #if DEBUG
