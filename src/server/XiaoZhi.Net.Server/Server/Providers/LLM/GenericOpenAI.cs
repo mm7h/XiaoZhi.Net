@@ -140,7 +140,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                         string sentence = currentSegment.Substring(0, splitPosition);
                         string remaining = currentSegment.Substring(splitPosition);
 
-                        // 从对象池获取 OutSegment 对象
                         var outSegment = this._outSegmentPool.Get();
                         try
                         {
@@ -150,11 +149,9 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                             allResponse.Add(outSegment);
                             this.OnTokenGenerating?.Invoke(workflow.SessionId, outSegment);
                         }
-                        catch
+                        finally
                         {
-                            // 如果出错，归还对象到池中
                             this._outSegmentPool.Return(outSegment);
-                            throw;
                         }
 
                         // 重置累积内容为剩余部分
@@ -205,7 +202,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
             finally
             {
-                // 归还所有使用的 OutSegment 对象到池中
                 foreach (var segment in allResponse)
                 {
                     this._outSegmentPool.Return(segment);
