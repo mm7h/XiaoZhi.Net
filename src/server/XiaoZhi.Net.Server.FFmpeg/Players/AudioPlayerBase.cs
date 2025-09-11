@@ -9,21 +9,12 @@ using XiaoZhi.Net.Server.FFmpeg.Decoders;
 using XiaoZhi.Net.Server.FFmpeg.Decoders.FFmpeg;
 using XiaoZhi.Net.Server.FFmpeg.Exceptions;
 using XiaoZhi.Net.Server.FFmpeg.Processors;
+using XiaoZhi.Net.Server.FFmpeg.Utilities;
 using XiaoZhi.Net.Server.FFmpeg.Utilities.Extensions;
 
 namespace XiaoZhi.Net.Server.FFmpeg
 {
-    internal abstract class AudioPlayerBase
-    {
-        internal static string FFmpegRootPath = "./ffmpeg/";
-
-        /// <summary>
-        /// Gets a value indicating whether FFmpeg has been successfully initialized.
-        /// </summary>
-        internal static bool FFmpegInitialized { get; set; }
-    }
-
-    internal abstract class AudioPlayerBase<TDecoderType, TLogger> : AudioPlayerBase, IAudioPlayer
+    internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
     {
         private const int MinQueueSize = 8;
         private const int MaxQueueSize = 128;
@@ -48,7 +39,7 @@ namespace XiaoZhi.Net.Server.FFmpeg
         /// <inheritdoc />
         public abstract string AudioPlayerName { get; }
 
-        public bool IsFFmpegInitialized => AudioPlayerBase.FFmpegInitialized;
+        public bool IsFFmpegInitialized => FFmpegStartup.FFmpegInitialized;
 
         /// <inheritdoc />
         public bool IsLoaded { get; protected set; }
@@ -139,20 +130,20 @@ namespace XiaoZhi.Net.Server.FFmpeg
         /// <returns><see langword="true"/> if FFmpeg is successfully initialized; otherwise, <see langword="false"/>.</returns>
         public bool CheckFFmpegInstalled()
         {
-            try
+            if (IsFFmpegInitialized)
             {
-                if (IsFFmpegInitialized)
-                {
-                    return true;
-                }
-                Logger.LogInformation("Initialized the ffmpeg, version: {v}", ffmpeg.av_version_info());
-                ffmpeg.av_log_set_level(ffmpeg.AV_LOG_QUIET);
-                AudioPlayerBase.FFmpegInitialized = true;
                 return true;
             }
-            catch
+            bool checkResult = FFmpegStartup.CheckFFmpegInstalled(out var message);
+
+            if (checkResult)
             {
-                AudioPlayerBase.FFmpegInitialized = false;
+                Logger.LogInformation("Initialized the ffmpeg, version: {v}", message); 
+                return true;
+            }
+            else
+            {
+                Logger.LogError("FFmpeg is not installed or failed to initialize: {ffmpegVersion}", message);
                 return false;
             }
         }

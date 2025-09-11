@@ -11,6 +11,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
         public static async Task Run()
         {
             //await TestTheMP3Player();
+            MediaFactory.InitializeFFmpeg();
             await TestTheUrlAudioPlayer();
             //await TestTheStreamAudioPlayer();
         }
@@ -62,11 +63,6 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
         static async Task TestTheUrlAudioPlayer()
         {
-            if (!MediaFactory.InitializeFFmpeg())
-            {
-                Console.WriteLine("Failed to initialize the ffmpeg.");
-                return;
-            }
             IUrlAudioPlayer audioPlayer = MediaFactory.CreateUrlAudioPlayer();
 
             if (!audioPlayer.CheckFFmpegInstalled())
@@ -166,11 +162,6 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
         static async Task TestTheStreamAudioPlayer()
         {
-            if (!MediaFactory.InitializeFFmpeg())
-            {
-                Console.WriteLine("Failed to initialize the ffmpeg.");
-                return;
-            }
             IStreamAudioPlayer audioPlayer = MediaFactory.CreateStreamAudioPlayer();
 
             if (!audioPlayer.CheckFFmpegInstalled())

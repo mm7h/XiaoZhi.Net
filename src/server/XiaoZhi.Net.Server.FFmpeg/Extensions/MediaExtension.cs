@@ -1,10 +1,9 @@
-﻿using FFmpeg.AutoGen;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using XiaoZhi.Net.Server.Abstractions;
-using XiaoZhi.Net.Server.FFmpeg;
 using XiaoZhi.Net.Server.FFmpeg.Abstractions;
 using XiaoZhi.Net.Server.FFmpeg.Mixers;
 using XiaoZhi.Net.Server.FFmpeg.Players;
+using XiaoZhi.Net.Server.FFmpeg.Utilities;
 
 namespace XiaoZhi.Net.Server
 {
@@ -16,16 +15,9 @@ namespace XiaoZhi.Net.Server
         /// <param name="builder">current builder</param>
         /// <param name="ffmpegPath">the root path of ffmpeg; Defaults to "./ffmpeg/" if not specified. Must not be null or empty.</param>
         /// <returns></returns>
-        public static IServerBuilder InitializeFFmpeg(this IServerBuilder builder, string? ffmpegPath = "./ffmpeg/")
+        public static IServerBuilder InitializeFFmpeg(this IServerBuilder builder, string ffmpegPath = "./ffmpeg/")
         {
-            if (!string.IsNullOrEmpty(ffmpegPath))
-            {
-                ffmpeg.RootPath = AudioPlayerBase.FFmpegRootPath = ffmpegPath;
-            }
-            else
-            { 
-                throw new ArgumentNullException(nameof(ffmpegPath), "FFmpeg path must not be null or empty.");
-            }
+            FFmpegStartup.RegisterFFmpegBinaries(ffmpegPath);
             return builder;
         }
 
@@ -48,12 +40,21 @@ namespace XiaoZhi.Net.Server
         /// Initialize audio mixer
         /// </summary>
         /// <param name="builder">current builder</param>
+        /// <param name="useFFmpeg">use ffmpeg audio mixer support</param>
         /// <returns></returns>
-        public static IServerBuilder WithAudioMixer(this IServerBuilder builder)
+        public static IServerBuilder WithAudioMixer(this IServerBuilder builder, bool useFFmpeg = true)
         {
             builder.HostBuilder.ConfigureServices((context, services) =>
             {
-                services.AddTransient<IAudioMixer, FFmpegAudioMixer>();
+                if (useFFmpeg)
+                {
+                    services.AddTransient<IAudioMixer, FFmpegAudioMixer>();
+                }
+                else
+                {
+                    services.AddTransient<IAudioMixer, AudioMixer>();
+                }
+                
             });
             return builder;
         }

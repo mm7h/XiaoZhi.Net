@@ -245,12 +245,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
         /// </summary>
         private static async Task PlayAudioStream(Stream audioStream, string description)
         {
-            if (!MediaFactory.InitializeFFmpeg())
-            {
-                Console.WriteLine("Failed to initialize the ffmpeg.");
-                return;
-            }
-            
+            MediaFactory.InitializeFFmpeg();
+
+
             IStreamAudioPlayer audioPlayer = MediaFactory.CreateStreamAudioPlayer();
 
             if (!audioPlayer.CheckFFmpegInstalled())

@@ -34,7 +34,7 @@ try
             // ffmpeg音频支持
             .InitializeFFmpeg()
             .WithAudioPlayer()
-            .WithAudioMixer()
+            .WithAudioMixer(false)
             // 构建服务引擎
             .Build();
 

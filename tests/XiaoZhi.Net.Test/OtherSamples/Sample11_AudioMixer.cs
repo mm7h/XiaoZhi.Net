@@ -9,7 +9,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample11_AudioMixer
     {
-        const string SYSTEM_AUDIO_FILE_PATH = "./audioFile/max_output_size.mp3";
+        const string SYSTEM_AUDIO_FILE_PATH = "./audioFile/max_output_size.wav";
         const string TTS_AUDIO_FILE_PATH = "./audioFile/bind_code.wav";
         const string MUSIC_AUDIO_FILE_PATH = "./audioFile/Perfect.mp3";
 
@@ -25,11 +25,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             {
                 Console.WriteLine("Starting Enhanced AudioMixer Test with Smooth Volume Control...");
 
-                if (!MediaFactory.InitializeFFmpeg())
-                {
-                    Console.WriteLine("Failed to initialize the ffmpeg.");
-                    return;
-                }
+                MediaFactory.InitializeFFmpeg();
 
                 using (var waveOut = new WaveOutEvent())
                 {

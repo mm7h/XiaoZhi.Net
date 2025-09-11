@@ -42,9 +42,9 @@ namespace XiaoZhi.Net.Server.Providers.LLM
         public override string ModelName => nameof(GenericOpenAI);
         public override string ProviderType => "llm";
 
-        public event Action<string>? OnBeforeTokenGenerate;
-        public event Action<string, OutSegment>? OnTokenGenerating;
-        public event Action<string, string>? OnTokenGenerated;
+        public event Action? OnBeforeTokenGenerate;
+        public event Action<OutSegment>? OnTokenGenerating;
+        public event Action<string>? OnTokenGenerated;
 
         public override bool Build(ModelSetting modelSetting)
         {
@@ -60,19 +60,19 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
         }
 
-        public async Task ChatAsync(Workflow<DialogueContext> workflow, CancellationToken token)
+        public async Task ChatAsync(DialogueContext dialogueContext, CancellationToken token)
         {
             try
             {
                 await this._llmSlim.WaitAsync(token);
-                this.OnBeforeTokenGenerate?.Invoke(workflow.SessionId);
-                ChatHistory chatHistory = workflow.Data.Dialogues.Convert2ChatMessages();
+                this.OnBeforeTokenGenerate?.Invoke();
+                ChatHistory chatHistory = dialogueContext.Dialogues.Convert2ChatMessages();
 
                 IChatCompletionService chatCompletionService;
 
-                if (!string.IsNullOrEmpty(workflow.Data.LlmModelName))
+                if (!string.IsNullOrEmpty(dialogueContext.LlmModelName))
                 {
-                    chatCompletionService = this._serviceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{workflow.Data.LlmModelName}");
+                    chatCompletionService = this._serviceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{dialogueContext.LlmModelName}");
                 }
                 else
                 {
@@ -80,11 +80,11 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 }
 
 
-                var clientResult = await chatCompletionService.GetChatMessageContentAsync(chatHistory, this._chatCompletionOptions, workflow.Data.Kernel, token);
+                var clientResult = await chatCompletionService.GetChatMessageContentAsync(chatHistory, this._chatCompletionOptions, dialogueContext.Kernel, token);
 
                 string content = !string.IsNullOrEmpty(clientResult.Content) ? clientResult.Content : string.Empty;
                 string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(content));
-                this.OnTokenGenerated?.Invoke(workflow.SessionId, MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(content), @"<think>.*?</think>", "", RegexOptions.Singleline)));
+                this.OnTokenGenerated?.Invoke(MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(content), @"<think>.*?</think>", "", RegexOptions.Singleline)));
             }
             catch (OperationCanceledException)
             {
@@ -101,21 +101,21 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
         }
 
-        public async Task ChatByStreamingAsync(Workflow<DialogueContext> workflow, CancellationToken token)
+        public async Task ChatByStreamingAsync(DialogueContext dialogueContext, CancellationToken token)
         {
             List<OutSegment> allResponse = new List<OutSegment>();
             
             try
             {
                 await this._llmSlim.WaitAsync(token);
-                this.OnBeforeTokenGenerate?.Invoke(workflow.SessionId);
+                this.OnBeforeTokenGenerate?.Invoke();
 
-                ChatHistory chatHistory = workflow.Data.Dialogues.Convert2ChatMessages();
+                ChatHistory chatHistory = dialogueContext.Dialogues.Convert2ChatMessages();
 
                 IChatCompletionService chatCompletionService;
-                if (!string.IsNullOrEmpty(workflow.Data.LlmModelName))
+                if (!string.IsNullOrEmpty(dialogueContext.LlmModelName))
                 {
-                    chatCompletionService = this._serviceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{workflow.Data.LlmModelName}");
+                    chatCompletionService = this._serviceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{dialogueContext.LlmModelName}");
                 }
                 else
                 {
@@ -124,7 +124,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
                 StringBuilder segmentResponse = new StringBuilder();
 
-                await foreach (var item in chatCompletionService.GetStreamingChatMessageContentsAsync(chatHistory, this._chatCompletionOptions, workflow.Data.Kernel, token))
+                await foreach (var item in chatCompletionService.GetStreamingChatMessageContentsAsync(chatHistory, this._chatCompletionOptions, dialogueContext.Kernel, token))
                 {
                     string content = !string.IsNullOrEmpty(item.Content) ? item.Content : string.Empty;
                     string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(content));
@@ -141,18 +141,11 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                         string remaining = currentSegment.Substring(splitPosition);
 
                         var outSegment = this._outSegmentPool.Get();
-                        try
-                        {
-                            outSegment.Initialize(sentence);
-                            if (allResponse.Count == 0) outSegment.IsFirst = true;
+                        outSegment.Initialize(sentence);
+                        if (allResponse.Count == 0) outSegment.IsFirst = true;
 
-                            allResponse.Add(outSegment);
-                            this.OnTokenGenerating?.Invoke(workflow.SessionId, outSegment);
-                        }
-                        finally
-                        {
-                            this._outSegmentPool.Return(outSegment);
-                        }
+                        allResponse.Add(outSegment);
+                        this.OnTokenGenerating?.Invoke(outSegment);
 
                         // 重置累积内容为剩余部分
                         segmentResponse.Clear();
@@ -174,22 +167,14 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                     if (segmentResponse.Length > 0)
                     {
                         var segment = this._outSegmentPool.Get();
-                        try
-                        {
-                            segment.Initialize(segmentResponse.ToString(), true, true);
-                            allResponse.Add(segment);
-                            this.OnTokenGenerating?.Invoke(workflow.SessionId, segment);
-                        }
-                        catch
-                        {
-                            this._outSegmentPool.Return(segment);
-                            throw;
-                        }
+                        segment.Initialize(segmentResponse.ToString(), true, true);
+                        allResponse.Add(segment);
+                        this.OnTokenGenerating?.Invoke(segment);
                     }
                 }
                 segmentResponse.Clear();
 
-                this.OnTokenGenerated?.Invoke(workflow.SessionId, string.Join(string.Empty, allResponse.Select(a => a.Content)));
+                this.OnTokenGenerated?.Invoke(string.Join(string.Empty, allResponse.Select(a => a.Content)));
             }
             catch (OperationCanceledException)
             {
@@ -202,10 +187,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
             finally
             {
-                foreach (var segment in allResponse)
-                {
-                    this._outSegmentPool.Return(segment);
-                }
                 allResponse.Clear();
                 
                 this._llmSlim.Release();

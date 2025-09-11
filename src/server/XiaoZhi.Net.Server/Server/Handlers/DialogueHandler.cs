@@ -23,7 +23,6 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly IMemory _memory;
         private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;
         private readonly ObjectPool<Workflow<OutSegment>> _outSegmentWorkflowPool;
-        private readonly ObjectPool<Workflow<DialogueContext>> _dialogueContextWorkflowPool;
         private readonly ObjectPool<OutSegment> _outSegmentPool;
         private bool _useStreaming;
 
@@ -31,7 +30,6 @@ namespace XiaoZhi.Net.Server.Handlers
             [FromKeyedServices(GlobalProviderNames.GLOBAL_MEMORY)] IMemory memory,
             ObjectPool<Workflow<string>> stringWorkflowPool,
             ObjectPool<Workflow<OutSegment>> outSegmentWorkflowPool,
-            ObjectPool<Workflow<DialogueContext>> dialogueContextWorkflowPool,
             ObjectPool<OutSegment> outSegmentPool,
             XiaoZhiConfig config, 
             ILogger<DialogueHandler> logger) : base(config, logger)
@@ -41,7 +39,6 @@ namespace XiaoZhi.Net.Server.Handlers
             this._memory = memory;
             this._stringWorkflowPool = stringWorkflowPool;
             this._outSegmentWorkflowPool = outSegmentWorkflowPool;
-            this._dialogueContextWorkflowPool = dialogueContextWorkflowPool;
             this._outSegmentPool = outSegmentPool;
             this._llm.OnBeforeTokenGenerate += this.OnBeforeTokenGenerate;
             this._llm.OnTokenGenerating += this.OnTokenGenerating;
@@ -56,7 +53,17 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public async Task Handle()
         {
-            await foreach (var reader in this.PreviousReader.ReadAllAsync()) await this.Handle(reader);
+            await foreach (var workflow in this.PreviousReader.ReadAllAsync())
+            {
+                try
+                {
+                    await this.Handle(workflow);
+                }
+                finally
+                {
+                    this._stringWorkflowPool.Return(workflow);
+                }
+            }
         }
 
         public async Task Handle2()
@@ -69,7 +76,6 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
             {
-                this._stringWorkflowPool.Return(workflow);
                 return;
             }
             
@@ -78,23 +84,12 @@ namespace XiaoZhi.Net.Server.Handlers
                 // 从对象池获取OutSegment对象
                 var outSegment = this._outSegmentPool.Get();
                 var notBindWorkflow = this._outSegmentWorkflowPool.Get();
-                
-                try
-                {
-                    outSegment.Initialize("NOT_BIND", true, true);
-                    notBindWorkflow.Initialize(workflow.SessionId, outSegment);
-                    await this.NextWriter.WriteAsync(notBindWorkflow);
-                }
-                finally
-                {
-                    this._outSegmentPool.Return(outSegment);
-                    this._outSegmentWorkflowPool.Return(notBindWorkflow);
-                    this._stringWorkflowPool.Return(workflow);
-                }
+
+                outSegment.Initialize("NOT_BIND", true, true);
+                notBindWorkflow.Initialize(workflow.SessionId, outSegment);
+                await this.NextWriter.WriteAsync(notBindWorkflow);
                 return;
             }
-            
-            var dialogueContextWorkflow = this._dialogueContextWorkflowPool.Get();
             
             try
             {
@@ -104,28 +99,22 @@ namespace XiaoZhi.Net.Server.Handlers
                 using (CodeTimer timer = CodeTimer.Create("Calling the LLM takes {elapsed:F2} ms.", this.Logger))
                 {
                     DialogueContext dialogueContext = new DialogueContext(session.SessionId, session.PrivateProvider.Kernel, session.PrivateProvider.LlmModelName, session.Dialogues);
-                    dialogueContextWorkflow.Initialize(workflow.SessionId, dialogueContext);
 
                     bool useStreaming = session.PrivateProvider.UseStreaming || this._useStreaming;
 
                     if (useStreaming)
                     {
-                        await this._llm.ChatByStreamingAsync(dialogueContextWorkflow, session.SessionCtsToken);
+                        await this._llm.ChatByStreamingAsync(dialogueContext, session.SessionCtsToken);
                     }
                     else
                     {
-                        await this._llm.ChatAsync(dialogueContextWorkflow, session.SessionCtsToken);
+                        await this._llm.ChatAsync(dialogueContext, session.SessionCtsToken);
                     }
                 }
             }
             catch (OperationCanceledException)
             {
                 this.FireAbort(session.DeviceId, session.SessionId, "llm request");
-            }
-            finally
-            {
-                this._stringWorkflowPool.Return(workflow);
-                this._dialogueContextWorkflowPool.Return(dialogueContextWorkflow);
             }
         }
 
@@ -145,38 +134,24 @@ namespace XiaoZhi.Net.Server.Handlers
             List<OutSegment> outSegments = new List<OutSegment>();
             List<Workflow<OutSegment>> workflows = new List<Workflow<OutSegment>>();
 
-            try
+            foreach (string segment in segments)
             {
-                foreach (string segment in segments)
-                {
-                    string segmentResult = DialogueHelper.GetStringNoPunctuationOrEmoji(segment);
+                string segmentResult = DialogueHelper.GetStringNoPunctuationOrEmoji(segment);
 
-                    segmentIndex++;
-                    bool isFirst = segmentIndex == 1;
-                    bool isLast = segmentIndex == segmentsCount;
-                    
-                    // 从对象池获取对象
-                    var outSegment = this._outSegmentPool.Get();
-                    var workflow = this._outSegmentWorkflowPool.Get();
-                    
-                    outSegments.Add(outSegment);
-                    workflows.Add(workflow);
+                segmentIndex++;
+                bool isFirst = segmentIndex == 1;
+                bool isLast = segmentIndex == segmentsCount;
 
-                    outSegment.Initialize(segmentResult, isFirst, isLast);
-                    workflow.Initialize(sessionId, outSegment);
-                    await this.NextWriter.WriteAsync(workflow);
-                }
-            }
-            finally
-            {
-                foreach (var outSegment in outSegments)
-                {
-                    this._outSegmentPool.Return(outSegment);
-                }
-                foreach (var workflow in workflows)
-                {
-                    this._outSegmentWorkflowPool.Return(workflow);
-                }
+                // 从对象池获取对象
+                var outSegment = this._outSegmentPool.Get();
+                var workflow = this._outSegmentWorkflowPool.Get();
+
+                outSegments.Add(outSegment);
+                workflows.Add(workflow);
+
+                outSegment.Initialize(segmentResult, isFirst, isLast);
+                workflow.Initialize(sessionId, outSegment);
+                await this.NextWriter.WriteAsync(workflow);
             }
         }
 
@@ -188,29 +163,22 @@ namespace XiaoZhi.Net.Server.Handlers
             this.NextWriter.Complete();
         }
 
-        private void OnBeforeTokenGenerate(string sessionId)
+        private void OnBeforeTokenGenerate()
         {
             this.SendOutter.SendLlmMessageAsync(Emotion.Thinking);
             this.SendOutter.SendSttMessageAsync("思考中...");
         }
 
-        private async void OnTokenGenerating(string sessionId, OutSegment outSegment)
+        private async void OnTokenGenerating(OutSegment outSegment)
         {
             string segment = DialogueHelper.GetStringNoPunctuationOrEmoji(outSegment.Content);
 
             var workflow = this._outSegmentWorkflowPool.Get();
-            try
-            {
-                workflow.Initialize(sessionId, outSegment);
-                await this.NextWriter.WriteAsync(workflow);
-            }
-            finally
-            {
-                this._outSegmentWorkflowPool.Return(workflow);
-            }
+            workflow.Initialize(this.SendOutter.SessionId, outSegment);
+            await this.NextWriter.WriteAsync(workflow);
         }
 
-        private async void OnTokenGenerated(string sessionId, string content)
+        private async void OnTokenGenerated(string content)
         {
             this.Logger.LogDebug("LLM's response text: {content}", content);
 
@@ -218,7 +186,7 @@ namespace XiaoZhi.Net.Server.Handlers
             Dialogue assistantDialogue = new Dialogue(session.DeviceId, session.SessionId, AuthorRole.Assistant, content);
             if (!this._useStreaming)
             {
-                await this.SendCustomMessage(sessionId, content);
+                await this.SendCustomMessage(this.SendOutter.SessionId, content);
             }
             session.Dialogues.Add(assistantDialogue);
             await this.SendOutter.SendLlmMessageAsync(Emotion.Winking);

@@ -101,7 +101,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 session.AudioSetting.SampleRate = sampleRate;
                 session.AudioSetting.Channels = channels;
                 session.AudioSetting.FrameDuration = frameDuration;
-
+                session.IsDeviceBinded = true;
                 this._providerManager.BuildAudioPlayer(session);
                 this._providerManager.BuildAudioMixer(session);
                 this._providerManager.RegisterAudioResampler(session);
@@ -161,15 +161,8 @@ namespace XiaoZhi.Net.Server.Handlers
                     if (!string.IsNullOrEmpty(text))
                     {
                         var workflow = this._workflowPool.Get();
-                        try
-                        {
-                            workflow.Initialize(session, text);
-                            await this.NextWriter.WriteAsync(workflow);
-                        }
-                        finally
-                        {
-                            this._workflowPool.Return(workflow);
-                        }
+                        workflow.Initialize(session, text);
+                        await this.NextWriter.WriteAsync(workflow);
                     }
                 }
             }

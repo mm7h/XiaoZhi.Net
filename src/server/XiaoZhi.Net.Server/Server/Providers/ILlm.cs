@@ -7,10 +7,10 @@ namespace XiaoZhi.Net.Server.Providers
 {
     internal interface ILlm : IProvider<ModelSetting>
     {
-        event Action<string> OnBeforeTokenGenerate;
-        event Action<string, OutSegment> OnTokenGenerating;
-        event Action<string, string> OnTokenGenerated;
-        Task ChatAsync(Workflow<DialogueContext> workflow, CancellationToken token);
-        Task ChatByStreamingAsync(Workflow<DialogueContext> workflow, CancellationToken token);
+        event Action OnBeforeTokenGenerate;
+        event Action<OutSegment> OnTokenGenerating;
+        event Action<string> OnTokenGenerated;
+        Task ChatAsync(DialogueContext dialogueContext, CancellationToken token);
+        Task ChatByStreamingAsync(DialogueContext dialogueContext, CancellationToken token);
     }
 }

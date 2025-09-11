@@ -40,7 +40,17 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public async Task Handle()
         {
-            await foreach (var reader in this.PreviousReader.ReadAllAsync()) await this.Handle(reader);
+            await foreach (var workflow in this.PreviousReader.ReadAllAsync())
+            {
+                try
+                {
+                    await this.Handle(workflow);
+                }
+                finally
+                {
+                    this._circularBufferWorkflowPool.Return(workflow);
+                }
+            }
         }
 
         public async Task Handle(Workflow<CircularBuffer> workflow)
@@ -48,7 +58,6 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
             {
-                this._circularBufferWorkflowPool.Return(workflow);
                 return;
             }
             
@@ -57,16 +66,8 @@ namespace XiaoZhi.Net.Server.Handlers
                 if (!session.IsDeviceBinded)
                 {
                     var notBindWorkflow = this._stringWorkflowPool.Get();
-                    try
-                    {
-                        notBindWorkflow.Initialize(workflow.SessionId, "NOT_BIND");
-                        await this.NextWriter.WriteAsync(notBindWorkflow);
-                    }
-                    finally
-                    {
-                        this._stringWorkflowPool.Return(notBindWorkflow);
-                        this._circularBufferWorkflowPool.Return(workflow);
-                    }
+                    notBindWorkflow.Initialize(workflow.SessionId, "NOT_BIND");
+                    await this.NextWriter.WriteAsync(notBindWorkflow);
                     return;
                 }
 
@@ -105,10 +106,6 @@ namespace XiaoZhi.Net.Server.Handlers
             catch (OperationCanceledException)
             {
                 this.FireAbort(session.DeviceId, session.SessionId, "audio to text");
-            }
-            finally
-            {
-                this._circularBufferWorkflowPool.Return(workflow);
             }
         }
 

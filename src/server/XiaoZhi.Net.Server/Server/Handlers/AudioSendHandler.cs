@@ -16,14 +16,14 @@ namespace XiaoZhi.Net.Server.Handlers
     internal sealed class AudioSendHandler : BaseHandler, IInHandler<OutAudioSegment>
     {
         private readonly ObjectPool<OutAudioSegment> _outAudioSegmentPool;
-        private readonly ObjectPool<Workflow<OutAudioSegment>> _workflowPool;
+        private readonly ObjectPool<Workflow<OutAudioSegment>> _outAudioSegmentWorkflowPool;
         private readonly CircularBuffer _sendOpusPacketFrame;
 
-        public AudioSendHandler(ObjectPool<OutAudioSegment> outAudioSegmentPool, ObjectPool<Workflow<OutAudioSegment>> workflowPool, 
+        public AudioSendHandler(ObjectPool<OutAudioSegment> outAudioSegmentPool, ObjectPool<Workflow<OutAudioSegment>> outAudioSegmentWorkflowPool, 
             XiaoZhiConfig config, ILogger<AudioSendHandler> logger) : base(config, logger)
         {
             this._outAudioSegmentPool = outAudioSegmentPool;
-            this._workflowPool = workflowPool;
+            this._outAudioSegmentWorkflowPool = outAudioSegmentWorkflowPool;
             this._sendOpusPacketFrame = new CircularBuffer(960 * 100);
         }
 
@@ -34,7 +34,18 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public async Task Handle()
         {
-            await foreach (var reader in this.PreviousReader.ReadAllAsync()) await this.Handle(reader);
+            await foreach (var workflow in this.PreviousReader.ReadAllAsync())
+            {
+                try
+                {
+                    await this.Handle(workflow);
+                }
+                finally
+                {
+                    this._outAudioSegmentPool.Return(workflow.Data);
+                    this._outAudioSegmentWorkflowPool.Return(workflow);
+                }
+            }
         }
 
         public async Task Handle(Workflow<OutAudioSegment> workflow)
@@ -43,7 +54,7 @@ namespace XiaoZhi.Net.Server.Handlers
             if (session is null || session.ShouldIgnore())
             {
                 this._outAudioSegmentPool.Return(workflow.Data);
-                this._workflowPool.Return(workflow);
+                this._outAudioSegmentWorkflowPool.Return(workflow);
                 return;
             }
 
@@ -69,7 +80,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     {
                         this.Logger.LogInformation("Send the first audio from the device: {deviceId}, the segment: {content}.", session.DeviceId, item.Value);
                     }
-                    await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceStart, item.Value);
+                    //await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceStart, item.Value);
                 }
 
                 while (this._sendOpusPacketFrame.GetFrames(frameSize, out chunk))
@@ -94,7 +105,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 foreach (var item in outAudioSegment.Contents.Where(i => !string.IsNullOrEmpty(i.Value)))
                 {
-                    await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceEnd, item.Value);
+                    //await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceEnd, item.Value);
                 }
                 if (outAudioSegment.IsLast)
                 {
@@ -106,9 +117,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     await this.SendOutter.CloseSessionAsync("Close Chat");
                 }
-
-                this._outAudioSegmentPool.Return(workflow.Data);
-                this._workflowPool.Return(workflow);
             }
         }
     }

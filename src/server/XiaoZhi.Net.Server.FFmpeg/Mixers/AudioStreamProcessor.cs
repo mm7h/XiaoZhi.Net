@@ -91,37 +91,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             return !_bufferQueue.IsEmpty;
         }
 
-        public float[]? GetFrameData(int frameSampleCount)
-        {
-            if (_disposed || frameSampleCount <= 0)
-            {
-                return null;
-            }
-
-            var frameData = new float[frameSampleCount];
-            int samplesRead = 0;
-
-            while (samplesRead < frameSampleCount && _bufferQueue.TryDequeue(out float sample))
-            {
-                frameData[samplesRead++] = sample;
-            }
-
-            if (samplesRead < frameSampleCount)
-            {
-                for (int i = samplesRead; i < frameSampleCount; i++)
-                {
-                    frameData[i] = 0.0f;
-                }
-
-                if (_isLastFrame && _bufferQueue.IsEmpty)
-                {
-                    _isComplete = true;
-                }
-            }
-
-            return frameData;
-        }
-
         public float[]? GetFrameDataWithPartialSupport(int frameSampleCount)
         {
             if (_disposed || frameSampleCount <= 0)

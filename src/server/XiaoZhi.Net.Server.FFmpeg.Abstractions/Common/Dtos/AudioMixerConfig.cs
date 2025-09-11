@@ -41,11 +41,11 @@ namespace XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Dtos
         /// <summary>
         /// TTS类型的音量配置
         /// </summary>
-        public AudioVolumeConfig TTSVolumeConfig { get; set; } = new AudioVolumeConfig(AudioType.SystemNotification, 1.0f, 0.2f);
+        public AudioVolumeConfig TTSVolumeConfig { get; set; } = new AudioVolumeConfig(AudioType.TTS, 0.9f, 0.4f);
 
         /// <summary>
         /// 音乐类型的音量配置
         /// </summary>
-        public AudioVolumeConfig MusicVolumeConfig { get; set; } = new AudioVolumeConfig(AudioType.SystemNotification, 1.0f, 0.1f);
+        public AudioVolumeConfig MusicVolumeConfig { get; set; } = new AudioVolumeConfig(AudioType.Music, 0.6f, 0.1f);
     }
 }

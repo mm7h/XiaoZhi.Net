@@ -1,11 +1,10 @@
-﻿using FFmpeg.AutoGen;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using XiaoZhi.Net.Server.FFmpeg.Abstractions;
 using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Dtos;
-using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.FFmpeg.Mixers;
 using XiaoZhi.Net.Server.FFmpeg.Players;
+using XiaoZhi.Net.Server.FFmpeg.Utilities;
 
 namespace XiaoZhi.Net.Server.FFmpeg
 {
@@ -20,28 +19,12 @@ namespace XiaoZhi.Net.Server.FFmpeg
     public static class MediaFactory
     {
         /// <summary>
-        /// Initializes the FFmpeg library with the specified root path.
+        /// Registers the FFmpeg binaries from the specified path.
         /// </summary>
-        /// <remarks>This method sets the root path for FFmpeg and attempts to verify the library's
-        /// availability by retrieving its version information. If the specified path is invalid or an error occurs
-        /// during initialization, the method returns <see langword="false"/>.</remarks>
-        /// <param name="ffmpegPath">The root path to the FFmpeg binaries. Defaults to "./ffmpeg/" if not specified. Must not be null or empty.</param>
-        /// <returns><see langword="true"/> if the initialization is successful; otherwise, <see langword="false"/>.</returns>
-        public static bool InitializeFFmpeg(string? ffmpegPath = "./ffmpeg/")
+        /// <param name="ffmpegPath">the path.</param>
+        public static void InitializeFFmpeg(string ffmpegPath = "./ffmpeg/")
         {
-            try
-            {
-                if (string.IsNullOrEmpty(ffmpegPath))
-                {
-                    return false;
-                }
-                ffmpeg.RootPath = AudioPlayerBase.FFmpegRootPath = ffmpegPath;
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            FFmpegStartup.RegisterFFmpegBinaries(ffmpegPath);
         }
 
         /// <summary>
@@ -65,16 +48,17 @@ namespace XiaoZhi.Net.Server.FFmpeg
         }
 
         /// <summary>
-        /// Creates a new instance of FFmpeg-native audio mixer for real-time multi-stream audio mixing.
+        /// Creates a new instance of audio mixer for real-time multi-stream audio mixing.
         /// </summary>
         /// <param name="sampleRate">Output sample rate in Hz</param>
         /// <param name="channels">Number of output channels</param>
         /// <param name="frameDuration">Frame duration in milliseconds</param>
         /// <param name="config">Optional configuration for the audio mixer</param>
-        /// <returns>An <see cref="IAudioMixer"/> instance configured for multi-stream audio mixing using FFmpeg filters</returns>
+        /// <returns>An <see cref="IAudioMixer"/> instance configured for multi-stream audio mixing</returns>
         public static IAudioMixer CreateAudioMixer(int sampleRate, int channels, int frameDuration, AudioMixerConfig? config = null)
         {
             IAudioMixer mixer = new FFmpegAudioMixer(NullLoggerFactory.Instance.CreateLogger<FFmpegAudioMixer>());
+            //IAudioMixer mixer = new AudioMixer(NullLoggerFactory.Instance.CreateLogger<AudioMixer>());
             
             if (!mixer.Initialize(sampleRate, channels, frameDuration, config))
             {
