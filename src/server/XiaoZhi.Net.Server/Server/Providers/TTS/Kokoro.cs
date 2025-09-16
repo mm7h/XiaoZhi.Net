@@ -99,7 +99,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
                 OfflineTtsGeneratedAudio audio = this._offlineTts.Generate(segment, SPEAK_SPPED, SPERAKER_ID);
 
-                double duration = Math.Max((this.CalculateDuration(audio.SampleRate, audio.NumSamples) * 1000 - (workflow.Data.IsFirst ? 300 + timer.ElapsedMilliseconds : 0)), 0);
+                double duration = Math.Max((this.CalculateDuration(audio.SampleRate, audio.NumSamples) * 1000 - (workflow.Data.IsFirstSegment ? 300 + timer.ElapsedMilliseconds : 0)), 0);
 
                 this.OnProcessed?.Invoke(workflow.SessionId, audio.Samples, workflow.Data, duration);
 

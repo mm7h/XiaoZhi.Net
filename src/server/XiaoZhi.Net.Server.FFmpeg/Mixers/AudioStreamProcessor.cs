@@ -5,7 +5,7 @@ using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Dtos;
 namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 {
     /// <summary>
-    /// Enhanced audio input stream with improved buffering strategy
+    /// Enhanced audio input stream with improved buffering strategy and automatic frame boundary detection
     /// </summary>
     internal class AudioStreamProcessor : IDisposable
     {
@@ -15,12 +15,17 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
         private readonly AudioMixerConfig _config;
         private bool _disposed;
         private readonly int _frameSampleCount;
+        
+        // Internal frame boundary tracking
         private volatile bool _isFirstFrame = false;
         private volatile bool _isLastFrame = false;
         private volatile bool _isComplete = false;
         private volatile bool _stopRequested = false;
         private volatile int _processedFrameCount = 0;
-        private string? _currentContent = null;
+        private volatile bool _hasReceivedData = false;
+        private volatile bool _streamEnded = false;
+        private volatile int _silentFrameCount = 0;
+        private readonly int _maxSilentFrames = 10; // Consider stream ended after 10 silent frames
 
         public AudioType AudioType => _audioType;
         public bool IsFirstFrame => _isFirstFrame;
@@ -28,7 +33,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
         public bool IsComplete => _isComplete;
         public int ProcessedFrameCount => _processedFrameCount;
         public int AvailableDataCount => _bufferQueue.Count;
-        public string? CurrentContent => _currentContent;
 
         public AudioStreamProcessor(AudioType audioType, int sampleRate, int channels, int frameDuration, AudioMixerConfig config)
         {
@@ -37,7 +41,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             _config = config;
         }
 
-        public void AddData(float[] audioData, bool isFirst, bool isLast, string? content = null)
+        public void AddData(float[] audioData)
         {
             if (_disposed || audioData == null || audioData.Length == 0 || _stopRequested)
             {
@@ -46,18 +50,35 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
             lock (_syncLock)
             {
-                if (isFirst)
+                // Auto-detect first frame
+                if (!_hasReceivedData)
                 {
                     _isFirstFrame = true;
+                    _hasReceivedData = true;
                     _isComplete = false;
                     _stopRequested = false;
                     _processedFrameCount = 0;
-                    _currentContent = content;
+                    _streamEnded = false;
+                    _silentFrameCount = 0;
                 }
 
-                if (isLast)
+                // Check if data contains significant audio (not silence)
+                bool hasSignificantAudio = HasSignificantAudio(audioData);
+                
+                if (!hasSignificantAudio)
+                {
+                    _silentFrameCount++;
+                }
+                else
+                {
+                    _silentFrameCount = 0;
+                }
+
+                // Auto-detect last frame based on silence or explicit stop
+                if (_silentFrameCount >= _maxSilentFrames && _hasReceivedData)
                 {
                     _isLastFrame = true;
+                    _streamEnded = true;
                 }
 
                 int maxBufferSize = _config.MaxBufferFrames * _frameSampleCount;
@@ -79,6 +100,19 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     _bufferQueue.Enqueue(sample);
                 }
             }
+        }
+
+        private bool HasSignificantAudio(float[] audioData)
+        {
+            const float threshold = 0.001f; // Silence threshold
+            for (int i = 0; i < audioData.Length; i++)
+            {
+                if (Math.Abs(audioData[i]) > threshold)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public bool HasDataForFrame(int frameSampleCount)
@@ -137,7 +171,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 frameData[i] = 0.0f;
             }
 
-            if (_isLastFrame && _bufferQueue.IsEmpty)
+            if ((_isLastFrame || _stopRequested || _streamEnded) && _bufferQueue.IsEmpty)
             {
                 _isComplete = true;
             }
@@ -152,7 +186,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 _isFirstFrame = false;
                 _processedFrameCount++;
 
-                if ((_isLastFrame || _stopRequested) && _bufferQueue.IsEmpty)
+                if ((_isLastFrame || _stopRequested || _streamEnded) && _bufferQueue.IsEmpty)
                 {
                     _isComplete = true;
                 }
@@ -169,7 +203,9 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 _isComplete = false;
                 _stopRequested = false;
                 _processedFrameCount = 0;
-                _currentContent = null;
+                _hasReceivedData = false;
+                _streamEnded = false;
+                _silentFrameCount = 0;
             }
         }
 
@@ -179,6 +215,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             {
                 _stopRequested = true;
                 _isLastFrame = true;
+                _streamEnded = true;
             }
         }
 

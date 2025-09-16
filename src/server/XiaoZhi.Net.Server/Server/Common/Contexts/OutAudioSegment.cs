@@ -1,12 +1,10 @@
-﻿using System.Collections.Generic;
-using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+﻿using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {
-    internal class OutAudioSegment
+    internal class OutAudioSegment : OutSegment
     {
         private float[] _audioData = null!;
-        private Dictionary<AudioType, string?> _contents = null!;
 
         public OutAudioSegment() : base()
         {
@@ -17,36 +15,21 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         /// </summary>
         public float[] AudioData => this._audioData;
 
-        /// <summary>
-        /// 是否需要重采样
-        /// </summary>
-        public Dictionary<AudioType, string?> Contents => this._contents;
-
-        /// <summary>
-        /// 是否为第一段
-        /// </summary>
-        public bool IsFirst { get; set; }
-
-        /// <summary>
-        /// 是否为最后一段
-        /// </summary>
-        public bool IsLast { get; set; }
+        public AudioType AudioType { get; private set; }
 
         // 为对象池提供初始化方法
-        public void Initialize(float[] audioData, bool isFirst, bool isLast, Dictionary<AudioType, string?> contents)
+        public void Initialize(float[] audioData, AudioType audioType, string content, bool isFirstSegment, bool isLastSegment)
         {
             this._audioData = audioData;
-            this._contents = contents;
-            this.IsFirst = isFirst;
-            this.IsLast = isLast;
+            this.AudioType = audioType;
+            base.Initialize(content, isFirstSegment, isLastSegment);
         }
 
-        public void Reset()
+        public override void Reset()
         {
             this._audioData = null!;
-            this._contents = default;
-            this.IsFirst = false;
-            this.IsLast = false;
+            this.AudioType = AudioType.None;
+            base.Reset();
         }
     }
 }

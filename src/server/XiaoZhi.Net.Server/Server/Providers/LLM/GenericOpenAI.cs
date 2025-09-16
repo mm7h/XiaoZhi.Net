@@ -142,7 +142,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
                         var outSegment = this._outSegmentPool.Get();
                         outSegment.Initialize(sentence);
-                        if (allResponse.Count == 0) outSegment.IsFirst = true;
+                        if (allResponse.Count == 0) outSegment.IsFirstSegment = true;
 
                         allResponse.Add(outSegment);
                         this.OnTokenGenerating?.Invoke(outSegment);
@@ -159,7 +159,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 if (allResponse.Any())
                 {
                     OutSegment lastOutSegment = allResponse.Last();
-                    lastOutSegment.IsLast = true;
+                    lastOutSegment.IsLastSegment = true;
                 }
                 else
                 {

@@ -4,12 +4,13 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 {
     internal class VolumeTransitionControl
     {
-        private float _startVolume = 1.0f;
-        private float _currentVolume = 1.0f;
-        private float _targetVolume = 1.0f;
+        private float _startVolume = 0.0f;
+        private float _currentVolume = 0.0f;
+        private float _targetVolume = 0.0f;
         private DateTime _transitionStartTime = DateTime.MinValue;
         private int _transitionDurationMs = 500;
         private VolumeTransitionCurve _transitionCurve = VolumeTransitionCurve.Logarithmic;
+        private bool _isInitialized = false;
 
         public float CurrentVolume => _currentVolume;
         public float TargetVolume => _targetVolume;
@@ -17,9 +18,18 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
         public void StartTransition(float newTargetVolume, int durationMs, VolumeTransitionCurve curve)
         {
-            if (Math.Abs(_currentVolume - newTargetVolume) > 0.01f) // 只有显著变化时才开始过渡
+            if (!_isInitialized)
             {
-                _startVolume = _currentVolume; // 记录过渡开始时的音量
+                _currentVolume = newTargetVolume;
+                _targetVolume = newTargetVolume;
+                _startVolume = newTargetVolume;
+                _isInitialized = true;
+                return;
+            }
+
+            if (Math.Abs(_currentVolume - newTargetVolume) > 0.01f)
+            {
+                _startVolume = _currentVolume;
                 _targetVolume = newTargetVolume;
                 _transitionStartTime = DateTime.Now;
                 _transitionDurationMs = durationMs;
@@ -47,11 +57,10 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             if (progress >= 1.0f)
             {
                 _currentVolume = _targetVolume;
-                _startVolume = _targetVolume; // 更新起始音量
+                _startVolume = _targetVolume;
                 return _currentVolume;
             }
 
-            // 应用过渡曲线
             var adjustedProgress = ApplyTransitionCurve(progress, _transitionCurve);
             _currentVolume = Lerp(_startVolume, _targetVolume, adjustedProgress);
 

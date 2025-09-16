@@ -2,15 +2,22 @@
 
 namespace XiaoZhi.Net.Server.Abstractions.Common.Enums
 {
+    [Flags]
     public enum AudioType
     {
-        [Description("System Notification")]
-        SystemNotification = 10,
-        [Description("TTS")]
-        TTS = 5,
+        [Description("None")]
+        None = 0,
+
         [Description("Music")]
-        Music = 1,
+        Music = 2,
+
+        [Description("TTS")]
+        TTS = 4,
+
+        [Description("System Notification")]
+        SystemNotification = 8,
+
         [Description("Other")]
-        Other = 0
+        Other = 99
     }
 }

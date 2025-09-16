@@ -48,7 +48,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
         }
 
         public event Action<AudioMixerState>? StateChanged;
-        public event Action<float[], bool, bool, Dictionary<AudioType, string?>>? OnMixedAudioDataAvailable;
+        public event Action<float[], bool, bool>? OnMixedAudioDataAvailable;
         public event Action<AudioMixerStats>? OnStatsUpdated;
 
         public bool IsInitialized => _initialized;
@@ -114,26 +114,14 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             }
         }
 
-        public void AddAudioData(AudioType audioType, float[] audioData, bool isFirst, bool isLast, string? content = null)
+        public void AddAudioData(AudioType audioType, float[] audioData)
         {
             if (!_initialized || _disposed || audioData == null || audioData.Length == 0)
             {
                 return;
             }
 
-            if (isFirst)
-            {
-                if (!string.IsNullOrEmpty(content))
-                {
-                    _logger.LogDebug("Adding audio data for {AudioType} with content: '{Content}' (First: {IsFirst}, Last: {IsLast})",
-                   audioType, content, isFirst, isLast);
-                }
-                else
-                {
-                    _logger.LogDebug("Adding audio data for {AudioType} (First: {IsFirst}, Last: {IsLast})",
-                        audioType, isFirst, isLast);
-                }
-            }
+            _logger.LogDebug("Adding audio data for {AudioType} with {SampleCount} samples", audioType, audioData.Length);
 
             // Get or create input stream for this audio type
             var audioInput = _audioInputs.GetOrAdd(audioType,
@@ -141,10 +129,11 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
             var volumeState = _volumeStates.GetOrAdd(audioType, _ => new VolumeTransitionControl());
 
-            // Add data to the input stream, including content for logging purposes
-            audioInput.AddData(audioData, isFirst, isLast, content);
+            // Add data to the input stream with automatic frame boundary detection
+            audioInput.AddData(audioData);
 
-            if (isFirst)
+            // Check if this is a new stream (first data)
+            if (audioInput.ProcessedFrameCount == 0 && audioInput.IsFirstFrame)
             {
                 UpdateVolumeTargets();
             }
@@ -280,8 +269,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                         {
                             // 为了保持音量过渡的连续性，生成静音帧
                             var silentFrame = new float[_frameSampleCount];
-                            var emptyContentMap = new Dictionary<AudioType, string?>();
-                            OnMixedAudioDataAvailable?.Invoke(silentFrame, false, false, emptyContentMap);
+                            OnMixedAudioDataAvailable?.Invoke(silentFrame, false, false);
                             hasProcessedData = true;
                             processedFrameCount++;
                             continue;
@@ -318,14 +306,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                         bool isLast = activeInputs.Any(input => input.IsLastFrame) &&
                                      activeInputs.All(input => input.IsComplete || !input.HasAnyData());
 
-                        // Collect content information from active inputs
-                        var contentMap = new Dictionary<AudioType, string?>();
-                        foreach (var input in activeInputs)
-                        {
-                            contentMap[input.AudioType] = input.CurrentContent;
-                        }
-
-                        OnMixedAudioDataAvailable?.Invoke(mixedAudio, isFirst, isLast, contentMap);
+                        OnMixedAudioDataAvailable?.Invoke(mixedAudio, isFirst, isLast);
 
                         foreach (var input in activeInputs)
                         {

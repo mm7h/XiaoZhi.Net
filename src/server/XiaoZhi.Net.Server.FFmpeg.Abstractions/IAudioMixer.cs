@@ -5,7 +5,7 @@ using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Enums;
 namespace XiaoZhi.Net.Server.FFmpeg.Abstractions
 {
     /// <summary>
-    /// 音频混音器接口，支持多路音频流的实时混音
+    /// 音频混音器接口，支持多路音频输入实时混音
     /// </summary>
     public interface IAudioMixer : IDisposable
     {
@@ -15,9 +15,9 @@ namespace XiaoZhi.Net.Server.FFmpeg.Abstractions
         event Action<AudioMixerState> StateChanged;
 
         /// <summary>
-        /// 混音后的音频数据事件
+        /// 混合音频数据事件
         /// </summary>
-        event Action<float[], bool, bool, Dictionary<AudioType, string?>>? OnMixedAudioDataAvailable;
+        event Action<float[], bool, bool>? OnMixedAudioDataAvailable;
 
         /// <summary>
         /// 音频统计信息事件
@@ -59,10 +59,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Abstractions
         /// </summary>
         /// <param name="audioType">音频类型（优先级）</param>
         /// <param name="audioData">音频数据</param>
-        /// <param name="isFirst">是否为第一帧</param>
-        /// <param name="isLast">是否为最后一帧</param>
-        /// <param name="content">音频内容描述</param>
-        void AddAudioData(AudioType audioType, float[] audioData, bool isFirst, bool isLast, string? content = null);
+        void AddAudioData(AudioType audioType, float[] audioData);
 
         /// <summary>
         /// 停止指定类型的音频流
@@ -71,7 +68,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Abstractions
         void StopAudioStream(AudioType audioType);
 
         /// <summary>
-        /// 清空所有音频缓冲区
+        /// 清除所有音频缓冲区
         /// </summary>
         void ClearAllBuffers();
 

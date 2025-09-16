@@ -4,9 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Handlers;
-using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {
@@ -135,9 +133,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 #endif
             BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(capacity)
             {
-                FullMode = BoundedChannelFullMode.Wait,
-                SingleWriter = true,
-                SingleReader = true
+                FullMode = BoundedChannelFullMode.Wait
             };
             Channel<Workflow<T>> channel = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous.NextWriter = channel.Writer;
@@ -156,9 +152,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 #endif
             BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(capacity)
             {
-                FullMode = BoundedChannelFullMode.Wait,
-                SingleWriter = true,
-                SingleReader = true
+                FullMode = BoundedChannelFullMode.Wait
             };
             Channel<Workflow<T>> channel1 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous1.NextWriter = channel1.Writer;

@@ -3,7 +3,6 @@ using Microsoft.Extensions.ObjectPool;
 using SherpaOnnx;
 using System;
 using System.Buffers;
-using System.Linq;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -18,8 +17,9 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ObjectPool<OutAudioSegment> _outAudioSegmentPool;
         private readonly ObjectPool<Workflow<OutAudioSegment>> _outAudioSegmentWorkflowPool;
         private readonly CircularBuffer _sendOpusPacketFrame;
+        private bool _privateAudioMixerInitialized = false;
 
-        public AudioSendHandler(ObjectPool<OutAudioSegment> outAudioSegmentPool, ObjectPool<Workflow<OutAudioSegment>> outAudioSegmentWorkflowPool, 
+        public AudioSendHandler(ObjectPool<OutAudioSegment> outAudioSegmentPool, ObjectPool<Workflow<OutAudioSegment>> outAudioSegmentWorkflowPool,
             XiaoZhiConfig config, ILogger<AudioSendHandler> logger) : base(config, logger)
         {
             this._outAudioSegmentPool = outAudioSegmentPool;
@@ -57,42 +57,38 @@ namespace XiaoZhi.Net.Server.Handlers
                 this._outAudioSegmentWorkflowPool.Return(workflow);
                 return;
             }
-
+            if (!this._privateAudioMixerInitialized && session.PrivateProvider.AudioMixer is not null)
+            {
+                session.PrivateProvider.AudioMixer.OnMixedAudioDataAvailable += this.OnMixedAudioDataAvailable;
+                this._privateAudioMixerInitialized = true;
+            }
             int frameSize = session.PrivateProvider.AudioEncoder!.FrameSize;
             int frameDuration = session.AudioSetting.FrameDuration;
+
+            bool isContentNotEmpty = !string.IsNullOrEmpty(workflow.Data.Content);
 
             float[] chunk = ArrayPool<float>.Shared.Rent(frameSize);
 
             OutAudioSegment outAudioSegment = workflow.Data;
             try
             {
+                if (isContentNotEmpty)
+                {
+                    await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceStart, outAudioSegment.Content);
+                }
+
                 this._sendOpusPacketFrame.Push(outAudioSegment.AudioData);
-
-                if (outAudioSegment.IsFirst)
-                {
-                    await this.SendOutter.SendTtsMessageAsync(TtsStatus.Start);
-                    await this.SendOutter.SendLlmMessageAsync(Emotion.Cool);
-                }
-
-                foreach (var item in outAudioSegment.Contents.Where(i => !string.IsNullOrEmpty(i.Value)))
-                {
-                    if (outAudioSegment.IsFirst)
-                    {
-                        this.Logger.LogInformation("Send the first audio from the device: {deviceId}, the segment: {content}.", session.DeviceId, item.Value);
-                    }
-                    //await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceStart, item.Value);
-                }
-
                 while (this._sendOpusPacketFrame.GetFrames(frameSize, out chunk))
                 {
                     session.SessionCtsToken.ThrowIfCancellationRequested();
-
-                    byte[] opusData = await session.PrivateProvider.AudioEncoder.EncodeAsync(chunk, session.SessionCtsToken);
-
+                    
                     await Task.Delay(frameDuration);
-                    await this.SendOutter.SendAsync(opusData);
+                    session.PrivateProvider.AudioMixer!.AddAudioData(outAudioSegment.AudioType, chunk);
                 }
-
+                if (isContentNotEmpty)
+                {
+                    await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceEnd, outAudioSegment.Content);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -101,18 +97,31 @@ namespace XiaoZhi.Net.Server.Handlers
             finally
             {
                 ArrayPool<float>.Shared.Return(chunk);
+                this._outAudioSegmentPool.Return(workflow.Data);
+                this._outAudioSegmentWorkflowPool.Return(workflow);
                 this._sendOpusPacketFrame.Reset();
+            }
+        }
 
-                foreach (var item in outAudioSegment.Contents.Where(i => !string.IsNullOrEmpty(i.Value)))
-                {
-                    //await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceEnd, item.Value);
-                }
-                if (outAudioSegment.IsLast)
-                {
-                    await this.SendOutter.SendTtsMessageAsync(TtsStatus.Stop);
-                    await this.SendOutter.SendLlmMessageAsync(Emotion.Cool);
-                }
 
+        private async void OnMixedAudioDataAvailable(float[] mixedPcmData, bool isFirst, bool isLast)
+        {
+            Session session = this.SendOutter.GetSession();
+            if (isFirst)
+            {
+                await this.SendOutter.SendTtsMessageAsync(TtsStatus.Start);
+                await this.SendOutter.SendLlmMessageAsync(Emotion.Cool);
+                this.Logger.LogInformation("Send the first audio from the device: {deviceId}.", session.DeviceId);
+            }
+
+            byte[] opusData = await session.PrivateProvider.AudioEncoder!.EncodeAsync(mixedPcmData, session.SessionCtsToken);
+            await this.SendOutter.SendAsync(opusData);
+
+            if (isLast)
+            {
+                await this.SendOutter.SendTtsMessageAsync(TtsStatus.Stop);
+                await this.SendOutter.SendLlmMessageAsync(Emotion.Cool);
+                this.Logger.LogInformation("Send the last audio from the device: {deviceId}.", session.DeviceId);
                 if (session.CloseAfterChat)
                 {
                     await this.SendOutter.CloseSessionAsync("Close Chat");

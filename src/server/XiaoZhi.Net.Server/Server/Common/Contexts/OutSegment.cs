@@ -7,8 +7,8 @@
         public OutSegment()
         {
             this._content = string.Empty;
-            this.IsFirst = false;
-            this.IsLast = false;
+            this.IsFirstSegment = false;
+            this.IsLastSegment = false;
         }
 
         /// <summary>
@@ -19,32 +19,32 @@
         /// <summary>
         /// 是否为第一段
         /// </summary>
-        public bool IsFirst { get; set; }
+        public bool IsFirstSegment { get; set; }
 
         /// <summary>
         /// 是否为最后一段
         /// </summary>
-        public bool IsLast { get; set; }
+        public bool IsLastSegment { get; set; }
 
         public void Initialize(string content)
         {
             this._content = content;
-            this.IsFirst = false;
-            this.IsLast = false;
+            this.IsFirstSegment = false;
+            this.IsLastSegment = false;
         }
 
         public void Initialize(string content, bool isFirst, bool isLast)
         {
             this._content = content;
-            this.IsFirst = isFirst;
-            this.IsLast = isLast;
+            this.IsFirstSegment = isFirst;
+            this.IsLastSegment = isLast;
         }
 
-        public void Reset()
+        public virtual void Reset()
         {
             this._content = string.Empty;
-            this.IsFirst = false;
-            this.IsLast = false;
+            this.IsFirstSegment = false;
+            this.IsLastSegment = false;
         }
     }
 }

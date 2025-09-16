@@ -64,7 +64,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
         // Events
         public event Action<AudioMixerState>? StateChanged;
-        public event Action<float[], bool, bool, Dictionary<AudioType, string?>>? OnMixedAudioDataAvailable;
+        public event Action<float[], bool, bool>? OnMixedAudioDataAvailable;
         public event Action<AudioMixerStats>? OnStatsUpdated;
 
         // Properties
@@ -177,58 +177,44 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
         private void InitializeAudioStreamProcessors()
         {
-            var audioTypes = new[] { AudioType.TTS, AudioType.Music, AudioType.SystemNotification };
-
-            foreach (var audioType in audioTypes)
-            {
-                var processor = new AudioStreamProcessor(audioType, _outputSampleRate, _outputChannels, _frameDuration, _config);
-                _audioStreams[audioType] = processor;
-            }
+            // 移除预创建音频流处理器的逻辑
+            // 改为按需创建，与AudioMixer保持一致
+            _logger.LogDebug("Audio stream processors will be created on demand");
         }
 
-        public void AddAudioData(AudioType audioType, float[] audioData, bool isFirst, bool isLast, string? content = null)
+        public void AddAudioData(AudioType audioType, float[] audioData)
         {
             if (!_initialized || _disposed)
                 return;
 
-            if (_audioStreams.TryGetValue(audioType, out var processor))
+            _logger.LogDebug("Adding audio data for {AudioType} with {SampleCount} samples", audioType, audioData.Length);
+
+            // 按需创建音频流处理器，而不是预创建
+            var processor = _audioStreams.GetOrAdd(audioType, 
+                _ => new AudioStreamProcessor(audioType, _outputSampleRate, _outputChannels, _frameDuration, _config));
+
+            // 获取或创建音量状态管理器
+            var volumeState = _volumeStates.GetOrAdd(audioType, _ => new VolumeTransitionControl());
+
+            // 使用 AudioStreamProcessor 的 AddData 方法
+            processor.AddData(audioData);
+
+            // 检查是否是新流的第一帧数据
+            if (processor.ProcessedFrameCount == 0 && processor.IsFirstFrame)
             {
-                if (isFirst)
-                {
-                    if (!string.IsNullOrEmpty(content))
-                    {
-                        _logger.LogDebug("Adding audio data for {AudioType} with content: '{Content}' (First: {IsFirst}, Last: {IsLast})",
-                       audioType, content, isFirst, isLast);
-                    }
-                    else
-                    {
-                        _logger.LogDebug("Adding audio data for {AudioType} (First: {IsFirst}, Last: {IsLast})",
-                            audioType, isFirst, isLast);
-                    }
-                }
-
-                // 获取或创建音量状态控制器
-                var volumeState = _volumeStates.GetOrAdd(audioType, _ => new VolumeTransitionControl());
-
-                // 使用 AudioStreamProcessor 的 AddData 方法
-                processor.AddData(audioData, isFirst, isLast, content);
-
-                if (isFirst)
-                {
-                    // 更新音量目标
-                    UpdateVolumeTargets();
-                }
-
-                _hasPendingData = true;
-
-                if (_state == AudioMixerState.Idle)
-                {
-                    SetState(AudioMixerState.Mixing);
-                }
-
-                // 立即尝试处理
-                TryProcessMixingImmediate();
+                // 更新音量目标
+                UpdateVolumeTargets();
             }
+
+            _hasPendingData = true;
+
+            if (_state == AudioMixerState.Idle)
+            {
+                SetState(AudioMixerState.Mixing);
+            }
+
+            // 立即尝试处理
+            TryProcessMixingImmediate();
         }
 
         private void UpdateVolumeTargets()
@@ -236,6 +222,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             if (!_config.EnableSmoothVolumeControl)
                 return;
 
+            // 只处理有数据且未完成的活跃流
             var activeTypes = _audioStreams.Keys
                 .Where(key => _audioStreams[key].HasAnyData() && !_audioStreams[key].IsComplete)
                 .ToList();
@@ -352,8 +339,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                         {
                             // 为了保持音量过渡的连续性，生成静音帧
                             var silentFrame = new float[_frameSampleCount];
-                            var emptyContentMap = new Dictionary<AudioType, string?>();
-                            OnMixedAudioDataAvailable?.Invoke(silentFrame, false, false, emptyContentMap);
+                            OnMixedAudioDataAvailable?.Invoke(silentFrame, false, false);
                             hasProcessedData = true;
                             processedFrameCount++;
                             continue;
@@ -390,18 +376,11 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                         bool isLast = activeInputs.Any(input => input.IsLastFrame) &&
                                      activeInputs.All(input => input.IsComplete || !input.HasAnyData());
 
-                        // 收集内容信息
-                        var contentMap = new Dictionary<AudioType, string?>();
-                        foreach (var input in activeInputs)
-                        {
-                            contentMap[input.AudioType] = input.CurrentContent;
-                        }
-
                         // 更新统计信息
                         UpdateStatistics(mixedData, activeInputs.Count);
 
-                        // 触发混音数据可用事件
-                        OnMixedAudioDataAvailable?.Invoke(mixedData, isFirst, isLast, contentMap);
+                        // 触发混合音频数据可用事件
+                        OnMixedAudioDataAvailable?.Invoke(mixedData, isFirst, isLast);
 
                         // 标记帧已处理
                         foreach (var input in activeInputs)
@@ -424,24 +403,24 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
                 foreach (var completedStream in completedStreams)
                 {
-                    _volumeStates.TryRemove(completedStream.Key, out _); // 清理音量状态
-                    if (_audioStreams.TryGetValue(completedStream.Key, out var processor))
+                    if (_audioStreams.TryRemove(completedStream.Key, out var processor))
                     {
-                        processor.ClearBuffer(); // 重置处理器状态
+                        processor.Dispose();
+                        _volumeStates.TryRemove(completedStream.Key, out _); // 清理音量状态
+                        _logger.LogDebug("Removed completed audio stream for {AudioType}", completedStream.Key);
                     }
-                    _logger.LogDebug("Cleaned up completed audio stream for {AudioType}", completedStream.Key);
                 }
 
                 // 如果有流完成，重新计算剩余流的音量目标
-                if (hasCompletedStreams && _audioStreams.Values.Any(p => p.HasAnyData() && !p.IsComplete))
+                if (hasCompletedStreams && _audioStreams.Count > 0)
                 {
                     _logger.LogDebug("Audio stream completed, recalculating volume targets for remaining streams");
                     UpdateVolumeTargets();
                     _hasPendingData = true; // 确保继续处理音量过渡
                 }
 
-                // 更新状态
-                if (_audioStreams.Values.All(p => p.IsComplete || !p.HasAnyData()))
+                // 更新状态 - 使用简化的判断逻辑
+                if (_audioStreams.IsEmpty)
                 {
                     SetState(AudioMixerState.Idle);
                     _hasPendingData = false;
@@ -517,11 +496,8 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
                     if (_logger.IsEnabled(LogLevel.Debug) && streamCount == 1)
                     {
-                        var contentInfo = !string.IsNullOrEmpty(input.CurrentContent) 
-                            ? $" (Content: '{input.CurrentContent}')" 
-                            : "";
-                        _logger.LogDebug("Smooth volume for {AudioType}: {Volume:F3} (transitioning: {IsTransitioning}){ContentInfo}",
-                            input.AudioType, currentVolume, volumeState.IsTransitioning, contentInfo);
+                        _logger.LogDebug("Smooth volume for {AudioType}: {Volume:F3} (transitioning: {IsTransitioning})",
+                            input.AudioType, currentVolume, volumeState.IsTransitioning);
                     }
                 }
             }

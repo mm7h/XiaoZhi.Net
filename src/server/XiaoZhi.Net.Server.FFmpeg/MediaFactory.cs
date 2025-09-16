@@ -57,9 +57,29 @@ namespace XiaoZhi.Net.Server.FFmpeg
         /// <returns>An <see cref="IAudioMixer"/> instance configured for multi-stream audio mixing</returns>
         public static IAudioMixer CreateAudioMixer(int sampleRate, int channels, int frameDuration, AudioMixerConfig? config = null)
         {
-            IAudioMixer mixer = new FFmpegAudioMixer(NullLoggerFactory.Instance.CreateLogger<FFmpegAudioMixer>());
-            //IAudioMixer mixer = new AudioMixer(NullLoggerFactory.Instance.CreateLogger<AudioMixer>());
+            IAudioMixer mixer = new AudioMixer(NullLoggerFactory.Instance.CreateLogger<AudioMixer>());
             
+            if (!mixer.Initialize(sampleRate, channels, frameDuration, config))
+            {
+                mixer.Dispose();
+                throw new InvalidOperationException($"Failed to initialize FFmpegAudioMixer with parameters: sampleRate={sampleRate}, channels={channels}, frameDuration={frameDuration}");
+            }
+
+            return mixer;
+        }
+
+        /// <summary>
+        /// Creates a new instance of audio mixer for real-time multi-stream audio mixing.
+        /// </summary>
+        /// <param name="sampleRate">Output sample rate in Hz</param>
+        /// <param name="channels">Number of output channels</param>
+        /// <param name="frameDuration">Frame duration in milliseconds</param>
+        /// <param name="config">Optional configuration for the audio mixer</param>
+        /// <returns>An <see cref="IAudioMixer"/> instance configured for multi-stream audio mixing</returns>
+        public static IAudioMixer CreateFFmpegAudioMixer(int sampleRate, int channels, int frameDuration, AudioMixerConfig? config = null)
+        {
+            IAudioMixer mixer = new FFmpegAudioMixer(NullLoggerFactory.Instance.CreateLogger<FFmpegAudioMixer>());
+
             if (!mixer.Initialize(sampleRate, channels, frameDuration, config))
             {
                 mixer.Dispose();

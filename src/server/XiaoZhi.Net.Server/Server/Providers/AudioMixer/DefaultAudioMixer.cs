@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using IFFmpegAudioMixer = XiaoZhi.Net.Server.FFmpeg.Abstractions.IAudioMixer;
 
@@ -10,7 +9,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
     {
         private readonly IFFmpegAudioMixer _audioMixer;
 
-        public event Action<float[], bool, bool, Dictionary<AudioType, string?>>? OnMixedAudioDataAvailable;
+        public event Action<float[], bool, bool>? OnMixedAudioDataAvailable;
 
         public DefaultAudioMixer(IFFmpegAudioMixer audioMixer, ILogger<DefaultAudioMixer> logger) : base(logger)
         {
@@ -41,14 +40,14 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
             }
         }
 
-        private void FireOnMixedAudioData(float[] audioPcmData, bool isFirst, bool isLast, Dictionary<AudioType, string?> contentMap)
+        private void FireOnMixedAudioData(float[] audioPcmData, bool isFirst, bool isLast)
         { 
-            this.OnMixedAudioDataAvailable?.Invoke(audioPcmData, isFirst, isLast, contentMap);
+            this.OnMixedAudioDataAvailable?.Invoke(audioPcmData, isFirst, isLast);
         }
 
-        public void AddAudioData(AudioType audioType, float[] audioData, bool isFirst, bool isLast, string? content = null)
+        public void AddAudioData(AudioType audioType, float[] audioData)
         {
-            this._audioMixer.AddAudioData(audioType, audioData, isFirst, isLast, content);
+            this._audioMixer.AddAudioData(audioType, audioData);
         }
 
         public void StopAudioStream(AudioType audioType)

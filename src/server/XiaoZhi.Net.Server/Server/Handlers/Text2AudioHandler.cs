@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
 using System;
-using System.Collections.Generic;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
@@ -22,7 +21,6 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ObjectPool<Workflow<OutSegment>> _outSegmentWorkflowPool;
         private bool _privateTTSInitialized = false;
         private bool _privateAudioPlayerInitialized = false;
-        private bool _privateAudioMixerInitialized = false;
 
         private IAudioPlayerClient? _audioPlayerClient;
 
@@ -73,7 +71,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
 
             this.CheckInitialize(session);
-            
+
             if (!session.IsDeviceBinded)
             {
                 session.PrivateProvider.AudioMixer.ClearAllBuffers();
@@ -148,12 +146,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 this._privateAudioPlayerInitialized = true;
             }
 
-            if (!this._privateAudioMixerInitialized && session.PrivateProvider.AudioMixer is not null)
-            {
-                session.PrivateProvider.AudioMixer.OnMixedAudioDataAvailable += this.OnMixedAudioDataAvailable;
-                this._privateAudioMixerInitialized = true;
-            }
-
             if (!this._privateTTSInitialized && session.PrivateProvider.Tts is not null)
             {
                 session.PrivateProvider.Tts.OnBeforeProcessing += this.TTS_OnBeforeProcessing;
@@ -166,27 +158,26 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        private async void OnMixedAudioDataAvailable(float[] mixedPcmData, bool isFirst, bool isLast, Dictionary<AudioType, string?> contentMap)
+        private async void OnNotificationAudioDataAsync(float[] pcmData, bool isFirst, bool isLast)
         {
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
             Workflow<OutAudioSegment> workflow = this._outAudioSegmentWorkflowPool.Get();
 
-            outAudioSegment.Initialize(mixedPcmData, isFirst, isLast, contentMap);
+            outAudioSegment.Initialize(pcmData, AudioType.SystemNotification, string.Empty, isFirst, isLast);
             workflow.Initialize(this.SendOutter.SessionId, outAudioSegment);
 
             await this.NextWriter.WriteAsync(workflow);
         }
 
-        private void OnNotificationAudioDataAsync(float[] pcmData, bool isFirst, bool isLast)
+        private async void OnMusicAudioDataAsync(float[] pcmData, bool isFirst, bool isLast)
         {
-            Session session = this.SendOutter.GetSession();
-            session.PrivateProvider.AudioMixer.AddAudioData(AudioType.SystemNotification, pcmData, isFirst, isLast, null);
-        }
+            OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
+            Workflow<OutAudioSegment> workflow = this._outAudioSegmentWorkflowPool.Get();
 
-        private void OnMusicAudioDataAsync(float[] pcmData, bool isFirst, bool isLast)
-        {
-            Session session = this.SendOutter.GetSession();
-            session.PrivateProvider.AudioMixer.AddAudioData(AudioType.Music, pcmData, isFirst, isLast, null);
+            outAudioSegment.Initialize(pcmData, AudioType.Music, string.Empty, isFirst, isLast);
+            workflow.Initialize(this.SendOutter.SessionId, outAudioSegment);
+
+            await this.NextWriter.WriteAsync(workflow);
         }
 
         private void TTS_OnBeforeProcessing(string sessionId, OutSegment segment)
@@ -194,7 +185,7 @@ namespace XiaoZhi.Net.Server.Handlers
             // 避免使用全局的单例 TTS provider时，事件影响其他会话
             if (sessionId != this.SendOutter.SessionId)
                 return;
-            if (segment.IsFirst)
+            if (segment.IsFirstSegment)
             {
                 this.Logger.LogInformation("Send the first audio from segment: {content}", segment.Content);
             }
@@ -206,15 +197,22 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
 
             Session session = this.SendOutter.GetSession();
+
+            OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
+            Workflow<OutAudioSegment> workflow = this._outAudioSegmentWorkflowPool.Get();
+
             if (session.PrivateProvider.AudioResampler is not null)
             {
                 (float[] resampledAudioData, _) = await session.PrivateProvider.AudioResampler.ResampleAsync(audioData, session.SessionCtsToken);
-                session.PrivateProvider.AudioMixer.AddAudioData(AudioType.TTS, resampledAudioData, segment.IsFirst, segment.IsLast, segment.Content);
+                outAudioSegment.Initialize(resampledAudioData, AudioType.TTS, segment.Content, segment.IsFirstSegment, segment.IsLastSegment);
             }
             else
             {
-                session.PrivateProvider.AudioMixer.AddAudioData(AudioType.TTS, audioData, segment.IsFirst, segment.IsLast, segment.Content);
+                outAudioSegment.Initialize(audioData, AudioType.TTS, segment.Content, segment.IsFirstSegment, segment.IsLastSegment);
             }
+            workflow.Initialize(this.SendOutter.SessionId, outAudioSegment);
+
+            await this.NextWriter.WriteAsync(workflow);
         }
 
         public void Dispose()
@@ -236,11 +234,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 this._audioPlayerClient.SystemNotification.OnAudioData -= this.OnNotificationAudioDataAsync;
                 this._audioPlayerClient.MusicPlayer.OnAudioData -= this.OnMusicAudioDataAsync;
                 this._privateAudioPlayerInitialized = false;
-            }
-            if (session.PrivateProvider.AudioMixer is not null && this._privateAudioMixerInitialized)
-            {
-                session.PrivateProvider.AudioMixer.OnMixedAudioDataAvailable -= this.OnMixedAudioDataAvailable;
-                this._privateAudioMixerInitialized = false;
             }
             this.NextWriter.Complete();
         }
