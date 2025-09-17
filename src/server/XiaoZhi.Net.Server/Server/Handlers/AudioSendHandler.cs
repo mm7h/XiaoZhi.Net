@@ -5,6 +5,7 @@ using System;
 using System.Buffers;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
@@ -53,8 +54,6 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
             {
-                this._outAudioSegmentPool.Return(workflow.Data);
-                this._outAudioSegmentWorkflowPool.Return(workflow);
                 return;
             }
             if (!this._privateAudioMixerInitialized && session.PrivateProvider.AudioMixer is not null)
@@ -85,6 +84,18 @@ namespace XiaoZhi.Net.Server.Handlers
                     await Task.Delay(frameDuration);
                     session.PrivateProvider.AudioMixer!.AddAudioData(outAudioSegment.AudioType, chunk);
                 }
+                if (outAudioSegment.IsLastSegment)
+                {
+                    var mixer = session.PrivateProvider.AudioMixer!;
+                    mixer.StopAudioStream(outAudioSegment.AudioType);
+
+                    if (session.CloseAfterChat)
+                    {
+                        mixer.StopAudioStream(AudioType.Music);
+                        mixer.StopAudioStream(AudioType.SystemNotification);
+                        mixer.StopAudioStream(AudioType.Other);
+                    }
+                }
                 if (isContentNotEmpty)
                 {
                     await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceEnd, outAudioSegment.Content);
@@ -97,8 +108,6 @@ namespace XiaoZhi.Net.Server.Handlers
             finally
             {
                 ArrayPool<float>.Shared.Return(chunk);
-                this._outAudioSegmentPool.Return(workflow.Data);
-                this._outAudioSegmentWorkflowPool.Return(workflow);
                 this._sendOpusPacketFrame.Reset();
             }
         }

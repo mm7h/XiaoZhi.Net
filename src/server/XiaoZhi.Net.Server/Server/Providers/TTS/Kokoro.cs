@@ -126,7 +126,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 else
                 {
                     audio.Dispose();
-                    this.Logger.LogDebug("TTS generated success, the duration of the voice is: {duration}s.", this.FormatDuration(duration));
+                    this.Logger.LogDebug("TTS generated success, the duration of the voice is: {duration}.", this.FormatDuration(duration));
                 }
                 timer.Stop();
 

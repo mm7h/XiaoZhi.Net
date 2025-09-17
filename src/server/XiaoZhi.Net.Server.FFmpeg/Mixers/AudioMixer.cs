@@ -388,6 +388,10 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                         activeInputs.Add(input);
                     }
                 }
+                else if (input.IsStopping && input.AvailableDataCount > 0)
+                {
+                    activeInputs.Add(input);
+                }
             }
 
             return activeInputs;

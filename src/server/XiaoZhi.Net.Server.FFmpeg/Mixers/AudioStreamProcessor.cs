@@ -33,6 +33,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
         public bool IsComplete => _isComplete;
         public int ProcessedFrameCount => _processedFrameCount;
         public int AvailableDataCount => _bufferQueue.Count;
+        public bool IsStopping => _stopRequested || _isLastFrame || _streamEnded;
 
         public AudioStreamProcessor(AudioType audioType, int sampleRate, int channels, int frameDuration, AudioMixerConfig config)
         {
@@ -62,9 +63,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     _silentFrameCount = 0;
                 }
 
-                // Check if data contains significant audio (not silence)
                 bool hasSignificantAudio = HasSignificantAudio(audioData);
-                
                 if (!hasSignificantAudio)
                 {
                     _silentFrameCount++;
@@ -74,7 +73,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     _silentFrameCount = 0;
                 }
 
-                // Auto-detect last frame based on silence or explicit stop
                 if (_silentFrameCount >= _maxSilentFrames && _hasReceivedData)
                 {
                     _isLastFrame = true;
@@ -141,21 +139,28 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             bool isNewStream = _processedFrameCount < 3;
             int samplesToRead = frameSampleCount;
 
-            if (isNewStream && availableData < frameSampleCount)
+            if (availableData < frameSampleCount)
             {
-                int minRequiredSamples = (int)(frameSampleCount * _config.NewStreamBufferTolerance);
-                if (availableData >= minRequiredSamples)
+                if (isNewStream)
                 {
-                    samplesToRead = Math.Min(availableData, frameSampleCount);
+                    int minRequiredSamples = (int)(frameSampleCount * _config.NewStreamBufferTolerance);
+                    if (availableData >= minRequiredSamples)
+                    {
+                        samplesToRead = Math.Min(availableData, frameSampleCount);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
+                else if (IsStopping)
+                {
+                    samplesToRead = availableData;
                 }
                 else
                 {
                     return null;
                 }
-            }
-            else if (availableData < frameSampleCount)
-            {
-                return null;
             }
 
             var frameData = new float[frameSampleCount];
@@ -171,7 +176,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 frameData[i] = 0.0f;
             }
 
-            if ((_isLastFrame || _stopRequested || _streamEnded) && _bufferQueue.IsEmpty)
+            if ((IsStopping) && _bufferQueue.IsEmpty)
             {
                 _isComplete = true;
             }
@@ -186,7 +191,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 _isFirstFrame = false;
                 _processedFrameCount++;
 
-                if ((_isLastFrame || _stopRequested || _streamEnded) && _bufferQueue.IsEmpty)
+                if ((IsStopping) && _bufferQueue.IsEmpty)
                 {
                     _isComplete = true;
                 }

@@ -5,7 +5,6 @@ using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.FFmpeg.Abstractions;
 using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Dtos;
 using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Enums;
-using XiaoZhi.Net.Server.FFmpeg.Utilities.Extensions;
 
 namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 {
@@ -114,12 +113,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
                     // Update volume levels based on config
                     UpdateVolumeLevelsFromConfig();
-
-                    // Initialize audio stream processors with new config
-                    InitializeAudioStreamProcessors();
-
-                    // 暂时不初始化滤镜图，而是使用简单的混音逻辑
-                    // InitializeFilterGraph();
                     
                     // 启动处理定时器 - 使用更高频率来支持平滑的音量过渡
                     var timerInterval = Math.Max(frameDuration / 4, 5); // 至少5ms，支持更平滑的过渡
@@ -175,19 +168,12 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             }
         }
 
-        private void InitializeAudioStreamProcessors()
-        {
-            // 移除预创建音频流处理器的逻辑
-            // 改为按需创建，与AudioMixer保持一致
-            _logger.LogDebug("Audio stream processors will be created on demand");
-        }
-
         public void AddAudioData(AudioType audioType, float[] audioData)
         {
             if (!_initialized || _disposed)
                 return;
 
-            _logger.LogDebug("Adding audio data for {AudioType} with {SampleCount} samples", audioType, audioData.Length);
+            //_logger.LogDebug("Adding audio data for {AudioType} with {SampleCount} samples", audioType, audioData.Length);
 
             // 按需创建音频流处理器，而不是预创建
             var processor = _audioStreams.GetOrAdd(audioType, 
@@ -464,6 +450,10 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     {
                         activeInputs.Add(input);
                     }
+                }
+                else if (input.IsStopping && input.AvailableDataCount > 0)
+                {
+                    activeInputs.Add(input);
                 }
             }
 
