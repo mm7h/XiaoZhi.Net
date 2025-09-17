@@ -173,8 +173,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             if (!_initialized || _disposed)
                 return;
 
-            //_logger.LogDebug("Adding audio data for {AudioType} with {SampleCount} samples", audioType, audioData.Length);
-
             // 按需创建音频流处理器，而不是预创建
             var processor = _audioStreams.GetOrAdd(audioType, 
                 _ => new AudioStreamProcessor(audioType, _outputSampleRate, _outputChannels, _frameDuration, _config));

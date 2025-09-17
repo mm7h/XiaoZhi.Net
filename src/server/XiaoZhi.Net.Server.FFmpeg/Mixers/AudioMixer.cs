@@ -121,8 +121,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 return;
             }
 
-            _logger.LogDebug("Adding audio data for {AudioType} with {SampleCount} samples", audioType, audioData.Length);
-
             // Get or create input stream for this audio type
             var audioInput = _audioInputs.GetOrAdd(audioType,
                 _ => new AudioStreamProcessor(audioType, _outputSampleRate, _outputChannels, _frameDuration, _config));
