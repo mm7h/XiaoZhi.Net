@@ -46,6 +46,9 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
         private Dictionary<AudioType, float>? _baseVolumeLevels;
         private Dictionary<AudioType, float>? _prioritySuppressionLevels;
 
+        // Normalization smoothing (avoid first-frame stutter when new low-energy stream joins)
+        private float _lastNormalizationFactor = 0.75f;
+
         public FFmpegAudioMixer(ILogger<FFmpegAudioMixer> logger)
         {
             _logger = logger;
@@ -186,7 +189,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             // 检查是否是新流的第一帧数据
             if (processor.ProcessedFrameCount == 0 && processor.IsFirstFrame)
             {
-                // 更新音量目标
                 UpdateVolumeTargets();
             }
 
@@ -197,7 +199,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 SetState(AudioMixerState.Mixing);
             }
 
-            // 立即尝试处理
             TryProcessMixingImmediate();
         }
 
@@ -206,7 +207,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             if (!_config.EnableSmoothVolumeControl)
                 return;
 
-            // 只处理有数据且未完成的活跃流
             var activeTypes = _audioStreams.Keys
                 .Where(key => _audioStreams[key].HasAnyData() && !_audioStreams[key].IsComplete)
                 .ToList();
@@ -238,13 +238,11 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 return baseVolume;
             }
 
-            // 直接使用配置的抑制音量值，而不是作为百分比计算
             var suppressionVolume = _prioritySuppressionLevels?.GetValueOrDefault(audioType, 0.05f) ?? 0.05f;
             var higherPriorityCount = activeTypes.Count(t => (int)t > currentPriority);
 
             if (higherPriorityCount > 0)
             {
-                // 对于多个高优先级音频同时播放的情况，进一步降低音量
                 suppressionVolume *= (float)Math.Pow(0.5, higherPriorityCount - 1);
             }
 
@@ -331,7 +329,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                         break;
                     }
 
-                    // 使用改进的缓冲区策略 - 关键修复点
                     var activeInputs = GetActiveInputsWithBufferStrategy(inputsWithData);
                     if (activeInputs.Count == 0)
                     {
@@ -340,19 +337,15 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
                     var currentActiveTypes = activeInputs.Select(input => input.AudioType).ToList();
 
-                    // 更新音量目标（如果有新的活跃类型）
                     if (currentActiveTypes.Count != _volumeStates.Count ||
                         currentActiveTypes.Any(t => !_volumeStates.ContainsKey(t)))
                     {
                         UpdateVolumeTargets();
                     }
 
-                    // 执行平滑音量混音
                     var mixedData = MixAudioStreamsWithSmoothVolume(activeInputs, currentActiveTypes);
                     if (mixedData != null && mixedData.Length > 0)
                     {
-                        // 应用音频效果处理
-                        ApplyEnhancedFadeEffects(mixedData, activeInputs);
                         ApplyEnhancedLimiting(mixedData);
                         ApplyDynamicGainControlSmooth(mixedData, activeInputs.Count > 1);
 
@@ -403,7 +396,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     _hasPendingData = true; // 确保继续处理音量过渡
                 }
 
-                // 更新状态 - 使用简化的判断逻辑
                 if (_audioStreams.IsEmpty)
                 {
                     SetState(AudioMixerState.Idle);
@@ -426,7 +418,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             }
         }
 
-        // 关键修复：添加缓冲区策略方法，处理新流启动时的卡顿问题
         private List<AudioStreamProcessor> GetActiveInputsWithBufferStrategy(List<AudioStreamProcessor> inputsWithData)
         {
             var activeInputs = new List<AudioStreamProcessor>();
@@ -442,7 +433,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 }
                 else if (isNewStream && _config.EnableSmoothVolumeControl)
                 {
-                    // 对于新流，使用配置的容忍度
                     int minRequiredSamples = (int)(_frameSampleCount * _config.NewStreamBufferTolerance);
                     if (input.AvailableDataCount >= minRequiredSamples)
                     {
@@ -465,164 +455,134 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 return null;
             }
 
-            var mixedAudio = new float[_frameSampleCount];
-            var streamCount = 0;
+            var mixed = new float[_frameSampleCount];
+            var energies = new List<(AudioStreamProcessor stream, float energy, bool warmup)>();
 
             foreach (var input in activeInputs)
             {
                 var frameData = input.GetFrameDataWithPartialSupport(_frameSampleCount);
-                if (frameData != null && frameData.Length > 0)
-                {
-                    var volumeState = _volumeStates.GetOrAdd(input.AudioType, _ => new VolumeTransitionControl());
-                    var currentVolume = volumeState.UpdateAndGetCurrentVolume();
+                if (frameData == null || frameData.Length == 0)
+                    continue;
 
-                    for (int i = 0; i < Math.Min(mixedAudio.Length, frameData.Length); i++)
-                    {
-                        mixedAudio[i] += frameData[i] * currentVolume;
-                    }
-                    streamCount++;
-
-                    if (_logger.IsEnabled(LogLevel.Debug) && streamCount == 1)
-                    {
-                        _logger.LogDebug("Smooth volume for {AudioType}: {Volume:F3} (transitioning: {IsTransitioning})",
-                            input.AudioType, currentVolume, volumeState.IsTransitioning);
-                    }
-                }
-            }
-
-            if (streamCount > 1)
-            {
-                // 归一化以防止削波
-                var normalizationFactor = (float)(0.75 / Math.Sqrt(streamCount));
-                for (int i = 0; i < mixedAudio.Length; i++)
-                {
-                    mixedAudio[i] *= normalizationFactor;
-                }
-            }
-
-            return mixedAudio;
-        }
-
-        private void ApplyEnhancedFadeEffects(float[] audioData, List<AudioStreamProcessor> activeInputs)
-        {
-            const int fadeLength = 16;
-
-            foreach (var input in activeInputs)
-            {
+                const int fadeLength = 16;
                 if (input.IsFirstFrame)
                 {
-                    for (int i = 0; i < Math.Min(fadeLength, audioData.Length); i++)
+                    int len = Math.Min(fadeLength, frameData.Length);
+                    for (int i = 0; i < len; i++)
                     {
-                        float fadeGain = (float)i / fadeLength;
-                        audioData[i] *= fadeGain;
+                        frameData[i] *= (float)i / len;
+                    }
+                }
+                if (input.IsLastFrame)
+                {
+                    int len = Math.Min(fadeLength, frameData.Length);
+                    int start = frameData.Length - len; if (start < 0) start = 0;
+                    for (int i = start; i < frameData.Length; i++)
+                    {
+                        float g = 1f - (float)(i - start) / len;
+                        frameData[i] *= g;
                     }
                 }
 
-                if (input.IsLastFrame)
+                var volumeState = _volumeStates.GetOrAdd(input.AudioType, _ => new VolumeTransitionControl());
+                var currentVolume = volumeState.UpdateAndGetCurrentVolume();
+                float absSum = 0f;
+                int lenAll = Math.Min(mixed.Length, frameData.Length);
+                for (int i = 0; i < lenAll; i++)
                 {
-                    int startIndex = Math.Max(0, audioData.Length - fadeLength);
-                    for (int i = startIndex; i < audioData.Length; i++)
-                    {
-                        float fadeGain = 1.0f - (float)(i - startIndex) / fadeLength;
-                        audioData[i] *= fadeGain;
-                    }
+                    float s = frameData[i] * currentVolume;
+                    mixed[i] += s;
+                    absSum += Math.Abs(s);
                 }
+                float avgAbs = absSum / Math.Max(1, lenAll);
+                bool warmup = input.ProcessedFrameCount == 0; // first processed frame
+                energies.Add((input, avgAbs, warmup));
             }
+
+            if (energies.Count <= 1)
+            {
+                _lastNormalizationFactor = SmoothNormalization(_lastNormalizationFactor, 0.75f);
+                for (int i = 0; i < mixed.Length; i++)
+                {
+                    mixed[i] *= _lastNormalizationFactor;
+                }
+                return mixed;
+            }
+
+            const float energyThreshold = 0.003f;
+            var effective = energies.Where(e => !e.warmup && e.energy >= energyThreshold).ToList();
+            int effectiveCount = effective.Count == 0 ? 1 : effective.Count;
+            float targetNorm = (float)(0.75 / Math.Sqrt(effectiveCount));
+            _lastNormalizationFactor = SmoothNormalization(_lastNormalizationFactor, targetNorm);
+            for (int i = 0; i < mixed.Length; i++)
+            {
+                mixed[i] *= _lastNormalizationFactor;
+            }
+            return mixed;
+        }
+
+        private static float SmoothNormalization(float previous, float target)
+        {
+            float maxStepUp = 0.05f; // gentle increase
+            float maxStepDown = 0.15f; // allow moderate decrease
+            float delta = target - previous;
+            if (delta > maxStepUp) delta = maxStepUp; else if (delta < -maxStepDown) delta = -maxStepDown;
+            return previous + delta;
         }
 
         private void ApplyEnhancedLimiting(float[] audioData)
         {
-            const float threshold = 0.85f;
-            const float ratio = 8.0f;
-
+            const float threshold = 0.85f; const float ratio = 8f;
             for (int i = 0; i < audioData.Length; i++)
             {
-                float absLevel = Math.Abs(audioData[i]);
-                if (absLevel > threshold)
+                float abs = Math.Abs(audioData[i]);
+                if (abs > threshold)
                 {
-                    float excess = absLevel - threshold;
-                    float compressedExcess = excess / ratio;
-                    float newLevel = threshold + compressedExcess;
-
-                    audioData[i] = Math.Sign(audioData[i]) * Math.Min(newLevel, 0.9f);
-                    _currentStats.LimiterTriggerCount++;
+                    float excess = abs - threshold; float comp = excess / ratio; float newLevel = threshold + comp;
+                    audioData[i] = Math.Sign(audioData[i]) * Math.Min(newLevel, 0.9f); _currentStats.LimiterTriggerCount++;
                 }
             }
         }
 
         private void ApplyDynamicGainControlSmooth(float[] audioData, bool isMultiStream)
         {
-            float rmsSum = 0;
-            for (int i = 0; i < audioData.Length; i++)
-            {
-                rmsSum += audioData[i] * audioData[i];
-            }
+            float rmsSum = 0; for (int i = 0; i < audioData.Length; i++) rmsSum += audioData[i] * audioData[i];
             float rms = (float)Math.Sqrt(rmsSum / audioData.Length);
-
             float targetLevel = isMultiStream ? 0.4f : 0.5f;
-
             if (rms > 0.005f)
             {
-                float gain = Math.Min(targetLevel / rms, 1.1f);
-                gain = Math.Max(gain, 0.4f);
-
+                float gain = Math.Min(targetLevel / rms, 1.1f); gain = Math.Max(gain, 0.4f);
                 float threshold = isMultiStream ? 0.05f : 0.1f;
-                if (Math.Abs(gain - 1.0f) > threshold)
+                if (Math.Abs(gain - 1f) > threshold)
                 {
-                    float smoothedGain = 1.0f + (gain - 1.0f) * 0.3f;
-                    for (int i = 0; i < audioData.Length; i++)
-                    {
-                        audioData[i] *= smoothedGain;
-                    }
+                    float smooth = 1f + (gain - 1f) * 0.3f;
+                    for (int i = 0; i < audioData.Length; i++) audioData[i] *= smooth;
                 }
             }
         }
 
         private void UpdateStatistics(float[] audioData, int activeStreamCount)
         {
-            float sumSquares = 0;
-            float peak = 0;
-
-            for (int i = 0; i < audioData.Length; i++)
-            {
-                float sample = Math.Abs(audioData[i]);
-                sumSquares += audioData[i] * audioData[i];
-                if (sample > peak)
-                {
-                    peak = sample;
-                }
-            }
-
+            float sumSquares = 0; float peak = 0;
+            for (int i = 0; i < audioData.Length; i++) { float sample = Math.Abs(audioData[i]); sumSquares += audioData[i] * audioData[i]; if (sample > peak) peak = sample; }
             _currentStats.CurrentRms = (float)Math.Sqrt(sumSquares / audioData.Length);
             _currentStats.CurrentPeak = peak;
             _currentStats.CurrentGainDb = 20 * (float)Math.Log10(Math.Max(_currentStats.CurrentRms, 1e-10f));
             _currentStats.ActiveStreamCount = activeStreamCount;
-
             OnStatsUpdated?.Invoke(_currentStats);
         }
 
         public void StopAudioStream(AudioType audioType)
         {
-            if (_audioStreams.TryGetValue(audioType, out var processor))
-            {
-                processor.Stop();
-                _logger.LogDebug("Stopped audio stream for {AudioType}", audioType);
-                _hasPendingData = true;
-            }
+            if (_audioStreams.TryGetValue(audioType, out var processor)) { processor.Stop(); _logger.LogDebug("Stopped audio stream for {AudioType}", audioType); _hasPendingData = true; }
         }
 
         public void ClearAllBuffers()
         {
             lock (_filterLock)
             {
-                foreach (var processor in _audioStreams.Values)
-                {
-                    processor.ClearBuffer();
-                }
-                _volumeStates.Clear();
-                SetState(AudioMixerState.Idle);
-                _hasPendingData = false;
-                _logger.LogDebug("Cleared all audio buffers");
+                foreach (var processor in _audioStreams.Values) processor.ClearBuffer();
+                _volumeStates.Clear(); SetState(AudioMixerState.Idle); _hasPendingData = false; _logger.LogDebug("Cleared all audio buffers");
             }
         }
 
@@ -641,57 +601,31 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
         private void SetState(AudioMixerState newState)
         {
-            if (_state != newState)
-            {
-                _state = newState;
-                StateChanged?.Invoke(_state);
-                _logger.LogDebug("FFmpeg audio mixer state changed to {State}", _state);
-            }
+            if (_state != newState) { _state = newState; StateChanged?.Invoke(_state); _logger.LogDebug("FFmpeg audio mixer state changed to {State}", _state); }
         }
 
         private void CleanupFilterGraph()
         {
             if (_filterGraph != null)
             {
-                var graph = _filterGraph;
-                ffmpeg.avfilter_graph_free(&graph);
-                _filterGraph = null;
+                var graph = _filterGraph; ffmpeg.avfilter_graph_free(&graph); _filterGraph = null;
             }
-
-            _sourceFilters.Clear();
-            _amixFilterCtx = null;
-            _sinkFilterCtx = null;
+            _sourceFilters.Clear(); _amixFilterCtx = null; _sinkFilterCtx = null;
         }
 
         public void Dispose()
         {
-            if (_disposed)
-                return;
-
+            if (_disposed) return;
             lock (_filterLock)
             {
                 SetState(AudioMixerState.Stopped);
-                
-                // 停止定时器
-                _processingTimer?.Change(Timeout.Infinite, Timeout.Infinite);
-                _processingTimer?.Dispose();
-
-                // 等待处理完成
+                _processingTimer?.Change(Timeout.Infinite, Timeout.Infinite); _processingTimer?.Dispose();
                 SpinWait.SpinUntil(() => _processingFlag == 0, 1000);
-                
-                // Dispose all audio stream processors
-                foreach (var processor in _audioStreams.Values)
-                {
-                    processor.Dispose();
-                }
-                _audioStreams.Clear();
-                _volumeStates.Clear();
-
+                foreach (var processor in _audioStreams.Values) processor.Dispose();
+                _audioStreams.Clear(); _volumeStates.Clear();
                 CleanupFilterGraph();
-                _disposed = true;
-                _initialized = false;
+                _disposed = true; _initialized = false;
             }
-
             _logger.LogInformation("FFmpeg audio mixer disposed");
         }
     }

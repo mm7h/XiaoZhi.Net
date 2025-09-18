@@ -12,7 +12,7 @@ using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
-    internal sealed class Text2AudioHandler : BaseHandler, IInHandler<OutSegment>, IOutHandler<OutAudioSegment>
+    internal sealed class Text2AudioHandler : BaseHandler, IInHandler<OutSegment>, IOutHandler<OutAudioSegment, OutAudioSegment, OutAudioSegment>
     {
         private readonly ITts _tts;
         private readonly ObjectPool<OutSegment> _outSegmentPool;
@@ -45,6 +45,8 @@ namespace XiaoZhi.Net.Server.Handlers
         public IBizSendOutter SendOutter { get; set; } = null!;
         public ChannelReader<Workflow<OutSegment>> PreviousReader { get; set; } = null!;
         public ChannelWriter<Workflow<OutAudioSegment>> NextWriter { get; set; } = null!;
+        public ChannelWriter<Workflow<OutAudioSegment>> NextWriter2 { get; set; } = null!;
+        public ChannelWriter<Workflow<OutAudioSegment>> NextWriter3 { get; set; } = null!;
 
         public async Task Handle()
         {
@@ -166,7 +168,7 @@ namespace XiaoZhi.Net.Server.Handlers
             outAudioSegment.Initialize(pcmData, AudioType.SystemNotification, string.Empty, isFirst, isLast);
             workflow.Initialize(this.SendOutter.SessionId, outAudioSegment);
 
-            await this.NextWriter.WriteAsync(workflow);
+            await this.NextWriter3.WriteAsync(workflow);
         }
 
         private async void OnMusicAudioDataAsync(float[] pcmData, bool isFirst, bool isLast)
@@ -177,7 +179,7 @@ namespace XiaoZhi.Net.Server.Handlers
             outAudioSegment.Initialize(pcmData, AudioType.Music, string.Empty, isFirst, isLast);
             workflow.Initialize(this.SendOutter.SessionId, outAudioSegment);
 
-            await this.NextWriter.WriteAsync(workflow);
+            await this.NextWriter2.WriteAsync(workflow);
         }
 
         private void TTS_OnBeforeProcessing(string sessionId, OutSegment segment)

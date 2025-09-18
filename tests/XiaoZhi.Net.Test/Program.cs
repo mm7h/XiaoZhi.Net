@@ -10,7 +10,8 @@ namespace XiaoZhi.Net.Test
         {
             //await Sample09_MP3Player.Run();
             //await Sample10_NumberAudioPlayer.Run();
-            await Sample11_AudioMixer.Run();
+            //await Sample11_AudioMixer.Run();
+            await Sample12_AudioMixerWithTTS.Run();
             //ModelsInit();
         }
 

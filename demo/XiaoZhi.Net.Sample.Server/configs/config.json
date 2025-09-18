@@ -86,7 +86,7 @@
   "TtsSetting": {
     "ModelName": "kokoro",
     "Config": {
-      "Lexicons": "./lexicon/lexicon-zh.txt",
+      "Lexicons": "./lexicon/lexicon-zh.txt,./lexicon/lexicon-us-en.txt",
       "Save2File": false,
       "SavePath": "./data/tts-cache"
     }

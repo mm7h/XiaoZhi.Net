@@ -3,6 +3,8 @@ using SherpaOnnx;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -55,8 +57,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 string lexicons = modelSetting.Config.Lexicons ?? "";
                 if (!string.IsNullOrEmpty(lexicons))
                 {
-                    //$"{Path.Combine(this.ModelFileFoler, "lexicon-us-en.txt")},{Path.Combine(this.ModelFileFoler, "lexicon-zh.txt")}"
-                    config.Model.Kokoro.Lexicon = Path.Combine(this.ModelFileFoler, lexicons);
+                    string lexiconPath = string.Join(',', lexicons.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(l => Path.Combine(this.ModelFileFoler, l)));
+                    config.Model.Kokoro.Lexicon = lexiconPath;
                 }
 
                 config.Model.NumThreads = 2;

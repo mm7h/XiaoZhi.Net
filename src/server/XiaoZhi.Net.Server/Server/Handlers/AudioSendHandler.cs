@@ -13,7 +13,7 @@ using XiaoZhi.Net.Server.Protocol;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
-    internal sealed class AudioSendHandler : BaseHandler, IInHandler<OutAudioSegment>
+    internal sealed class AudioSendHandler : BaseHandler, IInHandler<OutAudioSegment, OutAudioSegment, OutAudioSegment>
     {
         private readonly ObjectPool<OutAudioSegment> _outAudioSegmentPool;
         private readonly ObjectPool<Workflow<OutAudioSegment>> _outAudioSegmentWorkflowPool;
@@ -31,10 +31,12 @@ namespace XiaoZhi.Net.Server.Handlers
         public override string HandlerName => nameof(AudioSendHandler);
         public IBizSendOutter SendOutter { get; set; } = null!;
         public ChannelReader<Workflow<OutAudioSegment>> PreviousReader { get; set; } = null!;
-        public ChannelReader<Workflow<float[]>> PreviousReader2 { get; set; } = null!;
+        public ChannelReader<Workflow<OutAudioSegment>> PreviousReader2 { get; set; } = null!;
+        public ChannelReader<Workflow<OutAudioSegment>> PreviousReader3 { get; set; } = null!;
 
         public async Task Handle()
         {
+            //tts
             await foreach (var workflow in this.PreviousReader.ReadAllAsync())
             {
                 try
@@ -48,7 +50,38 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
             }
         }
-
+        public async Task Handle2()
+        {
+            //music
+            await foreach (var workflow in this.PreviousReader2.ReadAllAsync())
+            {
+                try
+                {
+                    await this.Handle(workflow);
+                }
+                finally
+                {
+                    this._outAudioSegmentPool.Return(workflow.Data);
+                    this._outAudioSegmentWorkflowPool.Return(workflow);
+                }
+            }
+        }
+        public async Task Handle3()
+        {
+            // notification
+            await foreach (var workflow in this.PreviousReader3.ReadAllAsync())
+            {
+                try
+                {
+                    await this.Handle(workflow);
+                }
+                finally
+                {
+                    this._outAudioSegmentPool.Return(workflow.Data);
+                    this._outAudioSegmentWorkflowPool.Return(workflow);
+                }
+            }
+        }
         public async Task Handle(Workflow<OutAudioSegment> workflow)
         {
             Session session = this.SendOutter.GetSession();
@@ -56,6 +89,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 return;
             }
+            //todo: 对于不同类型的音频，汇入到此方法后的阻塞问题
             if (!this._privateAudioMixerInitialized && session.PrivateProvider.AudioMixer is not null)
             {
                 session.PrivateProvider.AudioMixer.OnMixedAudioDataAvailable += this.OnMixedAudioDataAvailable;
@@ -80,20 +114,19 @@ namespace XiaoZhi.Net.Server.Handlers
                 while (this._sendOpusPacketFrame.GetFrames(frameSize, out chunk))
                 {
                     session.SessionCtsToken.ThrowIfCancellationRequested();
-                    
+
                     await Task.Delay(frameDuration);
                     session.PrivateProvider.AudioMixer!.AddAudioData(outAudioSegment.AudioType, chunk);
                 }
                 if (outAudioSegment.IsLastSegment)
                 {
-                    var mixer = session.PrivateProvider.AudioMixer!;
-                    mixer.StopAudioStream(outAudioSegment.AudioType);
+                    session.PrivateProvider.AudioMixer!.StopAudioStream(outAudioSegment.AudioType);
 
                     if (session.CloseAfterChat)
                     {
-                        mixer.StopAudioStream(AudioType.Music);
-                        mixer.StopAudioStream(AudioType.SystemNotification);
-                        mixer.StopAudioStream(AudioType.Other);
+                        session.PrivateProvider.AudioMixer!.StopAudioStream(AudioType.Music);
+                        session.PrivateProvider.AudioMixer!.StopAudioStream(AudioType.SystemNotification);
+                        session.PrivateProvider.AudioMixer!.StopAudioStream(AudioType.Other);
                     }
                 }
                 if (isContentNotEmpty)
