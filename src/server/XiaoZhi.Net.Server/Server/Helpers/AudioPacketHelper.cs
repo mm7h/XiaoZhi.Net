@@ -44,6 +44,24 @@ namespace XiaoZhi.Net.Server.Helpers
             }
         }
 
+        public static bool GetFrames(this CircularBuffer opusPacketFrame, int size, float[] destination)
+        {
+            if (destination is null)
+                throw new ArgumentNullException(nameof(destination));
+            if (destination.Length < size)
+                throw new ArgumentException("Destination array is smaller than the requested size.", nameof(destination));
+            if (opusPacketFrame.Size == 0)
+                return false;
+            int framesToGet = Math.Min(opusPacketFrame.Size, size);
+            float[] src = opusPacketFrame.Get(opusPacketFrame.Head, framesToGet);
+            Array.Copy(src, 0, destination, 0, framesToGet);
+            if (framesToGet < size)
+            {
+                Array.Clear(destination, framesToGet, size - framesToGet);
+            }
+            opusPacketFrame.Pop(framesToGet);
+            return true;
+        }
 
         public static float[] Bytes2Float(this byte[] opusBytes)
         {

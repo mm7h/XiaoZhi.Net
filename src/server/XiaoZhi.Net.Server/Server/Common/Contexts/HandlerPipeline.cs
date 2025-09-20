@@ -17,8 +17,10 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private AudioReceiveHandler? _audioReceiveHandler;
         private Audio2TextHandler? _audio2TextHandler;
         private DialogueHandler? _dialogueHandler;
-        private AudioSendHandler? _audioSendHandler;
         private Text2AudioHandler? _text2AudioHandler;
+        private AudioMixingHandler? _audioMixingHandler;
+        private AudioSendHandler? _audioSendHandler;
+
         private readonly IList<IDisposable> _disposableHandlers;
 
         public HandlerPipeline(Session session)
@@ -27,7 +29,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._disposableHandlers = new List<IDisposable>(5);
         }
 
-        public async Task InitHandlerPipelineAsync(IServiceProvider serviceProvider, ILogger logger)
+        public void InitHandlerPipeline(IServiceProvider serviceProvider, ILogger logger)
         {
             this._logger = logger;
 
@@ -36,6 +38,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._audio2TextHandler = serviceProvider.GetRequiredService<Audio2TextHandler>();
             this._dialogueHandler = serviceProvider.GetRequiredService<DialogueHandler>();
             this._text2AudioHandler = serviceProvider.GetRequiredService<Text2AudioHandler>();
+            this._audioMixingHandler = serviceProvider.GetRequiredService<AudioMixingHandler>();
             this._audioSendHandler = serviceProvider.GetRequiredService<AudioSendHandler>();
 
             this._textHandler.OnManualStop += this._audioReceiveHandler.HandleAudio;
@@ -46,18 +49,21 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.InitializeSendOutter(this._textHandler);
             this.InitializeSendOutter(this._dialogueHandler);
             this.InitializeSendOutter(this._text2AudioHandler);
+            this.InitializeSendOutter(this._audioMixingHandler);
             this.InitializeSendOutter(this._audioSendHandler);
 
-            await this.BuildHandlersWorkflow(this._audioReceiveHandler, this._audio2TextHandler);
-            await this.BuildHandlersWorkflow(this._textHandler, this._audio2TextHandler, this._dialogueHandler);
-            await this.BuildHandlersWorkflow(this._dialogueHandler, this._text2AudioHandler);
-            await this.BuildHandlersWorkflow(this._text2AudioHandler, this._audioSendHandler);
+            this.BuildHandlersWorkflow(this._audioReceiveHandler, this._audio2TextHandler);
+            this.BuildHandlersWorkflow(this._textHandler, this._audio2TextHandler, this._dialogueHandler);
+            this.BuildHandlersWorkflow(this._dialogueHandler, this._text2AudioHandler);
+            this.BuildHandlersWorkflow(this._text2AudioHandler, this._audioMixingHandler);
+            this.BuildHandlersWorkflow(this._audioMixingHandler, this._audioSendHandler);
 
             this.ScheduleOnAbort(this._textHandler);
             this.ScheduleOnAbort(this._audioReceiveHandler);
             this.ScheduleOnAbort(this._audio2TextHandler);
             this.ScheduleOnAbort(this._dialogueHandler);
             this.ScheduleOnAbort(this._text2AudioHandler);
+            this.ScheduleOnAbort(this._audioMixingHandler);
             this.ScheduleOnAbort(this._audioSendHandler);
 
             this._disposableHandlers.Add(this._textHandler);
@@ -65,6 +71,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._disposableHandlers.Add(this._audio2TextHandler);
             this._disposableHandlers.Add(this._dialogueHandler);
             this._disposableHandlers.Add(this._text2AudioHandler);
+            this._disposableHandlers.Add(this._audioMixingHandler);
         }
 
         public void HandleTextMessage(string data)
@@ -124,7 +131,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             outHandler.SendOutter = this._currentSession.SendOutter;
         }
 
-        private async Task BuildHandlersWorkflow<T>(IOutHandler<T> previous, IInHandler<T> next)
+        private void BuildHandlersWorkflow<T>(IOutHandler<T> previous, IInHandler<T> next)
         {
 #if DEBUG
             int capacity = 100;
@@ -133,17 +140,19 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 #endif
             BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(capacity)
             {
+                SingleReader = true,
+                SingleWriter = true,
                 FullMode = BoundedChannelFullMode.Wait
             };
             Channel<Workflow<T>> channel = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous.NextWriter = channel.Writer;
             next.PreviousReader = channel.Reader;
 
-            await Task.Factory.StartNew(next.Handle, TaskCreationOptions.LongRunning);
+            Task.Run(next.Handle);
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
         }
 
-        private async Task BuildHandlersWorkflow<T1, T2, T3>(IOutHandler<T1, T2, T3> previous, IInHandler<T1, T2, T3> next)
+        private void BuildHandlersWorkflow<T1, T2, T3>(IOutHandler<T1, T2, T3> previous, IInHandler<T1, T2, T3> next)
         {
 #if DEBUG
             int capacity = 100;
@@ -152,27 +161,29 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 #endif
             BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(capacity)
             {
+                SingleReader = true,
+                SingleWriter = true,
                 FullMode = BoundedChannelFullMode.Wait
             };
             Channel<Workflow<T1>> channel = Channel.CreateBounded<Workflow<T1>>(boundedChannelOptions);
             previous.NextWriter = channel.Writer;
             next.PreviousReader = channel.Reader;
-            await Task.Factory.StartNew(next.Handle, TaskCreationOptions.LongRunning);
+            Task.Run(next.Handle);
 
             Channel<Workflow<T2>> channel2 = Channel.CreateBounded<Workflow<T2>>(boundedChannelOptions);
             previous.NextWriter2 = channel2.Writer;
             next.PreviousReader2 = channel2.Reader;
-            await Task.Factory.StartNew(next.Handle2, TaskCreationOptions.LongRunning);
+            Task.Run(next.Handle2);
 
             Channel<Workflow<T3>> channel3 = Channel.CreateBounded<Workflow<T3>>(boundedChannelOptions);
             previous.NextWriter3 = channel3.Writer;
             next.PreviousReader3 = channel3.Reader;
-            await Task.Factory.StartNew(next.Handle3, TaskCreationOptions.LongRunning);
+            Task.Run(next.Handle3);
 
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
         }
 
-        private async Task BuildHandlersWorkflow<T>(IOutHandler<T> previous1, IOutHandler<T> previous2, IInHandler<T, T> next)
+        private void BuildHandlersWorkflow<T>(IOutHandler<T> previous1, IOutHandler<T> previous2, IInHandler<T, T> next)
         {
 #if DEBUG
             int capacity = 100;
@@ -181,17 +192,19 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 #endif
             BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(capacity)
             {
+                SingleReader = true,
+                SingleWriter = true,
                 FullMode = BoundedChannelFullMode.Wait
             };
             Channel<Workflow<T>> channel1 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous1.NextWriter = channel1.Writer;
             next.PreviousReader = channel1.Reader;
-            await Task.Factory.StartNew(next.Handle, TaskCreationOptions.LongRunning);
+            Task.Run(next.Handle);
 
             Channel<Workflow<T>> channel2 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous2.NextWriter = channel2.Writer;
             next.PreviousReader2 = channel2.Reader;
-            await Task.Factory.StartNew(next.Handle2, TaskCreationOptions.LongRunning);
+            Task.Run(next.Handle2);
 
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous1.GetType().Name, next.GetType().Name);
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous2.GetType().Name, next.GetType().Name);

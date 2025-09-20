@@ -134,7 +134,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
             Session session = new Session(this.SessionId, deviceId, token, userEndPoint, this);
 
             await this._providerManager.InitializePrivateConfig(session);
-            await session.HandlerPipeline.InitHandlerPipelineAsync(this.Server.ServiceProvider, this.Logger);
+            session.HandlerPipeline.InitHandlerPipeline(this.Server.ServiceProvider, this.Logger);
 
             session.RefreshLastActivityTime();
 

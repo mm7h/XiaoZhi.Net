@@ -66,6 +66,22 @@ namespace XiaoZhi.Net.Server
                     return provider.Create(policy);
                 });
 
+                // 注册 MixedAudioPacket 对象池
+                services.AddSingleton<ObjectPool<MixedAudioPacket>>(serviceProvider =>
+                {
+                    var provider = serviceProvider.GetRequiredService<ObjectPoolProvider>();
+                    var policy = new MixedAudioPacketPolicy();
+                    return provider.Create(policy);
+                });
+
+                // 注册 Workflow<MixedAudioPacket> 对象池
+                services.AddSingleton<ObjectPool<Workflow<MixedAudioPacket>>>(serviceProvider =>
+                {
+                    var provider = serviceProvider.GetRequiredService<ObjectPoolProvider>();
+                    var policy = new WorkflowPolicy<MixedAudioPacket>();
+                    return provider.Create(policy);
+                });
+
                 // 注册 Workflow<string> 对象池
                 services.AddSingleton<ObjectPool<Workflow<string>>>(serviceProvider =>
                 {
