@@ -1,15 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
-using SherpaOnnx;
 using System;
-using System.Buffers;
-using System.Collections.Concurrent;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
-using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Protocol;
 
 namespace XiaoZhi.Net.Server.Handlers
@@ -20,8 +16,6 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ObjectPool<Workflow<OutAudioSegment>> _outAudioSegmentWorkflowPool;
         private readonly ObjectPool<MixedAudioPacket> _mixedAudioPacketPool;
         private readonly ObjectPool<Workflow<MixedAudioPacket>> _mixedAudioPacketWorkflowPool;
-
-        private readonly ConcurrentDictionary<AudioType, CircularBuffer> _perTypeBuffers = new();
 
         private bool _privateAudioMixerInitialized = false;
 
@@ -103,14 +97,10 @@ namespace XiaoZhi.Net.Server.Handlers
                 session.PrivateProvider.AudioMixer.OnMixedAudioDataAvailable += this.OnMixedAudioDataAvailable;
                 this._privateAudioMixerInitialized = true;
             }
-            int frameSize = session.PrivateProvider.AudioEncoder!.FrameSize;
-            int frameDuration = session.AudioSetting.FrameDuration;
-
-            bool isContentNotEmpty = !string.IsNullOrEmpty(workflow.Data.Content);
-
-            float[] chunk = ArrayPool<float>.Shared.Rent(frameSize);
 
             OutAudioSegment outAudioSegment = workflow.Data;
+            bool isContentNotEmpty = !string.IsNullOrEmpty(outAudioSegment.Content);
+
             try
             {
                 if (isContentNotEmpty)
@@ -118,24 +108,12 @@ namespace XiaoZhi.Net.Server.Handlers
                     await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceStart, outAudioSegment.Content);
                 }
 
-                var buffer = _perTypeBuffers.GetOrAdd(outAudioSegment.AudioType, _ => new CircularBuffer(960 * 100));
-                buffer.Push(outAudioSegment.AudioData);
-                while (buffer.GetFrames(frameSize, chunk))
-                {
-                    session.SessionCtsToken.ThrowIfCancellationRequested();
+                // Directly feed the whole segment to the mixer; let mixer handle framing/clocking
+                session.PrivateProvider.AudioMixer!.AddAudioData(outAudioSegment.AudioType, outAudioSegment.AudioData);
 
-                    await Task.Delay(frameDuration, session.SessionCtsToken);
-                    session.PrivateProvider.AudioMixer!.AddAudioData(outAudioSegment.AudioType, chunk);
-                }
                 if (outAudioSegment.IsLastSegment)
                 {
                     session.PrivateProvider.AudioMixer!.StopAudioStream(outAudioSegment.AudioType);
-
-                    // 清理该音频类型的缓冲，避免跨流残留
-                    if (_perTypeBuffers.TryRemove(outAudioSegment.AudioType, out var buf))
-                    {
-                        buf.Reset();
-                    }
 
                     if (session.CloseAfterChat)
                     {
@@ -153,20 +131,17 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 this.FireAbort(session.DeviceId, session.SessionId, "audio mixing");
             }
-            finally
-            {
-                ArrayPool<float>.Shared.Return(chunk);
-            }
         }
 
         private void OnMixedAudioDataAvailable(float[] mixedPcmData, bool isFirst, bool isLast)
         {
-            MixedAudioPacket mixedAudioPacket = this._mixedAudioPacketPool.Get();
-            Workflow<MixedAudioPacket> workflow = this._mixedAudioPacketWorkflowPool.Get();
+            var mixedAudioPacket = this._mixedAudioPacketPool.Get();
+            var workflow = this._mixedAudioPacketWorkflowPool.Get();
+
             mixedAudioPacket.Initialize(mixedPcmData, isFirst, isLast);
             workflow.Initialize(this.SendOutter.GetSession(), mixedAudioPacket);
 
-            this.NextWriter.WriteAsync(workflow);
+            _ = this.NextWriter.WriteAsync(workflow);
         }
 
         public void Dispose()

@@ -17,8 +17,8 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             this._mixedAudioPacketPool = mixedAudioPacketPool;
             this._mixedAudioPacketWorkflowPool = mixedAudioPacketWorkflowPool;
-        }
 
+        }
         public override string HandlerName => nameof(AudioSendHandler);
 
         public ChannelReader<Workflow<MixedAudioPacket>> PreviousReader { get; set; } = null!;
@@ -51,6 +51,7 @@ namespace XiaoZhi.Net.Server.Handlers
             try
             {
                 MixedAudioPacket audioPacket = workflow.Data;
+
                 if (audioPacket.IsFirstFrame)
                 {
                     await this.SendOutter.SendTtsMessageAsync(TtsStatus.Start);
@@ -60,6 +61,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 byte[] opusData = await session.PrivateProvider.AudioEncoder!.EncodeAsync(audioPacket.Data, session.SessionCtsToken);
                 await this.SendOutter.SendAsync(opusData);
+                await Task.Delay(session.AudioSetting.FrameDuration);
 
                 if (audioPacket.IsLastFrame)
                 {

@@ -241,6 +241,8 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {audioType}: Last frame sent to mixer (Total frames: {framesSent}) - volume should transition back for remaining streams");
                         lastFrameSent = true;
+                        // Important: inform the mixer that this stream is done so that volume can recover
+                        audioMixer.StopAudioStream(audioType);
                     }
 
                     // Log progress every 50 frames
@@ -260,6 +262,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {audioType}: Starting playback...");
                 audioPlayer.Play(true); // Blocking playback
+
+                // Safety: ensure we notify the mixer that this stream is done
+                audioMixer.StopAudioStream(audioType);
 
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {audioType}: Playback completed. Total frames sent: {framesSent}");
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Expected: Other audio streams should now recover their volume over 500ms");

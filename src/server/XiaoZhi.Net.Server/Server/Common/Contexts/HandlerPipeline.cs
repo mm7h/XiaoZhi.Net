@@ -10,6 +10,12 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 {
     internal class HandlerPipeline
     {
+#if DEBUG
+        private const int CHANNEL_CAPACITY = 500;
+#else
+        private const int CHANNEL_CAPACITY = 1500;
+#endif
+
         private readonly Session _currentSession;
 
         private ILogger? _logger;
@@ -133,12 +139,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         private void BuildHandlersWorkflow<T>(IOutHandler<T> previous, IInHandler<T> next)
         {
-#if DEBUG
-            int capacity = 100;
-#else
-            int capacity = 1000;
-#endif
-            BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(capacity)
+            BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(CHANNEL_CAPACITY)
             {
                 SingleReader = true,
                 SingleWriter = true,
@@ -154,12 +155,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         private void BuildHandlersWorkflow<T1, T2, T3>(IOutHandler<T1, T2, T3> previous, IInHandler<T1, T2, T3> next)
         {
-#if DEBUG
-            int capacity = 100;
-#else
-            int capacity = 1000;
-#endif
-            BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(capacity)
+            BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(CHANNEL_CAPACITY)
             {
                 SingleReader = true,
                 SingleWriter = true,
@@ -185,12 +181,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         private void BuildHandlersWorkflow<T>(IOutHandler<T> previous1, IOutHandler<T> previous2, IInHandler<T, T> next)
         {
-#if DEBUG
-            int capacity = 100;
-#else
-            int capacity = 1000;
-#endif
-            BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(capacity)
+            BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(CHANNEL_CAPACITY)
             {
                 SingleReader = true,
                 SingleWriter = true,

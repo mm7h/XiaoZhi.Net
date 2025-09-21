@@ -36,15 +36,18 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
         // Enhanced volume control for priority-based mixing
         private Dictionary<AudioType, float>? _baseVolumeLevels;
-
-        // More aggressive volume reduction factors
         private Dictionary<AudioType, float>? _prioritySuppressionLevels;
 
         // Track last active types to avoid restarting transitions too often
         private HashSet<AudioType> _lastActiveTypes = new();
+        // Track last highest priority to detect priority change even if active set stays same
+        private int? _lastHighestPriority = null;
 
         // Remember last normalization factor to avoid sudden gain drops when a new low-energy stream joins
         private float _lastNormalizationFactor = 0.75f; // matches single stream factor used previously
+
+        // Only mark the very first mixed frame after switching to Mixing
+        private volatile bool _firstFrameAfterStart = false;
 
         public AudioMixer(ILogger<AudioMixer>? logger = null)
         {
@@ -70,7 +73,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 {
                     if (_initialized)
                     {
-                        _logger.LogWarning("FFmpegAudioMixer is already initialized");
+                        _logger.LogWarning("AudioMixer is already initialized");
                         return true;
                     }
 
@@ -100,21 +103,21 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     _frameDuration = frameDuration;
                     _frameSampleCount = outputSampleRate * frameDuration / 1000 * outputChannels;
 
-                    // 使用更高频率的定时器来支持平滑的音量过渡
-                    var timerInterval = Math.Max(frameDuration / 4, 5); // 至少5ms，支持更平滑的过渡
+                    // Use a higher tick than frame to drive smoother transitions
+                    var timerInterval = Math.Max(frameDuration / 4, 5);
                     _mixingTimer.Change(timerInterval, timerInterval);
 
                     _initialized = true;
                     SetState(AudioMixerState.Idle);
 
-                    _logger.LogInformation("FFmpegAudioMixer initialized: {SampleRate}Hz, {Channels} channels, {FrameDuration}ms frames, timer interval: {TimerInterval}ms",
+                    _logger.LogInformation("AudioMixer initialized: {SampleRate}Hz, {Channels} channels, {FrameDuration}ms frames, timer interval: {TimerInterval}ms",
                         outputSampleRate, outputChannels, frameDuration, timerInterval);
 
                     return true;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to initialize FFmpegAudioMixer");
+                    _logger.LogError(ex, "Failed to initialize AudioMixer");
                     return false;
                 }
             }
@@ -157,8 +160,9 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             if (!_config.EnableSmoothVolumeControl)
                 return;
 
+            // Active set determined by started-but-not-completed streams to avoid jitter
             var activeTypes = _audioInputs
-                .Where(kvp => kvp.Value.HasAnyData() && !kvp.Value.IsComplete)
+                .Where(kvp => !kvp.Value.IsComplete && (kvp.Value.HasAnyData() || kvp.Value.ProcessedFrameCount > 0 || kvp.Value.IsStopping))
                 .Select(kvp => kvp.Key)
                 .OrderBy(t => t) // deterministic order
                 .ToList();
@@ -166,24 +170,32 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             if (activeTypes.Count == 0)
                 return;
 
-            // Avoid restarting transitions if active set unchanged
-            if (_lastActiveTypes.SetEquals(activeTypes))
+            var highestPriority = activeTypes.Max(t => (int)t);
+
+            // Recompute when active set or highest priority changes
+            bool activeUnchanged = _lastActiveTypes.SetEquals(activeTypes);
+            bool priorityUnchanged = _lastHighestPriority.HasValue && _lastHighestPriority.Value == highestPriority;
+            if (activeUnchanged && priorityUnchanged)
             {
                 return;
             }
-            _lastActiveTypes = new HashSet<AudioType>(activeTypes);
 
-            var highestPriority = activeTypes.Max(t => (int)t);
+            _lastActiveTypes = new HashSet<AudioType>(activeTypes);
+            _lastHighestPriority = highestPriority;
 
             foreach (var audioType in activeTypes)
             {
                 var volumeState = _volumeStates.GetOrAdd(audioType, _ => new VolumeTransitionControl());
                 var targetVolume = CalculateTargetVolume(audioType, highestPriority, activeTypes);
 
-                volumeState.StartTransition(targetVolume, _config.VolumeTransitionDurationMs, _config.TransitionCurve);
+                // Only start transition if target actually changes, to avoid repeated log spam
+                if (MathF.Abs(volumeState.TargetVolume - targetVolume) > 1e-3f)
+                {
+                    volumeState.StartTransition(targetVolume, _config.VolumeTransitionDurationMs, _config.TransitionCurve);
 
-                _logger.LogDebug("Volume transition started for {AudioType}: {Current:F3} -> {Target:F3}",
-                    audioType, volumeState.CurrentVolume, targetVolume);
+                    _logger.LogDebug("Volume transition started for {AudioType}: {Current:F3} -> {Target:F3}",
+                        audioType, volumeState.CurrentVolume, targetVolume);
+                }
             }
 
             // Remove states for streams no longer active to allow future clean restarts
@@ -276,7 +288,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             {
                 bool hasProcessedData = false;
                 int processedFrameCount = 0;
-                const int maxFramesPerCycle = 3; // 减少每次处理的帧数以提高响应性
+                const int maxFramesPerCycle = 3; // keep CPU bound limit
 
                 while (processedFrameCount < maxFramesPerCycle)
                 {
@@ -285,21 +297,55 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
                     if (inputsWithData.Count == 0)
                     {
-                        // 检查是否有音量过渡需要处理
-                        bool hasActiveTransitions = _volumeStates.Values.Any(v => v.IsTransitioning);
-                        if (hasActiveTransitions && allInputs.Count > 0)
+                        // Transition-only period: advance transitions and emit silent frames
+                        bool hadTransitions = _volumeStates.Values.Any(v => v.IsTransitioning);
+                        if (hadTransitions && allInputs.Count > 0)
                         {
-                            // 为了保持音量过渡的连续性，生成静音帧
+                            foreach (var v in _volumeStates.Values)
+                            {
+                                _ = v.UpdateAndGetCurrentVolume();
+                            }
+
+                            bool transitionsStillActive = _volumeStates.Values.Any(v => v.IsTransitioning);
+                            bool allCompleteAndEmpty = _audioInputs.Values.All(i => i.IsComplete && !i.HasAnyData());
+                            bool shouldMarkLast = allCompleteAndEmpty && !transitionsStillActive;
+
                             var silentFrame = new float[_frameSampleCount];
-                            OnMixedAudioDataAvailable?.Invoke(silentFrame, false, false);
+
+                            bool isFirst = false;
+                            if (_firstFrameAfterStart)
+                            {
+                                isFirst = true;
+                                _firstFrameAfterStart = false;
+                            }
+
+                            OnMixedAudioDataAvailable?.Invoke(silentFrame, isFirst, shouldMarkLast);
                             hasProcessedData = true;
                             processedFrameCount++;
                             continue;
                         }
+
+                        bool allCompleteAndEmptyNoTransition = allInputs.Count > 0 && _audioInputs.Values.All(i => i.IsComplete && !i.HasAnyData());
+                        if (allCompleteAndEmptyNoTransition)
+                        {
+                            var silentFrame = new float[_frameSampleCount];
+
+                            bool isFirst = false;
+                            if (_firstFrameAfterStart)
+                            {
+                                isFirst = true;
+                                _firstFrameAfterStart = false;
+                            }
+
+                            OnMixedAudioDataAvailable?.Invoke(silentFrame, isFirst, true);
+                            hasProcessedData = true;
+                            processedFrameCount++;
+                        }
+
                         break;
                     }
 
-                    // 使用改进的缓冲区策略
+                    // buffer strategy to allow partial on new streams
                     var activeInputs = GetActiveInputsWithBufferStrategy(inputsWithData);
                     if (activeInputs.Count == 0)
                     {
@@ -322,9 +368,16 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                         ApplyDynamicGainControlSmooth(mixedAudio, activeInputs.Count > 1);
                         UpdateStatistics(mixedAudio, activeInputs.Count);
 
-                        bool isFirst = activeInputs.Any(input => input.IsFirstFrame);
-                        bool isLast = activeInputs.Any(input => input.IsLastFrame) &&
-                                     activeInputs.All(input => input.IsComplete || !input.HasAnyData());
+                        bool isFirst = false;
+                        if (_firstFrameAfterStart)
+                        {
+                            isFirst = true;
+                            _firstFrameAfterStart = false;
+                        }
+
+                        bool allCompleteAndEmpty = _audioInputs.Values.All(i => i.IsComplete && !i.HasAnyData());
+                        bool hasActiveTransitions = _volumeStates.Values.Any(v => v.IsTransitioning);
+                        bool isLast = allCompleteAndEmpty && !hasActiveTransitions;
 
                         OnMixedAudioDataAvailable?.Invoke(mixedAudio, isFirst, isLast);
 
@@ -342,7 +395,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     }
                 }
 
-                // 清理完成的流并触发音量恢复
+                // Cleanup completed streams
                 var completedStreams = _audioInputs.Where(kvp => kvp.Value.IsComplete && !kvp.Value.HasAnyData()).ToList();
                 bool hasCompletedStreams = completedStreams.Count > 0;
 
@@ -351,24 +404,24 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     if (_audioInputs.TryRemove(completedStream.Key, out var stream))
                     {
                         stream.Dispose();
-                        _volumeStates.TryRemove(completedStream.Key, out _); // 同时清理音量状态
+                        _volumeStates.TryRemove(completedStream.Key, out _); // remove transition state
                     }
                 }
 
-                // 如果有流完成，重新计算剩余流的音量目标
                 if (hasCompletedStreams && _audioInputs.Count > 0)
                 {
                     _logger.LogDebug("Audio stream completed, recalculating volume targets for remaining streams");
-                    UpdateVolumeTargets(); // 使用现有的方法
-                    _hasPendingData = true; // 确保继续处理音量过渡
+                    UpdateVolumeTargets(); // recompute for remaining streams
+                    _hasPendingData = true;
                 }
 
-                // 更新状态
+                // Update state
                 if (_audioInputs.IsEmpty)
                 {
                     SetState(AudioMixerState.Idle);
                     _hasPendingData = false;
                     _lastActiveTypes.Clear();
+                    _lastHighestPriority = null;
                 }
                 else if (!hasProcessedData)
                 {
@@ -402,7 +455,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 }
                 else if (isNewStream && _config.EnableSmoothVolumeControl)
                 {
-                    // 对于新流，使用配置的容忍度
+                    // Allow partial frame on new streams to reduce startup latency
                     int minRequiredSamples = (int)(_frameSampleCount * _config.NewStreamBufferTolerance);
                     if (input.AvailableDataCount >= minRequiredSamples)
                     {
@@ -436,7 +489,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 if (frameData == null || frameData.Length == 0)
                     continue;
 
-                // 针对单路数据做淡入/淡出，避免影响其它正在播放的流
+                // short fade in/out to reduce clicks
                 const int fadeLength = 16;
                 if (input.IsFirstFrame)
                 {
@@ -476,7 +529,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
             if (streamEnergies.Count <= 1)
             {
-                // Single stream: keep legacy factor for consistency (0.75) with gentle smoothing
+                // Single stream: smooth normalization to target ~0.75
                 float targetNorm = 0.75f;
                 _lastNormalizationFactor = SmoothNormalization(_lastNormalizationFactor, targetNorm);
                 for (int i = 0; i < mixedAudio.Length; i++) mixedAudio[i] *= _lastNormalizationFactor;
@@ -484,13 +537,13 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             }
 
             // Decide which streams participate in normalization (exclude very low energy / warmup streams)
-            const float energyThreshold = 0.003f; // empirically chosen small value
+            const float energyThreshold = 0.003f; // small value
             var effective = streamEnergies.Where(e => !e.warmup && e.energy >= energyThreshold).ToList();
             int effectiveCount = effective.Count;
             if (effectiveCount == 0) effectiveCount = 1; // avoid division instability
 
             float targetFactor = (float)(0.75 / Math.Sqrt(effectiveCount));
-            // Smooth normalization changes to avoid sudden dip when new stream enters with near-zero energy
+            // Smooth normalization changes to avoid sudden dip when a new low-energy stream enters
             _lastNormalizationFactor = SmoothNormalization(_lastNormalizationFactor, targetFactor);
 
             for (int i = 0; i < mixedAudio.Length; i++) mixedAudio[i] *= _lastNormalizationFactor;
@@ -599,6 +652,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 }
                 _volumeStates.Clear();
                 _lastActiveTypes.Clear();
+                _lastHighestPriority = null;
                 SetState(AudioMixerState.Idle);
                 _hasPendingData = false;
                 _logger.LogDebug("Cleared all audio buffers");
@@ -623,8 +677,16 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             if (_state != newState)
             {
                 _state = newState;
+                if (newState == AudioMixerState.Mixing)
+                {
+                    _firstFrameAfterStart = true;
+                }
+                else
+                {
+                    _firstFrameAfterStart = false;
+                }
                 StateChanged?.Invoke(_state);
-                _logger.LogDebug("FFmpegAudioMixer state changed to {State}", _state);
+                _logger.LogDebug("AudioMixer state changed to {State}", _state);
             }
         }
 
@@ -637,8 +699,8 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 _mixingTimer?.Change(Timeout.Infinite, Timeout.Infinite); _mixingTimer?.Dispose();
                 SpinWait.SpinUntil(() => _processingFlag == 0, 1000);
                 foreach (var input in _audioInputs.Values) input.Dispose();
-                _audioInputs.Clear(); _volumeStates.Clear(); _lastActiveTypes.Clear();
-                _disposed = true; _initialized = false; _logger.LogInformation("FFmpegAudioMixer disposed");
+                _audioInputs.Clear(); _volumeStates.Clear(); _lastActiveTypes.Clear(); _lastHighestPriority = null;
+                _disposed = true; _initialized = false; _logger.LogInformation("AudioMixer disposed");
             }
         }
     }
