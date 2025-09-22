@@ -106,6 +106,11 @@ namespace XiaoZhi.Net.Server.Handlers
                 this._providerManager.BuildAudioMixer(session);
                 this._providerManager.RegisterAudioResampler(session);
                 this._providerManager.RegisterAudioEncoder(session);
+
+                defultHelloMessage.AudioParams.Format = format;
+                defultHelloMessage.AudioParams.SampleRate = sampleRate;
+                defultHelloMessage.AudioParams.Channels = channels;
+                defultHelloMessage.AudioParams.FrameDuration = frameDuration;
             }
 
             this.SendOutter.SendAsync(JsonHelper.Serialize(defultHelloMessage));

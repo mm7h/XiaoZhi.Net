@@ -48,6 +48,8 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
         // Only mark the very first mixed frame after switching to Mixing
         private volatile bool _firstFrameAfterStart = false;
+        // Ensure we emit isLast only once per mixing session
+        private volatile bool _lastFrameEmitted = false;
 
         public AudioMixer(ILogger<AudioMixer>? logger = null)
         {
@@ -138,6 +140,9 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
             // Add data to the input stream with automatic frame boundary detection
             audioInput.AddData(audioData);
+
+            // Reset last-frame flag as new data arrived in current session
+            _lastFrameEmitted = false;
 
             // Only when new stream first frame enters do we recompute
             if (audioInput.ProcessedFrameCount == 0 && audioInput.IsFirstFrame)
@@ -319,7 +324,13 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                                 _firstFrameAfterStart = false;
                             }
 
-                            OnMixedAudioDataAvailable?.Invoke(silentFrame, isFirst, shouldMarkLast);
+                            bool markLastNow = shouldMarkLast && !_lastFrameEmitted;
+                            OnMixedAudioDataAvailable?.Invoke(silentFrame, isFirst, markLastNow);
+                            if (markLastNow)
+                            {
+                                _lastFrameEmitted = true;
+                            }
+
                             hasProcessedData = true;
                             processedFrameCount++;
                             continue;
@@ -328,18 +339,25 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                         bool allCompleteAndEmptyNoTransition = allInputs.Count > 0 && _audioInputs.Values.All(i => i.IsComplete && !i.HasAnyData());
                         if (allCompleteAndEmptyNoTransition)
                         {
-                            var silentFrame = new float[_frameSampleCount];
-
-                            bool isFirst = false;
-                            if (_firstFrameAfterStart)
+                            // Only emit the final frame once
+                            if (!_lastFrameEmitted)
                             {
-                                isFirst = true;
-                                _firstFrameAfterStart = false;
+                                var silentFrame = new float[_frameSampleCount];
+
+                                bool isFirst = false;
+                                if (_firstFrameAfterStart)
+                                {
+                                    isFirst = true;
+                                    _firstFrameAfterStart = false;
+                                }
+
+                                OnMixedAudioDataAvailable?.Invoke(silentFrame, isFirst, true);
+                                _lastFrameEmitted = true;
+                                hasProcessedData = true;
+                                processedFrameCount++;
                             }
 
-                            OnMixedAudioDataAvailable?.Invoke(silentFrame, isFirst, true);
-                            hasProcessedData = true;
-                            processedFrameCount++;
+                            break;
                         }
 
                         break;
@@ -377,9 +395,14 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
                         bool allCompleteAndEmpty = _audioInputs.Values.All(i => i.IsComplete && !i.HasAnyData());
                         bool hasActiveTransitions = _volumeStates.Values.Any(v => v.IsTransitioning);
-                        bool isLast = allCompleteAndEmpty && !hasActiveTransitions;
+                        bool isLastCandidate = allCompleteAndEmpty && !hasActiveTransitions;
+                        bool isLast = isLastCandidate && !_lastFrameEmitted;
 
                         OnMixedAudioDataAvailable?.Invoke(mixedAudio, isFirst, isLast);
+                        if (isLast)
+                        {
+                            _lastFrameEmitted = true;
+                        }
 
                         foreach (var input in activeInputs)
                         {
@@ -680,6 +703,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 if (newState == AudioMixerState.Mixing)
                 {
                     _firstFrameAfterStart = true;
+                    _lastFrameEmitted = false; // reset last-frame flag on start
                 }
                 else
                 {

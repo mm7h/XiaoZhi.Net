@@ -53,7 +53,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
                     // 创建带有平滑音量控制的音频混音器
                     // 配置：1000ms过渡时间，对数曲线，启用平滑控制
-                    IAudioMixer mixer = MediaFactory.CreateAudioMixer(
+                    IAudioMixer mixer = MediaFactory.CreateFFmpegAudioMixer(
                         SAMPLE_RATE,
                         CHANNELS,
                         FRAME_DURATION_MS,

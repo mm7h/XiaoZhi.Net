@@ -1,6 +1,6 @@
 using FFmpeg.AutoGen;
 using Microsoft.Extensions.Logging;
-using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.FFmpeg.Abstractions;
 using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Dtos;
@@ -8,140 +8,96 @@ using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 {
-    /// <summary>
-    /// »ùÓÚFFmpegµÄÔ­ÉúÒôÆµ»ìÒôÆ÷ÊµÏÖ
-    /// </summary>
     internal sealed unsafe class FFmpegAudioMixer : IAudioMixer
     {
+        #region ç§æœ‰å­—æ®µ
+
         private readonly ILogger<FFmpegAudioMixer> _logger;
-        private readonly ConcurrentDictionary<AudioType, AudioStreamProcessor> _audioStreams;
-        private readonly ConcurrentDictionary<AudioType, VolumeTransitionControl> _volumeStates;
+        
+        // éŸ³é¢‘æµç®¡ç† - å‚è€ƒCä»£ç ä¸­çš„éŸ³é¢‘æµæ•°ç»„
+        private readonly Dictionary<AudioType, AudioStreamContext> _audioStreams;
+        private readonly Dictionary<AudioType, IntPtr> _audioFifos; // AVAudioFifo*
+        private readonly Dictionary<AudioType, VolumeTransitionControl> _volumeStates;
         private readonly Dictionary<AudioType, float> _volumeLevels;
         private readonly Dictionary<AudioType, int> _priorities;
-        private readonly Timer _processingTimer;
-
+        private readonly object _streamLock = new();
+        
+        // FFmpeg Filter Graphç›¸å…³ - æ ¸å¿ƒæ··éŸ³æ¶æ„
         private AVFilterGraph* _filterGraph;
-        private AVFilterContext* _amixFilterCtx;
         private AVFilterContext* _sinkFilterCtx;
-        private readonly Dictionary<AudioType, IntPtr> _sourceFilters;
-
-        private AudioMixerConfig _config = new();
-        private bool _initialized;
-        private readonly object _filterLock = new();
-        private bool _disposed;
-        private volatile bool _hasPendingData = false;
-        private volatile int _processingFlag = 0;
-
-        // Audio format settings
+        private readonly Dictionary<AudioType, IntPtr> _sourceFilterCtxs; // AVFilterContext*
+        private AVFilterInOut** _filterInputs;
+        private AVFilterInOut* _filterOutput;
+        
+        // éŸ³é¢‘æ ¼å¼å‚æ•°
         private int _outputSampleRate;
         private int _outputChannels;
         private int _frameDuration;
         private int _frameSampleCount;
-
-        // State management
-        private AudioMixerState _state = AudioMixerState.Idle;
+        private AVSampleFormat _sampleFormat;
+        private ulong _channelLayout;
+        
+        // é…ç½®å’ŒçŠ¶æ€ç®¡ç†
+        private AudioMixerConfig _config = new();
+        private bool _initialized;
+        private bool _disposed;
+        private volatile bool _isMixing = false;
+        private volatile bool _shouldStop = false;
+        private readonly object _filterLock = new();
+        
+        // å¤„ç†çº¿ç¨‹å’ŒåŒæ­¥
+        private Thread? _mixingThread;
+        private readonly CancellationTokenSource _cancellationTokenSource = new();
+        private readonly ManualResetEventSlim _dataAvailableEvent = new(false);
+        
+        // ç»Ÿè®¡ä¿¡æ¯
         private AudioMixerStats _currentStats = new();
+        private long _pts = 0;
+        private int _totalStreamCount = 0;
+        private int _completedStreamCount = 0;
+        
+        // è¾“å‡ºäº‹ä»¶æ ‡å¿—
+        private bool _hasEmittedFirst = false;
+        private bool _hasEmittedLast = false;
+        private bool _draining = false;
 
-        // Enhanced volume control for priority-based mixing
-        private Dictionary<AudioType, float>? _baseVolumeLevels;
-        private Dictionary<AudioType, float>? _prioritySuppressionLevels;
+        #endregion
 
-        // Normalization smoothing (avoid first-frame stutter when new low-energy stream joins)
-        private float _lastNormalizationFactor = 0.75f;
+        #region äº‹ä»¶å’Œå±æ€§
 
-        public FFmpegAudioMixer(ILogger<FFmpegAudioMixer> logger)
-        {
-            _logger = logger;
-            _audioStreams = new ConcurrentDictionary<AudioType, AudioStreamProcessor>();
-            _volumeStates = new ConcurrentDictionary<AudioType, VolumeTransitionControl>();
-            _volumeLevels = new Dictionary<AudioType, float>();
-            _priorities = new Dictionary<AudioType, int>();
-            _sourceFilters = new Dictionary<AudioType, IntPtr>();
-
-            // ´´½¨´¦Àí¶¨Ê±Æ÷
-            _processingTimer = new Timer(ProcessMixingCallback, null, Timeout.Infinite, Timeout.Infinite);
-
-            InitializeAudioTypes();
-        }
-
-        // Events
         public event Action<AudioMixerState>? StateChanged;
         public event Action<float[], bool, bool>? OnMixedAudioDataAvailable;
         public event Action<AudioMixerStats>? OnStatsUpdated;
 
-        // Properties
         public bool IsInitialized => _initialized;
         public int OutputSampleRate => _outputSampleRate;
         public int OutputChannels => _outputChannels;
         public int FrameDuration => _frameDuration;
 
-        public bool Initialize(int outputSampleRate, int outputChannels, int frameDuration, AudioMixerConfig? config = null)
+        #endregion
+
+        #region æ„é€ å‡½æ•°
+
+        public FFmpegAudioMixer(ILogger<FFmpegAudioMixer> logger)
         {
-            lock (_filterLock)
-            {
-                try
-                {
-                    if (_initialized)
-                    {
-                        _logger.LogWarning("FFmpegAudioMixer is already initialized");
-                        return true;
-                    }
-
-                    if (config is not null)
-                    {
-                        _config = config;
-                    }
-
-                    _outputSampleRate = outputSampleRate;
-                    _outputChannels = outputChannels;
-                    _frameDuration = frameDuration;
-                    _frameSampleCount = outputSampleRate * frameDuration / 1000 * outputChannels;
-
-                    // Initialize volume levels from config
-                    _baseVolumeLevels = new()
-                    {
-                        { AudioType.SystemNotification, _config.SystemNotificationVolumeConfig.BaseVolume },
-                        { AudioType.TTS, _config.TTSVolumeConfig.BaseVolume },
-                        { AudioType.Music, _config.MusicVolumeConfig.BaseVolume },
-                        { AudioType.Other, 0.5f }
-                    };
-
-                    _prioritySuppressionLevels = new()
-                    {
-                        { AudioType.SystemNotification, _config.SystemNotificationVolumeConfig.SuppressionVolume },
-                        { AudioType.TTS, _config.TTSVolumeConfig.SuppressionVolume },
-                        { AudioType.Music, _config.MusicVolumeConfig.SuppressionVolume },
-                        { AudioType.Other, 0.05f }
-                    };
-
-                    // Update volume levels based on config
-                    UpdateVolumeLevelsFromConfig();
-                    
-                    // Æô¶¯´¦Àí¶¨Ê±Æ÷ - Ê¹ÓÃ¸ü¸ßÆµÂÊÀ´Ö§³ÖÆ½»¬µÄÒôÁ¿¹ı¶É
-                    var timerInterval = Math.Max(frameDuration / 4, 5); // ÖÁÉÙ5ms£¬Ö§³Ö¸üÆ½»¬µÄ¹ı¶É
-                    _processingTimer.Change(timerInterval, timerInterval);
-
-                    _initialized = true;
-                    SetState(AudioMixerState.Idle);
-
-                    _logger.LogInformation("FFmpeg audio mixer initialized successfully with SampleRate={SampleRate}, Channels={Channels}, FrameDuration={FrameDuration}ms, timer interval: {TimerInterval}ms",
-                        outputSampleRate, outputChannels, frameDuration, timerInterval);
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to initialize FFmpeg audio mixer");
-                    return false;
-                }
-            }
+            _logger = logger;
+            _audioStreams = new Dictionary<AudioType, AudioStreamContext>();
+            _audioFifos = new Dictionary<AudioType, IntPtr>();
+            _sourceFilterCtxs = new Dictionary<AudioType, IntPtr>();
+            _volumeStates = new Dictionary<AudioType, VolumeTransitionControl>();
+            _volumeLevels = new Dictionary<AudioType, float>();
+            _priorities = new Dictionary<AudioType, int>();
+            
+            // åˆå§‹åŒ–éŸ³é¢‘ç±»å‹é»˜è®¤é…ç½®
+            InitializeAudioTypes();
+            
+            // åˆå§‹åŒ–FFmpegæ—¥å¿—çº§åˆ«
+            ffmpeg.av_log_set_level(ffmpeg.AV_LOG_WARNING);
         }
 
-        private void UpdateVolumeLevelsFromConfig()
-        {
-            _volumeLevels[AudioType.SystemNotification] = _config.SystemNotificationVolumeConfig.BaseVolume;
-            _volumeLevels[AudioType.TTS] = _config.TTSVolumeConfig.BaseVolume;
-            _volumeLevels[AudioType.Music] = _config.MusicVolumeConfig.BaseVolume;
-        }
+        #endregion
+
+        #region åˆå§‹åŒ–å’Œé…ç½®
 
         private void InitializeAudioTypes()
         {
@@ -171,419 +127,731 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             }
         }
 
+        private void UpdateVolumeLevelsFromConfig()
+        {
+            _volumeLevels[AudioType.SystemNotification] = _config.SystemNotificationVolumeConfig.BaseVolume;
+            _volumeLevels[AudioType.TTS] = _config.TTSVolumeConfig.BaseVolume;
+            _volumeLevels[AudioType.Music] = _config.MusicVolumeConfig.BaseVolume;
+        }
+
+        public bool Initialize(int outputSampleRate, int outputChannels, int frameDuration, AudioMixerConfig? config = null)
+        {
+            lock (_filterLock)
+            {
+                try
+                {
+                    if (_initialized)
+                    {
+                        _logger.LogWarning("FFmpegAudioMixer is already initialized");
+                        return true;
+                    }
+
+                    if (config is not null)
+                    {
+                        _config = config;
+                    }
+
+                    _outputSampleRate = outputSampleRate;
+                    _outputChannels = outputChannels;
+                    _frameDuration = frameDuration;
+                    _frameSampleCount = outputSampleRate * frameDuration / 1000 * outputChannels;
+                    // ä½¿ç”¨æ‰“åŒ…æµ®ç‚¹æ ¼å¼ï¼Œä¾¿äºä¸æ‰˜ç®¡ float[] äº’æ“ä½œ
+                    _sampleFormat = AVSampleFormat.AV_SAMPLE_FMT_FLT;
+                    _channelLayout = outputChannels == 2 ? ffmpeg.AV_CH_LAYOUT_STEREO : ffmpeg.AV_CH_LAYOUT_MONO;
+
+                    // æ›´æ–°éŸ³é‡é…ç½®
+                    UpdateVolumeLevelsFromConfig();
+
+                    _initialized = true;
+                    SetState(AudioMixerState.Idle);
+
+                    _logger.LogInformation("FFmpeg audio mixer initialized successfully with SampleRate={SampleRate}, Channels={Channels}, FrameDuration={FrameDuration}ms",
+                        outputSampleRate, outputChannels, frameDuration);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to initialize FFmpeg audio mixer");
+                    return false;
+                }
+            }
+        }
+
+        #endregion
+
+        #region éŸ³é¢‘æµç®¡ç†
+
         public void AddAudioData(AudioType audioType, float[] audioData)
         {
-            if (!_initialized || _disposed)
+            if (!_initialized || _disposed || audioData == null || audioData.Length == 0)
                 return;
 
-            // °´Ğè´´½¨ÒôÆµÁ÷´¦ÀíÆ÷£¬¶ø²»ÊÇÔ¤´´½¨
-            var processor = _audioStreams.GetOrAdd(audioType, 
-                _ => new AudioStreamProcessor(audioType, _outputSampleRate, _outputChannels, _frameDuration, _config));
-
-            // »ñÈ¡»ò´´½¨ÒôÁ¿×´Ì¬¹ÜÀíÆ÷
-            var volumeState = _volumeStates.GetOrAdd(audioType, _ => new VolumeTransitionControl());
-
-            // Ê¹ÓÃ AudioStreamProcessor µÄ AddData ·½·¨
-            processor.AddData(audioData);
-
-            // ¼ì²éÊÇ·ñÊÇĞÂÁ÷µÄµÚÒ»Ö¡Êı¾İ
-            if (processor.ProcessedFrameCount == 0 && processor.IsFirstFrame)
+            lock (_streamLock)
             {
-                UpdateVolumeTargets();
-            }
-
-            _hasPendingData = true;
-
-            if (_state == AudioMixerState.Idle)
-            {
-                SetState(AudioMixerState.Mixing);
-            }
-
-            TryProcessMixingImmediate();
-        }
-
-        private void UpdateVolumeTargets()
-        {
-            if (!_config.EnableSmoothVolumeControl)
-                return;
-
-            var activeTypes = _audioStreams.Keys
-                .Where(key => _audioStreams[key].HasAnyData() && !_audioStreams[key].IsComplete)
-                .ToList();
-
-            if (activeTypes.Count == 0)
-                return;
-
-            var highestPriority = activeTypes.Max(t => (int)t);
-
-            foreach (var audioType in activeTypes)
-            {
-                var volumeState = _volumeStates.GetOrAdd(audioType, _ => new VolumeTransitionControl());
-                var targetVolume = CalculateTargetVolume(audioType, highestPriority, activeTypes);
-
-                volumeState.StartTransition(targetVolume, _config.VolumeTransitionDurationMs, _config.TransitionCurve);
-
-                _logger.LogDebug("Volume transition started for {AudioType}: {Current:F3} -> {Target:F3}",
-                    audioType, volumeState.CurrentVolume, targetVolume);
-            }
-        }
-
-        private float CalculateTargetVolume(AudioType audioType, int highestPriority, List<AudioType> activeTypes)
-        {
-            var baseVolume = _baseVolumeLevels?.GetValueOrDefault(audioType, 0.5f) ?? 0.5f;
-            var currentPriority = (int)audioType;
-
-            if (currentPriority == highestPriority)
-            {
-                return baseVolume;
-            }
-
-            var suppressionVolume = _prioritySuppressionLevels?.GetValueOrDefault(audioType, 0.05f) ?? 0.05f;
-            var higherPriorityCount = activeTypes.Count(t => (int)t > currentPriority);
-
-            if (higherPriorityCount > 0)
-            {
-                suppressionVolume *= (float)Math.Pow(0.5, higherPriorityCount - 1);
-            }
-
-            return suppressionVolume;
-        }
-
-        private void TryProcessMixingImmediate()
-        {
-            if (Interlocked.CompareExchange(ref _processingFlag, 1, 0) == 0)
-            {
-                try
+                // è·å–æˆ–åˆ›å»ºéŸ³é¢‘æµä¸Šä¸‹æ–‡
+                if (!_audioStreams.TryGetValue(audioType, out var streamContext))
                 {
-                    Task.Factory.StartNew(() =>
-                    {
-                        try
-                        {
-                            ProcessMixing();
-                        }
-                        finally
-                        {
-                            Interlocked.Exchange(ref _processingFlag, 0);
-                        }
-                    }, TaskCreationOptions.LongRunning);
+                    streamContext = CreateAudioStreamContext(audioType);
+                    _audioStreams[audioType] = streamContext;
+                    _totalStreamCount++;
+                    
+                    // é‡æ–°é…ç½®filter graph
+                    ReconfigureFilterGraph();
                 }
-                catch
+
+                // å†™å…¥æ•°æ®åˆ°FIFOç¼“å†²åŒº
+                WriteToAudioFifo(audioType, audioData);
+                
+                // æ ‡è®°æœ‰æ•°æ®å¯ç”¨
+                _dataAvailableEvent.Set();
+                
+                // å¯åŠ¨æ··éŸ³å¤„ç†
+                if (!_isMixing)
                 {
-                    Interlocked.Exchange(ref _processingFlag, 0);
+                    StartMixingProcess();
                 }
             }
         }
 
-        private void ProcessMixingCallback(object? state)
+        public void StopAudioStream(AudioType audioType)
         {
-            if (!_initialized || _disposed)
-                return;
-
-            // ¼´Ê¹Ã»ÓĞĞÂÊı¾İ£¬Ò²Òª´¦ÀíÒôÁ¿¹ı¶É
-            bool hasActiveTransitions = _volumeStates.Values.Any(v => v.IsTransitioning);
-            if (!_hasPendingData && !hasActiveTransitions)
-                return;
-
-            if (Interlocked.CompareExchange(ref _processingFlag, 1, 0) == 0)
+            lock (_streamLock)
             {
-                try
+                if (_audioStreams.TryGetValue(audioType, out var streamContext))
                 {
-                    ProcessMixing();
-                }
-                finally
-                {
-                    Interlocked.Exchange(ref _processingFlag, 0);
+                    streamContext.IsStopping = true;
+                    _logger.LogDebug("Marked audio stream {AudioType} for stopping", audioType);
                 }
             }
         }
 
-        private void ProcessMixing()
+        private AudioStreamContext CreateAudioStreamContext(AudioType audioType)
         {
-            if (!_initialized || _disposed)
+            var context = new AudioStreamContext
+            {
+                AudioType = audioType,
+                IsActive = true,
+                IsStopping = false,
+                ProcessedFrameCount = 0,
+                SourceClosed = false
+            };
+
+            // åˆ›å»ºFIFOç¼“å†²åŒº
+            var fifo = ffmpeg.av_audio_fifo_alloc(_sampleFormat, _outputChannels, _frameSampleCount * 30);
+            if (fifo == null)
+            {
+                throw new InvalidOperationException($"Failed to allocate audio FIFO for {audioType}");
+            }
+            
+            _audioFifos[audioType] = (IntPtr)fifo;
+            
+            _logger.LogDebug("Created audio stream context for {AudioType}", audioType);
+            return context;
+        }
+
+        private void WriteToAudioFifo(AudioType audioType, float[] audioData)
+        {
+            if (!_audioFifos.TryGetValue(audioType, out var fifoPtr))
                 return;
 
             try
             {
-                bool hasProcessedData = false;
-                int processedFrameCount = 0;
-                const int maxFramesPerCycle = 3; // ¼õÉÙÃ¿´Î´¦ÀíµÄÖ¡ÊıÒÔÌá¸ßÏìÓ¦ĞÔ
+                // åº”ç”¨éŸ³é‡æ§åˆ¶ï¼ˆé¿å…æ¯æ¬¡å†™å…¥éƒ½é‡å¯è¿‡æ¸¡ï¼‰
+                var volumeState = GetOrCreateVolumeState(audioType);
+                var targetVolume = _volumeLevels.GetValueOrDefault(audioType, 0.5f);
 
-                while (processedFrameCount < maxFramesPerCycle)
+                float currentVolume;
+                if (!_config.EnableSmoothVolumeControl)
                 {
-                    var allInputs = _audioStreams.Values.ToList();
-                    var inputsWithData = allInputs.Where(input => input.HasAnyData() && !input.IsComplete).ToList();
-
-                    if (inputsWithData.Count == 0)
+                    currentVolume = targetVolume;
+                }
+                else
+                {
+                    const float eps = 0.0001f;
+                    if (!volumeState.IsTransitioning && Math.Abs(volumeState.TargetVolume - targetVolume) > eps)
                     {
-                        // ¼ì²éÊÇ·ñÓĞÒôÁ¿¹ı¶ÉĞèÒª´¦Àí
-                        bool hasActiveTransitions = _volumeStates.Values.Any(v => v.IsTransitioning);
-                        if (hasActiveTransitions && allInputs.Count > 0)
+                        volumeState.StartTransition(targetVolume, _config.VolumeTransitionDurationMs, _config.TransitionCurve);
+                    }
+                    currentVolume = volumeState.UpdateAndGetCurrentVolume();
+                }
+
+                // åº”ç”¨éŸ³é‡åˆ°éŸ³é¢‘æ•°æ®
+                var processedData = new float[audioData.Length];
+                for (int i = 0; i < audioData.Length; i++)
+                {
+                    processedData[i] = audioData[i] * currentVolume;
+                }
+
+                // è½¬æ¢floatæ•°ç»„ä¸ºFFmpegæ ¼å¼ï¼ˆæ‰“åŒ…æ ¼å¼ï¼‰
+                var dataPtr = Marshal.AllocHGlobal(processedData.Length * sizeof(float));
+                Marshal.Copy(processedData, 0, dataPtr, processedData.Length);
+                
+                var samples = processedData.Length / _outputChannels;
+                var fifo = (AVAudioFifo*)fifoPtr;
+                var tmp = dataPtr; // éœ€è¦ä¸€ä¸ªä¸€çº§æŒ‡é’ˆæ•°ç»„çš„åœ°å€
+                var ret = ffmpeg.av_audio_fifo_write(fifo, (void**)&tmp, samples);
+                
+                Marshal.FreeHGlobal(dataPtr);
+                
+                if (ret < 0)
+                {
+                    _logger.LogError("Failed to write audio data to FIFO for {AudioType}, error: {Error}", 
+                        audioType, GetFFmpegErrorString(ret));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error writing audio data to FIFO for {AudioType}", audioType);
+            }
+        }
+
+        #endregion
+
+        #region Filter Graphç®¡ç†
+
+        private void ReconfigureFilterGraph()
+        {
+            try
+            {
+                CleanupFilterGraph();
+                CreateFilterGraph();
+                _logger.LogDebug("Filter graph reconfigured with {StreamCount} streams", _audioStreams.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to reconfigure filter graph");
+            }
+        }
+
+        private void CreateFilterGraph()
+        {
+            if (_audioStreams.Count == 0)
+                return;
+
+            _filterGraph = ffmpeg.avfilter_graph_alloc();
+            if (_filterGraph == null)
+            {
+                throw new InvalidOperationException("Failed to allocate filter graph");
+            }
+
+            // åˆ›å»ºè¾“å‡ºsink filter
+            CreateSinkFilter();
+            
+            // ä¸ºæ¯ä¸ªéŸ³é¢‘æµåˆ›å»ºsource filter
+            foreach (var audioType in _audioStreams.Keys)
+            {
+                CreateSourceFilter(audioType);
+            }
+            
+            // é…ç½®filter graph
+            ConfigureFilterGraph();
+        }
+
+        private void CreateSinkFilter()
+        {
+            var sinkFilter = ffmpeg.avfilter_get_by_name("abuffersink");
+            if (sinkFilter == null)
+            {
+                throw new InvalidOperationException("Failed to get abuffersink filter");
+            }
+
+            AVFilterContext* sinkCtx = null;
+            var ret = ffmpeg.avfilter_graph_create_filter(&sinkCtx, sinkFilter, "out", null, null, _filterGraph);
+            if (ret < 0)
+            {
+                throw new InvalidOperationException($"Failed to create sink filter: {GetFFmpegErrorString(ret)}");
+            }
+            _sinkFilterCtx = sinkCtx;
+
+            // è®¾ç½®è¾“å‡ºæ ¼å¼å‚æ•°
+            SetSinkFilterParameters();
+        }
+
+        private void SetSinkFilterParameters()
+        {
+            // è®¾ç½®é‡‡æ ·ç‡
+            var sr = _outputSampleRate;
+            var ret = ffmpeg.av_opt_set_bin(_sinkFilterCtx, "sample_rates",
+                (byte*)&sr, sizeof(int), ffmpeg.AV_OPT_SEARCH_CHILDREN);
+            if (ret < 0)
+            {
+                _logger.LogWarning("Failed to set sample rate for sink filter: {Error}", GetFFmpegErrorString(ret));
+            }
+
+            // è®¾ç½®å£°é“å¸ƒå±€
+            var cl = _channelLayout;
+            ret = ffmpeg.av_opt_set_bin(_sinkFilterCtx, "channel_layouts",
+                (byte*)&cl, sizeof(ulong), ffmpeg.AV_OPT_SEARCH_CHILDREN);
+            if (ret < 0)
+            {
+                _logger.LogWarning("Failed to set channel layout for sink filter: {Error}", GetFFmpegErrorString(ret));
+            }
+
+            // è®¾ç½®é‡‡æ ·æ ¼å¼
+            var sf = _sampleFormat;
+            ret = ffmpeg.av_opt_set_bin(_sinkFilterCtx, "sample_fmts",
+                (byte*)&sf, sizeof(AVSampleFormat), ffmpeg.AV_OPT_SEARCH_CHILDREN);
+            if (ret < 0)
+            {
+                _logger.LogWarning("Failed to set sample format for sink filter: {Error}", GetFFmpegErrorString(ret));
+            }
+        }
+
+        private void CreateSourceFilter(AudioType audioType)
+        {
+            var sourceFilter = ffmpeg.avfilter_get_by_name("abuffer");
+            if (sourceFilter == null)
+            {
+                throw new InvalidOperationException("Failed to get abuffer filter");
+            }
+
+            var filterName = $"in{(int)audioType}";
+            var args = $"time_base=1/{_outputSampleRate}:sample_rate={_outputSampleRate}:" +
+                      $"sample_fmt={ffmpeg.av_get_sample_fmt_name(_sampleFormat)}:channel_layout=0x{_channelLayout:X}";
+
+            AVFilterContext* sourceCtx = null;
+            var ret = ffmpeg.avfilter_graph_create_filter(&sourceCtx, sourceFilter, filterName, args, null, _filterGraph);
+            if (ret < 0)
+            {
+                throw new InvalidOperationException($"Failed to create source filter for {audioType}: {GetFFmpegErrorString(ret)}");
+            }
+
+            _sourceFilterCtxs[audioType] = (IntPtr)sourceCtx;
+        }
+
+        private void ConfigureFilterGraph()
+        {
+            if (_audioStreams.Count == 1)
+            {
+                // å•ä¸ªè¾“å…¥æµï¼Œç›´æ¥è¿æ¥
+                var first = _sourceFilterCtxs.Values.First();
+                var sourceCtx = (AVFilterContext*)first;
+                var ret = ffmpeg.avfilter_link(sourceCtx, 0u, _sinkFilterCtx, 0u);
+                if (ret < 0)
+                {
+                    throw new InvalidOperationException($"Failed to link single source to sink: {GetFFmpegErrorString(ret)}");
+                }
+            }
+            else
+            {
+                // å¤šä¸ªè¾“å…¥æµï¼Œä½¿ç”¨amix filter
+                CreateAmixFilter();
+            }
+
+            // é…ç½®filter graph
+            var configRet = ffmpeg.avfilter_graph_config(_filterGraph, null);
+            if (configRet < 0)
+            {
+                throw new InvalidOperationException($"Failed to configure filter graph: {GetFFmpegErrorString(configRet)}");
+            }
+        }
+
+        private void CreateAmixFilter()
+        {
+            var amixFilter = ffmpeg.avfilter_get_by_name("amix");
+            if (amixFilter == null)
+            {
+                throw new InvalidOperationException("Failed to get amix filter");
+            }
+
+            var inputCount = _audioStreams.Count;
+            var args = $"inputs={inputCount}";
+
+            AVFilterContext* amixCtx = null;
+            var ret = ffmpeg.avfilter_graph_create_filter(&amixCtx, amixFilter, "amix", args, null, _filterGraph);
+            if (ret < 0)
+            {
+                throw new InvalidOperationException($"Failed to create amix filter: {GetFFmpegErrorString(ret)}");
+            }
+
+            // è¿æ¥æ‰€æœ‰è¾“å…¥æºåˆ°amix
+            uint inputIndex = 0;
+            foreach (var src in _sourceFilterCtxs.Values)
+            {
+                var sourceCtx = (AVFilterContext*)src;
+                ret = ffmpeg.avfilter_link(sourceCtx, 0u, amixCtx, inputIndex++);
+                if (ret < 0)
+                {
+                    throw new InvalidOperationException($"Failed to link source to amix: {GetFFmpegErrorString(ret)}");
+                }
+            }
+
+            // è¿æ¥amixåˆ°sink
+            ret = ffmpeg.avfilter_link(amixCtx, 0u, _sinkFilterCtx, 0u);
+            if (ret < 0)
+            {
+                throw new InvalidOperationException($"Failed to link amix to sink: {GetFFmpegErrorString(ret)}");
+            }
+        }
+
+        private void CleanupFilterGraph()
+        {
+            if (_filterGraph != null)
+            {
+                var graph = _filterGraph;
+                ffmpeg.avfilter_graph_free(&graph);
+                _filterGraph = null;
+            }
+            
+            _sourceFilterCtxs.Clear();
+            _sinkFilterCtx = null;
+        }
+
+        #endregion
+
+        #region æ··éŸ³å¤„ç†
+
+        private void StartMixingProcess()
+        {
+            if (_isMixing || _disposed)
+                return;
+
+            _isMixing = true;
+            _shouldStop = false;
+            _hasEmittedFirst = false;
+            _hasEmittedLast = false;
+            _draining = false;
+            SetState(AudioMixerState.Mixing);
+            
+            _mixingThread = new Thread(MixingThreadProc)
+            {
+                Name = "FFmpegAudioMixer",
+                IsBackground = true
+            };
+            _mixingThread.Start();
+            
+            _logger.LogDebug("Started mixing process");
+        }
+
+        private void MixingThreadProc()
+        {
+            try
+            {
+                while (!_shouldStop && !_cancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    if (!ProcessMixing())
+                    {
+                        // å¦‚æœæ²¡æœ‰æ´»è·ƒæµä¸”å°šæœªå‘å‡ºæœ€åä¸€å¸§ï¼Œåˆ™å°è¯•æ’ç©º
+                        if (_audioStreams.Count == 0 && !_hasEmittedLast && _filterGraph != null)
                         {
-                            // ÎªÁË±£³ÖÒôÁ¿¹ı¶ÉµÄÁ¬ĞøĞÔ£¬Éú³É¾²ÒôÖ¡
-                            var silentFrame = new float[_frameSampleCount];
-                            OnMixedAudioDataAvailable?.Invoke(silentFrame, false, false);
-                            hasProcessedData = true;
-                            processedFrameCount++;
-                            continue;
-                        }
-                        break;
-                    }
-
-                    var activeInputs = GetActiveInputsWithBufferStrategy(inputsWithData);
-                    if (activeInputs.Count == 0)
-                    {
-                        break;
-                    }
-
-                    var currentActiveTypes = activeInputs.Select(input => input.AudioType).ToList();
-
-                    if (currentActiveTypes.Count != _volumeStates.Count ||
-                        currentActiveTypes.Any(t => !_volumeStates.ContainsKey(t)))
-                    {
-                        UpdateVolumeTargets();
-                    }
-
-                    var mixedData = MixAudioStreamsWithSmoothVolume(activeInputs, currentActiveTypes);
-                    if (mixedData != null && mixedData.Length > 0)
-                    {
-                        ApplyEnhancedLimiting(mixedData);
-                        ApplyDynamicGainControlSmooth(mixedData, activeInputs.Count > 1);
-
-                        bool isFirst = activeInputs.Any(input => input.IsFirstFrame);
-                        bool isLast = activeInputs.Any(input => input.IsLastFrame) &&
-                                     activeInputs.All(input => input.IsComplete || !input.HasAnyData());
-
-                        // ¸üĞÂÍ³¼ÆĞÅÏ¢
-                        UpdateStatistics(mixedData, activeInputs.Count);
-
-                        // ´¥·¢»ìºÏÒôÆµÊı¾İ¿ÉÓÃÊÂ¼ş
-                        OnMixedAudioDataAvailable?.Invoke(mixedData, isFirst, isLast);
-
-                        // ±ê¼ÇÖ¡ÒÑ´¦Àí
-                        foreach (var input in activeInputs)
-                        {
-                            input.MarkFrameProcessed();
+                            DrainSinkAndEmitLast();
                         }
 
-                        hasProcessedData = true;
-                        processedFrameCount++;
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-
-                // ÇåÀíÒÑÍê³ÉµÄÁ÷²¢´¥·¢ÒôÁ¿»Ö¸´
-                var completedStreams = _audioStreams.Where(kvp => kvp.Value.IsComplete && !kvp.Value.HasAnyData()).ToList();
-                bool hasCompletedStreams = completedStreams.Count > 0;
-
-                foreach (var completedStream in completedStreams)
-                {
-                    if (_audioStreams.TryRemove(completedStream.Key, out var processor))
-                    {
-                        processor.Dispose();
-                        _volumeStates.TryRemove(completedStream.Key, out _); // ÇåÀíÒôÁ¿×´Ì¬
-                        _logger.LogDebug("Removed completed audio stream for {AudioType}", completedStream.Key);
-                    }
-                }
-
-                // Èç¹ûÓĞÁ÷Íê³É£¬ÖØĞÂ¼ÆËãÊ£ÓàÁ÷µÄÒôÁ¿Ä¿±ê
-                if (hasCompletedStreams && _audioStreams.Count > 0)
-                {
-                    _logger.LogDebug("Audio stream completed, recalculating volume targets for remaining streams");
-                    UpdateVolumeTargets();
-                    _hasPendingData = true; // È·±£¼ÌĞø´¦ÀíÒôÁ¿¹ı¶É
-                }
-
-                if (_audioStreams.IsEmpty)
-                {
-                    SetState(AudioMixerState.Idle);
-                    _hasPendingData = false;
-                }
-                else if (!hasProcessedData)
-                {
-                    var hasAnyData = _audioStreams.Values.Any(p => p.HasAnyData());
-                    var hasActiveTransitions = _volumeStates.Values.Any(v => v.IsTransitioning);
-                    if (!hasAnyData && !hasActiveTransitions)
-                    {
-                        _hasPendingData = false;
+                        // ç­‰å¾…æ•°æ®æˆ–æ£€æŸ¥æ˜¯å¦åº”è¯¥åœæ­¢
+                        _dataAvailableEvent.Wait(TimeSpan.FromMilliseconds(50), _cancellationTokenSource.Token);
+                        _dataAvailableEvent.Reset();
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during audio mixing");
-                _hasPendingData = false;
+                _logger.LogError(ex, "Error in mixing thread");
+            }
+            finally
+            {
+                _isMixing = false;
+                SetState(AudioMixerState.Idle);
+                _logger.LogDebug("Mixing thread stopped");
             }
         }
 
-        private List<AudioStreamProcessor> GetActiveInputsWithBufferStrategy(List<AudioStreamProcessor> inputsWithData)
+        private bool ProcessMixing()
         {
-            var activeInputs = new List<AudioStreamProcessor>();
-
-            foreach (var input in inputsWithData)
+            lock (_streamLock)
             {
-                bool hasFullFrame = input.HasDataForFrame(_frameSampleCount);
-                bool isNewStream = input.ProcessedFrameCount < 3;
+                if (_filterGraph == null)
+                    return false;
 
-                if (hasFullFrame)
+                bool hasProcessedData = false;
+                
+                // å¤„ç†æ¯ä¸ªæ´»è·ƒçš„éŸ³é¢‘æµ
+                foreach (var kvp in _audioStreams.ToList())
                 {
-                    activeInputs.Add(input);
-                }
-                else if (isNewStream && _config.EnableSmoothVolumeControl)
-                {
-                    int minRequiredSamples = (int)(_frameSampleCount * _config.NewStreamBufferTolerance);
-                    if (input.AvailableDataCount >= minRequiredSamples)
+                    var audioType = kvp.Key;
+                    var streamContext = kvp.Value;
+                    
+                    if (!streamContext.IsActive)
+                        continue;
+
+                    // ä»FIFOè¯»å–æ•°æ®å¹¶æ¨é€åˆ°filter
+                    if (ProcessAudioStream(audioType, streamContext))
                     {
-                        activeInputs.Add(input);
-                    }
-                }
-                else if (input.IsStopping && input.AvailableDataCount > 0)
-                {
-                    activeInputs.Add(input);
-                }
-            }
-
-            return activeInputs;
-        }
-
-        private float[]? MixAudioStreamsWithSmoothVolume(List<AudioStreamProcessor> activeInputs, List<AudioType> currentActiveTypes)
-        {
-            if (activeInputs.Count == 0)
-            {
-                return null;
-            }
-
-            var mixed = new float[_frameSampleCount];
-            var energies = new List<(AudioStreamProcessor stream, float energy, bool warmup)>();
-
-            foreach (var input in activeInputs)
-            {
-                var frameData = input.GetFrameDataWithPartialSupport(_frameSampleCount);
-                if (frameData == null || frameData.Length == 0)
-                    continue;
-
-                const int fadeLength = 16;
-                if (input.IsFirstFrame)
-                {
-                    int len = Math.Min(fadeLength, frameData.Length);
-                    for (int i = 0; i < len; i++)
-                    {
-                        frameData[i] *= (float)i / len;
-                    }
-                }
-                if (input.IsLastFrame)
-                {
-                    int len = Math.Min(fadeLength, frameData.Length);
-                    int start = frameData.Length - len; if (start < 0) start = 0;
-                    for (int i = start; i < frameData.Length; i++)
-                    {
-                        float g = 1f - (float)(i - start) / len;
-                        frameData[i] *= g;
+                        hasProcessedData = true;
                     }
                 }
 
-                var volumeState = _volumeStates.GetOrAdd(input.AudioType, _ => new VolumeTransitionControl());
-                var currentVolume = volumeState.UpdateAndGetCurrentVolume();
-                float absSum = 0f;
-                int lenAll = Math.Min(mixed.Length, frameData.Length);
-                for (int i = 0; i < lenAll; i++)
+                // ä»filter graphè·å–æ··éŸ³åçš„æ•°æ®
+                if (hasProcessedData)
                 {
-                    float s = frameData[i] * currentVolume;
-                    mixed[i] += s;
-                    absSum += Math.Abs(s);
+                    RetrieveMixedAudioData();
                 }
-                float avgAbs = absSum / Math.Max(1, lenAll);
-                bool warmup = input.ProcessedFrameCount == 0; // first processed frame
-                energies.Add((input, avgAbs, warmup));
-            }
 
-            if (energies.Count <= 1)
-            {
-                _lastNormalizationFactor = SmoothNormalization(_lastNormalizationFactor, 0.75f);
-                for (int i = 0; i < mixed.Length; i++)
-                {
-                    mixed[i] *= _lastNormalizationFactor;
-                }
-                return mixed;
+                // æ¸…ç†å·²å®Œæˆçš„æµ
+                CleanupCompletedStreams();
+                
+                return hasProcessedData;
             }
-
-            const float energyThreshold = 0.003f;
-            var effective = energies.Where(e => !e.warmup && e.energy >= energyThreshold).ToList();
-            int effectiveCount = effective.Count == 0 ? 1 : effective.Count;
-            float targetNorm = (float)(0.75 / Math.Sqrt(effectiveCount));
-            _lastNormalizationFactor = SmoothNormalization(_lastNormalizationFactor, targetNorm);
-            for (int i = 0; i < mixed.Length; i++)
-            {
-                mixed[i] *= _lastNormalizationFactor;
-            }
-            return mixed;
         }
 
-        private static float SmoothNormalization(float previous, float target)
+        private bool ProcessAudioStream(AudioType audioType, AudioStreamContext streamContext)
         {
-            float maxStepUp = 0.05f; // gentle increase
-            float maxStepDown = 0.15f; // allow moderate decrease
-            float delta = target - previous;
-            if (delta > maxStepUp) delta = maxStepUp; else if (delta < -maxStepDown) delta = -maxStepDown;
-            return previous + delta;
+            if (!_audioFifos.TryGetValue(audioType, out var fifoPtr) || 
+                !_sourceFilterCtxs.TryGetValue(audioType, out var sourceCtxPtr))
+                return false;
+
+            var fifo = (AVAudioFifo*)fifoPtr;
+            var sourceCtx = (AVFilterContext*)sourceCtxPtr;
+
+            var availableSamples = ffmpeg.av_audio_fifo_size(fifo);
+            if (availableSamples < _frameSampleCount / _outputChannels && !streamContext.IsStopping)
+                return false;
+
+            try
+            {
+                // åˆ›å»ºéŸ³é¢‘å¸§
+                var frame = ffmpeg.av_frame_alloc();
+                if (frame == null)
+                    return false;
+
+                // è®¾ç½®å¸§å‚æ•°
+                frame->nb_samples = Math.Min(availableSamples, _frameSampleCount / _outputChannels);
+                // è®¾ç½®å£°é“å¸ƒå±€ï¼ˆæ–°APIä½¿ç”¨ ch_layoutï¼‰
+                AVChannelLayout ch;
+                ffmpeg.av_channel_layout_from_mask(&ch, _channelLayout);
+                frame->ch_layout = ch;
+                frame->format = (int)_sampleFormat;
+                frame->sample_rate = _outputSampleRate;
+                frame->pts = _pts;
+
+                // åˆ†é…å¸§ç¼“å†²åŒº
+                var ret = ffmpeg.av_frame_get_buffer(frame, 0);
+                if (ret < 0)
+                {
+                    ffmpeg.av_frame_free(&frame);
+                    return false;
+                }
+
+                // ä»FIFOè¯»å–æ•°æ®ï¼ˆæ‰“åŒ…æ ¼å¼ï¼Œå•å¹³é¢ï¼‰
+                void** planes = stackalloc void*[1];
+                planes[0] = frame->data[0];
+                ret = ffmpeg.av_audio_fifo_read(fifo, planes, frame->nb_samples);
+                if (ret <= 0)
+                {
+                    ffmpeg.av_frame_free(&frame);
+                    return false;
+                }
+
+                int nbSamples = frame->nb_samples; // æ•è·ä»¥é¿å…é‡Šæ”¾åè®¿é—®
+
+                // æ¨é€åˆ°filter
+                ret = ffmpeg.av_buffersrc_add_frame_flags(sourceCtx, frame, 0);
+                ffmpeg.av_frame_free(&frame);
+
+                if (ret < 0)
+                {
+                    _logger.LogError("Failed to add frame to filter for {AudioType}: {Error}", 
+                        audioType, GetFFmpegErrorString(ret));
+                    return false;
+                }
+
+                streamContext.ProcessedFrameCount++;
+                _pts += nbSamples;
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing audio stream {AudioType}", audioType);
+                return false;
+            }
         }
 
-        private void ApplyEnhancedLimiting(float[] audioData)
+        private void RetrieveMixedAudioData()
         {
-            const float threshold = 0.85f; const float ratio = 8f;
+            if (_sinkFilterCtx == null)
+                return;
+
+            try
+            {
+                var frame = ffmpeg.av_frame_alloc();
+                if (frame == null)
+                    return;
+
+                var ret = ffmpeg.av_buffersink_get_frame(_sinkFilterCtx, frame);
+                if (ret == ffmpeg.AVERROR(ffmpeg.EAGAIN) || ret == ffmpeg.AVERROR_EOF)
+                {
+                    ffmpeg.av_frame_free(&frame);
+                    return;
+                }
+
+                if (ret < 0)
+                {
+                    _logger.LogError("Failed to get frame from sink filter: {Error}", GetFFmpegErrorString(ret));
+                    ffmpeg.av_frame_free(&frame);
+                    return;
+                }
+
+                // è½¬æ¢ä¸ºfloatæ•°ç»„
+                var mixedData = ConvertFrameToFloatArrayInternal(frame);
+                ffmpeg.av_frame_free(&frame);
+
+                if (mixedData != null && mixedData.Length > 0)
+                {
+                    // æ›´æ–°ç»Ÿè®¡ä¿¡æ¯
+                    UpdateStatistics(mixedData);
+                    
+                    // è§¦å‘æ··éŸ³æ•°æ®äº‹ä»¶
+                    var isFirst = !_hasEmittedFirst;
+                    OnMixedAudioDataAvailable?.Invoke(mixedData, isFirst, false);
+                    _hasEmittedFirst = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving mixed audio data");
+            }
+        }
+
+        private void DrainSinkAndEmitLast()
+        {
+            if (_sinkFilterCtx == null || _hasEmittedLast)
+                return;
+
+            try
+            {
+                while (true)
+                {
+                    var frame = ffmpeg.av_frame_alloc();
+                    if (frame == null) break;
+
+                    var ret = ffmpeg.av_buffersink_get_frame(_sinkFilterCtx, frame);
+                    if (ret == ffmpeg.AVERROR(ffmpeg.EAGAIN))
+                    {
+                        ffmpeg.av_frame_free(&frame);
+                        break;
+                    }
+                    if (ret == ffmpeg.AVERROR_EOF)
+                    {
+                        ffmpeg.av_frame_free(&frame);
+                        if (!_hasEmittedLast)
+                        {
+                            var isFirst = !_hasEmittedFirst;
+                            OnMixedAudioDataAvailable?.Invoke(Array.Empty<float>(), isFirst, true);
+                            _hasEmittedFirst = true;
+                            _hasEmittedLast = true;
+                            _shouldStop = true;
+                        }
+                        break;
+                    }
+                    if (ret < 0)
+                    {
+                        ffmpeg.av_frame_free(&frame);
+                        break;
+                    }
+
+                    var mixedData = ConvertFrameToFloatArrayInternal(frame);
+                    ffmpeg.av_frame_free(&frame);
+
+                    if (mixedData != null && mixedData.Length > 0)
+                    {
+                        UpdateStatistics(mixedData);
+                        var isFirst = !_hasEmittedFirst;
+                        OnMixedAudioDataAvailable?.Invoke(mixedData, isFirst, false);
+                        _hasEmittedFirst = true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error draining sink");
+            }
+        }
+
+        private void CleanupCompletedStreams()
+        {
+            var streamsToRemove = new List<AudioType>();
+            
+            foreach (var kvp in _audioStreams)
+            {
+                var audioType = kvp.Key;
+                var streamContext = kvp.Value;
+                
+                if (streamContext.IsStopping && _audioFifos.TryGetValue(audioType, out var fifoPtr))
+                {
+                    var fifo = (AVAudioFifo*)fifoPtr;
+                    var remainingSamples = ffmpeg.av_audio_fifo_size(fifo);
+                    if (remainingSamples == 0)
+                    {
+                        // å…³é—­ sourceï¼Œé€šçŸ¥ EOF
+                        if (_sourceFilterCtxs.TryGetValue(audioType, out var srcPtr) && !streamContext.SourceClosed)
+                        {
+                            ffmpeg.av_buffersrc_close((AVFilterContext*)srcPtr, _pts, 0);
+                            streamContext.SourceClosed = true;
+                        }
+                        streamsToRemove.Add(audioType);
+                    }
+                }
+            }
+            
+            foreach (var audioType in streamsToRemove)
+            {
+                RemoveAudioStream(audioType);
+            }
+        }
+
+        private void RemoveAudioStream(AudioType audioType)
+        {
+            // ç§»é™¤éŸ³é¢‘æµä¸Šä¸‹æ–‡
+            _audioStreams.Remove(audioType);
+            
+            // æ¸…ç†FIFO
+            if (_audioFifos.TryGetValue(audioType, out var fifoPtr))
+            {
+                ffmpeg.av_audio_fifo_free((AVAudioFifo*)fifoPtr);
+                _audioFifos.Remove(audioType);
+            }
+            
+            // ä¸ç«‹å³é‡å»ºfilter graphï¼Œé¿å…ä¸¢å¸§ï¼›ä»…ç§»é™¤æºå¼•ç”¨
+            _sourceFilterCtxs.Remove(audioType);
+            
+            _completedStreamCount++;
+            _logger.LogDebug("Removed audio stream {AudioType}", audioType);
+            
+            // å¦‚æœæ²¡æœ‰æ´»è·ƒæµäº†ï¼Œè¿›å…¥æ’ç©ºé˜¶æ®µ
+            if (_audioStreams.Count == 0)
+            {
+                _draining = true;
+            }
+        }
+
+        #endregion
+
+        #region ç»Ÿè®¡å’ŒçŠ¶æ€ç®¡ç†
+
+        private void UpdateStatistics(float[] audioData)
+        {
+            float sumSquares = 0;
+            float peak = 0;
+            
             for (int i = 0; i < audioData.Length; i++)
             {
-                float abs = Math.Abs(audioData[i]);
-                if (abs > threshold)
-                {
-                    float excess = abs - threshold; float comp = excess / ratio; float newLevel = threshold + comp;
-                    audioData[i] = Math.Sign(audioData[i]) * Math.Min(newLevel, 0.9f); _currentStats.LimiterTriggerCount++;
-                }
+                var sample = Math.Abs(audioData[i]);
+                sumSquares += audioData[i] * audioData[i];
+                if (sample > peak) peak = sample;
             }
-        }
-
-        private void ApplyDynamicGainControlSmooth(float[] audioData, bool isMultiStream)
-        {
-            float rmsSum = 0; for (int i = 0; i < audioData.Length; i++) rmsSum += audioData[i] * audioData[i];
-            float rms = (float)Math.Sqrt(rmsSum / audioData.Length);
-            float targetLevel = isMultiStream ? 0.4f : 0.5f;
-            if (rms > 0.005f)
-            {
-                float gain = Math.Min(targetLevel / rms, 1.1f); gain = Math.Max(gain, 0.4f);
-                float threshold = isMultiStream ? 0.05f : 0.1f;
-                if (Math.Abs(gain - 1f) > threshold)
-                {
-                    float smooth = 1f + (gain - 1f) * 0.3f;
-                    for (int i = 0; i < audioData.Length; i++) audioData[i] *= smooth;
-                }
-            }
-        }
-
-        private void UpdateStatistics(float[] audioData, int activeStreamCount)
-        {
-            float sumSquares = 0; float peak = 0;
-            for (int i = 0; i < audioData.Length; i++) { float sample = Math.Abs(audioData[i]); sumSquares += audioData[i] * audioData[i]; if (sample > peak) peak = sample; }
+            
             _currentStats.CurrentRms = (float)Math.Sqrt(sumSquares / audioData.Length);
             _currentStats.CurrentPeak = peak;
             _currentStats.CurrentGainDb = 20 * (float)Math.Log10(Math.Max(_currentStats.CurrentRms, 1e-10f));
-            _currentStats.ActiveStreamCount = activeStreamCount;
+            _currentStats.ActiveStreamCount = _audioStreams.Count(kvp => kvp.Value.IsActive);
+            
             OnStatsUpdated?.Invoke(_currentStats);
         }
 
-        public void StopAudioStream(AudioType audioType)
+        private void SetState(AudioMixerState newState)
         {
-            if (_audioStreams.TryGetValue(audioType, out var processor)) { processor.Stop(); _logger.LogDebug("Stopped audio stream for {AudioType}", audioType); _hasPendingData = true; }
-        }
-
-        public void ClearAllBuffers()
-        {
-            lock (_filterLock)
-            {
-                foreach (var processor in _audioStreams.Values) processor.ClearBuffer();
-                _volumeStates.Clear(); SetState(AudioMixerState.Idle); _hasPendingData = false; _logger.LogDebug("Cleared all audio buffers");
-            }
+            StateChanged?.Invoke(newState);
+            _logger.LogDebug("FFmpeg audio mixer state changed to {State}", newState);
         }
 
         public AudioMixerStats GetCurrentStats()
@@ -593,40 +861,108 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 CurrentRms = _currentStats.CurrentRms,
                 CurrentPeak = _currentStats.CurrentPeak,
                 CurrentGainDb = _currentStats.CurrentGainDb,
-                LimiterTriggerCount = _currentStats.LimiterTriggerCount,
-                ActiveStreamCount = _audioStreams.Count(kvp => kvp.Value.HasAnyData() && !kvp.Value.IsComplete),
+                ActiveStreamCount = _currentStats.ActiveStreamCount,
                 DelayCompensation = new Dictionary<AudioType, float>()
             };
         }
 
-        private void SetState(AudioMixerState newState)
+        #endregion
+
+        #region å·¥å…·æ–¹æ³•
+
+        private VolumeTransitionControl GetOrCreateVolumeState(AudioType audioType)
         {
-            if (_state != newState) { _state = newState; StateChanged?.Invoke(_state); _logger.LogDebug("FFmpeg audio mixer state changed to {State}", _state); }
+            if (!_volumeStates.TryGetValue(audioType, out var volumeState))
+            {
+                volumeState = new VolumeTransitionControl();
+                _volumeStates[audioType] = volumeState;
+            }
+            return volumeState;
         }
 
-        private void CleanupFilterGraph()
+        public void ClearAllBuffers()
         {
-            if (_filterGraph != null)
+            lock (_streamLock)
             {
-                var graph = _filterGraph; ffmpeg.avfilter_graph_free(&graph); _filterGraph = null;
+                foreach (var fifoPtr in _audioFifos.Values)
+                {
+                    ffmpeg.av_audio_fifo_reset((AVAudioFifo*)fifoPtr);
+                }
+                
+                _logger.LogDebug("Cleared all audio buffers");
             }
-            _sourceFilters.Clear(); _amixFilterCtx = null; _sinkFilterCtx = null;
         }
+
+        private string GetFFmpegErrorString(int error)
+        {
+            const int size = 1024;
+            byte* buf = stackalloc byte[size];
+            ffmpeg.av_strerror(error, buf, (ulong)size);
+            return Marshal.PtrToStringAnsi((IntPtr)buf) ?? $"FFmpeg error {error}";
+        }
+
+        private float[]? ConvertFrameToFloatArrayInternal(AVFrame* frame)
+        {
+            try
+            {
+                var sampleCount = frame->nb_samples * _outputChannels;
+                var result = new float[sampleCount];
+                Marshal.Copy((IntPtr)frame->data[0], result, 0, sampleCount);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error converting frame to float array");
+                return null;
+            }
+        }
+
+        #endregion
+
+        #region èµ„æºæ¸…ç†
 
         public void Dispose()
         {
-            if (_disposed) return;
+            if (_disposed)
+                return;
+
             lock (_filterLock)
             {
-                SetState(AudioMixerState.Stopped);
-                _processingTimer?.Change(Timeout.Infinite, Timeout.Infinite); _processingTimer?.Dispose();
-                SpinWait.SpinUntil(() => _processingFlag == 0, 1000);
-                foreach (var processor in _audioStreams.Values) processor.Dispose();
-                _audioStreams.Clear(); _volumeStates.Clear();
+                _shouldStop = true;
+                _cancellationTokenSource.Cancel();
+                
+                // ç­‰å¾…æ··éŸ³çº¿ç¨‹ç»“æŸ
+                _mixingThread?.Join(TimeSpan.FromSeconds(5));
+                
+                // æ¸…ç†FFmpegèµ„æº
                 CleanupFilterGraph();
-                _disposed = true; _initialized = false;
+                
+                foreach (var fifoPtr in _audioFifos.Values)
+                {
+                    ffmpeg.av_audio_fifo_free((AVAudioFifo*)fifoPtr);
+                }
+                _audioFifos.Clear();
+                
+                _audioStreams.Clear();
+                _dataAvailableEvent.Dispose();
+                _cancellationTokenSource.Dispose();
+                
+                _disposed = true;
+                _initialized = false;
             }
+            
             _logger.LogInformation("FFmpeg audio mixer disposed");
         }
+
+        #endregion
+    }
+
+    file class AudioStreamContext
+    {
+        public AudioType AudioType { get; set; }
+        public bool IsActive { get; set; }
+        public bool IsStopping { get; set; }
+        public int ProcessedFrameCount { get; set; }
+        public bool SourceClosed { get; set; }
     }
 }
