@@ -14,7 +14,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
         private readonly ILogger<FFmpegAudioMixer> _logger;
         
-        // 音频流管理 - 参考C代码中的音频流数组
+        // 音频流管理
         private readonly Dictionary<AudioType, AudioStreamContext> _audioStreams;
         private readonly Dictionary<AudioType, IntPtr> _audioFifos; // AVAudioFifo*
         private readonly Dictionary<AudioType, VolumeTransitionControl> _volumeStates;
@@ -22,7 +22,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
         private readonly Dictionary<AudioType, int> _priorities;
         private readonly object _streamLock = new();
         
-        // FFmpeg Filter Graph相关 - 核心混音架构
+        // FFmpeg Filter Graph相关
         private AVFilterGraph* _filterGraph;
         private AVFilterContext* _sinkFilterCtx;
         private readonly Dictionary<AudioType, IntPtr> _sourceFilterCtxs; // AVFilterContext*
@@ -615,7 +615,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
                 // 设置帧参数
                 frame->nb_samples = Math.Min(availableSamples, _frameSampleCount / _outputChannels);
-                // 设置声道布局（新API使用 ch_layout）
+
                 AVChannelLayout ch;
                 ffmpeg.av_channel_layout_from_mask(&ch, _channelLayout);
                 frame->ch_layout = ch;
@@ -691,7 +691,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     return;
                 }
 
-                // 转换为float数组
                 var mixedData = ConvertFrameToFloatArrayInternal(frame);
                 ffmpeg.av_frame_free(&frame);
 
@@ -955,14 +954,16 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
         }
 
         #endregion
+
+        private class AudioStreamContext
+        {
+            public AudioType AudioType { get; set; }
+            public bool IsActive { get; set; }
+            public bool IsStopping { get; set; }
+            public int ProcessedFrameCount { get; set; }
+            public bool SourceClosed { get; set; }
+        }
     }
 
-    file class AudioStreamContext
-    {
-        public AudioType AudioType { get; set; }
-        public bool IsActive { get; set; }
-        public bool IsStopping { get; set; }
-        public int ProcessedFrameCount { get; set; }
-        public bool SourceClosed { get; set; }
-    }
+    
 }
