@@ -34,6 +34,12 @@ namespace XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Dtos
         public int MaxBufferFrames { get; set; } = 15;
 
         /// <summary>
+        /// Enable/disable strict output timing control
+        /// When enabled, the mixer will strictly output audio frames according to the frameDuration set in Initialize
+        /// </summary>
+        public bool EnabledStrictTiming { get; set; }
+
+        /// <summary>
         /// 系统通知类型的音量配置
         /// </summary>
         public AudioVolumeConfig SystemNotificationVolumeConfig { get; set; } = new AudioVolumeConfig(AudioType.SystemNotification, 1.0f, 1.0f);

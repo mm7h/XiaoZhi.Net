@@ -1,79 +1,79 @@
-using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+锘縰sing XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Dtos;
 using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.FFmpeg.Abstractions
 {
     /// <summary>
-    /// 音频混音器接口，支持多路音频输入实时混音
+    /// Audio mixer interface supporting multi-channel audio input real-time mixing
     /// </summary>
     public interface IAudioMixer : IDisposable
     {
         /// <summary>
-        /// 混音器状态改变事件
+        /// Mixer state change event
         /// </summary>
         event Action<AudioMixerState> StateChanged;
 
         /// <summary>
-        /// 混合音频数据事件
+        /// Mixed audio data available event
         /// </summary>
         event Action<float[], bool, bool>? OnMixedAudioDataAvailable;
 
         /// <summary>
-        /// 音频统计信息事件
+        /// Audio statistics information event
         /// </summary>
         event Action<AudioMixerStats> OnStatsUpdated;
 
         /// <summary>
-        /// 获取混音器是否已初始化
+        /// Gets whether the mixer has been initialized
         /// </summary>
         bool IsInitialized { get; }
 
         /// <summary>
-        /// 获取输出采样率
+        /// Output audio sample rate (Hz)
         /// </summary>
         int OutputSampleRate { get; }
 
         /// <summary>
-        /// 获取输出声道数
+        /// Output audio channel count
         /// </summary>
         int OutputChannels { get; }
 
         /// <summary>
-        /// 获取帧时长（毫秒）
+        /// Frame duration in milliseconds
         /// </summary>
         int FrameDuration { get; }
 
         /// <summary>
-        /// 初始化混音器
+        /// Initialize the audio mixer
         /// </summary>
-        /// <param name="outputSampleRate">输出采样率</param>
-        /// <param name="outputChannels">输出声道数</param>
-        /// <param name="frameDuration">帧时长（毫秒）</param>
-        /// <param name="config">混音器配置</param>
-        /// <returns>是否初始化成功</returns>
+        /// <param name="outputSampleRate">Output sample rate</param>
+        /// <param name="outputChannels">Output channel count</param>
+        /// <param name="frameDuration">Frame duration in milliseconds</param>
+        /// <param name="config">Mixer configuration</param>
+        /// <returns>Whether initialization was successful</returns>
         bool Initialize(int outputSampleRate, int outputChannels, int frameDuration, AudioMixerConfig? config = null);
 
         /// <summary>
-        /// 添加音频数据到指定优先级的音频流
+        /// Add audio data to the specified priority audio mixer
         /// </summary>
-        /// <param name="audioType">音频类型（优先级）</param>
-        /// <param name="audioData">音频数据</param>
+        /// <param name="audioType">Audio type with priority</param>
+        /// <param name="audioData">Audio data</param>
         void AddAudioData(AudioType audioType, float[] audioData);
 
         /// <summary>
-        /// 停止指定类型的音频流
+        /// Stop the specified type of audio stream
         /// </summary>
-        /// <param name="audioType">音频类型</param>
+        /// <param name="audioType">Audio type</param>
         void StopAudioStream(AudioType audioType);
 
         /// <summary>
-        /// 清除所有音频缓冲区
+        /// Clear all audio buffers
         /// </summary>
         void ClearAllBuffers();
 
         /// <summary>
-        /// 获取当前混音统计信息
+        /// Get current mixer statistics
         /// </summary>
         AudioMixerStats GetCurrentStats();
     }

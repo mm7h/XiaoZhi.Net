@@ -60,6 +60,11 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
         private bool _hasEmittedFirst = false;
         private bool _hasEmittedLast = false;
         private bool _draining = false;
+        
+        // 严格时序控制
+        private bool _enabledStrictTiming = false;
+        private readonly Queue<float[]> _pendingOutputData = new();
+        private DateTime _lastOutputTime = DateTime.MinValue;
 
         #endregion
 
@@ -161,6 +166,9 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
                     // 更新音量配置
                     UpdateVolumeLevelsFromConfig();
+                    
+                    // 设置严格时序控制
+                    _enabledStrictTiming = _config.EnabledStrictTiming;
 
                     _initialized = true;
                     SetState(AudioMixerState.Idle);
@@ -699,10 +707,19 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     // 更新统计信息
                     UpdateStatistics(mixedData);
                     
-                    // 触发混音数据事件
-                    var isFirst = !_hasEmittedFirst;
-                    OnMixedAudioDataAvailable?.Invoke(mixedData, isFirst, false);
-                    _hasEmittedFirst = true;
+                    if (_enabledStrictTiming)
+                    {
+                        // 严格时序控制：缓存数据等待合适的输出时间
+                        _pendingOutputData.Enqueue(mixedData);
+                        OutputPendingDataWithTiming();
+                    }
+                    else
+                    {
+                        // 立即输出
+                        var isFirst = !_hasEmittedFirst;
+                        OnMixedAudioDataAvailable?.Invoke(mixedData, isFirst, false);
+                        _hasEmittedFirst = true;
+                    }
                 }
             }
             catch (Exception ex)
@@ -734,6 +751,12 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                         ffmpeg.av_frame_free(&frame);
                         if (!_hasEmittedLast)
                         {
+                            // 如果启用了严格时序控制，先刷新待处理数据
+                            if (_enabledStrictTiming)
+                            {
+                                FlushPendingOutputData();
+                            }
+                            
                             var isFirst = !_hasEmittedFirst;
                             OnMixedAudioDataAvailable?.Invoke(Array.Empty<float>(), isFirst, true);
                             _hasEmittedFirst = true;
@@ -754,9 +777,20 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     if (mixedData != null && mixedData.Length > 0)
                     {
                         UpdateStatistics(mixedData);
-                        var isFirst = !_hasEmittedFirst;
-                        OnMixedAudioDataAvailable?.Invoke(mixedData, isFirst, false);
-                        _hasEmittedFirst = true;
+                        
+                        if (_enabledStrictTiming)
+                        {
+                            // 严格时序控制：缓存数据等待合适的输出时间
+                            _pendingOutputData.Enqueue(mixedData);
+                            OutputPendingDataWithTiming();
+                        }
+                        else
+                        {
+                            // 立即输出
+                            var isFirst = !_hasEmittedFirst;
+                            OnMixedAudioDataAvailable?.Invoke(mixedData, isFirst, false);
+                            _hasEmittedFirst = true;
+                        }
                     }
                 }
             }
@@ -879,6 +913,47 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             return volumeState;
         }
 
+        private void OutputPendingDataWithTiming()
+        {
+            if (!_pendingOutputData.Any())
+                return;
+
+            var now = DateTime.UtcNow;
+            var frameDurationMs = _frameDuration;
+
+            // 如果是第一次输出，记录当前时间作为基准
+            if (_lastOutputTime == DateTime.MinValue)
+            {
+                _lastOutputTime = now;
+            }
+
+            // 检查是否到了下一个输出时间点
+            var expectedNextOutputTime = _lastOutputTime.AddMilliseconds(frameDurationMs);
+            if (now >= expectedNextOutputTime)
+            {
+                if (_pendingOutputData.TryDequeue(out var audioData))
+                {
+                    var isFirst = !_hasEmittedFirst;
+                    OnMixedAudioDataAvailable?.Invoke(audioData, isFirst, false);
+                    _hasEmittedFirst = true;
+                    _lastOutputTime = now;
+
+                    _logger.LogDebug("Output mixed audio data with strict timing: {DataLength} samples", audioData.Length);
+                }
+            }
+        }
+
+        private void FlushPendingOutputData()
+        {
+            // 在停止时，输出所有待处理的数据
+            while (_pendingOutputData.TryDequeue(out var audioData))
+            {
+                var isFirst = !_hasEmittedFirst;
+                OnMixedAudioDataAvailable?.Invoke(audioData, isFirst, false);
+                _hasEmittedFirst = true;
+            }
+        }
+
         public void ClearAllBuffers()
         {
             lock (_streamLock)
@@ -943,6 +1018,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 _audioFifos.Clear();
                 
                 _audioStreams.Clear();
+                _pendingOutputData.Clear();
                 _dataAvailableEvent.Dispose();
                 _cancellationTokenSource.Dispose();
                 

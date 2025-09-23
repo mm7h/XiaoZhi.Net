@@ -51,6 +51,11 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
         // Ensure we emit isLast only once per mixing session
         private volatile bool _lastFrameEmitted = false;
 
+        // Strict timing control for output
+        private bool _strictTimingEnabled = false;
+        private DateTime _lastOutputTime = DateTime.MinValue;
+        private (float[] data, bool isFirst, bool isLast)? _pendingOutputData;
+
         public AudioMixer(ILogger<AudioMixer>? logger = null)
         {
             _logger = logger ?? NullLogger<AudioMixer>.Instance;
@@ -104,7 +109,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     _outputChannels = outputChannels;
                     _frameDuration = frameDuration;
                     _frameSampleCount = outputSampleRate * frameDuration / 1000 * outputChannels;
-
+                    _strictTimingEnabled = _config.EnabledStrictTiming;
                     // Use a higher tick than frame to drive smoother transitions
                     var timerInterval = Math.Max(frameDuration / 4, 5);
                     _mixingTimer.Change(timerInterval, timerInterval);
@@ -122,6 +127,58 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     _logger.LogError(ex, "Failed to initialize AudioMixer");
                     return false;
                 }
+            }
+        }
+
+        private void EmitMixedAudio(float[] mixedData, bool isFirst, bool isLast)
+        {
+            if (_strictTimingEnabled)
+            {
+                // Strict timing control mode
+                var now = DateTime.UtcNow;
+                
+                if (_lastOutputTime != DateTime.MinValue)
+                {
+                    var elapsedMs = (now - _lastOutputTime).TotalMilliseconds;
+                    if (elapsedMs < _frameDuration)
+                    {
+                        // Not time to output yet, store the data (overwrite previous to keep latest)
+                        _pendingOutputData = (mixedData, isFirst, isLast);
+                        return;
+                    }
+                }
+                
+                // Output current data and update time
+                OutputAudioData(mixedData, isFirst, isLast);
+                _lastOutputTime = now;
+                _pendingOutputData = null;
+            }
+            else
+            {
+                // Free output mode
+                OutputAudioData(mixedData, isFirst, isLast);
+            }
+        }
+        
+        private void OutputAudioData(float[] data, bool isFirst, bool isLast)
+        {
+            try
+            {
+                OnMixedAudioDataAvailable?.Invoke(data, isFirst, isLast);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error in OnMixedAudioDataAvailable callback");
+            }
+        }
+        
+        private void FlushPendingOutput()
+        {
+            if (_pendingOutputData.HasValue)
+            {
+                var pending = _pendingOutputData.Value;
+                OutputAudioData(pending.data, pending.isFirst, pending.isLast);
+                _pendingOutputData = null;
             }
         }
 
@@ -266,7 +323,25 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
             bool hasActiveTransitions = _volumeStates.Values.Any(v => v.IsTransitioning);
             if (!_hasPendingData && !hasActiveTransitions)
+            {
+                // In strict timing mode, check if there's pending data that needs to be output on time
+                if (_strictTimingEnabled && _pendingOutputData.HasValue)
+                {
+                    var now = DateTime.UtcNow;
+                    if (_lastOutputTime != DateTime.MinValue)
+                    {
+                        var elapsedMs = (now - _lastOutputTime).TotalMilliseconds;
+                        if (elapsedMs >= _frameDuration)
+                        {
+                            var pending = _pendingOutputData.Value;
+                            OutputAudioData(pending.data, pending.isFirst, pending.isLast);
+                            _lastOutputTime = now;
+                            _pendingOutputData = null;
+                        }
+                    }
+                }
                 return;
+            }
 
             if (Interlocked.CompareExchange(ref _processingFlag, 1, 0) == 0)
             {
@@ -325,7 +400,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                             }
 
                             bool markLastNow = shouldMarkLast && !_lastFrameEmitted;
-                            OnMixedAudioDataAvailable?.Invoke(silentFrame, isFirst, markLastNow);
+                            EmitMixedAudio(silentFrame, isFirst, markLastNow);
                             if (markLastNow)
                             {
                                 _lastFrameEmitted = true;
@@ -351,7 +426,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                                     _firstFrameAfterStart = false;
                                 }
 
-                                OnMixedAudioDataAvailable?.Invoke(silentFrame, isFirst, true);
+                                EmitMixedAudio(silentFrame, isFirst, true);
                                 _lastFrameEmitted = true;
                                 hasProcessedData = true;
                                 processedFrameCount++;
@@ -398,7 +473,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                         bool isLastCandidate = allCompleteAndEmpty && !hasActiveTransitions;
                         bool isLast = isLastCandidate && !_lastFrameEmitted;
 
-                        OnMixedAudioDataAvailable?.Invoke(mixedAudio, isFirst, isLast);
+                        EmitMixedAudio(mixedAudio, isFirst, isLast);
                         if (isLast)
                         {
                             _lastFrameEmitted = true;
@@ -719,6 +794,9 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             if (_disposed) return;
             lock (_syncLock)
             {
+                // Cleanup pending output data when disposing
+                FlushPendingOutput();
+                
                 SetState(AudioMixerState.Stopped);
                 _mixingTimer?.Change(Timeout.Infinite, Timeout.Infinite); _mixingTimer?.Dispose();
                 SpinWait.SpinUntil(() => _processingFlag == 0, 1000);

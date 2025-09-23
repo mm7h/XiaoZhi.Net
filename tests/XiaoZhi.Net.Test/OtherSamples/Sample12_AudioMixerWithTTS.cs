@@ -61,10 +61,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
                         {
                             VolumeTransitionDurationMs = 1000,
                             TransitionCurve = VolumeTransitionCurve.Logarithmic,
-                            EnableSmoothVolumeControl = true
+                            EnableSmoothVolumeControl = true,
+                            EnabledStrictTiming = false
                         }
                     );
-
                     Console.WriteLine("Setting up event handlers...");
                     mixer.StateChanged += (state) =>
                     {
