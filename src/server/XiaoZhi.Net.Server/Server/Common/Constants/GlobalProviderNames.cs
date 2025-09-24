@@ -7,7 +7,6 @@
         public const string GLOBAL_VAD = "GlobalVad";
         public const string GLOBAL_PUNCTUATION = "GlobalPunctuation";
         public const string GLOBAL_MEMORY = "GlobalMemory";
-        public const string GLOBAL_LLM = "GlobalLlm";
         public const string GLOBAL_TTS = "GlobalTts";
     }
 }

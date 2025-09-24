@@ -26,6 +26,7 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             this.OnAbort?.Invoke(deviceId, sessionId, currentHandler);
         }
-        public abstract void Dispose();
+        public virtual void Dispose()
+        { }
     }
 }

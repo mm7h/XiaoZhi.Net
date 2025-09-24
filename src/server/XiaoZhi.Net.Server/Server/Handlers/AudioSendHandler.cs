@@ -82,8 +82,5 @@ namespace XiaoZhi.Net.Server.Handlers
                 this.FireAbort(session.DeviceId, session.SessionId, "audio sending");
             }
         }
-        public override void Dispose()
-        {
-        }
     }
 }

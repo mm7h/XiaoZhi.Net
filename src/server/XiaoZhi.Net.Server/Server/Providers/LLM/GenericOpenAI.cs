@@ -6,6 +6,7 @@ using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using OpenAI.Chat;
 using System;
+using System.ClientModel;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,18 +15,22 @@ using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
 {
-    internal sealed class GenericOpenAI : BaseProvider<GenericOpenAI, ModelSetting>, ILlm
+    internal sealed class GenericOpenAI : BaseProvider<GenericOpenAI, LLMBuildConfig>, ILlm
     {
         private readonly SemaphoreSlim _llmSlim = new SemaphoreSlim(1, 1);
         private readonly IServiceProvider _serviceProvider;
         private readonly ObjectPool<OutSegment> _outSegmentPool;
-        private OpenAIPromptExecutionSettings _chatCompletionOptions;
 
-        public GenericOpenAI(IServiceProvider serviceProvider, 
+        private OpenAIPromptExecutionSettings _chatCompletionOptions;
+        private Kernel? _kernel;
+
+        private IChatCompletionService? _chatCompletionService;
+        public GenericOpenAI(IServiceProvider serviceProvider,
             ObjectPool<OutSegment> outSegmentPool,
             ILogger<GenericOpenAI> logger) : base(logger)
         {
@@ -38,18 +43,37 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 ResponseFormat = ChatResponseFormat.CreateTextFormat(),
                 FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
             };
+            this.LLMModelName = string.Empty;
+            this.LLMChatHistory = new ChatHistory();
         }
         public override string ModelName => nameof(GenericOpenAI);
         public override string ProviderType => "llm";
+
+        public string LLMModelName { get; private set; }
+        public bool UseStreaming { get; private set; }
+        public ChatHistory LLMChatHistory { get; }
 
         public event Action? OnBeforeTokenGenerate;
         public event Action<OutSegment>? OnTokenGenerating;
         public event Action<string>? OnTokenGenerated;
 
-        public override bool Build(ModelSetting modelSetting)
+        public override bool Build(LLMBuildConfig modelSetting)
         {
             try
             {
+                this.LLMModelName = modelSetting.LlmModelName;
+                this._kernel = modelSetting.Kernel;
+                this.UseStreaming = modelSetting.UseStreaming;
+
+
+                this._chatCompletionService = this._serviceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{modelSetting.LlmModelName}");
+
+                this.LLMChatHistory.AddSystemMessage(modelSetting.Prompt);
+                if (!string.IsNullOrEmpty(modelSetting.SummaryMemory))
+                {
+                    this.LLMChatHistory.AddSystemMessage(modelSetting.SummaryMemory);
+                }
+
                 this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
@@ -60,31 +84,27 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
         }
 
-        public async Task ChatAsync(DialogueContext dialogueContext, CancellationToken token)
+        public async Task ChatAsync(string userMessage, CancellationToken token)
         {
+            if (this._chatCompletionService is null)
+            {
+                this.Logger.LogError("The {providerType} model: {modelName} is not built.", this.ProviderType, this.ModelName);
+                return;
+            }
             try
             {
                 await this._llmSlim.WaitAsync(token);
                 this.OnBeforeTokenGenerate?.Invoke();
-                ChatHistory chatHistory = dialogueContext.Dialogues.Convert2ChatMessages();
 
-                IChatCompletionService chatCompletionService;
-
-                if (!string.IsNullOrEmpty(dialogueContext.LlmModelName))
-                {
-                    chatCompletionService = this._serviceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{dialogueContext.LlmModelName}");
-                }
-                else
-                {
-                    chatCompletionService = this._serviceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{SystemLLMServiceNames.GENERIC_LLM_ID}");
-                }
-
-
-                var clientResult = await chatCompletionService.GetChatMessageContentAsync(chatHistory, this._chatCompletionOptions, dialogueContext.Kernel, token);
+                this.LLMChatHistory.AddUserMessage(userMessage);
+                var clientResult = await this._chatCompletionService.GetChatMessageContentAsync(this.LLMChatHistory, this._chatCompletionOptions, this._kernel, token);
 
                 string content = !string.IsNullOrEmpty(clientResult.Content) ? clientResult.Content : string.Empty;
-                string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(content));
-                this.OnTokenGenerated?.Invoke(MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(content), @"<think>.*?</think>", "", RegexOptions.Singleline)));
+                string assistantContent = MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(content), @"<think>.*?</think>", "", RegexOptions.Singleline));
+
+                this.LLMChatHistory.AddAssistantMessage(assistantContent);
+
+                this.OnTokenGenerated?.Invoke(assistantContent);
             }
             catch (OperationCanceledException)
             {
@@ -101,30 +121,26 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
         }
 
-        public async Task ChatByStreamingAsync(DialogueContext dialogueContext, CancellationToken token)
+        public async Task ChatByStreamingAsync(string userMessage, CancellationToken token)
         {
+            if (this._chatCompletionService is null)
+            {
+                this.Logger.LogError("The {providerType} model: {modelName} is not built.", this.ProviderType, this.ModelName);
+                return;
+            }
+
             List<OutSegment> allResponse = new List<OutSegment>();
-            
+
             try
             {
                 await this._llmSlim.WaitAsync(token);
                 this.OnBeforeTokenGenerate?.Invoke();
 
-                ChatHistory chatHistory = dialogueContext.Dialogues.Convert2ChatMessages();
-
-                IChatCompletionService chatCompletionService;
-                if (!string.IsNullOrEmpty(dialogueContext.LlmModelName))
-                {
-                    chatCompletionService = this._serviceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{dialogueContext.LlmModelName}");
-                }
-                else
-                {
-                    chatCompletionService = this._serviceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{SystemLLMServiceNames.GENERIC_LLM_ID}");
-                }
+                this.LLMChatHistory.AddUserMessage(userMessage);
 
                 StringBuilder segmentResponse = new StringBuilder();
 
-                await foreach (var item in chatCompletionService.GetStreamingChatMessageContentsAsync(chatHistory, this._chatCompletionOptions, dialogueContext.Kernel, token))
+                await foreach (var item in this._chatCompletionService.GetStreamingChatMessageContentsAsync(this.LLMChatHistory, this._chatCompletionOptions, this._kernel, token))
                 {
                     string content = !string.IsNullOrEmpty(item.Content) ? item.Content : string.Empty;
                     string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(content));
@@ -174,7 +190,13 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 }
                 segmentResponse.Clear();
 
-                this.OnTokenGenerated?.Invoke(string.Join(string.Empty, allResponse.Select(a => a.Content)));
+                string allContent = string.Join(string.Empty, allResponse.Select(a => a.Content));
+
+                string assistantContent = MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(allContent), @"<think>.*?</think>", "", RegexOptions.Singleline));
+
+                this.LLMChatHistory.AddAssistantMessage(assistantContent);
+
+                this.OnTokenGenerated?.Invoke(assistantContent);
             }
             catch (OperationCanceledException)
             {
@@ -188,11 +210,11 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             finally
             {
                 allResponse.Clear();
-                
+
                 this._llmSlim.Release();
             }
         }
-        
+
         public override void Dispose()
         {
 

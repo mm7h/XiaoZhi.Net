@@ -1,48 +1,36 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
-using Microsoft.SemanticKernel.ChatCompletion;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
-using XiaoZhi.Net.Server.Protocol;
 using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
     internal sealed class DialogueHandler : BaseHandler, IInHandler<string, string>, IOutHandler<OutSegment>
     {
-        private readonly ILlm _llm;
-        private readonly IMemory _memory;
         private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;
         private readonly ObjectPool<Workflow<OutSegment>> _outSegmentWorkflowPool;
         private readonly ObjectPool<OutSegment> _outSegmentPool;
-        private bool _useStreaming;
 
-        public DialogueHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_LLM)] ILlm llm, 
-            [FromKeyedServices(GlobalProviderNames.GLOBAL_MEMORY)] IMemory memory,
-            ObjectPool<Workflow<string>> stringWorkflowPool,
+        private bool _useStreaming;
+        private ILlm? _llm;
+
+        public DialogueHandler(ObjectPool<Workflow<string>> stringWorkflowPool,
             ObjectPool<Workflow<OutSegment>> outSegmentWorkflowPool,
             ObjectPool<OutSegment> outSegmentPool,
             XiaoZhiConfig config, 
             ILogger<DialogueHandler> logger) : base(config, logger)
         {
-            this._llm = llm;
             this._useStreaming = this.Config.LlmSettings.First().Config.UseStreaming ?? false;
-            this._memory = memory;
             this._stringWorkflowPool = stringWorkflowPool;
             this._outSegmentWorkflowPool = outSegmentWorkflowPool;
             this._outSegmentPool = outSegmentPool;
-            this._llm.OnBeforeTokenGenerate += this.OnBeforeTokenGenerate;
-            this._llm.OnTokenGenerating += this.OnTokenGenerating;
-            this._llm.OnTokenGenerated += this.OnTokenGenerated;
         }
 
         public override string HandlerName => nameof(DialogueHandler);
@@ -52,8 +40,21 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override bool Build(PrivateProvider privateProvider)
         {
-            // todo: 改变LLM的初始化方式
-            throw new NotImplementedException();
+            if (privateProvider.Llm is not null)
+            {
+                this._llm = privateProvider.Llm;
+                this._useStreaming = privateProvider.Llm.UseStreaming;
+            }
+            else
+            { 
+                this.Logger.LogError("The session LLM model is not initialized.");
+                return false;
+            }
+
+            this._llm.OnBeforeTokenGenerate += this.OnBeforeTokenGenerate;
+            this._llm.OnTokenGenerating += this.OnTokenGenerating;
+            this._llm.OnTokenGenerated += this.OnTokenGenerated;
+            return true;
         }
 
         public async Task Handle()
@@ -73,11 +74,26 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public async Task Handle2()
         {
-            await foreach (var reader in this.PreviousReader2.ReadAllAsync()) await this.Handle(reader);
+            await foreach (var workflow in this.PreviousReader2.ReadAllAsync())
+            {
+                try
+                {
+                    await this.Handle(workflow);
+                }
+                finally
+                {
+                    this._stringWorkflowPool.Return(workflow);
+                }
+            }
         }
 
         public async Task Handle(Workflow<string> workflow, bool addToChatHistory = true)
         {
+            if (this._llm is null)
+            { 
+                this.Logger.LogError("The LLM model is not initialized.");
+                return;
+            }
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
             {
@@ -98,22 +114,16 @@ namespace XiaoZhi.Net.Server.Handlers
             
             try
             {
-                Dialogue dialogue = new Dialogue(session.DeviceId, session.SessionId, AuthorRole.User, workflow.Data);
-                session.Dialogues.Add(dialogue);
-
                 using (CodeTimer timer = CodeTimer.Create("Calling the LLM takes {elapsed:F2} ms.", this.Logger))
                 {
-                    DialogueContext dialogueContext = new DialogueContext(session.SessionId, session.PrivateProvider.Kernel, session.PrivateProvider.LlmModelName, session.Dialogues);
 
-                    bool useStreaming = session.PrivateProvider.UseStreaming || this._useStreaming;
-
-                    if (useStreaming)
+                    if (this._useStreaming)
                     {
-                        await this._llm.ChatByStreamingAsync(dialogueContext, session.SessionCtsToken);
+                        await this._llm.ChatByStreamingAsync(workflow.Data, session.SessionCtsToken);
                     }
                     else
                     {
-                        await this._llm.ChatAsync(dialogueContext, session.SessionCtsToken);
+                        await this._llm.ChatAsync(workflow.Data, session.SessionCtsToken);
                     }
                 }
             }
@@ -179,21 +189,22 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             this.Logger.LogDebug("LLM's response text: {content}", content);
 
-            Session session = this.SendOutter.GetSession();
-            Dialogue assistantDialogue = new Dialogue(session.DeviceId, session.SessionId, AuthorRole.Assistant, content);
             if (!this._useStreaming)
             {
                 await this.SendCustomMessage(this.SendOutter.SessionId, content);
             }
-            session.Dialogues.Add(assistantDialogue);
+
             await this.SendOutter.SendLlmMessageAsync(Emotion.Winking);
         }
 
         public override void Dispose()
         {
-            this._llm.OnBeforeTokenGenerate -= this.OnBeforeTokenGenerate;
-            this._llm.OnTokenGenerating -= this.OnTokenGenerating;
-            this._llm.OnTokenGenerated -= this.OnTokenGenerated;
+            if (this._llm is not null)
+            {
+                this._llm.OnBeforeTokenGenerate -= this.OnBeforeTokenGenerate;
+                this._llm.OnTokenGenerating -= this.OnTokenGenerating;
+                this._llm.OnTokenGenerated -= this.OnTokenGenerated;
+            }
             this.NextWriter.Complete();
         }
     }

@@ -132,7 +132,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
             IPEndPoint userEndPoint = (this.RemoteEndPoint as IPEndPoint)!;
 
 
-            Session session = new Session(this.SessionId, deviceId, token, userEndPoint, this, this.Server.ServiceProvider, this.Logger);
+            Session session = new Session(this.SessionId, deviceId, token, userEndPoint, this);
 
             await this._providerManager.InitializePrivateConfig(session);
 

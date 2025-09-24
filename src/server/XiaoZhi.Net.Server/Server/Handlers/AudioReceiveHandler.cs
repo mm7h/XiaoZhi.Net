@@ -20,11 +20,11 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly CircularBuffer _receivedPcmPacketFrame;
         private IVad _vad;
 
-        public AudioReceiveHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_VAD)] IVad vad, 
+        public AudioReceiveHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_VAD)] IVad vad,
             [FromKeyedServices(GlobalProviderNames.GLOBAL_AUDIO_DECODER)] IAudioDecoder audioDecoder,
             ObjectPool<Workflow<CircularBuffer>> workflowPool,
             ObjectPool<Workflow<string>> stringWorkflowPool,
-            XiaoZhiConfig config, 
+            XiaoZhiConfig config,
             ILogger<AudioReceiveHandler> logger) : base(config, logger)
         {
             this._vad = vad;
@@ -50,6 +50,13 @@ namespace XiaoZhi.Net.Server.Handlers
         public async Task Handle(byte[] opusData)
         {
             Session session = this.SendOutter.GetSession();
+            if (!session.IsIdle)
+            {
+#if DEBUG
+                this.Logger.LogDebug("The previous audio packet is processing, this packet would be ignored.");
+#endif
+                return;
+            }
             if (session is null || session.ShouldIgnore())
             {
                 return;
@@ -82,6 +89,10 @@ namespace XiaoZhi.Net.Server.Handlers
             catch (OperationCanceledException)
             {
                 this.FireAbort(session.DeviceId, session.SessionId, "receive audio");
+            }
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, "Failed to process the message packet from device: {deviceId}.", session.DeviceId);
             }
         }
 
@@ -134,7 +145,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     sessionContext.CloseAfterChat = true;
                     string prompt = "请你以\"时间过得真快\"为来头，用富有感情、依依不舍的话来结束这场对话吧。";
-                    
+
                     var workflow = this._stringWorkflowPool.Get();
                     try
                     {

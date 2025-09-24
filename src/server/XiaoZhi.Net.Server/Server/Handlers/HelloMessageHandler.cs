@@ -10,13 +10,15 @@ namespace XiaoZhi.Net.Server.Handlers
     internal sealed class HelloMessageHandler : BaseHandler
     {
         private readonly ProviderManager _providerManager;
-        public HelloMessageHandler(ProviderManager providerManager, XiaoZhiConfig config,
+        private readonly HandlerManager _handlerManager;
+        public HelloMessageHandler(ProviderManager providerManager, HandlerManager handlerManager, XiaoZhiConfig config,
             ILogger<TextHandler> logger) : base(config, logger)
         {
             this._providerManager = providerManager;
+            this._handlerManager = handlerManager;
         }
         public override string HandlerName => nameof(HelloMessageHandler);
-     
+
 
         public override bool Build(PrivateProvider privateProvider)
         {
@@ -45,14 +47,16 @@ namespace XiaoZhi.Net.Server.Handlers
                 session.IsDeviceBinded = true;
                 this._providerManager.BuildAudioPlayer(session);
                 this._providerManager.BuildAudioMixer(session);
-                this._providerManager.RegisterAudioResampler(session);
-                this._providerManager.RegisterAudioEncoder(session);
+                this._providerManager.BuildAudioResampler(session);
+                this._providerManager.BuildAudioEncoder(session);
 
                 defultHelloMessage.AudioParams.Format = format;
                 defultHelloMessage.AudioParams.SampleRate = sampleRate;
                 defultHelloMessage.AudioParams.Channels = channels;
                 defultHelloMessage.AudioParams.FrameDuration = frameDuration;
             }
+
+            this._handlerManager.InitializePrivateConfig(session);
 
             this.SendOutter.SendAsync(JsonHelper.Serialize(defultHelloMessage));
 
@@ -68,10 +72,6 @@ namespace XiaoZhi.Net.Server.Handlers
                     }
                 }
             }
-        }
-
-        public override void Dispose()
-        {
         }
     }
 }

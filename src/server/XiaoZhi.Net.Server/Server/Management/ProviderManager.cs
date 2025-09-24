@@ -58,7 +58,7 @@ namespace XiaoZhi.Net.Server.Management
                 RegisterVad(services, config, GlobalProviderNames.GLOBAL_VAD);
                 RegisterAsr(services, config, GlobalProviderNames.GLOBAL_ASR);
                 RegisterPunctuation(services, config, GlobalProviderNames.GLOBAL_PUNCTUATION);
-                RegisterLlm(services, config, GlobalProviderNames.GLOBAL_LLM);
+                RegisterLlm(services, config);
                 RegisterMemory(services, config, GlobalProviderNames.GLOBAL_MEMORY);
                 RegisterTts(services, config, GlobalProviderNames.GLOBAL_TTS);
 
@@ -122,15 +122,6 @@ namespace XiaoZhi.Net.Server.Management
             }
             #endregion
 
-            #region Llm
-            ILlm llm = serviceProvider.GetRequiredKeyedService<ILlm>(GlobalProviderNames.GLOBAL_LLM);
-            if (!llm.Build(this._config.LlmSettings.First()))
-            {
-                this._logger.LogError("Failed to build {modelName} provider.", llm.ModelName);
-                return false;
-            }
-            #endregion
-
             #region Tts
             ITts tts = serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
             if (!tts.Build(this._config.TtsSetting))
@@ -172,6 +163,25 @@ namespace XiaoZhi.Net.Server.Management
                 if (manageApiClient is null)
                 {
                     this._logger.LogInformation("Remote service is unavailable or not configured, skipping private models config loading for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
+
+                    #region Generic LLM
+                    ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
+
+                    ModelSetting llmModelSetting = this._config.LlmSettings.First();
+                    string llmModelName = llmModelSetting.ModelName;
+                    bool useStreaming = llmModelSetting.Config.UseStreaming ?? false;
+
+                    LLMBuildConfig llmBuildConfig = new LLMBuildConfig(llmModelName, this._config.Prompt, useStreaming, string.Empty, this._globalKernel);
+
+                    if (!genericLlm.Build(llmBuildConfig))
+                    {
+                        throw new ModelBuildException("Failed to build generic LLM model.");
+                    }
+                    session.PrivateProvider.SetLlm(genericLlm);
+
+                    this._logger.LogInformation("Generic LLM {modeName} model initialized for device: {deviceId}.", llmModelSetting.ModelName, session.DeviceId); 
+                    #endregion
+
                     return;
                 }
 
@@ -209,27 +219,22 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig.LlmSetting is not null)
                 {
-                    session.PrivateProvider.SetLlm(privateModelsConfig.Prompt, privateModelsConfig.UseStreaming, privateModelsConfig.SummaryMemory, privateModelsConfig.LlmModelName);
+                    ILlm privateLlm = this._serviceProvider.GetRequiredService<ILlm>();
 
-                    if (!string.IsNullOrEmpty(privateModelsConfig.Prompt))
-                    {
-                        session.Dialogues.Clear();
-                        Dialogue initDialogue = new Dialogue(session.DeviceId, session.SessionId, AuthorRole.System, privateModelsConfig.Prompt);
-                        session.Dialogues.Add(initDialogue);
-                    }
-                    else
-                    {
-                        Dialogue initDialogue = new Dialogue(session.DeviceId, session.SessionId, AuthorRole.System, this._config.Prompt);
-                        session.Dialogues.Add(initDialogue);
-                    }
+                    string llmModelName = privateModelsConfig.LlmSetting.ModelName;
+                    string prompt = privateModelsConfig.LlmSetting.Config?.Prompt ?? this._config.Prompt;
+                    bool useStreaming = privateModelsConfig.LlmSetting.Config?.UseStreaming ?? false;
+                    string summaryMemory = privateModelsConfig.LlmSetting.Config?.SummaryMemory ?? string.Empty;
 
-                    if (!string.IsNullOrEmpty(privateModelsConfig.SummaryMemory))
-                    {
-                        Dialogue summaryMemoryDialogue = new Dialogue(session.DeviceId, session.SessionId, AuthorRole.System, privateModelsConfig.SummaryMemory);
-                        session.Dialogues.Add(summaryMemoryDialogue);
-                    }
+                    LLMBuildConfig llmBuildConfig = new LLMBuildConfig(llmModelName, prompt, useStreaming, summaryMemory, session.PrivateProvider.Kernel);
 
-                    this._logger.LogInformation("Private LLM {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.LlmSetting.ModelName, session.DeviceId, session.SessionId);
+                    if (!privateLlm.Build(llmBuildConfig))
+                    {
+                        throw new ModelBuildException("Failed to build private LLM model.");
+                    }
+                    session.PrivateProvider.SetLlm(privateLlm);
+
+                    this._logger.LogInformation("Private LLM {modeName} model initialized for device: {deviceId}.", privateModelsConfig.LlmSetting.ModelName, session.DeviceId);
                 }
 
                 if (privateModelsConfig.TtsSetting is not null)
@@ -263,15 +268,20 @@ namespace XiaoZhi.Net.Server.Management
 
         public async Task SaveMemoryAsync(Session session)
         {
-            var dialogues = session.Dialogues.Where(d => d.Role == AuthorRole.User || d.Role == AuthorRole.Assistant).ToList();
-            if (dialogues.Any())
+            if (session.PrivateProvider.Llm is null)
+            {
+                this._logger.LogWarning("LLM provider is not initialized, cannot save memory for device: {deviceId}.", session.DeviceId);
+                return;
+            }
+
+            if (session.PrivateProvider.Llm.LLMChatHistory.Any())
             {
                 ManageApiClient? manageApiClient = this._serviceProvider.GetService<ManageApiClient>();
                 if (manageApiClient is not null)
                 {
                     try
                     {
-                        await manageApiClient.SaveMemoryAsync(session.DeviceId, session.SessionId, dialogues);
+                        await manageApiClient.SaveMemoryAsync(session.DeviceId, session.SessionId, session.PrivateProvider.Llm.LLMChatHistory);
                         this._logger.LogInformation("Memory saved successfully for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
                     }
                     catch (Exception ex)
@@ -294,8 +304,7 @@ namespace XiaoZhi.Net.Server.Management
                 serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR),
                 serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD),
                 serviceProvider.GetRequiredKeyedService<IPunctuation>(GlobalProviderNames.GLOBAL_PUNCTUATION),
-                serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY),
-                serviceProvider.GetRequiredKeyedService<ILlm>(GlobalProviderNames.GLOBAL_LLM),
+                serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY)
             };
 
             foreach (IDisposable provider in providers)
@@ -320,7 +329,7 @@ namespace XiaoZhi.Net.Server.Management
         {
             services.AddTransient<IAudioResampler, DefaultResampler>();
         }
-        public void RegisterAudioResampler(Session session)
+        public void BuildAudioResampler(Session session)
         {
             int ttsSampleRate = session.PrivateProvider.Tts?.GetTtsSampleRate() ?? this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS).GetTtsSampleRate();
 
@@ -350,7 +359,7 @@ namespace XiaoZhi.Net.Server.Management
             services.AddTransient<IAudioEncoder, DefaultOpusEncoder>();
         }
 
-        public void RegisterAudioEncoder(Session session)
+        public void BuildAudioEncoder(Session session)
         {
             IAudioEncoder audioEncoder = this._serviceProvider.GetRequiredService<IAudioEncoder>();
             if (!audioEncoder.Build(session.AudioSetting))
@@ -414,7 +423,7 @@ namespace XiaoZhi.Net.Server.Management
         #endregion
 
         #region LLM
-        private static void RegisterLlm(IServiceCollection services, XiaoZhiConfig config, string key)
+        private static void RegisterLlm(IServiceCollection services, XiaoZhiConfig config)
         {
 
             int index = 0;
@@ -446,7 +455,7 @@ namespace XiaoZhi.Net.Server.Management
 
 
             services.AddTransient<IFunctionInvocationFilter, MCPToolFunctionFilter>();
-            services.AddKeyedSingleton<ILlm, GenericOpenAI>(key);
+            services.AddTransient<ILlm, GenericOpenAI>();
         }
         #endregion
 
