@@ -3,6 +3,7 @@ using SuperSocket.WebSocket.Server;
 using System;
 using System.Buffers;
 using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Protocol.WebSocket.Contexts;
 
@@ -21,7 +22,14 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
                 switch (package.OpCode)
                 {
                     case OpCode.Text:
-                        session.XiaoZhiSession.HandlerPipeline.HandleTextMessage(package.Message);
+                        JsonNode? jsonObject = JsonNode.Parse(package.Message);
+                        string? type = jsonObject?["type"]?.GetValue<string>()?.ToLower();
+                        if (jsonObject is JsonObject jsonObj && !string.IsNullOrEmpty(type) && type == "hello")
+                        {
+                            session.XiaoZhiSession.HandlerPipeline.HandleHelloMessage(jsonObj);
+                        }
+                        else
+                            session.XiaoZhiSession.HandlerPipeline.HandleTextMessage(package.Message);
                         break;
                     case OpCode.Binary:
                        await session.XiaoZhiSession.HandlerPipeline.HandleBinaryMessageAsync(package.Data.ToArray());

@@ -1,14 +1,12 @@
-﻿using Microsoft.SemanticKernel;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Protocol;
-using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {
@@ -21,7 +19,8 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private bool _isCanceling = false;
         private DateTime _cancelCoolingTime = DateTime.Now;
 
-        public Session(string sessionId, string deviceId, string authToken, IPEndPoint userEndPoint, IBizSendOutter sendOutter)
+        public Session(string sessionId, string deviceId, string authToken, IPEndPoint userEndPoint, IBizSendOutter sendOutter,
+            IServiceProvider serviceProvider, ILogger logger)
         {
             this.SessionId = sessionId;
             this.DeviceId = deviceId;
@@ -31,7 +30,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.AudioSetting = new AudioSetting();
             this.AudioPacketContext = new AudioPacket();
             this.VadStatusContext = new VadStatus();
-            this.HandlerPipeline = new HandlerPipeline(this);
+            this.HandlerPipeline = new HandlerPipeline(this, serviceProvider, logger);
             this.Dialogues = new LinkedList<Dialogue>();
             this.PrivateProvider = new PrivateProvider();
             this.CreateCancellationTokenSource();

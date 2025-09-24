@@ -131,10 +131,10 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
             string token = this.HttpHeader.Items.Get("authorization")!;
             IPEndPoint userEndPoint = (this.RemoteEndPoint as IPEndPoint)!;
 
-            Session session = new Session(this.SessionId, deviceId, token, userEndPoint, this);
+
+            Session session = new Session(this.SessionId, deviceId, token, userEndPoint, this, this.Server.ServiceProvider, this.Logger);
 
             await this._providerManager.InitializePrivateConfig(session);
-            session.HandlerPipeline.InitHandlerPipeline(this.Server.ServiceProvider, this.Logger);
 
             session.RefreshLastActivityTime();
 

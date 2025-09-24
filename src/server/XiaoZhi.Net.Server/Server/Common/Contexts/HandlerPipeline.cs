@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Nodes;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Handlers;
@@ -18,27 +19,22 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         private readonly Session _currentSession;
 
-        private ILogger? _logger;
-        private TextHandler? _textHandler;
-        private AudioReceiveHandler? _audioReceiveHandler;
-        private Audio2TextHandler? _audio2TextHandler;
-        private DialogueHandler? _dialogueHandler;
-        private Text2AudioHandler? _text2AudioHandler;
-        private AudioMixingHandler? _audioMixingHandler;
-        private AudioSendHandler? _audioSendHandler;
+        private ILogger _logger;
+        private HelloMessageHandler _helloMessageHandler;
+        private TextHandler _textHandler;
+        private AudioReceiveHandler _audioReceiveHandler;
+        private Audio2TextHandler _audio2TextHandler;
+        private DialogueHandler _dialogueHandler;
+        private Text2AudioHandler _text2AudioHandler;
+        private AudioMixingHandler _audioMixingHandler;
+        private AudioSendHandler _audioSendHandler;
 
-        private readonly IList<IDisposable> _disposableHandlers;
+        private readonly IList<IHandler> _handlerContainer;
 
-        public HandlerPipeline(Session session)
+        public HandlerPipeline(Session session, IServiceProvider serviceProvider, ILogger logger)
         {
             this._currentSession = session;
-            this._disposableHandlers = new List<IDisposable>(5);
-        }
-
-        public void InitHandlerPipeline(IServiceProvider serviceProvider, ILogger logger)
-        {
-            this._logger = logger;
-
+            this._helloMessageHandler = serviceProvider.GetRequiredService<HelloMessageHandler>();
             this._textHandler = serviceProvider.GetRequiredService<TextHandler>();
             this._audioReceiveHandler = serviceProvider.GetRequiredService<AudioReceiveHandler>();
             this._audio2TextHandler = serviceProvider.GetRequiredService<Audio2TextHandler>();
@@ -47,6 +43,21 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._audioMixingHandler = serviceProvider.GetRequiredService<AudioMixingHandler>();
             this._audioSendHandler = serviceProvider.GetRequiredService<AudioSendHandler>();
 
+            this._handlerContainer = [
+                this._helloMessageHandler, 
+                this._textHandler,
+                this._audioReceiveHandler,
+                this._audio2TextHandler,
+                this._audioMixingHandler,
+                this._text2AudioHandler,
+                this._dialogueHandler,
+                this._audioSendHandler
+            ];
+            this._logger = logger;
+        }
+
+        public void InitHandlerPipeline()
+        {
             this._textHandler.OnManualStop += this._audioReceiveHandler.HandleAudio;
             this._audioReceiveHandler.OnNoVoiceCloseConnect += this._dialogueHandler.NoVoiceCloseConnect;
 
@@ -71,13 +82,11 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.ScheduleOnAbort(this._text2AudioHandler);
             this.ScheduleOnAbort(this._audioMixingHandler);
             this.ScheduleOnAbort(this._audioSendHandler);
+        }
 
-            this._disposableHandlers.Add(this._textHandler);
-            this._disposableHandlers.Add(this._audioReceiveHandler);
-            this._disposableHandlers.Add(this._audio2TextHandler);
-            this._disposableHandlers.Add(this._dialogueHandler);
-            this._disposableHandlers.Add(this._text2AudioHandler);
-            this._disposableHandlers.Add(this._audioMixingHandler);
+        public void HandleHelloMessage(JsonObject helloMessage)
+        {
+            this._helloMessageHandler.Handle(helloMessage);
         }
 
         public void HandleTextMessage(string data)
@@ -125,11 +134,11 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         public void Release()
         {
-            foreach (IDisposable handler in this._disposableHandlers)
+            foreach (IDisposable handler in this._handlerContainer)
             {
                 handler.Dispose();
             }
-            this._disposableHandlers.Clear();
+            this._handlerContainer.Clear();
         }
 
         private void InitializeSendOutter(IHandler outHandler)

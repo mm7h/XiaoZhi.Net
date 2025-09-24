@@ -7,20 +7,18 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Protocol;
 using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
     internal sealed class Text2AudioHandler : BaseHandler, IInHandler<OutSegment>, IOutHandler<OutAudioSegment, OutAudioSegment, OutAudioSegment>
     {
-        private readonly ITts _tts;
         private readonly ObjectPool<OutSegment> _outSegmentPool;
         private readonly ObjectPool<OutAudioSegment> _outAudioSegmentPool;
         private readonly ObjectPool<Workflow<OutAudioSegment>> _outAudioSegmentWorkflowPool;
         private readonly ObjectPool<Workflow<OutSegment>> _outSegmentWorkflowPool;
-        private bool _privateTTSInitialized = false;
-        private bool _privateAudioPlayerInitialized = false;
+
+        private ITts _tts;
 
         private IAudioPlayerClient? _audioPlayerClient;
 
@@ -37,12 +35,29 @@ namespace XiaoZhi.Net.Server.Handlers
             this._outAudioSegmentPool = outAudioSegmentPool;
             this._outAudioSegmentWorkflowPool = outAudioSegmentWorkflowPool;
             this._outSegmentWorkflowPool = outSegmentWorkflowPool;
+        }
+
+        public override bool Build(PrivateProvider privateProvider)
+        {
+            if (privateProvider.Tts is not null)
+            {
+                this._tts = privateProvider.Tts;
+
+            }
             this._tts.OnBeforeProcessing += this.TTS_OnBeforeProcessing;
             this._tts.OnProcessed += this.TTS_OnProcessed;
+
+            if (privateProvider.AudioPlayerClient is not null)
+            {
+                this._audioPlayerClient = privateProvider.AudioPlayerClient;
+                this._audioPlayerClient.SystemNotification.OnAudioData += this.OnNotificationAudioDataAsync;
+                this._audioPlayerClient.MusicPlayer.OnAudioData += this.OnMusicAudioDataAsync;
+            }
+
+            return true;
         }
 
         public override string HandlerName => nameof(Text2AudioHandler);
-        public IBizSendOutter SendOutter { get; set; } = null!;
         public ChannelReader<Workflow<OutSegment>> PreviousReader { get; set; } = null!;
         public ChannelWriter<Workflow<OutAudioSegment>> NextWriter { get; set; } = null!;
         public ChannelWriter<Workflow<OutAudioSegment>> NextWriter2 { get; set; } = null!;
@@ -72,8 +87,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
-            this.CheckInitialize(session);
-
             if (!session.IsDeviceBinded)
             {
                 session.PrivateProvider.AudioMixer.ClearAllBuffers();
@@ -89,14 +102,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     return;
                 }
 
-                if (this._privateTTSInitialized)
-                {
-                    await session.PrivateProvider.Tts!.SynthesisAsync(workflow, session, session.SessionCtsToken);
-                }
-                else
-                {
-                    await this._tts.SynthesisAsync(workflow, session, session.SessionCtsToken);
-                }
+                await this._tts.SynthesisAsync(workflow, session, session.SessionCtsToken);
 
             }
             catch (OperationCanceledException)
@@ -135,28 +141,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 await session.SendOutter.SendSttMessageAsync(text);
 
                 await this._audioPlayerClient.SystemNotification.PlayNotFoundAsync();
-            }
-        }
-
-        private void CheckInitialize(Session session)
-        {
-            if (!this._privateAudioPlayerInitialized && session.PrivateProvider.AudioPlayerClient is not null)
-            {
-                this._audioPlayerClient = session.PrivateProvider.AudioPlayerClient;
-                this._audioPlayerClient.SystemNotification.OnAudioData += this.OnNotificationAudioDataAsync;
-                this._audioPlayerClient.MusicPlayer.OnAudioData += this.OnMusicAudioDataAsync;
-                this._privateAudioPlayerInitialized = true;
-            }
-
-            if (!this._privateTTSInitialized && session.PrivateProvider.Tts is not null)
-            {
-                session.PrivateProvider.Tts.OnBeforeProcessing += this.TTS_OnBeforeProcessing;
-                session.PrivateProvider.Tts.OnProcessed += this.TTS_OnProcessed;
-
-                this._tts.OnBeforeProcessing -= this.TTS_OnBeforeProcessing;
-                this._tts.OnProcessed -= this.TTS_OnProcessed;
-
-                this._privateTTSInitialized = true;
             }
         }
 
@@ -217,25 +201,15 @@ namespace XiaoZhi.Net.Server.Handlers
             await this.NextWriter.WriteAsync(workflow);
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             Session session = this.SendOutter.GetSession();
-            if (session.PrivateProvider.Tts is not null && this._privateTTSInitialized)
-            {
-                session.PrivateProvider.Tts.OnBeforeProcessing -= this.TTS_OnBeforeProcessing;
-                session.PrivateProvider.Tts.OnProcessed -= this.TTS_OnProcessed;
-                this._privateTTSInitialized = false;
-            }
-            else
-            {
-                this._tts.OnBeforeProcessing -= this.TTS_OnBeforeProcessing;
-                this._tts.OnProcessed -= this.TTS_OnProcessed;
-            }
+            this._tts.OnBeforeProcessing -= this.TTS_OnBeforeProcessing;
+            this._tts.OnProcessed -= this.TTS_OnProcessed;
             if (this._audioPlayerClient is not null)
             {
                 this._audioPlayerClient.SystemNotification.OnAudioData -= this.OnNotificationAudioDataAsync;
                 this._audioPlayerClient.MusicPlayer.OnAudioData -= this.OnMusicAudioDataAsync;
-                this._privateAudioPlayerInitialized = false;
             }
             this.NextWriter.Complete();
         }

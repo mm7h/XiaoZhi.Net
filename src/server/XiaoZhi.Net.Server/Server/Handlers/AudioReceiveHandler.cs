@@ -8,19 +8,17 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
-using XiaoZhi.Net.Server.Helpers;
-using XiaoZhi.Net.Server.Protocol;
 using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
     internal sealed class AudioReceiveHandler : BaseHandler, IOutHandler<CircularBuffer>
     {
-        private readonly IVad _vad;
         private readonly IAudioDecoder _audioDecoder;
         private readonly ObjectPool<Workflow<CircularBuffer>> _workflowPool;
         private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;
         private readonly CircularBuffer _receivedPcmPacketFrame;
+        private IVad _vad;
 
         public AudioReceiveHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_VAD)] IVad vad, 
             [FromKeyedServices(GlobalProviderNames.GLOBAL_AUDIO_DECODER)] IAudioDecoder audioDecoder,
@@ -37,11 +35,17 @@ namespace XiaoZhi.Net.Server.Handlers
         }
 
         public event Action<Workflow<string>>? OnNoVoiceCloseConnect;
-
         public override string HandlerName => nameof(AudioReceiveHandler);
-        public IBizSendOutter SendOutter { get; set; } = null!;
         public ChannelWriter<Workflow<CircularBuffer>> NextWriter { get; set; } = null!;
 
+        public override bool Build(PrivateProvider privateProvider)
+        {
+            if (privateProvider.Vad is not null)
+            {
+                this._vad = privateProvider.Vad;
+            }
+            return true;
+        }
 
         public async Task Handle(byte[] opusData)
         {
@@ -100,11 +104,6 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        public void Dispose()
-        {
-            this.NextWriter.Complete();
-        }
-
         private async void OnVoiceDetected(Session sessionContext)
         {
             sessionContext.AudioPacketContext.VadPacket.Reset();
@@ -148,6 +147,11 @@ namespace XiaoZhi.Net.Server.Handlers
                     }
                 }
             }
+        }
+
+        public override void Dispose()
+        {
+            this.NextWriter.Complete();
         }
     }
 }

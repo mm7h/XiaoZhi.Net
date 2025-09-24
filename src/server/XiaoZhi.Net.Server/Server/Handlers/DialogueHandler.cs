@@ -46,10 +46,15 @@ namespace XiaoZhi.Net.Server.Handlers
         }
 
         public override string HandlerName => nameof(DialogueHandler);
-        public IBizSendOutter SendOutter { get; set; } = null!;
         public ChannelReader<Workflow<string>> PreviousReader { get; set; } = null!;
         public ChannelReader<Workflow<string>> PreviousReader2 { get; set; } = null!;
         public ChannelWriter<Workflow<OutSegment>> NextWriter { get; set; } = null!;
+
+        public override bool Build(PrivateProvider privateProvider)
+        {
+            // todo: 改变LLM的初始化方式
+            throw new NotImplementedException();
+        }
 
         public async Task Handle()
         {
@@ -155,14 +160,6 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        public void Dispose()
-        {
-            this._llm.OnBeforeTokenGenerate -= this.OnBeforeTokenGenerate;
-            this._llm.OnTokenGenerating -= this.OnTokenGenerating;
-            this._llm.OnTokenGenerated -= this.OnTokenGenerated;
-            this.NextWriter.Complete();
-        }
-
         private void OnBeforeTokenGenerate()
         {
             this.SendOutter.SendLlmMessageAsync(Emotion.Thinking);
@@ -190,6 +187,14 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             session.Dialogues.Add(assistantDialogue);
             await this.SendOutter.SendLlmMessageAsync(Emotion.Winking);
+        }
+
+        public override void Dispose()
+        {
+            this._llm.OnBeforeTokenGenerate -= this.OnBeforeTokenGenerate;
+            this._llm.OnTokenGenerating -= this.OnTokenGenerating;
+            this._llm.OnTokenGenerated -= this.OnTokenGenerated;
+            this.NextWriter.Complete();
         }
     }
 }

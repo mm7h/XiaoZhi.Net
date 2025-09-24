@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
-using XiaoZhi.Net.Server.Protocol;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
@@ -17,7 +16,6 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ObjectPool<MixedAudioPacket> _mixedAudioPacketPool;
         private readonly ObjectPool<Workflow<MixedAudioPacket>> _mixedAudioPacketWorkflowPool;
 
-        private bool _privateAudioMixerInitialized = false;
 
         public AudioMixingHandler(ObjectPool<OutAudioSegment> outAudioSegmentPool, ObjectPool<Workflow<OutAudioSegment>> outAudioSegmentWorkflowPool,
             ObjectPool<MixedAudioPacket> mixedAudioPacketPool, ObjectPool<Workflow<MixedAudioPacket>> mixedAudioPacketWorkflowPool,
@@ -30,12 +28,24 @@ namespace XiaoZhi.Net.Server.Handlers
         }
 
         public override string HandlerName => nameof(AudioMixingHandler);
-        public IBizSendOutter SendOutter { get; set; } = null!;
         public ChannelReader<Workflow<OutAudioSegment>> PreviousReader { get; set; } = null!;
         public ChannelReader<Workflow<OutAudioSegment>> PreviousReader2 { get; set; } = null!;
         public ChannelReader<Workflow<OutAudioSegment>> PreviousReader3 { get; set; } = null!;
         public ChannelWriter<Workflow<MixedAudioPacket>> NextWriter { get; set; } = null!;
-
+        public override bool Build(PrivateProvider privateProvider)
+        {
+            Session session = this.SendOutter.GetSession();
+            if (privateProvider.AudioMixer is not null)
+            {
+                privateProvider.AudioMixer.OnMixedAudioDataAvailable += this.OnMixedAudioDataAvailable;
+                return true;
+            }
+            else
+            {
+                this.Logger.LogError("Audio mixer is not built for device {deviceId}.", session.DeviceId);
+                return false;
+            }
+        }
         public async Task Handle()
         {
             //tts
@@ -92,12 +102,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
-            if (!this._privateAudioMixerInitialized && session.PrivateProvider.AudioMixer is not null)
-            {
-                session.PrivateProvider.AudioMixer.OnMixedAudioDataAvailable += this.OnMixedAudioDataAvailable;
-                this._privateAudioMixerInitialized = true;
-            }
-
             OutAudioSegment outAudioSegment = workflow.Data;
             bool isContentNotEmpty = !string.IsNullOrEmpty(outAudioSegment.Content);
 
@@ -144,7 +148,7 @@ namespace XiaoZhi.Net.Server.Handlers
             _ = this.NextWriter.WriteAsync(workflow);
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             this.NextWriter.Complete();
         }

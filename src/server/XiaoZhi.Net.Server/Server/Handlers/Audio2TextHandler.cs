@@ -15,16 +15,16 @@ namespace XiaoZhi.Net.Server.Handlers
 {
     internal sealed class Audio2TextHandler : BaseHandler, IInHandler<CircularBuffer>, IOutHandler<string>
     {
-        private readonly IAsr _asr;
         private readonly IPunctuation _punctuation;
         private readonly ObjectPool<Workflow<CircularBuffer>> _circularBufferWorkflowPool;
         private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;
+        private IAsr _asr;
 
-        public Audio2TextHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_ASR)] IAsr asr, 
+        public Audio2TextHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_ASR)] IAsr asr,
             [FromKeyedServices(GlobalProviderNames.GLOBAL_PUNCTUATION)] IPunctuation punctuation,
             ObjectPool<Workflow<CircularBuffer>> circularBufferWorkflowPool,
             ObjectPool<Workflow<string>> stringWorkflowPool,
-            XiaoZhiConfig config, 
+            XiaoZhiConfig config,
             ILogger<Audio2TextHandler> logger) : base(config, logger)
         {
             this._asr = asr;
@@ -34,9 +34,17 @@ namespace XiaoZhi.Net.Server.Handlers
         }
 
         public override string HandlerName => nameof(Audio2TextHandler);
-        public IBizSendOutter SendOutter { get; set; } = null!;
         public ChannelReader<Workflow<CircularBuffer>> PreviousReader { get; set; } = null!;
         public ChannelWriter<Workflow<string>> NextWriter { get; set; } = null!;
+
+        public override bool Build(PrivateProvider privateProvider)
+        {
+            if (privateProvider.Asr is not null)
+            {
+                this._asr = privateProvider.Asr;
+            }
+            return true;
+        }
 
         public async Task Handle()
         {
@@ -60,7 +68,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 return;
             }
-            
+
             try
             {
                 if (!session.IsDeviceBinded)
@@ -109,7 +117,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             this.NextWriter.Complete();
         }

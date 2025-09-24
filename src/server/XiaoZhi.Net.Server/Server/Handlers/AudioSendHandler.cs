@@ -5,7 +5,6 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
-using XiaoZhi.Net.Server.Protocol;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
@@ -22,7 +21,11 @@ namespace XiaoZhi.Net.Server.Handlers
         public override string HandlerName => nameof(AudioSendHandler);
 
         public ChannelReader<Workflow<MixedAudioPacket>> PreviousReader { get; set; } = null!;
-        public IBizSendOutter SendOutter { get; set; } = null!;
+
+        public override bool Build(PrivateProvider privateProvider)
+        {
+            return true;
+        }
 
         public async Task Handle()
         {
@@ -79,6 +82,8 @@ namespace XiaoZhi.Net.Server.Handlers
                 this.FireAbort(session.DeviceId, session.SessionId, "audio sending");
             }
         }
-
+        public override void Dispose()
+        {
+        }
     }
 }

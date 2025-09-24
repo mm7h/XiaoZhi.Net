@@ -4,7 +4,7 @@ using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
-    internal interface IOutHandler<TOut> : IHandler, IDisposable
+    internal interface IOutHandler<TOut> : IHandler
     {
         ChannelWriter<Workflow<TOut>> NextWriter { get; set; }
     }

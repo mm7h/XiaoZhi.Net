@@ -6,10 +6,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Common.Dtos;
-using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Management;
-using XiaoZhi.Net.Server.Protocol;
 using XiaoZhi.Net.Server.Providers.MCP;
 
 namespace XiaoZhi.Net.Server.Handlers
@@ -30,8 +27,12 @@ namespace XiaoZhi.Net.Server.Handlers
         
         public event Action<Session>? OnManualStop;
         public override string HandlerName => nameof(TextHandler);
-        public IBizSendOutter SendOutter { get; set; } = null!;
         public ChannelWriter<Workflow<string>> NextWriter { get; set; } = null!;
+
+        public override bool Build(PrivateProvider privateProvider)
+        {
+            return true;
+        }
 
         public async void Handle(string data)
         {
@@ -59,9 +60,6 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 switch (type)
                 {
-                    case "hello":
-                        this.HandleHelloMessage(jsonObj);
-                        break;
                     case "abort":
                         await this.HandleAbortMessage();
                         break;
@@ -78,53 +76,6 @@ namespace XiaoZhi.Net.Server.Handlers
                         }).ConfigureAwait(false);
 
                         break;
-                }
-            }
-        }
-
-        private void HandleHelloMessage(JsonObject jsonObj)
-        {
-            Session session = this.SendOutter.GetSession();
-
-            AudioParams defaultAudioParams = new AudioParams(this.Config.AudioSetting.SampleRate, this.Config.AudioSetting.Channels, this.Config.AudioSetting.FrameDuration);
-            HelloMessage defultHelloMessage = new HelloMessage(this.SendOutter.SessionId, this.Config.ServerProtocol.GetDescription().ToLower(), defaultAudioParams);
-
-            if (jsonObj.TryGetPropertyValue("audio_params", out var audioParams) && audioParams is not null)
-            {
-                JsonObject audioParamsObj = audioParams.AsObject();
-                string format = audioParamsObj["format"]?.GetValue<string>() ?? "opus";
-                int sampleRate = audioParamsObj["sample_rate"]?.GetValue<int>() ?? 16000;
-                int channels = audioParamsObj["channels"]?.GetValue<int>() ?? 1;
-                int frameDuration = audioParamsObj["frame_duration"]?.GetValue<int>() ?? 60;
-
-                session.AudioSetting.Format = format;
-                session.AudioSetting.SampleRate = sampleRate;
-                session.AudioSetting.Channels = channels;
-                session.AudioSetting.FrameDuration = frameDuration;
-                session.IsDeviceBinded = true;
-                this._providerManager.BuildAudioPlayer(session);
-                this._providerManager.BuildAudioMixer(session);
-                this._providerManager.RegisterAudioResampler(session);
-                this._providerManager.RegisterAudioEncoder(session);
-
-                defultHelloMessage.AudioParams.Format = format;
-                defultHelloMessage.AudioParams.SampleRate = sampleRate;
-                defultHelloMessage.AudioParams.Channels = channels;
-                defultHelloMessage.AudioParams.FrameDuration = frameDuration;
-            }
-
-            this.SendOutter.SendAsync(JsonHelper.Serialize(defultHelloMessage));
-
-            if (jsonObj.TryGetPropertyValue("features", out var features) && features is not null)
-            {
-                JsonObject featuresObj = features.AsObject();
-                if (featuresObj.TryGetPropertyValue("mcp", out var mcp) && mcp is not null)
-                {
-                    bool isSupportMCP = mcp.GetValue<bool>();
-                    if (isSupportMCP)
-                    {
-                        this._providerManager.BuildMCP(session);
-                    }
                 }
             }
         }
@@ -202,7 +153,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             this.NextWriter.Complete();
         }

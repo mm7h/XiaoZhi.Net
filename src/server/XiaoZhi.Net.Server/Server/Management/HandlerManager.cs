@@ -10,6 +10,7 @@ namespace XiaoZhi.Net.Server.Management
         {
             return builder.ConfigureServices((context, services) =>
             {
+                services.AddTransient<HelloMessageHandler>();
                 services.AddTransient<TextHandler>();
                 services.AddTransient<AudioReceiveHandler>();
                 services.AddTransient<Audio2TextHandler>();
