@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -134,30 +133,10 @@ namespace XiaoZhi.Net.Server.Management
             return true;
         }
 
-        public async Task InitializePrivateConfig(Session session)
+        public async Task InitializePrivateConfigAsync(Session session)
         {
             try
             {
-                Kernel privateKernel = this._globalKernel.Clone();
-                privateKernel.Data.Add("session", session);
-                #region Global plugins init
-                #region LocalMusicPlayer
-                MusicPlayer musicPlayerPlugin = this._serviceProvider.GetRequiredService<MusicPlayer>();
-
-                LLMPluginConfig llmPluginConfig = new LLMPluginConfig(session);
-
-                if (musicPlayerPlugin.Build(llmPluginConfig))
-                {
-                    string pluginName = musicPlayerPlugin.ModelName;
-                    privateKernel.ImportPluginFromObject(musicPlayerPlugin, pluginName);
-                    this._logger.LogInformation("LLM plugin {pluginName} initialized for device: {deviceId} with session: {sessionId}.", pluginName, session.DeviceId, session.SessionId);
-                }
-                #endregion
-
-                #endregion
-
-                session.PrivateProvider.SetKernel(privateKernel);
-
                 ManageApiClient? manageApiClient = this._serviceProvider.GetService<ManageApiClient>();
 
                 if (manageApiClient is null)
@@ -165,18 +144,21 @@ namespace XiaoZhi.Net.Server.Management
                     this._logger.LogInformation("Remote service is unavailable or not configured, skipping private models config loading for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
 
                     #region Generic LLM
+                    Kernel privateKernel = this._globalKernel.Clone();
                     ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
 
                     ModelSetting llmModelSetting = this._config.LlmSettings.First();
                     string llmModelName = llmModelSetting.ModelName;
                     bool useStreaming = llmModelSetting.Config.UseStreaming ?? false;
 
-                    LLMBuildConfig llmBuildConfig = new LLMBuildConfig(llmModelName, this._config.Prompt, useStreaming, string.Empty, this._globalKernel);
+                    LLMBuildConfig llmBuildConfig = new LLMBuildConfig(llmModelName, this._config.Prompt, useStreaming, string.Empty, privateKernel, session);
 
                     if (!genericLlm.Build(llmBuildConfig))
                     {
                         throw new ModelBuildException("Failed to build generic LLM model.");
                     }
+                    privateKernel.Data.Add("session", session);
+                    session.PrivateProvider.SetKernel(privateKernel);
                     session.PrivateProvider.SetLlm(genericLlm);
 
                     this._logger.LogInformation("Generic LLM {modeName} model initialized for device: {deviceId}.", llmModelSetting.ModelName, session.DeviceId); 
@@ -219,6 +201,7 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig.LlmSetting is not null)
                 {
+                    Kernel privateKernel = this._globalKernel.Clone();
                     ILlm privateLlm = this._serviceProvider.GetRequiredService<ILlm>();
 
                     string llmModelName = privateModelsConfig.LlmSetting.ModelName;
@@ -226,12 +209,14 @@ namespace XiaoZhi.Net.Server.Management
                     bool useStreaming = privateModelsConfig.LlmSetting.Config?.UseStreaming ?? false;
                     string summaryMemory = privateModelsConfig.LlmSetting.Config?.SummaryMemory ?? string.Empty;
 
-                    LLMBuildConfig llmBuildConfig = new LLMBuildConfig(llmModelName, prompt, useStreaming, summaryMemory, session.PrivateProvider.Kernel);
+                    LLMBuildConfig llmBuildConfig = new LLMBuildConfig(llmModelName, prompt, useStreaming, summaryMemory, privateKernel, session);
 
                     if (!privateLlm.Build(llmBuildConfig))
                     {
                         throw new ModelBuildException("Failed to build private LLM model.");
                     }
+                    privateKernel.Data.Add("session", session);
+                    session.PrivateProvider.SetKernel(privateKernel);
                     session.PrivateProvider.SetLlm(privateLlm);
 
                     this._logger.LogInformation("Private LLM {modeName} model initialized for device: {deviceId}.", privateModelsConfig.LlmSetting.ModelName, session.DeviceId);
@@ -425,8 +410,6 @@ namespace XiaoZhi.Net.Server.Management
         #region LLM
         private static void RegisterLlm(IServiceCollection services, XiaoZhiConfig config)
         {
-
-            int index = 0;
             foreach (var llmSetting in config.LlmSettings)
             {
                 string endPoint = llmSetting.Config.BaseUrl;
@@ -444,15 +427,7 @@ namespace XiaoZhi.Net.Server.Management
                     default:
                         throw new ModelBuildException("Invalid llm model.");
                 }
-
-                if (index == 0)
-                {
-                    services.AddOpenAIChatCompletion(modelId, new Uri(endPoint), apiKey, orgId: "Xiao Zhi", $"LLM_{SystemLLMServiceNames.GENERIC_LLM_ID}");
-                }
-
-                index++;
             }
-
 
             services.AddTransient<IFunctionInvocationFilter, MCPToolFunctionFilter>();
             services.AddTransient<ILlm, GenericOpenAI>();

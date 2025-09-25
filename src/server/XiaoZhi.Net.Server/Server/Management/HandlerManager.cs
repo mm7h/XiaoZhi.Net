@@ -45,9 +45,16 @@ namespace XiaoZhi.Net.Server.Management
             });
         }
 
-        public void InitializePrivateConfig(Session session)
+        public void InitializeHelloMessageHandler(Session session)
         {
             var helloMessageHandler = this._serviceProvider.GetRequiredService<HelloMessageHandler>();
+            this.InitializeSendOutter(session, helloMessageHandler);
+
+            session.HandlerPipeline.InitHelloMessageHandler(helloMessageHandler);
+        }
+
+        public void InitializePrivateConfig(Session session)
+        {
             var textHandler = this._serviceProvider.GetRequiredService<TextHandler>();
             var audioReceiveHandler = this._serviceProvider.GetRequiredService<AudioReceiveHandler>();
             var audio2TextHandler = this._serviceProvider.GetRequiredService<Audio2TextHandler>();
@@ -58,7 +65,6 @@ namespace XiaoZhi.Net.Server.Management
 
             IDictionary<string, IHandler> handlerContainer = new Dictionary<string, IHandler>
             {
-                [helloMessageHandler.HandlerName] = helloMessageHandler,
                 [textHandler.HandlerName] = textHandler,
                 [audioReceiveHandler.HandlerName] = audioReceiveHandler,
                 [audio2TextHandler.HandlerName] = audio2TextHandler,
@@ -67,17 +73,6 @@ namespace XiaoZhi.Net.Server.Management
                 [audioMixingHandler.HandlerName] = audioMixingHandler,
                 [audioSendHandler.HandlerName] = audioSendHandler
             };
-
-            bool buildResults = handlerContainer.Values
-               .AsParallel()
-               .Select(h => h.Build(session.PrivateProvider))
-               .All(result => result);
-
-            if (!buildResults)
-            {
-                this._logger.LogError("Failed to build the handler pipeline for device: {deviceId}.", session.DeviceId);
-                return;
-            }
 
             textHandler.OnManualStop += audioReceiveHandler.HandleAudio;
             audioReceiveHandler.OnNoVoiceCloseConnect += dialogueHandler.NoVoiceCloseConnect;
@@ -90,12 +85,6 @@ namespace XiaoZhi.Net.Server.Management
             this.InitializeSendOutter(session, audioMixingHandler);
             this.InitializeSendOutter(session, audioSendHandler);
 
-            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, audioReceiveHandler, audio2TextHandler);
-            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, textHandler, audio2TextHandler, dialogueHandler);
-            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, dialogueHandler, text2AudioHandler);
-            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, text2AudioHandler, audioMixingHandler);
-            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, audioMixingHandler, audioSendHandler);
-
             this.ScheduleOnAbort(textHandler);
             this.ScheduleOnAbort(audioReceiveHandler);
             this.ScheduleOnAbort(audio2TextHandler);
@@ -103,6 +92,24 @@ namespace XiaoZhi.Net.Server.Management
             this.ScheduleOnAbort(text2AudioHandler);
             this.ScheduleOnAbort(audioMixingHandler);
             this.ScheduleOnAbort(audioSendHandler);
+
+            bool buildResults = handlerContainer.Values
+               .AsParallel()
+               .Select(h => h.Build(session.PrivateProvider))
+               .All(result => result);
+
+            if (!buildResults)
+            {
+                this._logger.LogError("Failed to build the handler pipeline for device: {deviceId}.", session.DeviceId);
+                return;
+            }
+
+            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, audioReceiveHandler, audio2TextHandler);
+            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, textHandler, audio2TextHandler, dialogueHandler);
+            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, dialogueHandler, text2AudioHandler);
+            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, text2AudioHandler, audioMixingHandler);
+            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, audioMixingHandler, audioSendHandler);
+
             session.HandlerPipeline.InitHandlerPipeline(handlerContainer);
         }
 

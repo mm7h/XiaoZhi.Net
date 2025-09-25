@@ -15,10 +15,12 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
 {
     internal class SocketSession : WebSocketSession, IBizSendOutter
     {
+        private readonly HandlerManager _handlerManager;
         private readonly ProviderManager _providerManager;
 
-        public SocketSession(ProviderManager providerManager)
+        public SocketSession(HandlerManager handlerManager, ProviderManager providerManager)
         {
+            this._handlerManager = handlerManager;
             this._providerManager = providerManager;
         }
 
@@ -134,7 +136,8 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
 
             Session session = new Session(this.SessionId, deviceId, token, userEndPoint, this);
 
-            await this._providerManager.InitializePrivateConfig(session);
+            this._handlerManager.InitializeHelloMessageHandler(session);
+            await this._providerManager.InitializePrivateConfigAsync(session);
 
             session.RefreshLastActivityTime();
 

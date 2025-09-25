@@ -14,10 +14,14 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         private IDictionary<string, IHandler>? _handlerContainer;
 
+        public void InitHelloMessageHandler(HelloMessageHandler helloMessageHandler)
+        {
+            this._helloMessageHandler = helloMessageHandler ?? throw new ArgumentNullException(nameof(helloMessageHandler));
+        }
+
         public void InitHandlerPipeline(IDictionary<string, IHandler> handlerContainer)
         {
             this._handlerContainer = handlerContainer;
-            this._helloMessageHandler = handlerContainer[nameof(HelloMessageHandler)] as HelloMessageHandler ?? throw new ArgumentNullException(nameof(HelloMessageHandler));
             this._textHandler = handlerContainer[nameof(TextHandler)] as TextHandler ?? throw new ArgumentNullException(nameof(TextHandler));
             this._audioReceiveHandler = handlerContainer[nameof(AudioReceiveHandler)] as AudioReceiveHandler ?? throw new ArgumentNullException(nameof(AudioReceiveHandler));
         }

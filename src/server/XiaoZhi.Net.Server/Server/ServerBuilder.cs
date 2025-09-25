@@ -232,11 +232,13 @@ namespace XiaoZhi.Net.Server
             bool loaded = resourceManager.BuildComponent(serviceProvider);
             if (!loaded)
             {
+                Serilog.Log.CloseAndFlush();
                 throw new ApplicationException("Failed to load resource components. Please check the configuration and resource implementations.");
             }
             bool builded = providerManager.BuildComponent(serviceProvider);
             if (!builded)
             {
+                Serilog.Log.CloseAndFlush();
                 throw new ApplicationException("Failed to build provider components. Please check the configuration and provider implementations.");
             }
         }
