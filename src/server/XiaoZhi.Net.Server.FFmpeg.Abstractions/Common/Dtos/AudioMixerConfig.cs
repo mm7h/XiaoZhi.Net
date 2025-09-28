@@ -29,15 +29,14 @@ namespace XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Dtos
         public float NewStreamBufferTolerance { get; set; } = 0.25f;
 
         /// <summary>
-        /// 最大缓冲帧数
+        /// 播放开始前要在缓冲区中预填充的帧数
         /// </summary>
-        public int MaxBufferFrames { get; set; } = 15;
+        public int BufferPrefillFrames { get; set; } = 2;
 
         /// <summary>
-        /// Enable/disable strict output timing control
-        /// When enabled, the mixer will strictly output audio frames according to the frameDuration set in Initialize
+        /// 丢弃最旧帧之前的最大输出缓冲区大小，以防止过度延迟
         /// </summary>
-        public bool EnabledStrictTiming { get; set; }
+        public int MaxOutputBufferFrames { get; set; } = 12;
 
         /// <summary>
         /// 系统通知类型的音量配置

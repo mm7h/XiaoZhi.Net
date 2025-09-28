@@ -116,7 +116,6 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 using (CodeTimer timer = CodeTimer.Create("Calling the LLM takes {elapsed:F2} ms.", this.Logger))
                 {
-
                     if (this._useStreaming)
                     {
                         await this._llm.ChatByStreamingAsync(workflow.Data, session.SessionCtsToken);

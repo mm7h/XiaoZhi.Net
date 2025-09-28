@@ -18,6 +18,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
         private readonly ConcurrentDictionary<AudioType, AudioStreamProcessor> _audioInputs = new();
         private readonly ConcurrentDictionary<AudioType, VolumeTransitionControl> _volumeStates = new();
         private readonly Timer _mixingTimer;
+        private Timer? _playbackTimer;
         private volatile bool _hasPendingData = false;
         private volatile int _processingFlag = 0;
         private AudioMixerConfig _config = new();
@@ -43,18 +44,33 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
         // Track last highest priority to detect priority change even if active set stays same
         private int? _lastHighestPriority = null;
 
-        // Remember last normalization factor to avoid sudden gain drops when a new low-energy stream joins
-        private float _lastNormalizationFactor = 0.75f; // matches single stream factor used previously
+        private float _lastNormalizationFactor = 0.75f;
 
         // Only mark the very first mixed frame after switching to Mixing
         private volatile bool _firstFrameAfterStart = false;
         // Ensure we emit isLast only once per mixing session
         private volatile bool _lastFrameEmitted = false;
 
-        // Strict timing control for output
-        private bool _strictTimingEnabled = false;
-        private DateTime _lastOutputTime = DateTime.MinValue;
-        private (float[] data, bool isFirst, bool isLast)? _pendingOutputData;
+        private readonly Queue<OutputBufferFrame> _outputBuffer = new Queue<OutputBufferFrame>();
+        private readonly object _bufferLock = new();
+        private DateTime _lastScheduledOutputTime = DateTime.MinValue;
+        private bool _bufferPreFilled = false;
+        private bool _playbackStarted = false;
+
+
+        private struct OutputBufferFrame
+        {
+            public float[] Data;
+            public bool IsFirst;
+            public bool IsLast;
+
+            public OutputBufferFrame(float[] data, bool isFirst, bool isLast)
+            {
+                Data = data;
+                IsFirst = isFirst;
+                IsLast = isLast;
+            }
+        }
 
         public AudioMixer(ILogger<AudioMixer>? logger = null)
         {
@@ -109,7 +125,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     _outputChannels = outputChannels;
                     _frameDuration = frameDuration;
                     _frameSampleCount = outputSampleRate * frameDuration / 1000 * outputChannels;
-                    _strictTimingEnabled = _config.EnabledStrictTiming;
                     // Use a higher tick than frame to drive smoother transitions
                     var timerInterval = Math.Max(frameDuration / 4, 5);
                     _mixingTimer.Change(timerInterval, timerInterval);
@@ -132,34 +147,78 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
 
         private void EmitMixedAudio(float[] mixedData, bool isFirst, bool isLast)
         {
-            if (_strictTimingEnabled)
+            int targetBufferDepth = _config.MaxOutputBufferFrames;
+            if (targetBufferDepth <= 0) targetBufferDepth = 1;
+
+            while (true)
             {
-                // Strict timing control mode
-                var now = DateTime.UtcNow;
-                
-                if (_lastOutputTime != DateTime.MinValue)
+                if (_disposed) return;
+                bool canEnqueue = false;
+                DateTime nextIdealTime;
+                lock (_bufferLock)
                 {
-                    var elapsedMs = (now - _lastOutputTime).TotalMilliseconds;
-                    if (elapsedMs < _frameDuration)
+                    if (_lastScheduledOutputTime == DateTime.MinValue)
                     {
-                        // Not time to output yet, store the data (overwrite previous to keep latest)
-                        _pendingOutputData = (mixedData, isFirst, isLast);
-                        return;
+                        int initialDelay = _config.BufferPrefillFrames * _frameDuration;
+                        _lastScheduledOutputTime = DateTime.UtcNow.AddMilliseconds(initialDelay);
+                        _logger.LogInformation("Buffer pacing baseling set with prefill delay {delay}ms", initialDelay);
+                    }
+
+                    if (_outputBuffer.Count < targetBufferDepth)
+                    {
+                        nextIdealTime = _lastScheduledOutputTime.AddMilliseconds(_frameDuration);
+                        var frame = new OutputBufferFrame(mixedData.ToArray(), isFirst, isLast);
+                        _outputBuffer.Enqueue(frame);
+                        _lastScheduledOutputTime = nextIdealTime;
+                        if (!_bufferPreFilled && _outputBuffer.Count >= _config.BufferPrefillFrames)
+                        {
+                            _bufferPreFilled = true;
+                            _logger.LogInformation("Prefilled {count} frames. Starting pacing timer.", _outputBuffer.Count);
+                            StartPlaybackTimer();
+                        }
+                        canEnqueue = true;
                     }
                 }
-                
-                // Output current data and update time
-                OutputAudioData(mixedData, isFirst, isLast);
-                _lastOutputTime = now;
-                _pendingOutputData = null;
+                if (canEnqueue) break;
+                Thread.Sleep(Math.Min(2, _frameDuration / 4));
+            }
+        }
+
+        private void EmitMixedAudioWithBuffering(float[] mixedData, bool isFirst, bool isLast)
+        {
+
+        }
+
+        private void StartPlaybackTimer()
+        {
+            if (_playbackStarted) return;
+            _playbackStarted = true;
+            _playbackTimer = new Timer(PlaybackTimerCallback, null, 0, _frameDuration);
+        }
+
+        private void PlaybackTimerCallback(object? state)
+        {
+            if (!_bufferPreFilled || _disposed) return;
+            OutputBufferFrame? frameToPlay = null;
+            lock (_bufferLock)
+            {
+                if (_outputBuffer.Count > 0)
+                {
+                    frameToPlay = _outputBuffer.Dequeue();
+                }
+            }
+            if (frameToPlay.HasValue)
+            {
+                var frame = frameToPlay.Value;
+                OutputAudioData(frame.Data, frame.IsFirst, frame.IsLast);
             }
             else
             {
-                // Free output mode
-                OutputAudioData(mixedData, isFirst, isLast);
+                var silent = new float[_frameSampleCount];
+                OutputAudioData(silent, false, false);
             }
         }
-        
+
         private void OutputAudioData(float[] data, bool isFirst, bool isLast)
         {
             try
@@ -169,16 +228,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Error in OnMixedAudioDataAvailable callback");
-            }
-        }
-        
-        private void FlushPendingOutput()
-        {
-            if (_pendingOutputData.HasValue)
-            {
-                var pending = _pendingOutputData.Value;
-                OutputAudioData(pending.data, pending.isFirst, pending.isLast);
-                _pendingOutputData = null;
             }
         }
 
@@ -226,7 +275,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             var activeTypes = _audioInputs
                 .Where(kvp => !kvp.Value.IsComplete && (kvp.Value.HasAnyData() || kvp.Value.ProcessedFrameCount > 0 || kvp.Value.IsStopping))
                 .Select(kvp => kvp.Key)
-                .OrderBy(t => t) // deterministic order
+                .OrderBy(t => t)
                 .ToList();
 
             if (activeTypes.Count == 0)
@@ -322,26 +371,7 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 return;
 
             bool hasActiveTransitions = _volumeStates.Values.Any(v => v.IsTransitioning);
-            if (!_hasPendingData && !hasActiveTransitions)
-            {
-                // In strict timing mode, check if there's pending data that needs to be output on time
-                if (_strictTimingEnabled && _pendingOutputData.HasValue)
-                {
-                    var now = DateTime.UtcNow;
-                    if (_lastOutputTime != DateTime.MinValue)
-                    {
-                        var elapsedMs = (now - _lastOutputTime).TotalMilliseconds;
-                        if (elapsedMs >= _frameDuration)
-                        {
-                            var pending = _pendingOutputData.Value;
-                            OutputAudioData(pending.data, pending.isFirst, pending.isLast);
-                            _lastOutputTime = now;
-                            _pendingOutputData = null;
-                        }
-                    }
-                }
-                return;
-            }
+            if (!_hasPendingData && !hasActiveTransitions) return;
 
             if (Interlocked.CompareExchange(ref _processingFlag, 1, 0) == 0)
             {
@@ -368,10 +398,18 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             {
                 bool hasProcessedData = false;
                 int processedFrameCount = 0;
-                const int maxFramesPerCycle = 3; // keep CPU bound limit
+                const int maxFramesPerCycle = 3; // CPU guard
 
                 while (processedFrameCount < maxFramesPerCycle)
                 {
+                    lock (_bufferLock)
+                    {
+                        if (_outputBuffer.Count >= Math.Max(1, _config.MaxOutputBufferFrames))
+                        {
+                            break;
+                        }
+                    }
+
                     var allInputs = _audioInputs.Values.ToList();
                     var inputsWithData = allInputs.Where(input => input.HasAnyData() && !input.IsComplete).ToList();
 
@@ -386,9 +424,9 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                                 _ = v.UpdateAndGetCurrentVolume();
                             }
 
-                            bool transitionsStillActive = _volumeStates.Values.Any(v => v.IsTransitioning);
-                            bool allCompleteAndEmpty = _audioInputs.Values.All(i => i.IsComplete && !i.HasAnyData());
-                            bool shouldMarkLast = allCompleteAndEmpty && !transitionsStillActive;
+                            bool transitionsStill = _volumeStates.Values.Any(v => v.IsTransitioning);
+                            bool allComplete = _audioInputs.Values.All(i => i.IsComplete && !i.HasAnyData());
+                            bool shouldMarkLast = allComplete && !transitionsStill;
 
                             var silentFrame = new float[_frameSampleCount];
 
@@ -411,8 +449,8 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                             continue;
                         }
 
-                        bool allCompleteAndEmptyNoTransition = allInputs.Count > 0 && _audioInputs.Values.All(i => i.IsComplete && !i.HasAnyData());
-                        if (allCompleteAndEmptyNoTransition)
+                        bool allCompleteAndEmpty = allInputs.Count > 0 && _audioInputs.Values.All(i => i.IsComplete && !i.HasAnyData());
+                        if (allCompleteAndEmpty && !_lastFrameEmitted)
                         {
                             // Only emit the final frame once
                             if (!_lastFrameEmitted)
@@ -429,7 +467,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                                 EmitMixedAudio(silentFrame, isFirst, true);
                                 _lastFrameEmitted = true;
                                 hasProcessedData = true;
-                                processedFrameCount++;
                             }
 
                             break;
@@ -454,43 +491,37 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     }
 
                     var mixedAudio = MixAudioStreamsWithSmoothVolume(activeInputs, currentActiveTypes);
-
-                    if (mixedAudio != null && mixedAudio.Length > 0)
-                    {
-                        ApplyEnhancedLimiting(mixedAudio);
-                        ApplyDynamicGainControlSmooth(mixedAudio, activeInputs.Count > 1);
-                        UpdateStatistics(mixedAudio, activeInputs.Count);
-
-                        bool isFirst = false;
-                        if (_firstFrameAfterStart)
-                        {
-                            isFirst = true;
-                            _firstFrameAfterStart = false;
-                        }
-
-                        bool allCompleteAndEmpty = _audioInputs.Values.All(i => i.IsComplete && !i.HasAnyData());
-                        bool hasActiveTransitions = _volumeStates.Values.Any(v => v.IsTransitioning);
-                        bool isLastCandidate = allCompleteAndEmpty && !hasActiveTransitions;
-                        bool isLast = isLastCandidate && !_lastFrameEmitted;
-
-                        EmitMixedAudio(mixedAudio, isFirst, isLast);
-                        if (isLast)
-                        {
-                            _lastFrameEmitted = true;
-                        }
-
-                        foreach (var input in activeInputs)
-                        {
-                            input.MarkFrameProcessed();
-                        }
-
-                        hasProcessedData = true;
-                        processedFrameCount++;
-                    }
-                    else
-                    {
+                    if (mixedAudio == null || mixedAudio.Length == 0)
                         break;
+                    ApplyEnhancedLimiting(mixedAudio);
+                    ApplyDynamicGainControlSmooth(mixedAudio, activeInputs.Count > 1);
+                    UpdateStatistics(mixedAudio, activeInputs.Count);
+
+                    bool isFirstFrame = false;
+                    if (_firstFrameAfterStart)
+                    {
+                        isFirstFrame = true;
+                        _firstFrameAfterStart = false;
                     }
+
+                    bool allCompleteNow = _audioInputs.Values.All(i => i.IsComplete && !i.HasAnyData());
+                    bool hasTransitions = _volumeStates.Values.Any(v => v.IsTransitioning);
+                    bool isLastCandidate = allCompleteNow && !hasTransitions;
+                    bool markLast = isLastCandidate && !_lastFrameEmitted;
+
+                    EmitMixedAudio(mixedAudio, isFirstFrame, markLast);
+                    if (markLast)
+                    {
+                        _lastFrameEmitted = true;
+                    }
+
+                    foreach (var input in activeInputs)
+                    {
+                        input.MarkFrameProcessed();
+                    }
+
+                    hasProcessedData = true;
+                    processedFrameCount++;
                 }
 
                 // Cleanup completed streams
@@ -751,6 +782,11 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                 _volumeStates.Clear();
                 _lastActiveTypes.Clear();
                 _lastHighestPriority = null;
+                lock (_bufferLock)
+                {
+                    _outputBuffer.Clear();
+                    _bufferPreFilled = false;
+                }
                 SetState(AudioMixerState.Idle);
                 _hasPendingData = false;
                 _logger.LogDebug("Cleared all audio buffers");
@@ -794,11 +830,17 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
             if (_disposed) return;
             lock (_syncLock)
             {
-                // Cleanup pending output data when disposing
-                FlushPendingOutput();
-                
+                lock (_bufferLock)
+                {
+                    while (_outputBuffer.Count > 0)
+                    {
+                        var frame = _outputBuffer.Dequeue();
+                        OutputAudioData(frame.Data, frame.IsFirst, frame.IsLast);
+                    }
+                }
                 SetState(AudioMixerState.Stopped);
                 _mixingTimer?.Change(Timeout.Infinite, Timeout.Infinite); _mixingTimer?.Dispose();
+                _playbackTimer?.Change(Timeout.Infinite, Timeout.Infinite); _playbackTimer?.Dispose();
                 SpinWait.SpinUntil(() => _processingFlag == 0, 1000);
                 foreach (var input in _audioInputs.Values) input.Dispose();
                 _audioInputs.Clear(); _volumeStates.Clear(); _lastActiveTypes.Clear(); _lastHighestPriority = null;

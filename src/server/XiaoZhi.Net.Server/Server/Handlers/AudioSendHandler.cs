@@ -64,7 +64,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 byte[] opusData = await session.PrivateProvider.AudioEncoder!.EncodeAsync(audioPacket.Data, session.SessionCtsToken);
                 await this.SendOutter.SendAsync(opusData);
-                await Task.Delay(session.AudioSetting.FrameDuration);
+                //await Task.Delay((int)(session.AudioSetting.FrameDuration * 0.8));
 
                 if (audioPacket.IsLastFrame)
                 {

@@ -61,8 +61,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                         {
                             VolumeTransitionDurationMs = 1000,
                             TransitionCurve = VolumeTransitionCurve.Logarithmic,
-                            EnableSmoothVolumeControl = true,
-                            EnabledStrictTiming = false
+                            EnableSmoothVolumeControl = true
                         }
                     );
                     Console.WriteLine("Setting up event handlers...");

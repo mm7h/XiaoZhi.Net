@@ -14,7 +14,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
         private readonly object _syncLock = new();
         private readonly AudioMixerConfig _config;
         private bool _disposed;
-        private readonly int _frameSampleCount;
         
         // Internal frame boundary tracking
         private volatile bool _isFirstFrame = false;
@@ -38,7 +37,6 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
         public AudioStreamProcessor(AudioType audioType, int sampleRate, int channels, int frameDuration, AudioMixerConfig config)
         {
             _audioType = audioType;
-            _frameSampleCount = sampleRate * frameDuration / 1000 * channels;
             _config = config;
         }
 
@@ -79,19 +77,8 @@ namespace XiaoZhi.Net.Server.FFmpeg.Mixers
                     _streamEnded = true;
                 }
 
-                int maxBufferSize = _config.MaxBufferFrames * _frameSampleCount;
                 int currentBufferSize = _bufferQueue.Count;
                 int newDataSize = audioData.Length;
-
-                int excessSize = (currentBufferSize + newDataSize) - maxBufferSize;
-                if (excessSize > 0)
-                {
-                    int samplesToRemove = Math.Min(excessSize, currentBufferSize);
-                    for (int i = 0; i < samplesToRemove; i++)
-                    {
-                        _bufferQueue.TryDequeue(out _);
-                    }
-                }
 
                 foreach (float sample in audioData)
                 {

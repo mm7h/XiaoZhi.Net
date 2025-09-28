@@ -4,30 +4,30 @@ using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 namespace XiaoZhi.Net.Server.Providers
 {
     /// <summary>
-    /// ÒôÆµ»ìÒôÆ÷
+    /// ï¿½ï¿½Æµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     /// </summary>
     internal interface IAudioMixer : IProvider<AudioSetting>
     {
         /// <summary>
-        /// »ìºÏÒôÆµÊý¾ÝÊÂ¼þ
+        /// ï¿½ï¿½ï¿½ï¿½ï¿½Æµï¿½ï¿½ï¿½ï¿½ï¿½Â¼ï¿½
         /// </summary>
         event Action<float[], bool, bool>? OnMixedAudioDataAvailable;
 
         /// <summary>
-        /// Ìí¼ÓÒôÆµÊý¾Ý
+        /// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æµï¿½ï¿½ï¿½ï¿½
         /// </summary>
-        /// <param name="audioType">ÒôÆµÀàÐÍ</param>
-        /// <param name="audioData">ÒôÆµÊý¾Ý</param>
+        /// <param name="audioType">ï¿½ï¿½Æµï¿½ï¿½ï¿½ï¿½</param>
+        /// <param name="audioData">ï¿½ï¿½Æµï¿½ï¿½ï¿½ï¿½</param>
         void AddAudioData(AudioType audioType, float[] audioData);
 
         /// <summary>
-        /// Í£Ö¹ÒôÆµÁ÷
+        /// Í£Ö¹ï¿½ï¿½Æµï¿½ï¿½
         /// </summary>
-        /// <param name="audioType">ÒôÆµÀàÐÍ</param>
+        /// <param name="audioType">ï¿½ï¿½Æµï¿½ï¿½ï¿½ï¿½</param>
         void StopAudioStream(AudioType audioType);
 
         /// <summary>
-        /// Çå³ýËùÓÐ»º³åÇø
+        /// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð»ï¿½ï¿½ï¿½ï¿½ï¿½
         /// </summary>
         void ClearAllBuffers();
     }
