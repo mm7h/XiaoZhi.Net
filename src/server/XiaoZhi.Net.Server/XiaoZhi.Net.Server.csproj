@@ -45,8 +45,8 @@ Dotnet backend service for xiaozhi-esp32, helps you quickly build an ESP32 devic
 
     <ItemGroup>
       <ProjectReference Include="..\XiaoZhi.Net.Server.Abstractions\XiaoZhi.Net.Server.Abstractions.csproj" />
-      <ProjectReference Include="..\XiaoZhi.Net.Server.FFmpeg.Abstractions\XiaoZhi.Net.Server.FFmpeg.Abstractions.csproj" />
-      <ProjectReference Include="..\XiaoZhi.Net.Server.FFmpeg\XiaoZhi.Net.Server.FFmpeg.csproj" />
+      <ProjectReference Include="..\XiaoZhi.Net.Server.Media.Abstractions\XiaoZhi.Net.Server.Media.Abstractions.csproj" />
+      <ProjectReference Include="..\XiaoZhi.Net.Server.Media\XiaoZhi.Net.Server.Media.csproj" />
     </ItemGroup>
 
 </Project>

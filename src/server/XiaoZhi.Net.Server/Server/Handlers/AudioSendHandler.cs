@@ -3,6 +3,7 @@ using Microsoft.Extensions.ObjectPool;
 using System;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 
@@ -12,7 +13,7 @@ namespace XiaoZhi.Net.Server.Handlers
     {
         private readonly ObjectPool<MixedAudioPacket> _mixedAudioPacketPool;
         private readonly ObjectPool<Workflow<MixedAudioPacket>> _mixedAudioPacketWorkflowPool;
-        public AudioSendHandler(ObjectPool<MixedAudioPacket> mixedAudioPacketPool, ObjectPool<Workflow<MixedAudioPacket>> mixedAudioPacketWorkflowPool, XiaoZhiConfig config, ILogger<AudioMixingHandler> logger) : base(config, logger)
+        public AudioSendHandler(ObjectPool<MixedAudioPacket> mixedAudioPacketPool, ObjectPool<Workflow<MixedAudioPacket>> mixedAudioPacketWorkflowPool, XiaoZhiConfig config, ILogger<AudioSendHandler> logger) : base(config, logger)
         {
             this._mixedAudioPacketPool = mixedAudioPacketPool;
             this._mixedAudioPacketWorkflowPool = mixedAudioPacketWorkflowPool;
@@ -24,7 +25,18 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override bool Build(PrivateProvider privateProvider)
         {
-            return true;
+            Session session = this.SendOutter.GetSession();
+            if (privateProvider.AudioProcessor is not null)
+            {
+                privateProvider.AudioProcessor.OnSubtitleStart += this.OnSubtitleStart;
+                privateProvider.AudioProcessor.OnSubtitleEnd += this.OnSubtitleEnd;
+                return true;
+            }
+            else
+            {
+                this.Logger.LogError("Audio processor is not built for device {deviceId}.", session.DeviceId);
+                return false;
+            }
         }
 
         public async Task Handle()
@@ -81,6 +93,16 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 this.FireAbort(session.DeviceId, session.SessionId, "audio sending");
             }
+        }
+
+        private async void OnSubtitleStart(AudioType audioType, string subtitle)
+        {
+            await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceStart, subtitle);
+        }
+
+        private async void OnSubtitleEnd(AudioType audioType, string subtitle)
+        {
+            await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceEnd, subtitle);
         }
     }
 }

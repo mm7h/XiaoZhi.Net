@@ -10,7 +10,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private Kernel? _kernel;
         private IIoTClient? _iotClient;
         private IMcpClient? _mcpClient;
-        private IAudioMixer? _audioMixer;
+        private IAudioProcessor? _audioProcessor;
         private IAudioPlayerClient? _audioPlayerClient;
 
         public IVad? Vad { get; private set; }
@@ -27,7 +27,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         [DisallowNull]
         public IMcpClient McpClient => this._mcpClient ?? throw new InvalidOperationException("MCPClient is not set. Please set the mcp client before using the session.");
         [DisallowNull]
-        public IAudioMixer AudioMixer => this._audioMixer ?? throw new InvalidOperationException("AudioMixer is not set. Please set the audio mixer before using the session.");
+        public IAudioProcessor AudioProcessor => this._audioProcessor ?? throw new InvalidOperationException("AudioProcessor is not set. Please set the audio processor before using the session.");
         [DisallowNull]
         public IAudioPlayerClient AudioPlayerClient => this._audioPlayerClient ?? throw new InvalidOperationException("AudioPlayerClient is not set. Please set the audio player client before using the session.");
 
@@ -77,9 +77,9 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._audioPlayerClient = audioPlayer;
         }
 
-        public void SetAudioMixer(IAudioMixer audioMixer)
+        public void SetAudioProcessor(IAudioProcessor audioProcessor)
         {
-            this._audioMixer = audioMixer;
+            this._audioProcessor = audioProcessor;
         }
         public void Release()
         {
@@ -91,7 +91,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._iotClient?.Dispose();
             this._mcpClient?.Dispose();
             this._audioPlayerClient?.Dispose();
-            this._audioMixer?.Dispose();
+            this._audioProcessor?.Dispose();
             this._kernel = null;
         }
     }

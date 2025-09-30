@@ -1,6 +1,6 @@
 using NAudio.Wave;
-using XiaoZhi.Net.Server.FFmpeg;
-using XiaoZhi.Net.Server.FFmpeg.Abstractions;
+using XiaoZhi.Net.Server.Media;
+using XiaoZhi.Net.Server.Media.Abstractions;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {

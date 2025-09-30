@@ -33,8 +33,7 @@ try
             .WithPlugin<GetTime>(nameof(GetTime))
             // ffmpeg音频支持
             .InitializeFFmpeg()
-            .WithAudioPlayer()
-            .WithAudioMixer(false)
+            .WithAllMedia(false)
             // 构建服务引擎
             .Build();
 

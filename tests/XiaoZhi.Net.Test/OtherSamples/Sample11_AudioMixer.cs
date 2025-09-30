@@ -1,9 +1,9 @@
 ﻿using NAudio.Wave;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
-using XiaoZhi.Net.Server.FFmpeg;
-using XiaoZhi.Net.Server.FFmpeg.Abstractions;
-using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Dtos;
-using XiaoZhi.Net.Server.FFmpeg.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.Media;
+using XiaoZhi.Net.Server.Media.Abstractions;
+using XiaoZhi.Net.Server.Media.Abstractions.Common.Dtos;
+using XiaoZhi.Net.Server.Media.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {

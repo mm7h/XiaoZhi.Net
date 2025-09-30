@@ -5,7 +5,7 @@ VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server", "src\server\XiaoZhi.Net.Server\XiaoZhi.Net.Server.csproj", "{3BE4F5E5-001F-416F-82A8-35BD08D2B619}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server.FFmpeg", "src\server\XiaoZhi.Net.Server.FFmpeg\XiaoZhi.Net.Server.FFmpeg.csproj", "{3B7D3048-A465-4300-B311-45AAD4A93CDF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server.Media", "src\server\XiaoZhi.Net.Server.Media\XiaoZhi.Net.Server.Media.csproj", "{3B7D3048-A465-4300-B311-45AAD4A93CDF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Test", "tests\XiaoZhi.Net.Test\XiaoZhi.Net.Test.csproj", "{74F41D2A-4D24-4944-B76A-880C5DC665BA}"
 EndProject
@@ -42,7 +42,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Sample.OTA.Serv
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server.Abstractions", "src\server\XiaoZhi.Net.Server.Abstractions\XiaoZhi.Net.Server.Abstractions.csproj", "{4EE5A774-5F67-4890-8DE8-5A2C50A9415B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server.FFmpeg.Abstractions", "src\server\XiaoZhi.Net.Server.FFmpeg.Abstractions\XiaoZhi.Net.Server.FFmpeg.Abstractions.csproj", "{EE75618F-F646-4D8B-98A3-CDD45BA35C43}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server.Media.Abstractions", "src\server\XiaoZhi.Net.Server.Media.Abstractions\XiaoZhi.Net.Server.Media.Abstractions.csproj", "{EE75618F-F646-4D8B-98A3-CDD45BA35C43}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

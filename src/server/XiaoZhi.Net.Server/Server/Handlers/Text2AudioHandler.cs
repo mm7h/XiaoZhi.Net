@@ -89,7 +89,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             if (!session.IsDeviceBinded)
             {
-                session.PrivateProvider.AudioMixer.ClearAllBuffers();
+                session.PrivateProvider.AudioProcessor.ClearAllBuffers();
                 await this.CheckBindDevice(session);
                 return;
             }

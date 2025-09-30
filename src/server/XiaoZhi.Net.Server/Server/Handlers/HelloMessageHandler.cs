@@ -46,7 +46,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 session.AudioSetting.FrameDuration = frameDuration;
                 session.IsDeviceBinded = true;
                 this._providerManager.BuildAudioPlayer(session);
-                this._providerManager.BuildAudioMixer(session);
+                this._providerManager.BuildAudioProcessor(session);
                 this._providerManager.BuildAudioResampler(session);
                 this._providerManager.BuildAudioEncoder(session);
 

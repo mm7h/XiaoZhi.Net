@@ -557,22 +557,22 @@ namespace XiaoZhi.Net.Server.Management
         }
         #endregion
 
-        #region AudioMixer
+        #region AudioProcessor
         private static void RegisterAudioMixer(IServiceCollection services)
         {
-            services.AddTransient<IAudioMixer, DefaultAudioMixer>();
+            services.AddTransient<IAudioProcessor, DefaultAudioProcessor>();
         }
 
-        public void BuildAudioMixer(Session session)
+        public void BuildAudioProcessor(Session session)
         {
-            IAudioMixer audioMixer = this._serviceProvider.GetRequiredService<IAudioMixer>();
-            if (!audioMixer.Build(session.AudioSetting))
+            IAudioProcessor audioProcessor = this._serviceProvider.GetRequiredService<IAudioProcessor>();
+            if (!audioProcessor.Build(session.AudioSetting))
             {
                 this._logger.LogWarning("Session {sessionId} failed to build audio mixer.", session.SessionId);
             }
             else
             {
-                session.PrivateProvider.SetAudioMixer(audioMixer);
+                session.PrivateProvider.SetAudioProcessor(audioProcessor);
             }
         }
         #endregion

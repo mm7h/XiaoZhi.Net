@@ -38,7 +38,7 @@ namespace XiaoZhi.Net.Server.Management
                 services.AddTransient<Audio2TextHandler>();
                 services.AddTransient<DialogueHandler>();
                 services.AddTransient<Text2AudioHandler>();
-                services.AddTransient<AudioMixingHandler>();
+                services.AddTransient<AudioProcessorHandler>();
                 services.AddTransient<AudioSendHandler>();
 
                 services.AddSingleton<HandlerManager>();
@@ -60,7 +60,7 @@ namespace XiaoZhi.Net.Server.Management
             var audio2TextHandler = this._serviceProvider.GetRequiredService<Audio2TextHandler>();
             var dialogueHandler = this._serviceProvider.GetRequiredService<DialogueHandler>();
             var text2AudioHandler = this._serviceProvider.GetRequiredService<Text2AudioHandler>();
-            var audioMixingHandler = this._serviceProvider.GetRequiredService<AudioMixingHandler>();
+            var audioProcessorHandler = this._serviceProvider.GetRequiredService<AudioProcessorHandler>();
             var audioSendHandler = this._serviceProvider.GetRequiredService<AudioSendHandler>();
 
             IDictionary<string, IHandler> handlerContainer = new Dictionary<string, IHandler>
@@ -70,7 +70,7 @@ namespace XiaoZhi.Net.Server.Management
                 [audio2TextHandler.HandlerName] = audio2TextHandler,
                 [dialogueHandler.HandlerName] = dialogueHandler,
                 [text2AudioHandler.HandlerName] = text2AudioHandler,
-                [audioMixingHandler.HandlerName] = audioMixingHandler,
+                [audioProcessorHandler.HandlerName] = audioProcessorHandler,
                 [audioSendHandler.HandlerName] = audioSendHandler
             };
 
@@ -82,7 +82,7 @@ namespace XiaoZhi.Net.Server.Management
             this.InitializeSendOutter(session, textHandler);
             this.InitializeSendOutter(session, dialogueHandler);
             this.InitializeSendOutter(session, text2AudioHandler);
-            this.InitializeSendOutter(session, audioMixingHandler);
+            this.InitializeSendOutter(session, audioProcessorHandler);
             this.InitializeSendOutter(session, audioSendHandler);
 
             this.ScheduleOnAbort(textHandler);
@@ -90,7 +90,7 @@ namespace XiaoZhi.Net.Server.Management
             this.ScheduleOnAbort(audio2TextHandler);
             this.ScheduleOnAbort(dialogueHandler);
             this.ScheduleOnAbort(text2AudioHandler);
-            this.ScheduleOnAbort(audioMixingHandler);
+            this.ScheduleOnAbort(audioProcessorHandler);
             this.ScheduleOnAbort(audioSendHandler);
 
             bool buildResults = handlerContainer.Values
@@ -107,8 +107,8 @@ namespace XiaoZhi.Net.Server.Management
             this.BuildHandlersWorkflow(CHANNEL_CAPACITY, audioReceiveHandler, audio2TextHandler);
             this.BuildHandlersWorkflow(CHANNEL_CAPACITY, textHandler, audio2TextHandler, dialogueHandler);
             this.BuildHandlersWorkflow(CHANNEL_CAPACITY, dialogueHandler, text2AudioHandler);
-            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, text2AudioHandler, audioMixingHandler);
-            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, audioMixingHandler, audioSendHandler);
+            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, text2AudioHandler, audioProcessorHandler);
+            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, audioProcessorHandler, audioSendHandler);
 
             session.HandlerPipeline.InitHandlerPipeline(handlerContainer);
         }

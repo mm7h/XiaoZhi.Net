@@ -12,8 +12,8 @@ namespace XiaoZhi.Net.Server.Management
             return builder.ConfigureLogging((context, loggerBuilder) =>
             {
 #if !DEBUG
-                loggerBuilder.AddFilter("XiaoZhi.Net.Server.FFmpeg", LogLevel.None);
-                loggerBuilder.AddFilter("XiaoZhi.Net.Server.FFmpeg.Abstractions", LogLevel.None);
+                loggerBuilder.AddFilter("XiaoZhi.Net.Server.Media", LogLevel.None);
+                loggerBuilder.AddFilter("XiaoZhi.Net.Server.Media.Abstractions", LogLevel.None);
 #endif
                 LogSetting logSetting = config.LogSetting;
                 LoggingLevelSwitch levelSwitch = new LoggingLevelSwitch();
