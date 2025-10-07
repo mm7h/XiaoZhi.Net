@@ -65,13 +65,13 @@ namespace XiaoZhi.Net.Test.OtherSamples
                         }
                     );
                     Console.WriteLine("Setting up event handlers...");
-                    mixer.StateChanged += (state) =>
+                    mixer.OnStateChanged += (state) =>
                     {
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Mixer state changed to: {state}");
                     };
 
                     var lastStatsTime = DateTime.Now;
-                    mixer.OnStatsUpdated += (stats) =>
+                    mixer.OnMixingStatsUpdated += (stats) =>
                     {
                         var now = DateTime.Now;
                         if ((now - lastStatsTime).TotalMilliseconds > 1000) // Log stats every second

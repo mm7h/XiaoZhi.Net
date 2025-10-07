@@ -52,7 +52,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 try
                 {
-                    await this.Handle(workflow);
+                    this.Handle(workflow);
                 }
                 finally
                 {
@@ -68,7 +68,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 try
                 {
-                    await this.Handle(workflow);
+                    this.Handle(workflow);
                 }
                 finally
                 {
@@ -84,7 +84,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 try
                 {
-                    await this.Handle(workflow);
+                    this.Handle(workflow);
                 }
                 finally
                 {
@@ -93,7 +93,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
             }
         }
-        public async Task Handle(Workflow<OutAudioSegment> workflow)
+        public void Handle(Workflow<OutAudioSegment> workflow)
         {
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
@@ -108,13 +108,10 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 if (isContentNotEmpty)
                 {
-                    // 注册字幕并提供该片段的样本数（按单声道样本数估算）。
-                    // 这里假设输入数据已为目标通道数，若为多通道，字幕跟踪器会在 mixer 侧以实际消耗的单声道样本数推进。
-                    int segmentMonoSamples = outAudioSegment.AudioData.Length;
-                    session.PrivateProvider.AudioProcessor.RegisterSubtitle(outAudioSegment.AudioType, outAudioSegment.Content, segmentMonoSamples, outAudioSegment.IsFirstSegment, outAudioSegment.IsLastSegment);
+                    int interleavedSampleCount = outAudioSegment.AudioData.Length;
+                    session.PrivateProvider.AudioProcessor.RegisterSubtitle(outAudioSegment.AudioType, outAudioSegment.Content, interleavedSampleCount, outAudioSegment.IsFirstSegment, outAudioSegment.IsLastSegment);
                 }
 
-                // Directly feed the whole segment to the mixer; let mixer handle framing/clocking
                 session.PrivateProvider.AudioProcessor!.AddAudioData(outAudioSegment.AudioType, outAudioSegment.AudioData);
 
                 if (outAudioSegment.IsLastSegment)
@@ -127,10 +124,6 @@ namespace XiaoZhi.Net.Server.Handlers
                         session.PrivateProvider.AudioProcessor!.StopAudioStream(AudioType.SystemNotification);
                         session.PrivateProvider.AudioProcessor!.StopAudioStream(AudioType.Other);
                     }
-                }
-                if (isContentNotEmpty)
-                {
-                    //await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceEnd, outAudioSegment.Content);
                 }
             }
             catch (OperationCanceledException)

@@ -12,7 +12,7 @@ namespace XiaoZhi.Net.Server.Media.Abstractions
         /// <summary>
         /// Mixer state change event
         /// </summary>
-        event Action<AudioMixerState> StateChanged;
+        event Action<AudioMixerState> OnStateChanged;
 
         /// <summary>
         /// Mixed audio data available event
@@ -22,7 +22,7 @@ namespace XiaoZhi.Net.Server.Media.Abstractions
         /// <summary>
         /// Audio statistics information event
         /// </summary>
-        event Action<AudioMixerStats> OnStatsUpdated;
+        event Action<AudioMixerStats> OnMixingStatsUpdated;
 
         /// <summary>
         /// Gets whether the mixer has been initialized

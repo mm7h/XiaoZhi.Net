@@ -46,7 +46,8 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                     IsFirstSegment = isFirstSegment,
                     IsLastSegment = isLastSegment,
                     RegisterTime = DateTime.UtcNow,
-                    // sample-related fields set later if known
+                    TotalSamples = 0,
+                    RemainingSamples = 0
                 };
                 queue.Enqueue(trackingInfo);
             }
@@ -121,22 +122,22 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                         int consume = Math.Min(info.RemainingSamples, samplesSent);
                         info.RemainingSamples -= consume;
                         samplesSent -= consume;
+
+                        if (info.RemainingSamples <= 0)
+                        {
+                            info.SubtitleEndSent = true;
+                            info.IsAudioCompleted = true;
+                            queue.Dequeue();
+                            OnSubtitleEnd?.Invoke(audioType, info.SubtitleText);
+                            _logger.LogDebug("Subtitle ended for {AudioType}: {SubtitleText}", audioType, info.SubtitleText);
+                        }
                     }
                     else
                     {
-                        // 未提供样本数的字幕：采用“下一帧即完结”的保守策略
-                        // 立即在首次样本到来时结束
+                        // 未提供样本数：流式模式。仅触发开始，不在此处结束；
+                        // 结束由 NotifyAudioSendComplete(audioType) 统一触发。
                         samplesSent = 0;
-                        info.RemainingSamples = 0;
-                    }
-
-                    if (info.RemainingSamples <= 0)
-                    {
-                        info.SubtitleEndSent = true;
-                        info.IsAudioCompleted = true;
-                        queue.Dequeue();
-                        OnSubtitleEnd?.Invoke(audioType, info.SubtitleText);
-                        _logger.LogDebug("Subtitle ended for {AudioType}: {SubtitleText}", audioType, info.SubtitleText);
+                        break;
                     }
                 }
             }

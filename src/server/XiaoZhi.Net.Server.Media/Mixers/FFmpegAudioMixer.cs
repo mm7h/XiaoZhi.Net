@@ -10,11 +10,11 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 {
     internal sealed unsafe class FFmpegAudioMixer : IAudioMixer
     {
-        #region 私有字段
+        #region Private fields
 
         private readonly ILogger<FFmpegAudioMixer> _logger;
 
-        // 音频流管理
+        // Audio stream management
         private readonly Dictionary<AudioType, AudioStreamContext> _audioStreams;
         private readonly Dictionary<AudioType, IntPtr> _audioFifos; // AVAudioFifo*
         private readonly Dictionary<AudioType, VolumeTransitionControl> _volumeStates;
@@ -22,12 +22,12 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         private readonly Dictionary<AudioType, int> _priorities;
         private readonly object _streamLock = new();
 
-        // FFmpeg Filter Graph相关
+        // FFmpeg filter graph related
         private AVFilterGraph* _filterGraph;
         private AVFilterContext* _sinkFilterCtx;
         private readonly Dictionary<AudioType, IntPtr> _sourceFilterCtxs; // AVFilterContext*
 
-        // 音频格式参数
+        // Audio format parameters
         private int _outputSampleRate;
         private int _outputChannels;
         private int _frameDuration;
@@ -35,7 +35,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         private AVSampleFormat _sampleFormat;
         private ulong _channelLayout;
 
-        // 配置和状态管理
+        // Configuration and state management
         private AudioMixerConfig _config = new();
         private bool _initialized;
         private bool _disposed;
@@ -43,24 +43,24 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         private volatile bool _shouldStop = false;
         private readonly object _filterLock = new();
 
-        // 处理线程和同步
+        // Processing thread and synchronization
         private Thread? _mixingThread;
         private readonly CancellationTokenSource _cancellationTokenSource = new();
         private readonly ManualResetEventSlim _dataAvailableEvent = new(false);
 
-        // 统计信息
+        // Statistics
         private AudioMixerStats _currentStats = new();
         private long _pts = 0;
         private int _totalStreamCount = 0;
         private int _completedStreamCount = 0;
 
-        // 输出事件标志
+        // Output event flags
         private bool _hasEmittedFirst = false;
         private bool _hasEmittedLast = false;
         private bool _draining = false;
         private volatile bool _filterGraphDirty = false;
 
-        // 输出缓冲机制 - 新增
+        // Output buffering mechanism - new
         private readonly Queue<OutputBufferFrame> _outputBuffer = new Queue<OutputBufferFrame>();
         private readonly object _bufferLock = new();
         private Timer? _playbackTimer;
@@ -72,7 +72,10 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         private float _lastNormalizationFactor = 0.75f;
 
-        // 输出缓冲帧结构
+        // Subtitle synchronization tracker (optional)
+        private IAudioSubtitleSyncTracker? _subtitleSyncTracker;
+
+        // Output buffer frame structure
         private struct OutputBufferFrame
         {
             public float[] Data;
@@ -89,11 +92,11 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         #endregion
 
-        #region 事件和属性
+        #region Events and properties
 
-        public event Action<AudioMixerState>? StateChanged;
+        public event Action<AudioMixerState>? OnStateChanged;
         public event Action<float[], bool, bool>? OnMixedAudioDataAvailable;
-        public event Action<AudioMixerStats>? OnStatsUpdated;
+        public event Action<AudioMixerStats>? OnMixingStatsUpdated;
 
         public bool IsInitialized => _initialized;
         public int OutputSampleRate => _outputSampleRate;
@@ -102,7 +105,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         #endregion
 
-        #region 构造函数
+        #region Constructor
 
         public FFmpegAudioMixer(ILogger<FFmpegAudioMixer> logger)
         {
@@ -114,21 +117,35 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             _volumeLevels = new Dictionary<AudioType, float>();
             _priorities = new Dictionary<AudioType, int>();
 
-            // 初始化音频类型默认配置
+            // Initialize default configuration for audio types
             InitializeAudioTypes();
 
-            // 初始化FFmpeg日志级别
+            // Initialize FFmpeg log level
             ffmpeg.av_log_set_level(ffmpeg.AV_LOG_WARNING);
         }
 
         #endregion
 
-        #region 输出缓冲和平滑交付
+        #region Output buffering and smooth delivery
 
         private void EmitMixedAudio(float[] mixedData, bool isFirst, bool isLast)
         {
             int targetBufferDepth = _config.MaxOutputBufferFrames;
             if (targetBufferDepth <= 0) targetBufferDepth = 1;
+
+            // On final frame, end all remaining subtitles (consistent with AudioMixer behavior)
+            if (isLast && _subtitleSyncTracker != null)
+            {
+                List<AudioType> activeTypes;
+                lock (_streamLock)
+                {
+                    activeTypes = _audioStreams.Keys.ToList();
+                }
+                foreach (var audioType in activeTypes)
+                {
+                    _subtitleSyncTracker.NotifyAudioSendComplete(audioType);
+                }
+            }
 
             while (true)
             {
@@ -208,7 +225,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         #endregion
 
-        #region 初始化和配置
+        #region Initialization and configuration
 
         private void InitializeAudioTypes()
         {
@@ -262,29 +279,25 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                         _config = config;
                     }
 
-                    // 注意：FFmpegAudioMixer目前不支持字幕同步跟踪器
-                    // 可以在未来版本中添加支持
-                    if (subtitleSyncTracker != null)
-                    {
-                        _logger.LogInformation("FFmpegAudioMixer does不当前支持字幕同步跟踪器 - 忽略参数");
-                    }
+                    // Support subtitle synchronization tracker
+                    _subtitleSyncTracker = subtitleSyncTracker;
 
                     _outputSampleRate = outputSampleRate;
                     _outputChannels = outputChannels;
                     _frameDuration = frameDuration;
                     _frameSampleCount = outputSampleRate * frameDuration / 1000 * outputChannels;
-                    // 使用打包浮点格式，便于与托管 float[] 互操作
+                    // Use packed float format for easy interop with managed float[]
                     _sampleFormat = AVSampleFormat.AV_SAMPLE_FMT_FLT;
                     _channelLayout = outputChannels == 2 ? ffmpeg.AV_CH_LAYOUT_STEREO : ffmpeg.AV_CH_LAYOUT_MONO;
 
-                    // 更新音量配置
+                    // Update volume configuration
                     UpdateVolumeLevelsFromConfig();
 
                     _initialized = true;
                     SetState(AudioMixerState.Idle);
 
-                    _logger.LogInformation("FFmpeg audio mixer initialized successfully with SampleRate={SampleRate}, Channels={Channels}, FrameDuration={FrameDuration}ms",
-                        outputSampleRate, outputChannels, frameDuration);
+                    _logger.LogInformation("FFmpeg audio mixer initialized successfully with SampleRate={SampleRate}, Channels={Channels}, FrameDuration={FrameDuration}ms, subtitle sync: {HasSubtitleSync}",
+                        outputSampleRate, outputChannels, frameDuration, _subtitleSyncTracker != null);
                     return true;
                 }
                 catch (Exception ex)
@@ -297,7 +310,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         #endregion
 
-        #region 音频流管理
+        #region Audio stream management
 
         public void AddAudioData(AudioType audioType, float[] audioData)
         {
@@ -306,7 +319,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
             lock (_streamLock)
             {
-                // 获取或创建音频流上下文
+                // Get or create audio stream context
                 if (!_audioStreams.TryGetValue(audioType, out var streamContext))
                 {
                     streamContext = CreateAudioStreamContext(audioType);
@@ -315,16 +328,16 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     _filterGraphDirty = true;
                 }
 
-                // 写入数据到FIFO缓冲区
+                // Write data to FIFO buffer
                 WriteToAudioFifo(audioType, audioData);
 
-                // 重置last-frame标志，因为新数据到达
+                // Reset last-frame flag since new data arrived
                 _lastFrameEmitted = false;
 
-                // 标记有数据可用
+                // Mark data available
                 _dataAvailableEvent.Set();
 
-                // 启动混音处理
+                // Start mixing process
                 if (!_isMixing)
                 {
                     StartMixingProcess();
@@ -355,7 +368,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 SourceClosed = false
             };
 
-            // 创建FIFO缓冲区
+            // Create FIFO buffer
             var fifo = ffmpeg.av_audio_fifo_alloc(_sampleFormat, _outputChannels, _frameSampleCount * 30);
             if (fifo == null)
             {
@@ -375,7 +388,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
             try
             {
-                // 应用音量控制（避免每次写入都重启过渡）
+                // Apply volume control (avoid restarting transition on every write)
                 var volumeState = GetOrCreateVolumeState(audioType);
                 var targetVolume = _volumeLevels.GetValueOrDefault(audioType, 0.5f);
 
@@ -394,20 +407,20 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     currentVolume = volumeState.UpdateAndGetCurrentVolume();
                 }
 
-                // 应用音量到音频数据
+                // Apply volume to audio data
                 var processedData = new float[audioData.Length];
                 for (int i = 0; i < audioData.Length; i++)
                 {
                     processedData[i] = audioData[i] * currentVolume;
                 }
 
-                // 转换float数组为FFmpeg格式（打包格式）
+                // Convert float[] to FFmpeg format (packed planar)
                 var dataPtr = Marshal.AllocHGlobal(processedData.Length * sizeof(float));
                 Marshal.Copy(processedData, 0, dataPtr, processedData.Length);
 
                 var samples = processedData.Length / _outputChannels;
                 var fifo = (AVAudioFifo*)fifoPtr;
-                var tmp = dataPtr; // 需要一个一级指针数组的地址
+                var tmp = dataPtr; // needs an address of a single-plane pointer array
                 var ret = ffmpeg.av_audio_fifo_write(fifo, (void**)&tmp, samples);
 
                 Marshal.FreeHGlobal(dataPtr);
@@ -426,7 +439,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         #endregion
 
-        #region Filter Graph管理
+        #region Filter graph management
 
         private void ReconfigureFilterGraph()
         {
@@ -456,16 +469,16 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 throw new InvalidOperationException("Failed to allocate filter graph");
             }
 
-            // 创建输出sink filter
+            // Create output sink filter
             CreateSinkFilter();
 
-            // 为每个音频流创建source filter
+            // Create a source filter for each audio stream
             foreach (var audioType in _audioStreams.Keys)
             {
                 CreateSourceFilter(audioType);
             }
 
-            // 配置filter graph
+            // Configure filter graph
             ConfigureFilterGraph();
         }
 
@@ -485,7 +498,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             }
             _sinkFilterCtx = sinkCtx;
 
-            // 设置输出格式参数
+            // Set output format parameters
             SetSinkFilterParameters();
         }
 
@@ -527,7 +540,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         {
             if (_audioStreams.Count == 1)
             {
-                // 单个输入流，直接连接
+                // Single input stream, direct connection
                 var first = _sourceFilterCtxs.Values.First();
                 var sourceCtx = (AVFilterContext*)first;
                 var ret = ffmpeg.avfilter_link(sourceCtx, 0u, _sinkFilterCtx, 0u);
@@ -538,11 +551,11 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             }
             else
             {
-                // 多个输入流，使用amix filter
+                // Multiple input streams, use amix filter
                 CreateAmixFilter();
             }
 
-            // 配置filter graph
+            // Configure filter graph
             var configRet = ffmpeg.avfilter_graph_config(_filterGraph, null);
             if (configRet < 0)
             {
@@ -568,7 +581,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 throw new InvalidOperationException($"Failed to create amix filter: {GetFFmpegErrorString(ret)}");
             }
 
-            // 连接所有输入源到amix
+            // Connect all input sources to amix
             uint inputIndex = 0;
             foreach (var src in _sourceFilterCtxs.Values)
             {
@@ -580,7 +593,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 }
             }
 
-            // 连接amix到sink
+            // Link amix to sink
             ret = ffmpeg.avfilter_link(amixCtx, 0u, _sinkFilterCtx, 0u);
             if (ret < 0)
             {
@@ -619,7 +632,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
                     if (remainingSamples == 0)
                     {
-                        // 关闭源过滤器
+                        // Close source filter
                         if (_sourceFilterCtxs.TryGetValue(audioType, out var srcPtr) && !streamContext.SourceClosed)
                         {
                             try
@@ -643,13 +656,16 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                             }
                         }
 
+                        // notify only once when the stream is fully done
+                        _subtitleSyncTracker?.NotifyAudioSendComplete(audioType);
+
                         streamsToRemove.Add(audioType);
                         _logger.LogDebug("Stream {AudioType} completed and will be removed", audioType);
                     }
                 }
             }
 
-            // 移除完成的流
+            // Remove completed streams
             foreach (var audioType in streamsToRemove)
             {
                 RemoveAudioStream(audioType);
@@ -660,21 +676,21 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         {
             _logger.LogDebug("Removing audio stream {AudioType}", audioType);
 
-            // 移除音频流上下文
+            // Remove audio stream context
             _audioStreams.Remove(audioType);
 
-            // 清理FIFO
+            // Cleanup FIFO
             if (_audioFifos.TryGetValue(audioType, out var fifoPtr))
             {
                 ffmpeg.av_audio_fifo_free((AVAudioFifo*)fifoPtr);
                 _audioFifos.Remove(audioType);
             }
 
-            // 移除源引用
+            // Remove source reference
             _sourceFilterCtxs.Remove(audioType);
             _completedStreamCount++;
 
-            // 检查是否还有活跃的音频流
+            // Check if there are still active streams
             _filterGraphDirty = true;
 
             var activeStreams = _audioStreams.Where(kvp => kvp.Value.IsActive && !kvp.Value.IsStopping).ToList();
@@ -684,7 +700,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 _logger.LogDebug("No more active streams, will enter draining phase after delay");
                 _draining = true;
 
-                // 延迟一段时间再完全停止，允许其他音频流继续
+                // Delay a little before fully stopping, allowing other streams to continue
                 _ = Task.Delay(100).ContinueWith(_ =>
                 {
                     if (_audioStreams.Count == 0 && _draining)
@@ -699,7 +715,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             }
         }
 
-        #region 统计和状态管理
+        #region Statistics and state management
 
         private void UpdateStatistics(float[] audioData)
         {
@@ -718,12 +734,12 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             _currentStats.CurrentGainDb = 20 * (float)Math.Log10(Math.Max(_currentStats.CurrentRms, 1e-10f));
             _currentStats.ActiveStreamCount = _audioStreams.Count(kvp => kvp.Value.IsActive);
 
-            OnStatsUpdated?.Invoke(_currentStats);
+            OnMixingStatsUpdated?.Invoke(_currentStats);
         }
 
         private void SetState(AudioMixerState newState)
         {
-            StateChanged?.Invoke(newState);
+            OnStateChanged?.Invoke(newState);
             _logger.LogDebug("FFmpeg audio mixer state changed to {State}", newState);
         }
 
@@ -741,7 +757,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         #endregion
 
-        #region 工具方法
+        #region Utility methods
 
         private VolumeTransitionControl GetOrCreateVolumeState(AudioType audioType)
         {
@@ -758,13 +774,13 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             if (audioData == null || audioData.Length == 0)
                 return;
 
-            // 应用平滑标准化
+            // Apply smooth normalization
             ApplySmoothNormalization(audioData, _audioStreams.Count > 1);
 
-            // 应用动态增益控制
+            // Apply dynamic gain control
             ApplyDynamicGainControlSmooth(audioData, _audioStreams.Count > 1);
 
-            // 应用增强限制器
+            // Apply enhanced limiter
             ApplyEnhancedLimiting(audioData);
         }
 
@@ -772,7 +788,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         {
             if (audioData.Length == 0) return;
 
-            // 计算当前音频的RMS
+            // Calculate current audio RMS
             float rmsSum = 0;
             for (int i = 0; i < audioData.Length; i++)
             {
@@ -781,25 +797,25 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             }
             float rms = (float)Math.Sqrt(rmsSum / audioData.Length);
 
-            if (rms > 0.005f) // 避免对非常小的信号进行标准化
+            if (rms > 0.005f) // Avoid normalizing very small signals
             {
                 float targetFactor;
                 if (isMultiStream)
                 {
-                    // 多流时使用较保守的标准化
+                    // Use a more conservative normalization for multiple streams
                     int activeCount = _audioStreams.Count(kvp => kvp.Value.IsActive);
                     targetFactor = (float)(0.75 / Math.Sqrt(Math.Max(activeCount, 1)));
                 }
                 else
                 {
-                    // 单流时使用标准标准化
+                    // Use standard normalization for single stream
                     targetFactor = 0.75f;
                 }
 
-                // 平滑标准化变化
+                // Smooth normalization changes
                 _lastNormalizationFactor = SmoothNormalization(_lastNormalizationFactor, targetFactor);
 
-                // 应用标准化
+                // Apply normalization
                 for (int i = 0; i < audioData.Length; i++)
                 {
                     audioData[i] *= _lastNormalizationFactor;
@@ -809,9 +825,9 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         private static float SmoothNormalization(float previous, float target)
         {
-            // 限制每帧的变化量以避免突然的增益变化
-            float maxStepUp = 0.05f;   // 允许小的增加
-            float maxStepDown = 0.15f; // 允许中等的减少
+            // Limit per-frame change to avoid abrupt gain changes
+            float maxStepUp = 0.05f;   // allow small increases
+            float maxStepDown = 0.15f; // allow moderate decreases
             float delta = target - previous;
             if (delta > maxStepUp) delta = maxStepUp;
             else if (delta < -maxStepDown) delta = -maxStepDown;
@@ -896,7 +912,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         #endregion
 
-        #region 混音处理
+        #region Mixing process
 
         private void StartMixingProcess()
         {
@@ -930,13 +946,13 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 {
                     if (!ProcessMixing())
                     {
-                        // 如果没有活跃流且尚未发出最后一帧，则尝试排空
+                        // If no active streams and last frame has not been emitted, try draining
                         if (_audioStreams.Count == 0 && !_hasEmittedLast && _filterGraph != null)
                         {
                             DrainSinkAndEmitLast();
                         }
 
-                        // 等待数据或检查是否应该停止
+                        // Wait for data or check whether we should stop
                         _dataAvailableEvent.Wait(TimeSpan.FromMilliseconds(50), _cancellationTokenSource.Token);
                         _dataAvailableEvent.Reset();
                     }
@@ -969,29 +985,29 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
                 bool hasProcessedData = false;
 
-                // 检查输出缓冲区是否已满
+                // Check whether the output buffer is full
                 lock (_bufferLock)
                 {
                     if (_outputBuffer.Count >= Math.Max(1, _config.MaxOutputBufferFrames))
                     {
-                        return false; // 缓冲区满了，暂停处理
+                        return false; // Buffer full, pause processing
                     }
                 }
 
-                // 使用改进的缓冲策略获取活跃流
+                // Get active streams with improved buffer strategy
                 var activeStreams = GetActiveStreamsWithBufferStrategy();
 
-                // 处理每个活跃的音频流
+                // Process each active audio stream
                 foreach (var (audioType, streamContext) in activeStreams)
                 {
-                    // 从FIFO读取数据并推送到filter
+                    // Read from FIFO and push to filter
                     if (ProcessAudioStream(audioType, streamContext))
                     {
                         hasProcessedData = true;
                     }
                 }
 
-                // 从filter graph获取混音后的数据
+                // Retrieve mixed audio data from the filter graph
                 bool hasActiveTransitions = _volumeStates.Values.Any(v => v.IsTransitioning);
                 if (hasProcessedData || hasActiveTransitions)
                 {
@@ -999,11 +1015,11 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 }
                 else if (_audioStreams.Count > 0)
                 {
-                    // 如果有流但没有处理数据，可能需要发送静音帧保持连续性
+                    // If there are streams but no processed data, we may need to send silent frames to keep continuity
                     bool hasActiveStreams = _audioStreams.Values.Any(s => s.IsActive && !s.IsStopping);
                     if (hasActiveStreams)
                     {
-                        // 发送短暂的静音帧以保持音频流的连续性
+                        // Send a short silent frame to maintain audio continuity
                         var silentFrame = new float[_frameSampleCount];
                         bool isFirst = _firstFrameAfterStart;
                         if (_firstFrameAfterStart) _firstFrameAfterStart = false;
@@ -1013,7 +1029,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     }
                 }
 
-                // 清理已完成的流
+                // Cleanup completed streams
                 CleanupCompletedStreams();
 
                 return hasProcessedData || hasActiveTransitions;
@@ -1076,7 +1092,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             var availableSamples = ffmpeg.av_audio_fifo_size(fifo);
             var requiredSamples = _frameSampleCount / _outputChannels;
 
-            // 使用改进的缓冲策略
+            // Use improved buffering strategy
             bool hasFullFrame = availableSamples >= requiredSamples;
             bool isNewStream = streamContext.ProcessedFrameCount < 3;
             bool canProcess = false;
@@ -1100,12 +1116,12 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
             try
             {
-                // 创建音频帧
+                // Create audio frame
                 var frame = ffmpeg.av_frame_alloc();
                 if (frame == null)
                     return false;
 
-                // 设置帧参数
+                // Set frame parameters
                 frame->nb_samples = Math.Min(availableSamples, _frameSampleCount / _outputChannels);
 
                 AVChannelLayout ch;
@@ -1115,7 +1131,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 frame->sample_rate = _outputSampleRate;
                 frame->pts = _pts;
 
-                // 分配帧缓冲区
+                // Allocate frame buffer
                 var ret = ffmpeg.av_frame_get_buffer(frame, 0);
                 if (ret < 0)
                 {
@@ -1123,7 +1139,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     return false;
                 }
 
-                // 从FIFO读取数据（打包格式，单平面）
+                // Read from FIFO (packed format, single plane)
                 void** planes = stackalloc void*[1];
                 planes[0] = frame->data[0];
                 ret = ffmpeg.av_audio_fifo_read(fifo, planes, frame->nb_samples);
@@ -1133,9 +1149,9 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     return false;
                 }
 
-                int nbSamples = frame->nb_samples; // 捕获以避免释放后访问
+                int nbSamples = frame->nb_samples;
 
-                // 推送到filter
+                // push the frame to the filter
                 ret = ffmpeg.av_buffersrc_add_frame_flags(sourceCtx, frame, 0);
                 ffmpeg.av_frame_free(&frame);
 
@@ -1144,6 +1160,12 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     _logger.LogError("Failed to add frame to filter for {AudioType}: {Error}",
                         audioType, GetFFmpegErrorString(ret));
                     return false;
+                }
+
+                // notify the subtitle tracker of the actual sent (consumed) mono samples
+                if (nbSamples > 0)
+                {
+                    _subtitleSyncTracker?.NotifyAudioSamplesSent(audioType, nbSamples);
                 }
 
                 streamContext.ProcessedFrameCount++;
@@ -1174,7 +1196,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 {
                     ffmpeg.av_frame_free(&frame);
 
-                    // 如果没有可用帧但有活跃的音量过渡，发送静音帧
+                    // If there is no available frame but we have active volume transitions, send a silent frame
                     if (_volumeStates.Values.Any(v => v.IsTransitioning))
                     {
                         foreach (var v in _volumeStates.Values)
@@ -1203,13 +1225,13 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
                 if (mixedData != null && mixedData.Length > 0)
                 {
-                    // 应用音频处理改进
+                    // Apply audio processing improvements
                     ApplyAudioProcessingEnhancements(mixedData);
 
-                    // 更新统计信息
+                    // Update statistics
                     UpdateStatistics(mixedData);
 
-                    // 确定是否为第一帧和最后帧
+                    // Determine whether this is the first and the last frame
                     bool isFirst = _firstFrameAfterStart;
                     if (_firstFrameAfterStart) _firstFrameAfterStart = false;
 
@@ -1218,7 +1240,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     bool isLast = allComplete && !hasTransitions && !_lastFrameEmitted;
                     if (isLast) _lastFrameEmitted = true;
 
-                    // 使用缓冲机制发送混音数据
+                    // Send mixed data using the buffering mechanism
                     EmitMixedAudio(mixedData, isFirst, isLast);
                 }
             }
@@ -1274,7 +1296,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     }
                 }
 
-                // 发送最后的静音帧表示结束
+                // Send a final silent frame to indicate the end
                 if (!_lastFrameEmitted)
                 {
                     var silentFrame = new float[_frameSampleCount];
@@ -1291,7 +1313,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         #endregion
 
-        #region 接口实现
+        #region Interface implementation
 
         public void ClearAllBuffers()
         {
@@ -1302,12 +1324,15 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     ffmpeg.av_audio_fifo_reset((AVAudioFifo*)fifoPtr);
                 }
 
-                // 清理输出缓冲区
+                // clear output buffer
                 lock (_bufferLock)
                 {
                     _outputBuffer.Clear();
                     _bufferPreFilled = false;
                 }
+
+                // clear all pending subtitle tracking
+                _subtitleSyncTracker?.ClearAll();
 
                 _logger.LogDebug("Cleared all audio buffers");
             }
@@ -1323,7 +1348,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 _shouldStop = true;
                 _cancellationTokenSource.Cancel();
 
-                // 在清理前发送缓冲区中的剩余帧
+                // Send remaining frames in the output buffer before cleanup
                 lock (_bufferLock)
                 {
                     while (_outputBuffer.Count > 0)
@@ -1333,14 +1358,14 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     }
                 }
 
-                // 等待混音线程结束
+                // Wait for mixing thread to finish
                 _mixingThread?.Join(TimeSpan.FromSeconds(5));
 
-                // 停止播放定时器
+                // Stop the playback timer
                 _playbackTimer?.Change(Timeout.Infinite, Timeout.Infinite);
                 _playbackTimer?.Dispose();
 
-                // 清理FFmpeg资源
+                // Cleanup FFmpeg resources
                 CleanupFilterGraph();
 
                 foreach (var fifoPtr in _audioFifos.Values)

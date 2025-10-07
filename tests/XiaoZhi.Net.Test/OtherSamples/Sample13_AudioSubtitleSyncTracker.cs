@@ -1,4 +1,11 @@
 ﻿using NAudio.Wave;
+using SherpaOnnx;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Xml.Linq;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Media;
 using XiaoZhi.Net.Server.Media.Abstractions;
@@ -7,20 +14,27 @@ using XiaoZhi.Net.Server.Media.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {
-    internal class Sample11_AudioMixer
+    internal class Sample13_AudioSubtitleSyncTracker
     {
         const string SYSTEM_AUDIO_FILE_PATH = "./audioFile/max_output_size.wav";
-        const string TTS_AUDIO_FILE_PATH = "./audioFile/bind_code.wav";
         const string MUSIC_AUDIO_FILE_PATH = "./audioFile/Perfect.flac";
 
-        const int SAMPLE_RATE = 16000;
+        const int SAMPLE_RATE = 24000;
         const int CHANNELS = 1;
         const int FRAME_DURATION_MS = 60;
+
+        const string MODEL_FILE_FOLER = "./models/kokoro";
+        const float SPEAK_SPPED = 1.0f;
+        const int SPERAKER_ID = 50;
+        const string OUTPUT_TTS_WAV_FILE = "./models/output_tts.wav";
+
         /// <summary>
         /// 运行示例
         /// </summary>
         public static async Task Run()
         {
+            float[] ttsAudio = GenerateTTSAudio();
+            Console.WriteLine("TTS audio generated.");
             try
             {
                 Console.WriteLine("Starting Enhanced AudioMixer Test with Smooth Volume Control...");
@@ -36,21 +50,31 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     waveOut.Play();
 
                     Console.WriteLine("Creating AudioMixer with smooth volume control...");
-                    
-                    // 创建带有平滑音量控制的音频混音器
-                    // 配置：1000ms过渡时间，对数曲线，启用平滑控制
-                    IAudioMixer mixer = MediaFactory.CreateAudioMixer(
-                        SAMPLE_RATE, 
-                        CHANNELS, 
+
+                    IAudioSubtitleSyncTracker subtitleTracker = MediaFactory.CreateAudioSubtitleSyncTracker();
+
+                    subtitleTracker.OnSubtitleStart += (audioType, text) =>
+                    {
+                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Subtitle Start - Type: {audioType}, Text: {text}");
+                    };
+
+                    subtitleTracker.OnSubtitleEnd += (audioType, text) =>
+                    {
+                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Subtitle End - Type: {audioType}, Text: {text}");
+                    };
+
+                    IAudioMixer mixer = MediaFactory.CreateFFmpegAudioMixer(
+                        SAMPLE_RATE,
+                        CHANNELS,
                         FRAME_DURATION_MS,
-                        new AudioMixerConfig() 
+                        new AudioMixerConfig()
                         {
                             VolumeTransitionDurationMs = 1000,
                             TransitionCurve = VolumeTransitionCurve.Logarithmic,
                             EnableSmoothVolumeControl = true
-                        }
+                        },
+                        subtitleTracker
                     );
-
                     Console.WriteLine("Setting up event handlers...");
                     mixer.OnStateChanged += (state) =>
                     {
@@ -100,10 +124,6 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     };
 
                     Console.WriteLine("Starting audio decoding tasks with staggered timing...");
-                    Console.WriteLine("音量变化说明:");
-                    Console.WriteLine("- Music: 基础音量 60%");
-                    Console.WriteLine("- TTS: 基础音量 80%, 启动时Music降至6% (500ms对数过渡)");
-                    Console.WriteLine("- SystemNotification: 基础音量 100%, 启动时其他音频降至更低音量 (500ms对数过渡)");
                     Console.WriteLine();
 
                     // Start music immediately (lowest priority)
@@ -117,8 +137,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     Task ttsTask = Task.Run(async () =>
                     {
                         await Task.Delay(15 * 1000);
-                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting TTS playback (should smoothly suppress music over 500ms)...");
-                        await DecodeAudio(TTS_AUDIO_FILE_PATH, AudioType.TTS, mixer);
+                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting TTS playback...");
+                        subtitleTracker.RegisterAudioSubtitle(AudioType.TTS, "你好，欢迎使用小智AI助手1111!", ttsAudio.Length, true, true);
+                        mixer.AddAudioData(AudioType.TTS, ttsAudio);
+                        mixer.StopAudioStream(AudioType.TTS);
                     });
 
                     // Start another TTS after 35 seconds
@@ -126,7 +148,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         await Task.Delay(35 * 1000);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting second TTS playback...");
-                        await DecodeAudio(TTS_AUDIO_FILE_PATH, AudioType.TTS, mixer);
+                        subtitleTracker.RegisterAudioSubtitle(AudioType.TTS, "你好，欢迎使用小智AI助手2222!", ttsAudio.Length, true, true);
+                        mixer.AddAudioData(AudioType.TTS, ttsAudio);
+                        mixer.StopAudioStream(AudioType.TTS);
                     });
 
                     // Start another TTS after 100 seconds
@@ -134,7 +158,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         await Task.Delay(100 * 1000);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting second TTS playback...");
-                        await DecodeAudio(TTS_AUDIO_FILE_PATH, AudioType.TTS, mixer);
+                        subtitleTracker.RegisterAudioSubtitle(AudioType.TTS, "你好，欢迎使用小智AI助手3333!", ttsAudio.Length, true, true);
+                        mixer.AddAudioData(AudioType.TTS, ttsAudio);
+                        mixer.StopAudioStream(AudioType.TTS);
                     });
 
                     // Start system notification after 25 seconds (highest priority) - should suppress both smoothly
@@ -142,6 +168,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         await Task.Delay(25 * 1000);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting System Notification playback (should smoothly suppress TTS and music over 500ms)...");
+                        subtitleTracker.RegisterAudioSubtitle(AudioType.SystemNotification, "不好意思，明天这个时候再聊!", true, true);
                         await DecodeAudio(SYSTEM_AUDIO_FILE_PATH, AudioType.SystemNotification, mixer);
                     });
 
@@ -168,6 +195,33 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 Console.WriteLine($"Stack trace: {ex.StackTrace}");
             }
         }
+
+        public static float[] GenerateTTSAudio()
+        {
+            var config = new OfflineTtsConfig();
+            config.Model.Kokoro.Model = Path.Combine(MODEL_FILE_FOLER, "model.onnx");
+            config.Model.Kokoro.Voices = Path.Combine(MODEL_FILE_FOLER, "voices.bin");
+            config.Model.Kokoro.Tokens = Path.Combine(MODEL_FILE_FOLER, "tokens.txt");
+            config.Model.Kokoro.DataDir = Path.Combine(MODEL_FILE_FOLER, "espeak-ng-data");
+            config.Model.Kokoro.DictDir = Path.Combine(MODEL_FILE_FOLER, "dict");
+            config.Model.Kokoro.Lexicon = Path.Combine(MODEL_FILE_FOLER, "./lexicon/lexicon-zh.txt") + "," + Path.Combine(MODEL_FILE_FOLER, "./lexicon/lexicon-us-en.txt");
+            config.Model.NumThreads = 2;
+            config.Model.Provider = "cpu";
+
+            var tts = new OfflineTts(config);
+            string text = "你好，欢迎使用小智AI助手!";
+
+            OfflineTtsGeneratedAudio audio = tts.Generate(text, SPEAK_SPPED, SPERAKER_ID);
+
+            if (File.Exists(OUTPUT_TTS_WAV_FILE))
+            {
+                File.Delete(OUTPUT_TTS_WAV_FILE);
+            }
+            audio.SaveToWaveFile(OUTPUT_TTS_WAV_FILE);
+
+            return audio.Samples;
+        }
+
 
         private static async Task DecodeAudio(string filePath, AudioType audioType, IAudioMixer audioMixer)
         {
@@ -199,14 +253,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
                     if (isLast && !lastFrameSent)
                     {
-                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {audioType}: Last frame sent to mixer (Total frames: {framesSent}) - volume should transition back for remaining streams");
                         lastFrameSent = true;
-                    }
-
-                    // Log progress every 50 frames
-                    if (framesSent % 50 == 0)
-                    {
-                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {audioType}: Sent {framesSent} frames to mixer");
+                        // Important: inform the mixer that this stream is done so that volume can recover
+                        audioMixer.StopAudioStream(audioType);
                     }
                 };
 
@@ -220,6 +269,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {audioType}: Starting playback...");
                 audioPlayer.Play(true); // Blocking playback
+
+                // Safety: ensure we notify the mixer that this stream is done
+                audioMixer.StopAudioStream(audioType);
 
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {audioType}: Playback completed. Total frames sent: {framesSent}");
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Expected: Other audio streams should now recover their volume over 500ms");

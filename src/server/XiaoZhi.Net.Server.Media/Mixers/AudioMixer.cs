@@ -68,9 +68,9 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             _mixingTimer = new Timer(ProcessMixingCallback, null, Timeout.Infinite, Timeout.Infinite);
         }
 
-        public event Action<AudioMixerState>? StateChanged;
+        public event Action<AudioMixerState>? OnStateChanged;
         public event Action<float[], bool, bool>? OnMixedAudioDataAvailable;
-        public event Action<AudioMixerStats>? OnStatsUpdated;
+        public event Action<AudioMixerStats>? OnMixingStatsUpdated;
 
         public bool IsInitialized => _initialized;
         public int OutputSampleRate => _outputSampleRate;
@@ -533,10 +533,15 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
                 foreach (var completedStream in completedStreams)
                 {
-                    if (_audioInputs.TryRemove(completedStream.Key, out var stream))
+                    var audioType = completedStream.Key;
+
+                    // ending subtitle for this audio type (handle unknown-sample subtitles)
+                    _subtitleSyncTracker?.NotifyAudioSendComplete(audioType);
+
+                    if (_audioInputs.TryRemove(audioType, out var stream))
                     {
                         stream.Dispose();
-                        _volumeStates.TryRemove(completedStream.Key, out _); // remove transition state
+                        _volumeStates.TryRemove(audioType, out _); // remove transition state
                     }
                 }
 
@@ -784,7 +789,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             _currentStats.CurrentGainDb = 20 * (float)Math.Log10(Math.Max(_currentStats.CurrentRms, 1e-10f));
             _currentStats.ActiveStreamCount = activeStreamCount;
 
-            OnStatsUpdated?.Invoke(_currentStats);
+            OnMixingStatsUpdated?.Invoke(_currentStats);
         }
 
         public void StopAudioStream(AudioType audioType)
@@ -794,7 +799,6 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 audioInput.Stop();
                 _logger.LogDebug("Stopped audio stream for {AudioType}", audioType);
                 _hasPendingData = true;
-                // 不在此处结束字幕，由样本消耗逻辑精确结束
             }
         }
 
@@ -851,7 +855,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 {
                     _firstFrameAfterStart = false;
                 }
-                StateChanged?.Invoke(_state);
+                OnStateChanged?.Invoke(_state);
                 _logger.LogDebug("AudioMixer state changed to {State}", _state);
             }
         }
