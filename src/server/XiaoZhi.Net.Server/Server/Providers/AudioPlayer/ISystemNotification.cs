@@ -8,5 +8,6 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
         event Action<float[], bool, bool>? OnAudioData;
         Task PlayBindCodeAsync(string bindCode);
         Task PlayNotFoundAsync();
+        Task StopAsync();
     }
 }

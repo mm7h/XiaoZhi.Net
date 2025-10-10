@@ -49,26 +49,22 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
             }
         }
 
-        public void AddAudioData(AudioType audioType, float[] audioData)
+        public void ProcessAudio(AudioType audioType, float[] audioData, string text, bool isFirst, bool isLast, int? sampleCount = null)
         {
             this._audioMixer.AddAudioData(audioType, audioData);
+            if (sampleCount.HasValue)
+            {
+                int channels = Math.Max(1, this._audioMixer.OutputChannels);
+                int monoSamples = sampleCount.Value / channels;
+                this._audioSubtitleSyncTracker.RegisterAudioSubtitle(audioType, text, monoSamples, isFirst, isLast);
+            }
+            else
+            {
+                this._audioSubtitleSyncTracker.RegisterAudioSubtitle(audioType, text, isFirst, isLast);
+            }
         }
 
-        public void RegisterSubtitle(AudioType audioType, string text, bool isFirst, bool isLast)
-        {
-            if (string.IsNullOrEmpty(text)) return;
-            this._audioSubtitleSyncTracker.RegisterAudioSubtitle(audioType, text, isFirst, isLast);
-        }
-
-        public void RegisterSubtitle(AudioType audioType, string text, int sampleCount, bool isFirst, bool isLast)
-        {
-            if (string.IsNullOrEmpty(text)) return;
-            int channels = Math.Max(1, this._audioMixer.OutputChannels);
-            int monoSamples = sampleCount / channels;
-            this._audioSubtitleSyncTracker.RegisterAudioSubtitle(audioType, text, monoSamples, isFirst, isLast);
-        }
-
-        public void StopAudioStream(AudioType audioType)
+        public void CompleteStream(AudioType audioType)
         {
             this._audioMixer.StopAudioStream(audioType);
         }

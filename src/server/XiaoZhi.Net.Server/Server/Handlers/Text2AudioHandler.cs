@@ -107,6 +107,11 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             catch (OperationCanceledException)
             {
+                if (this._audioPlayerClient is not null)
+                {
+                    await this._audioPlayerClient.SystemNotification.StopAsync();
+                    await this._audioPlayerClient.MusicPlayer.StopAsync();
+                }
                 this.FireAbort(session.DeviceId, session.SessionId, "text to audio");
             }
         }

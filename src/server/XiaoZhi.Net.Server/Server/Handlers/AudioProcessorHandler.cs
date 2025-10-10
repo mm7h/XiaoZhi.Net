@@ -102,33 +102,27 @@ namespace XiaoZhi.Net.Server.Handlers
             }
 
             OutAudioSegment outAudioSegment = workflow.Data;
-            bool isContentNotEmpty = !string.IsNullOrEmpty(outAudioSegment.Content);
 
             try
             {
-                if (isContentNotEmpty)
-                {
-                    int interleavedSampleCount = outAudioSegment.AudioData.Length;
-                    session.PrivateProvider.AudioProcessor.RegisterSubtitle(outAudioSegment.AudioType, outAudioSegment.Content, interleavedSampleCount, outAudioSegment.IsFirstSegment, outAudioSegment.IsLastSegment);
-                }
-
-                session.PrivateProvider.AudioProcessor!.AddAudioData(outAudioSegment.AudioType, outAudioSegment.AudioData);
+                session.PrivateProvider.AudioProcessor!.ProcessAudio(outAudioSegment.AudioType, outAudioSegment.AudioData, outAudioSegment.Content, outAudioSegment.IsFirstSegment, outAudioSegment.IsLastSegment, outAudioSegment.AudioData.Length);
 
                 if (outAudioSegment.IsLastSegment)
                 {
-                    session.PrivateProvider.AudioProcessor!.StopAudioStream(outAudioSegment.AudioType);
+                    session.PrivateProvider.AudioProcessor!.CompleteStream(outAudioSegment.AudioType);
 
                     if (session.CloseAfterChat)
                     {
-                        session.PrivateProvider.AudioProcessor!.StopAudioStream(AudioType.Music);
-                        session.PrivateProvider.AudioProcessor!.StopAudioStream(AudioType.SystemNotification);
-                        session.PrivateProvider.AudioProcessor!.StopAudioStream(AudioType.Other);
+                        session.PrivateProvider.AudioProcessor!.CompleteStream(AudioType.Music);
+                        session.PrivateProvider.AudioProcessor!.CompleteStream(AudioType.SystemNotification);
+                        session.PrivateProvider.AudioProcessor!.CompleteStream(AudioType.Other);
                     }
                 }
             }
             catch (OperationCanceledException)
             {
-                this.FireAbort(session.DeviceId, session.SessionId, "audio mixing");
+                session.PrivateProvider.AudioProcessor!.ClearAllBuffers();
+                this.FireAbort(session.DeviceId, session.SessionId, "audio process");
             }
         }
 

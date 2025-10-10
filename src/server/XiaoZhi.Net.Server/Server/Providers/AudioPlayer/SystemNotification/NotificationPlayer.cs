@@ -84,6 +84,16 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification
             }
         }
 
+        public Task StopAsync()
+        {
+            if (this.PlaybackState == PlaybackState.Idle)
+            {
+                this.Logger.LogInformation("The audio player status is {status}, skip the stopping.", PlaybackState);
+                return Task.CompletedTask;
+            }
+            this._streamAudioPlayer.Stop();
+            return Task.CompletedTask;
+        }
         private void FireAudioData(float[] pcmData, bool isFirst, bool isLast)
         {
             this.OnAudioData?.Invoke(pcmData, isFirst, isLast);
