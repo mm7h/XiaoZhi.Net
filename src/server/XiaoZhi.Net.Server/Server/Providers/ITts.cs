@@ -7,10 +7,10 @@ namespace XiaoZhi.Net.Server.Providers
 {
     internal interface ITts : IProvider<ModelSetting>
     {
-        event Action<string, OutSegment> OnBeforeProcessing;
-        event Action<string, float[]> OnProcessing;
-        event Action<string, float[], OutSegment, double> OnProcessed;
+        event Action<OutSegment> OnBeforeProcessing;
+        event Action<float[]> OnProcessing;
+        event Action<float[], OutSegment, double> OnProcessed;
         int GetTtsSampleRate();
-        Task SynthesisAsync(Workflow<OutSegment> sessionContext, Session session, CancellationToken token);
+        Task SynthesisAsync(Workflow<OutSegment> sessionContext, CancellationToken token);
     }
 }

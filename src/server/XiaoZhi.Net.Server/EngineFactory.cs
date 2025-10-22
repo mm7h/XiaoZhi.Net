@@ -6,7 +6,7 @@ namespace XiaoZhi.Net.Server
     public static class EngineFactory
     {
 
-        public static IServerBuilder CreateServerBuilder()
+        public static IServerBuilder CreateXiaoZhiServerBuilder()
         {
             return ServerBuilder.CreateServerBuilder();
         }

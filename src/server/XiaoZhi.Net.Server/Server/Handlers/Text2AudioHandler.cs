@@ -102,7 +102,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     return;
                 }
 
-                await this._tts.SynthesisAsync(workflow, session, session.SessionCtsToken);
+                await this._tts.SynthesisAsync(workflow, session.SessionCtsToken);
 
             }
             catch (OperationCanceledException)
@@ -155,7 +155,9 @@ namespace XiaoZhi.Net.Server.Handlers
             Workflow<OutAudioSegment> workflow = this._outAudioSegmentWorkflowPool.Get();
 
             outAudioSegment.Initialize(pcmData, AudioType.SystemNotification, string.Empty, isFirst, isLast);
-            workflow.Initialize(this.SendOutter.SessionId, outAudioSegment);
+
+            Session session = this.SendOutter.GetSession();
+            workflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
 
             await this.NextWriter3.WriteAsync(workflow);
         }
@@ -166,27 +168,23 @@ namespace XiaoZhi.Net.Server.Handlers
             Workflow<OutAudioSegment> workflow = this._outAudioSegmentWorkflowPool.Get();
 
             outAudioSegment.Initialize(pcmData, AudioType.Music, string.Empty, isFirst, isLast);
-            workflow.Initialize(this.SendOutter.SessionId, outAudioSegment);
+
+            Session session = this.SendOutter.GetSession();
+            workflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
 
             await this.NextWriter2.WriteAsync(workflow);
         }
 
-        private void TTS_OnBeforeProcessing(string sessionId, OutSegment segment)
+        private void TTS_OnBeforeProcessing(OutSegment segment)
         {
-            // 避免使用全局的单例 TTS provider时，事件影响其他会话
-            if (sessionId != this.SendOutter.SessionId)
-                return;
             if (segment.IsFirstSegment)
             {
                 this.Logger.LogInformation("Send the first audio from segment: {content}", segment.Content);
             }
         }
 
-        private async void TTS_OnProcessed(string sessionId, float[] audioData, OutSegment segment, double duration)
+        private async void TTS_OnProcessed(float[] audioData, OutSegment segment, double duration)
         {
-            if (sessionId != this.SendOutter.SessionId)
-                return;
-
             Session session = this.SendOutter.GetSession();
 
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
@@ -201,7 +199,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 outAudioSegment.Initialize(audioData, AudioType.TTS, segment.Content, segment.IsFirstSegment, segment.IsLastSegment);
             }
-            workflow.Initialize(this.SendOutter.SessionId, outAudioSegment);
+            workflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
 
             await this.NextWriter.WriteAsync(workflow);
         }

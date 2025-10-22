@@ -4,9 +4,11 @@ using XiaoZhi.Net.Server;
 using XiaoZhi.Net.Server.Abstractions;
 
 
+Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", "Development");
+
 IHost? serverHost = null;
 // 获取服务引擎构建器
-IServerBuilder serverBuilder = EngineFactory.CreateServerBuilder();
+IServerBuilder serverBuilder = EngineFactory.CreateXiaoZhiServerBuilder();
 try
 {
     Console.WriteLine("Hello, Xiao Zhi!");

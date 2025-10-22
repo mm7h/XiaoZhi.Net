@@ -24,7 +24,7 @@ namespace XiaoZhi.Net.Server.Handlers
         public DialogueHandler(ObjectPool<Workflow<string>> stringWorkflowPool,
             ObjectPool<Workflow<OutSegment>> outSegmentWorkflowPool,
             ObjectPool<OutSegment> outSegmentPool,
-            XiaoZhiConfig config, 
+            XiaoZhiConfig config,
             ILogger<DialogueHandler> logger) : base(config, logger)
         {
             this._useStreaming = this.Config.LlmSettings.First().Config.UseStreaming ?? false;
@@ -46,7 +46,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 this._useStreaming = privateProvider.Llm.UseStreaming;
             }
             else
-            { 
+            {
                 this.Logger.LogError("The session LLM model is not initialized.");
                 return false;
             }
@@ -90,7 +90,7 @@ namespace XiaoZhi.Net.Server.Handlers
         public async Task Handle(Workflow<string> workflow, bool addToChatHistory = true)
         {
             if (this._llm is null)
-            { 
+            {
                 this.Logger.LogError("The LLM model is not initialized.");
                 return;
             }
@@ -99,7 +99,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 return;
             }
-            
+
             if (!session.IsDeviceBinded)
             {
                 // 从对象池获取OutSegment对象
@@ -107,11 +107,11 @@ namespace XiaoZhi.Net.Server.Handlers
                 var notBindWorkflow = this._outSegmentWorkflowPool.Get();
 
                 outSegment.Initialize("NOT_BIND", true, true);
-                notBindWorkflow.Initialize(workflow.SessionId, outSegment);
+                notBindWorkflow.Initialize(workflow.SessionId, workflow.DeviceId, outSegment);
                 await this.NextWriter.WriteAsync(notBindWorkflow);
                 return;
             }
-            
+
             try
             {
                 using (CodeTimer timer = CodeTimer.Create("Calling the LLM takes {elapsed:F2} ms.", this.Logger))
@@ -137,7 +137,7 @@ namespace XiaoZhi.Net.Server.Handlers
             await this.Handle(workflow, false);
         }
 
-        public async Task SendCustomMessage(string sessionId, string content)
+        public async Task SendCustomMessage(string sessionId, string deviceId, string content)
         {
             content = DialogueHelper.GetStringNoPunctuationOrEmoji(content);
 
@@ -164,7 +164,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 workflows.Add(workflow);
 
                 outSegment.Initialize(segmentResult, isFirst, isLast);
-                workflow.Initialize(sessionId, outSegment);
+                workflow.Initialize(sessionId, deviceId, outSegment);
                 await this.NextWriter.WriteAsync(workflow);
             }
         }
@@ -180,7 +180,8 @@ namespace XiaoZhi.Net.Server.Handlers
             string segment = DialogueHelper.GetStringNoPunctuationOrEmoji(outSegment.Content);
 
             var workflow = this._outSegmentWorkflowPool.Get();
-            workflow.Initialize(this.SendOutter.SessionId, outSegment);
+            Session session = this.SendOutter.GetSession();
+            workflow.Initialize(session.SessionId, session.DeviceId, outSegment);
             await this.NextWriter.WriteAsync(workflow);
         }
 
@@ -190,7 +191,8 @@ namespace XiaoZhi.Net.Server.Handlers
 
             if (!this._useStreaming)
             {
-                await this.SendCustomMessage(this.SendOutter.SessionId, content);
+                Session session = this.SendOutter.GetSession();
+                await this.SendCustomMessage(session.SessionId, session.DeviceId, content);
             }
 
             await this.SendOutter.SendLlmMessageAsync(Emotion.Winking);

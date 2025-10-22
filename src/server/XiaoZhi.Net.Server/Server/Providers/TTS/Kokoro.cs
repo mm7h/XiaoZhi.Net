@@ -23,9 +23,9 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         private bool _save2File = false;
         private string? _savePath;
 
-        public event Action<string, OutSegment>? OnBeforeProcessing;
-        public event Action<string, float[]>? OnProcessing;
-        public event Action<string, float[], OutSegment, double>? OnProcessed;
+        public event Action<OutSegment>? OnBeforeProcessing;
+        public event Action<float[]>? OnProcessing;
+        public event Action<float[], OutSegment, double>? OnProcessed;
 
         public Kokoro(ILogger<Kokoro> logger) : base(logger)
         {
@@ -84,7 +84,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             }
         }
 
-        public async Task SynthesisAsync(Workflow<OutSegment> workflow, Session session, CancellationToken token)
+        public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
         {
             if (this._offlineTts == null)
             {
@@ -97,33 +97,30 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 string segment = workflow.Data.Content;
 
                 Stopwatch timer = Stopwatch.StartNew();
-                this.OnBeforeProcessing?.Invoke(workflow.SessionId, workflow.Data);
+                this.OnBeforeProcessing?.Invoke(workflow.Data);
 
                 OfflineTtsGeneratedAudio audio = this._offlineTts.Generate(segment, SPEAK_SPPED, SPERAKER_ID);
 
                 double duration = Math.Max((this.CalculateDuration(audio.SampleRate, audio.NumSamples) * 1000 - (workflow.Data.IsFirstSegment ? 300 + timer.ElapsedMilliseconds : 0)), 0);
 
-                this.OnProcessed?.Invoke(workflow.SessionId, audio.Samples, workflow.Data, duration);
+                this.OnProcessed?.Invoke(audio.Samples, workflow.Data, duration);
 
                 if (this._save2File)
                 {
-                    await Task.Run(() =>
+                    string fileName = $"{this.ReplaceMacDelimiters(workflow.DeviceId)}_{DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString()}.wav";
+                    string filePath = Path.Combine(this._savePath!, fileName);
+                    if (File.Exists(filePath))
+                        File.Delete(filePath);
+                    bool saved = audio.SaveToWaveFile(filePath);
+                    if (saved)
                     {
-                        string fileName = $"{this.ReplaceMacDelimiters(session.DeviceId)}_{DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString()}.wav";
-                        string filePath = Path.Combine(this._savePath!, fileName);
-                        if (File.Exists(filePath))
-                            File.Delete(filePath);
-                        bool saved = audio.SaveToWaveFile(filePath);
-                        if (saved)
-                        {
-                            this.Logger.LogDebug("Saved tts wave file {fileName} successed, the duration of file is: {duration}s.", fileName, this.FormatDuration(duration));
-                        }
-                        else
-                        {
-                            this.Logger.LogDebug("Failed to save tts wave file {fileName}.", fileName);
-                        }
-                        audio.Dispose();
-                    }).ConfigureAwait(false);
+                        this.Logger.LogDebug("Saved tts wave file {fileName} successed, the duration of file is: {duration}s.", fileName, this.FormatDuration(duration));
+                    }
+                    else
+                    {
+                        this.Logger.LogDebug("Failed to save tts wave file {fileName}.", fileName);
+                    }
+                    audio.Dispose();
                 }
                 else
                 {

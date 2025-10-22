@@ -115,14 +115,14 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        private async void OnVoiceDetected(Session sessionContext)
+        private async void OnVoiceDetected(Session session)
         {
-            sessionContext.AudioPacketContext.VadPacket.Reset();
+            session.AudioPacketContext.VadPacket.Reset();
 
             var workflow = this._workflowPool.Get();
             try
             {
-                workflow.Initialize(sessionContext.SessionId, this._receivedPcmPacketFrame);
+                workflow.Initialize(session.SessionId, session.DeviceId, this._receivedPcmPacketFrame);
                 await this.NextWriter.WriteAsync(workflow);
             }
             finally
@@ -131,25 +131,25 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        private void NoVoiceCloseConnect(Session sessionContext)
+        private void NoVoiceCloseConnect(Session session)
         {
-            if (sessionContext.VadStatusContext.HaveVoiceLatestTime == 0)
+            if (session.VadStatusContext.HaveVoiceLatestTime == 0)
             {
-                sessionContext.VadStatusContext.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                session.VadStatusContext.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
             }
             else
             {
-                long noVoiceTime = DateTimeOffset.Now.ToUnixTimeMilliseconds() - sessionContext.VadStatusContext.HaveVoiceLatestTime;
+                long noVoiceTime = DateTimeOffset.Now.ToUnixTimeMilliseconds() - session.VadStatusContext.HaveVoiceLatestTime;
                 long closeConnectionNoVoiceTime = (this.Config.CloseConnectionNoVoiceTime ?? 40) * 1000;
-                if (!sessionContext.CloseAfterChat && noVoiceTime >= closeConnectionNoVoiceTime)
+                if (!session.CloseAfterChat && noVoiceTime >= closeConnectionNoVoiceTime)
                 {
-                    sessionContext.CloseAfterChat = true;
+                    session.CloseAfterChat = true;
                     string prompt = "请你以\"时间过得真快\"为来头，用富有感情、依依不舍的话来结束这场对话吧。";
 
                     var workflow = this._stringWorkflowPool.Get();
                     try
                     {
-                        workflow.Initialize(sessionContext.SessionId, prompt);
+                        workflow.Initialize(session.SessionId, session.DeviceId, prompt);
                         this.OnNoVoiceCloseConnect?.Invoke(workflow);
                     }
                     finally

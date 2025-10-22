@@ -24,7 +24,6 @@ namespace XiaoZhi.Net.Server
     internal class ServerBuilder : IServerBuilder
     {
         private static readonly Lazy<IServerBuilder> lazyInstance = new Lazy<IServerBuilder>(() => new ServerBuilder());
-        internal static IServerBuilder CreateServerBuilder() => lazyInstance.Value;
 
         private ServerBuilder()
         {
@@ -36,10 +35,8 @@ namespace XiaoZhi.Net.Server
             this.HostBuilder = hostBuilder;
         }
 
-        public static IServerBuilder CreateServerBuilder(IHostBuilder hostBuilder)
-        { 
-            return new ServerBuilder(hostBuilder);
-        }
+        public static IServerBuilder CreateServerBuilder() => lazyInstance.Value;
+        public static IServerBuilder CreateServerBuilder(IHostBuilder hostBuilder) => new ServerBuilder(hostBuilder);
 
         public IHostBuilder HostBuilder { get; private set; }
 

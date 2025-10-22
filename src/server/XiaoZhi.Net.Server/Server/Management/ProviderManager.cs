@@ -471,9 +471,8 @@ namespace XiaoZhi.Net.Server.Management
                     services.AddKeyedTransient<ITts, Kokoro>(modelName);
                     services.AddKeyedSingleton<ITts, Kokoro>(key);
                     break;
-                case "huoshan-double-stream":
-                    services.AddKeyedTransient<ITts, HuoshanDoubleStream>(modelName);
-                    services.AddKeyedSingleton<ITts, HuoshanDoubleStream>(key);
+                case "huoshan-bidirection":
+                    services.AddKeyedTransient<ITts, HuoshanBidirectionTTS>(modelName);
                     break;
                 default:
                     throw new ModelBuildException("Invalid tts model.");

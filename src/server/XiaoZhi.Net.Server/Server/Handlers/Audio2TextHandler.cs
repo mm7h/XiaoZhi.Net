@@ -74,7 +74,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 if (!session.IsDeviceBinded)
                 {
                     var notBindWorkflow = this._stringWorkflowPool.Get();
-                    notBindWorkflow.Initialize(workflow.SessionId, "NOT_BIND");
+                    notBindWorkflow.Initialize(workflow.SessionId, workflow.DeviceId, "NOT_BIND");
                     await this.NextWriter.WriteAsync(notBindWorkflow);
                     return;
                 }
@@ -89,7 +89,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     speechText = await this._asr.ConvertSpeechText(workflow.Data, this.Config.AudioSetting.SampleRate, this.Config.AudioSetting.FrameSize, session.SessionCtsToken);
                 }
 
-                if (string.IsNullOrEmpty(DialogueHelper.GetStringNoPunctuationOrEmoji(speechText)))
+                if (string.IsNullOrEmpty(speechText) || string.IsNullOrEmpty(DialogueHelper.GetStringNoPunctuationOrEmoji(speechText)))
                 {
                     session.Reset();
                     this.Logger.LogDebug("Device {deviceId} no speak.", session.DeviceId);
@@ -98,12 +98,12 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 await this.SendOutter.SendSttMessageAsync(speechText);
                 this.Logger.LogDebug("Device {deviceId} speak the text: {speechText}", session.DeviceId, speechText);
-                speechText = await this._punctuation.AppendPunctuationAsync(speechText!, session.SessionCtsToken);
+                speechText = await this._punctuation.AppendPunctuationAsync(speechText, session.SessionCtsToken);
 
                 var nextWorkflow = this._stringWorkflowPool.Get();
                 try
                 {
-                    nextWorkflow.Initialize(workflow.SessionId, speechText);
+                    nextWorkflow.Initialize(workflow.SessionId, workflow.DeviceId, speechText);
                     await this.NextWriter.WriteAsync(nextWorkflow);
                 }
                 finally

@@ -39,7 +39,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
 
             try
             {
-                await this._socketSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                await this._socketSemaphore.WaitAsync(cancellationToken);
 
                 if (this._socket is not null)
                 {
@@ -53,6 +53,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
                     {
                         ClientWebSocket socket = new ClientWebSocket();
                         socket.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
+                        socket.Options.CollectHttpResponseDetails = true;
                         if (this._headers is not null)
                             foreach (var item in this._headers)
                             {
