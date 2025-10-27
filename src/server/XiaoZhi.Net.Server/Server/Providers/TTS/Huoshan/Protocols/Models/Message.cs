@@ -4,7 +4,7 @@ using System.IO;
 using System.Text;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Enums;
 
-namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols
+namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
 {
     /// <summary>
     /// Message structure for protocol communication

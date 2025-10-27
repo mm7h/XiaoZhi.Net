@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Protocol.WebSocket;
-using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols;
+using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 {

@@ -1,19 +1,32 @@
-﻿using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Helpers;
-using XiaoZhi.Net.Server.Protocol.WebSocket;
-using XiaoZhi.Net.Server.Providers.TTS.Huoshan;
-using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Enums;
-using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models;
+﻿using XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Enums;
+using XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Models;
+using XiaoZhi.Net.Test.Socket;
+using XiaoZhi.Test.OtherSamples.Huoshan;
 
-namespace XiaoZhi.Net.Server.Providers.TTS
+namespace XiaoZhi.Net.Test.OtherSamples
 {
-    internal sealed class HuoshanBidirectionTTS : HuoshanTTS<HuoshanBidirectionTTS>, ITts
+    internal class Sample14_HuoshanBidirection
+    {
+        public static async Task Run()
+        {
+            HuoshanBidirectionTTS tts = new HuoshanBidirectionTTS();
+
+            string apiId = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
+
+            string accessToken = Environment.GetEnvironmentVariable("HuoshanAccessToken", EnvironmentVariableTarget.User)!;
+
+            if (!tts.Build(apiId, accessToken, "volc.service_type.10029"))
+            {
+                Console.WriteLine("Build failed");
+                return;
+            }
+            await tts.SynthesisAsync("落霞与孤鹜齐飞，秋水共长天一色", true, true, CancellationToken.None);
+        }
+
+
+    }
+
+    file class HuoshanBidirectionTTS
     {
         private const string SERVICE_END_POINT = "wss://openspeech.bytedance.com/api/v3/tts/bidirection";
         private const string TTS_NAMESPACE = "BidirectionalTTS";
@@ -35,42 +48,27 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         private readonly object _fileLock = new();
         private readonly Dictionary<string, TTSAudioFile> _sessionFiles = new();
 
-        public HuoshanBidirectionTTS(ILogger<HuoshanBidirectionTTS> logger) : base(logger)
-        {
-        }
-
-        public override string ModelName => nameof(HuoshanBidirectionTTS);
-        public override string ProviderType => "tts";
-
         public event Action<OutSegment>? OnBeforeProcessing;
-        public event Action<float[]>? OnProcessing;
-        public event Action<float[], OutSegment, double>? OnProcessed;
+        public event Action<byte[]>? OnProcessing;
+        public event Action<byte[], OutSegment, double>? OnProcessed;
 
+        protected WebSocketClient? WebSocketClient { get; set; }
         public int GetTtsSampleRate() => SAMPLE_RATE;
 
-        public override bool Build(ModelSetting modelSetting)
+        public bool Build(string appId, string accessToken, string resourceId)
         {
             try
             {
-                string? appId = modelSetting.Config?.AppId;
-                string? accessToken = modelSetting.Config?.AccessToken;
-                string? resourceId = modelSetting.Config?.ResourceId;
-                string? speaker = modelSetting.Config?.Speaker;
 
-                if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(resourceId) || string.IsNullOrEmpty(speaker))
-                {
-                    this.Logger.LogWarning("Huoshan TTS configuration is incomplete, please check AppId, AccessToken, ResourceId and speaker.");
-                    return false;
-                }
-                this._speaker = speaker;
-                this._speechRate = modelSetting.Config?.SpeechRate ?? 0;
-                this._loudnessRate = modelSetting.Config?.LoudnessRate ?? 0;
+                this._speaker = "zh_female_cancan_mars_bigtts";
+                this._speechRate = 0;
+                this._loudnessRate = 0;
 
-                this._save2File = modelSetting.Config?.Save2File ?? false;
+                this._save2File = true;
 
                 if (this._save2File)
                 {
-                    this._savePath = modelSetting.Config?.SavePath ?? Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
+                    this._savePath = Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
                     if (!Directory.Exists(this._savePath))
                         Directory.CreateDirectory(this._savePath);
                 }
@@ -92,18 +90,16 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Failed to build HuoshanBidirectionTTS.");
                 return false;
             }
         }
 
-        public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
+        public async Task SynthesisAsync(string text, bool isFirstSegment, bool isLastSegment, CancellationToken token)
         {
             try
             {
                 if (this.WebSocketClient is null)
                 {
-                    this.Logger.LogError("WebSocket client is not initialized for Huoshan TTS.");
                     return;
                 }
 
@@ -113,26 +109,24 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     await this.StartConnectionAsync(token);
                 }
 
-                string sessionId = workflow.SessionId;
-                OutSegment outSegment = workflow.Data;
 
                 if (string.IsNullOrEmpty(this._tssSessionId))
                 {
                     this._tssSessionId = Guid.NewGuid().ToString();
                 }
 
-                if (outSegment.IsFirstSegment)
+                if (isFirstSegment)
                 {
                     Dictionary<string, object> startReq = new Dictionary<string, object>
                     {
-                        { "User", new { Uid = workflow.DeviceId } },
+                        { "User", new { Uid = "my_test" } },
                         { "Event", (int)EventType.StartSession },
                         { "Namespace", TTS_NAMESPACE },
                         { "ReqParams",
                             new {
                                 Speaker = this._speaker,
                                 AudioParams = new {
-                                    Format = "pcm",
+                                    Format = "wav",
                                     SampleRate = SAMPLE_RATE,
                                     EnableTimestamp = false,
                                     SpeechRate = this._speechRate,
@@ -152,15 +146,15 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
                 Dictionary<string, object> ttsReq = new Dictionary<string, object>
                 {
-                    { "User", new { Uid = workflow.DeviceId } },
+                    { "User", new { Uid = "my_test" } },
                     { "Event", (int)EventType.TaskRequest },
                     { "Namespace", TTS_NAMESPACE },
                     { "ReqParams",
                         new {
-                            Text = outSegment.Content,
+                            Text = text,
                             Speaker = this._speaker,
                             AudioParams = new {
-                                Format = "pcm",
+                                Format = "wav",
                                 SampleRate = SAMPLE_RATE,
                                 EnableTimestamp = false,
                                 SpeechRate = this._speechRate,
@@ -169,10 +163,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                         }
                     },
                 };
+                Console.WriteLine(JsonHelper.Serialize(ttsReq));
                 await this.TaskRequestAsync(this._tssSessionId, JsonHelper.SerializeToUtf8Bytes(ttsReq));
                 token.ThrowIfCancellationRequested();
 
-                if (outSegment.IsLastSegment)
+                if (isLastSegment)
                 {
                     await this.FinishSessionAsync(this._tssSessionId, token);
                     this._tssSessionId = null;
@@ -184,16 +179,14 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 {
                     this.CancelSessionAsync(this._tssSessionId, CancellationToken.None).GetAwaiter().GetResult();
                 }
-                this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
                 throw;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
             }
         }
 
-        public override void Dispose()
+        public void Dispose()
         {
             this._tssSessionId = null;
             try
@@ -202,7 +195,6 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             }
             catch (Exception ex)
             {
-                this.Logger.LogDebug(ex, "FinishConnection during dispose raised an exception.");
             }
             finally
             {
@@ -219,12 +211,10 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             {
                 return;
             }
-            this.Logger.LogInformation("Huoshan WebSocket connected.");
         }
 
         private void WebSocketClient_OnClose(System.Net.WebSockets.WebSocketCloseStatus? status, string? desc)
         {
-            this.Logger.LogWarning("Huoshan WebSocket closed: {Status} {Description}", status, desc);
             // ensure files are closed (leave as .tmp)
             this.CloseAllSessionFiles(finalize: false);
             FailAllWaits(new OperationCanceledException($"WebSocket closed: {status} {desc}"));
@@ -232,7 +222,6 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
         private void WebSocketClient_OnError(System.Net.WebSockets.WebSocketError error, string message)
         {
-            this.Logger.LogError("Huoshan WebSocket error: {Error} {Message}", error, message);
             // ensure files are closed (leave as .tmp)
             this.CloseAllSessionFiles(finalize: false);
             FailAllWaits(new Exception($"WebSocket error: {error} {message}"));
@@ -252,10 +241,9 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Failed to parse websocket binary message.");
                 return;
             }
-
+            Console.WriteLine("Recived message:" + message);
             // Route audio frames if needed in future
             if (message.MsgType == MsgType.AudioOnlyServer && message.Payload != null && message.Payload.Length > 0)
             {
@@ -269,11 +257,10 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     }
                     catch (Exception ex)
                     {
-                        this.Logger.LogError(ex, "Failed to append PCM data for session {SessionId}", sid);
                     }
                 }
 
-                this.OnProcessing?.Invoke(message.Payload.Bytes2Float());
+                this.OnProcessing?.Invoke(message.Payload);
                 return;
             }
 
@@ -289,9 +276,9 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     }
                     catch (Exception ex)
                     {
-                        this.Logger.LogError(ex, "Failed to finalize PCM file for session {SessionId}", sid);
                     }
                 }
+
             }
 
             // Complete matching waiter if any
@@ -421,7 +408,6 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         {
             if (this.WebSocketClient is null)
             {
-                this.Logger.LogError("WebSocket client is not initialized for Huoshan TTS.");
                 throw new InvalidOperationException("WebSocket client is not initialized.");
             }
             await this.WebSocketClient.ConnectAsync(endPoint, token);
@@ -504,12 +490,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 {
                     // create new file
                     var fileBase = $"{sessionId}_{DateTime.UtcNow:yyyyMMdd_HHmmssfff}";
-                    var tmpPath = Path.Combine(_savePath, fileBase + ".pcm.tmp");
-                    var finalPath = Path.Combine(_savePath, fileBase + ".pcm");
+                    var tmpPath = Path.Combine(_savePath, fileBase + ".wav.tmp");
+                    var finalPath = Path.Combine(_savePath, fileBase + ".wav");
                     var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.Read, 8192, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                    entry = new TTSAudioFile(sessionId,fs, tmpPath, finalPath);
+                    entry = new TTSAudioFile(sessionId, fs, tmpPath, finalPath);
                     this._sessionFiles[sessionId] = entry;
-                    this.Logger.LogInformation("Start saving PCM for session {SessionId} -> {File}", sessionId, tmpPath);
                 }
 
                 // write chunk
@@ -536,17 +521,16 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     {
                         try
                         {
-                            // move .tmp -> .pcm
+                            // move .tmp -> .wav
                             if (File.Exists(entry.FinalPath))
                             {
                                 File.Delete(entry.FinalPath);
                             }
                             File.Move(entry.TmpPath, entry.FinalPath);
-                            this.Logger.LogInformation("Saved PCM for session {SessionId} -> {File}", sessionId, entry.FinalPath);
+                            Console.WriteLine($"Audio saved to {entry.FinalPath}");
                         }
                         catch (Exception ex)
                         {
-                            this.Logger.LogError(ex, "Failed to finalize PCM file {Tmp} -> {Final}", entry.TmpPath, entry.FinalPath);
                         }
                     }
 
@@ -569,6 +553,16 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             {
                 this.CloseSessionFile(sid, finalize);
             }
+        }
+
+        private async Task SendMessage(Message message)
+        {
+            if (this.WebSocketClient is null)
+            {
+                return;
+            }
+            var data = message.Marshal();
+            await this.WebSocketClient.SendAsync(data);
         }
     }
 }

@@ -7,24 +7,6 @@
     "Port": 4530,
     "Path": "/xiaozhi/v1/"
   },
-  "AuthOption": {
-    "Enabled": false,
-    "Tokens": [
-      {
-        "Token": "token123",
-        "Name": "AdminUser"
-      },
-      {
-        "Token": "token456",
-        "Name": "RegularUser"
-      }
-    ],
-    "AllowedDevices": [
-      "DeviceA",
-      "DeviceB",
-      "DeviceC"
-    ]
-  },
   "LogSetting": {
     "LogLevel": "DEBUG",
     "LogFilePath": "./logs/log.txt",
@@ -75,11 +57,21 @@
     "ModelName": "flash-memory"
   },
   "TtsSetting": {
-    "ModelName": "kokoro",
+    //"ModelName": "kokoro",
+    //"Config": {
+    //  "Lexicons": "./lexicon/lexicon-zh.txt,./lexicon/lexicon-us-en.txt",
+    //  "Save2File": false,
+    //  "SavePath": "./data/tts-cache"
+    //}
+    "ModelName": "huoshan-bidirection",
     "Config": {
-      "Lexicons": "./lexicon/lexicon-zh.txt,./lexicon/lexicon-us-en.txt",
       "Save2File": false,
-      "SavePath": "./data/tts-cache"
+      "AppId": "to your api id",
+      "AccessToken": "to your access token",
+      "ResourceId": "to your resource id",
+      "Speaker": "to your sepeaker name",
+      "SpeechRate": 0,
+      "LoudnessRate": 0
     }
   },
   "McpSettings": {}
