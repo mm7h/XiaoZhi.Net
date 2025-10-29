@@ -183,7 +183,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        private async void TTS_OnProcessed(float[] audioData, OutSegment segment, double duration)
+        private async void TTS_OnProcessed(float[] audioData, OutSegment segment)
         {
             Session session = this.SendOutter.GetSession();
 

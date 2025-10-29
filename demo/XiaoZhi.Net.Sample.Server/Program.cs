@@ -27,6 +27,13 @@ try
             return;
         }
         config.LlmSettings.First().Config.ApiKey = apiKey;
+        if (config.TtsSetting.ModelName == "huoshan-bidirection")
+        {
+            config.TtsSetting.Config.AppId = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
+            config.TtsSetting.Config.AccessToken = Environment.GetEnvironmentVariable("HuoshanAccessToken", EnvironmentVariableTarget.User)!;
+            config.TtsSetting.Config.ResourceId = "volc.service_type.10029";
+            config.TtsSetting.Config.Speaker = "zh_female_cancan_mars_bigtts";
+        }
 #endif
 
         // 开始初始化服务

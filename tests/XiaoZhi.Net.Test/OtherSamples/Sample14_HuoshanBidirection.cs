@@ -1,4 +1,5 @@
-﻿using XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Enums;
+﻿using System.Security.Cryptography;
+using XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Enums;
 using XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Models;
 using XiaoZhi.Net.Test.Socket;
 using XiaoZhi.Test.OtherSamples.Huoshan;
@@ -20,7 +21,17 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 Console.WriteLine("Build failed");
                 return;
             }
-            await tts.SynthesisAsync("落霞与孤鹜齐飞，秋水共长天一色", true, true, CancellationToken.None);
+            await tts.SynthesisAsync("春眠不觉晓，", true, false, CancellationToken.None);
+            await tts.SynthesisAsync("处处闻啼鸟。", false, false, CancellationToken.None);
+            await Task.Delay(100);
+            await tts.CancelGenerate();
+            //await tts.SynthesisAsync("夜来风雨声，", false, false, CancellationToken.None);
+            //await tts.SynthesisAsync("花落知多少。", false, true, CancellationToken.None);
+            await Task.Delay(1000);
+            await tts.SynthesisAsync("窗前明月光,", true, false, CancellationToken.None);
+            await tts.SynthesisAsync("疑是地上霜,", false, false, CancellationToken.None);
+            await tts.SynthesisAsync("举头望明月,", false, false, CancellationToken.None);
+            await tts.SynthesisAsync("低头思故乡.", false, true, CancellationToken.None);
         }
 
 
@@ -163,13 +174,84 @@ namespace XiaoZhi.Net.Test.OtherSamples
                         }
                     },
                 };
-                Console.WriteLine(JsonHelper.Serialize(ttsReq));
                 await this.TaskRequestAsync(this._tssSessionId, JsonHelper.SerializeToUtf8Bytes(ttsReq));
                 token.ThrowIfCancellationRequested();
 
                 if (isLastSegment)
                 {
                     await this.FinishSessionAsync(this._tssSessionId, token);
+
+                    // After session finished, aggregate full audio and trigger OnProcessed
+                    #region Collect all tts audio data and save to file if required
+                    try
+                    {
+                        var sid = this._tssSessionId!;
+                        if (this._save2File && !string.IsNullOrEmpty(this._savePath))
+                        {
+                            TTSAudioFile? entry = null;
+                            lock (this._fileLock)
+                            {
+                                this._sessionFiles.TryGetValue(sid, out entry);
+                                // Ensure any buffered data is flushed before we read from disk
+                                if (entry != null)
+                                {
+                                    try { entry.Stream.Flush(); } catch { }
+                                }
+                            }
+
+                            if (entry != null)
+                            {
+                                // Read all bytes from the tmp file (writer is still open but flushed; FileShare.Read allows this)
+                                byte[] allBytes;
+                                try
+                                {
+                                    using var rs = new FileStream(entry.TmpPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                                    allBytes = new byte[rs.Length];
+                                    int read = 0;
+                                    while (read < allBytes.Length)
+                                    {
+                                        int r = rs.Read(allBytes, read, allBytes.Length - read);
+                                        if (r == 0) break;
+                                        read += r;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    allBytes = Array.Empty<byte>();
+                                }
+
+                                if (allBytes.Length > 0)
+                                {
+                                    Console.WriteLine("allBytes len: " + allBytes.Length);
+                                }
+
+                                // finalize and close writer stream, and move tmp -> final
+                                try
+                                {
+                                    this.CloseSessionFile(sid, finalize: true);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine("Failed to finalize session file for TTS session ");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("Session file entry not found when finishing TTS session. OnProcessed will be skipped.");
+                            }
+                        }
+                        else
+                        {
+                        }
+
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Unexpected error when aggregating audio for OnProcessed in TTS session");
+                    }
+                    #endregion
+
+
                     this._tssSessionId = null;
                 }
             }
@@ -184,6 +266,15 @@ namespace XiaoZhi.Net.Test.OtherSamples
             catch (Exception ex)
             {
             }
+        }
+
+        public async Task CancelGenerate()
+        {
+            if (string.IsNullOrEmpty(this._tssSessionId))
+            {
+                return;
+            }
+            await this.CancelSessionAsync(this._tssSessionId, CancellationToken.None);
         }
 
         public void Dispose()
@@ -262,23 +353,6 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
                 this.OnProcessing?.Invoke(message.Payload);
                 return;
-            }
-
-            if (message.EventType == EventType.SessionFinished)
-            {
-                // Finalize and close the PCM file for this session
-                if (this._save2File && !string.IsNullOrEmpty(this._savePath))
-                {
-                    var sid = this._tssSessionId ?? "unknown";
-                    try
-                    {
-                        this.CloseSessionFile(sid, finalize: true);
-                    }
-                    catch (Exception ex)
-                    {
-                    }
-                }
-
             }
 
             // Complete matching waiter if any

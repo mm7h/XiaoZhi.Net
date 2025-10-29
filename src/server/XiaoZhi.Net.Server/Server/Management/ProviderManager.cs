@@ -10,6 +10,7 @@ using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Exceptions;
+using XiaoZhi.Net.Server.Media;
 using XiaoZhi.Net.Server.Providers;
 using XiaoZhi.Net.Server.Providers.ASR;
 using XiaoZhi.Net.Server.Providers.AudioCodec;
@@ -128,6 +129,18 @@ namespace XiaoZhi.Net.Server.Management
                 this._logger.LogError("Failed to build {modelName} provider.", tts.ModelName);
                 return false;
             }
+            #endregion
+
+            #region FFmpeg
+            if (MediaFactory.CheckFFmpegInstalled(out string ffmpegVersion))
+            {
+                this._logger.LogInformation("FFmpeg is installed successfully, version: {ffmpegVersion}.", ffmpegVersion);
+            }
+            else
+            {
+                this._logger.LogWarning("FFmpeg is not installed or not found, please check your ffmpeg path configuration.");
+                return false;
+            } 
             #endregion
 
             return true;
@@ -473,6 +486,7 @@ namespace XiaoZhi.Net.Server.Management
                     break;
                 case "huoshan-bidirection":
                     services.AddKeyedTransient<ITts, HuoshanBidirectionTTS>(modelName);
+                    services.AddKeyedSingleton<ITts, HuoshanBidirectionTTS>(key);
                     break;
                 default:
                     throw new ModelBuildException("Invalid tts model.");

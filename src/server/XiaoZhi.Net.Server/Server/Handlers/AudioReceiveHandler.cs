@@ -120,15 +120,8 @@ namespace XiaoZhi.Net.Server.Handlers
             session.AudioPacketContext.VadPacket.Reset();
 
             var workflow = this._workflowPool.Get();
-            try
-            {
-                workflow.Initialize(session.SessionId, session.DeviceId, this._receivedPcmPacketFrame);
-                await this.NextWriter.WriteAsync(workflow);
-            }
-            finally
-            {
-                this._workflowPool.Return(workflow);
-            }
+            workflow.Initialize(session.SessionId, session.DeviceId, this._receivedPcmPacketFrame);
+            await this.NextWriter.WriteAsync(workflow);
         }
 
         private void NoVoiceCloseConnect(Session session)

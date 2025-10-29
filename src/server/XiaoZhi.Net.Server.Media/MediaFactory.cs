@@ -29,6 +29,17 @@ namespace XiaoZhi.Net.Server.Media
         }
 
         /// <summary>
+        /// Checks whether FFmpeg is installed on the system and retrieves the installed version.
+        /// </summary>
+        /// <param name="ffmpegVersion">When this method returns, contains the version of FFmpeg installed on the system,  or an empty string if
+        /// FFmpeg is not installed. This parameter is passed uninitialized.</param>
+        /// <returns><see langword="true"/> if FFmpeg is installed; otherwise, <see langword="false"/>.</returns>
+        public static bool CheckFFmpegInstalled(out string ffmpegVersion)
+        {
+            return FFmpegStartup.CheckFFmpegInstalled(out ffmpegVersion);
+        }
+
+        /// <summary>
         /// Creates a new instance of an audio player that plays audio from a URL.
         /// </summary>
         /// <returns>An <see cref="IUrlAudioPlayer"/> instance configured to play audio from URL sources.</returns>

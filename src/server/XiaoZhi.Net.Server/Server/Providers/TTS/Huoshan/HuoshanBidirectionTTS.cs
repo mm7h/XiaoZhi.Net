@@ -17,6 +17,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
     {
         private const string SERVICE_END_POINT = "wss://openspeech.bytedance.com/api/v3/tts/bidirection";
         private const string TTS_NAMESPACE = "BidirectionalTTS";
+        private const string AUDIO_ENCODING = "pcm";
         private const int SAMPLE_RATE = 16000;
         private static readonly TimeSpan DefaultWaitTimeout = TimeSpan.FromSeconds(15);
 
@@ -44,7 +45,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
         public event Action<OutSegment>? OnBeforeProcessing;
         public event Action<float[]>? OnProcessing;
-        public event Action<float[], OutSegment, double>? OnProcessed;
+        public event Action<float[], OutSegment>? OnProcessed;
 
         public int GetTtsSampleRate() => SAMPLE_RATE;
 
@@ -121,6 +122,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     this._tssSessionId = Guid.NewGuid().ToString();
                 }
 
+                this.OnBeforeProcessing?.Invoke(outSegment);
+
                 if (outSegment.IsFirstSegment)
                 {
                     Dictionary<string, object> startReq = new Dictionary<string, object>
@@ -132,7 +135,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                             new {
                                 Speaker = this._speaker,
                                 AudioParams = new {
-                                    Format = "pcm",
+                                    Format = AUDIO_ENCODING,
                                     SampleRate = SAMPLE_RATE,
                                     EnableTimestamp = false,
                                     SpeechRate = this._speechRate,
@@ -160,7 +163,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                             Text = outSegment.Content,
                             Speaker = this._speaker,
                             AudioParams = new {
-                                Format = "pcm",
+                                Format = AUDIO_ENCODING,
                                 SampleRate = SAMPLE_RATE,
                                 EnableTimestamp = false,
                                 SpeechRate = this._speechRate,
@@ -174,18 +177,130 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
                 if (outSegment.IsLastSegment)
                 {
-                    await this.FinishSessionAsync(this._tssSessionId, token);
+                    // capture sid before it is nulled
+                    var sid = this._tssSessionId!;
+
+                    await this.FinishSessionAsync(sid, token);
+
+                    // After session finished, aggregate full audio and trigger OnProcessed
+                    #region Collect all tts audio data and save to file if required
+                    try
+                    {
+                        float[]? allFloats = null;
+                        if (this._save2File && !string.IsNullOrEmpty(this._savePath))
+                        {
+                            TTSAudioFile? entry = null;
+                            lock (this._fileLock)
+                            {
+                                this._sessionFiles.TryGetValue(sid, out entry);
+                                // Ensure any buffered data is flushed before we read from disk
+                                if (entry != null)
+                                {
+                                    try { entry.Stream.Flush(); } catch { }
+                                }
+                            }
+
+                            if (entry != null)
+                            {
+                                // Read all bytes from the tmp file (writer is still open but flushed; FileShare.Read allows this)
+                                byte[] allBytes;
+                                try
+                                {
+                                    using var rs = new FileStream(entry.TmpPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                                    allBytes = new byte[rs.Length];
+                                    int read = 0;
+                                    while (read < allBytes.Length)
+                                    {
+                                        int r = rs.Read(allBytes, read, allBytes.Length - read);
+                                        if (r == 0) break;
+                                        read += r;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    this.Logger.LogError(ex, "Failed to read aggregated audio for TTS session {SessionId}", sid);
+                                    allBytes = Array.Empty<byte>();
+                                }
+
+                                if (allBytes.Length > 0)
+                                {
+                                    try
+                                    {
+                                        allFloats = allBytes.Bytes2Float();
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        this.Logger.LogError(ex, "Failed to convert audio bytes to float for TTS session {SessionId}", sid);
+                                    }
+                                }
+
+                                // finalize and close writer stream, and move tmp -> final
+                                try
+                                {
+                                    this.CloseSessionFile(sid, finalize: true);
+                                }
+                                catch (Exception ex)
+                                {
+                                    this.Logger.LogError(ex, "Failed to finalize session file for TTS session {SessionId}", sid);
+                                }
+                            }
+                            else
+                            {
+                                this.Logger.LogWarning("Session file entry not found when finishing TTS session {SessionId}. OnProcessed will be skipped.", sid);
+                            }
+                        }
+                        else
+                        {
+                            // No persistent saving configured; cannot aggregate full audio with current implementation
+                            this.Logger.LogWarning("Save2File is disabled, cannot aggregate full audio for OnProcessed in TTS session {SessionId}.", sid);
+                        }
+
+                        if (allFloats != null && allFloats.Length > 0)
+                        {
+                            try
+                            {
+                                this.OnProcessed?.Invoke(allFloats, outSegment);
+                            }
+                            catch (Exception ex)
+                            {
+                                this.Logger.LogError(ex, "OnProcessed handler raised an exception for TTS session {SessionId}", sid);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.Logger.LogError(ex, "Unexpected error when aggregating audio for OnProcessed in TTS session {SessionId}", sid);
+                    } 
+                    #endregion
+
                     this._tssSessionId = null;
                 }
             }
             catch (OperationCanceledException)
             {
-                if (!string.IsNullOrEmpty(this._tssSessionId))
+                try
                 {
-                    this.CancelSessionAsync(this._tssSessionId, CancellationToken.None).GetAwaiter().GetResult();
+                    if (!string.IsNullOrEmpty(this._tssSessionId))
+                    {
+                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                        await this.CancelSessionAsync(this._tssSessionId, cts.Token);
+                    }
                 }
+                catch (TimeoutException tex)
+                {
+                    this.Logger.LogWarning(tex, "CancelSession timed out for {providerType}.", this.ProviderType);
+                }
+                catch (Exception ex)
+                {
+                    this.Logger.LogDebug(ex, "CancelSession during cancellation raised an exception.");
+                }
+
                 this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
                 throw;
+            }
+            catch (TimeoutException tex)
+            {
+                this.Logger.LogWarning(tex, "CancelSession timed out for {providerType}.", this.ProviderType);
             }
             catch (Exception ex)
             {
@@ -259,39 +374,21 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             // Route audio frames if needed in future
             if (message.MsgType == MsgType.AudioOnlyServer && message.Payload != null && message.Payload.Length > 0)
             {
-                // Save raw PCM chunk if configured
-                if (this._save2File && !string.IsNullOrEmpty(this._savePath))
+                // Save raw audio chunk data if configured
+                if (this._save2File && !string.IsNullOrEmpty(this._savePath) && !string.IsNullOrEmpty(this._tssSessionId))
                 {
-                    var sid = this._tssSessionId ?? "unknown";
                     try
                     {
-                        this.AppendPcmChunk(sid, message.Payload);
+                        this.AppendAudioPayloadChunk(this._tssSessionId, message.Payload);
                     }
                     catch (Exception ex)
                     {
-                        this.Logger.LogError(ex, "Failed to append PCM data for session {SessionId}", sid);
+                        this.Logger.LogError(ex, "Failed to append audio data for TTS session {SessionId}", this._tssSessionId);
                     }
                 }
 
                 this.OnProcessing?.Invoke(message.Payload.Bytes2Float());
                 return;
-            }
-
-            if (message.EventType == EventType.SessionFinished)
-            {
-                // Finalize and close the PCM file for this session
-                if (this._save2File && !string.IsNullOrEmpty(this._savePath))
-                {
-                    var sid = this._tssSessionId ?? "unknown";
-                    try
-                    {
-                        this.CloseSessionFile(sid, finalize: true);
-                    }
-                    catch (Exception ex)
-                    {
-                        this.Logger.LogError(ex, "Failed to finalize PCM file for session {SessionId}", sid);
-                    }
-                }
             }
 
             // Complete matching waiter if any
@@ -495,7 +592,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         }
         #endregion
 
-        private void AppendPcmChunk(string sessionId, byte[] pcmData)
+        private void AppendAudioPayloadChunk(string sessionId, byte[] audioData)
         {
             if (string.IsNullOrEmpty(_savePath)) return;
             lock (_fileLock)
@@ -504,16 +601,16 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 {
                     // create new file
                     var fileBase = $"{sessionId}_{DateTime.UtcNow:yyyyMMdd_HHmmssfff}";
-                    var tmpPath = Path.Combine(_savePath, fileBase + ".pcm.tmp");
-                    var finalPath = Path.Combine(_savePath, fileBase + ".pcm");
+                    var tmpPath = Path.Combine(_savePath, fileBase + "." + AUDIO_ENCODING + ".tmp");
+                    var finalPath = Path.Combine(_savePath, fileBase + "." + AUDIO_ENCODING);
                     var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.Read, 8192, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                    entry = new TTSAudioFile(sessionId,fs, tmpPath, finalPath);
+                    entry = new TTSAudioFile(sessionId, fs, tmpPath, finalPath);
                     this._sessionFiles[sessionId] = entry;
-                    this.Logger.LogInformation("Start saving PCM for session {SessionId} -> {File}", sessionId, tmpPath);
+                    this.Logger.LogInformation("Start saving audio data for session {SessionId} -> {File}", sessionId, tmpPath);
                 }
 
                 // write chunk
-                entry.Stream.Write(pcmData, 0, pcmData.Length);
+                entry.Stream.Write(audioData, 0, audioData.Length);
             }
         }
 
@@ -536,17 +633,17 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     {
                         try
                         {
-                            // move .tmp -> .pcm
+                            // move .tmp -> .AUDIO_ENCODING
                             if (File.Exists(entry.FinalPath))
                             {
                                 File.Delete(entry.FinalPath);
                             }
                             File.Move(entry.TmpPath, entry.FinalPath);
-                            this.Logger.LogInformation("Saved PCM for session {SessionId} -> {File}", sessionId, entry.FinalPath);
+                            this.Logger.LogInformation("Saved audio data for session {SessionId} -> {File}", sessionId, entry.FinalPath);
                         }
                         catch (Exception ex)
                         {
-                            this.Logger.LogError(ex, "Failed to finalize PCM file {Tmp} -> {Final}", entry.TmpPath, entry.FinalPath);
+                            this.Logger.LogError(ex, "Failed to finalize audio file {Tmp} -> {Final}", entry.TmpPath, entry.FinalPath);
                         }
                     }
 

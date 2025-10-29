@@ -62,10 +62,11 @@
     //  "Lexicons": "./lexicon/lexicon-zh.txt,./lexicon/lexicon-us-en.txt",
     //  "Save2File": false,
     //  "SavePath": "./data/tts-cache"
+    //  "UseStreaming": false,
     //}
     "ModelName": "huoshan-bidirection",
     "Config": {
-      "Save2File": false,
+      "Save2File": true,
       "AppId": "to your api id",
       "AccessToken": "to your access token",
       "ResourceId": "to your resource id",

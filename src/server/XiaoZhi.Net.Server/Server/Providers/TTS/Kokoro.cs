@@ -25,7 +25,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
         public event Action<OutSegment>? OnBeforeProcessing;
         public event Action<float[]>? OnProcessing;
-        public event Action<float[], OutSegment, double>? OnProcessed;
+        public event Action<float[], OutSegment>? OnProcessed;
 
         public Kokoro(ILogger<Kokoro> logger) : base(logger)
         {
@@ -103,7 +103,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
                 double duration = Math.Max((this.CalculateDuration(audio.SampleRate, audio.NumSamples) * 1000 - (workflow.Data.IsFirstSegment ? 300 + timer.ElapsedMilliseconds : 0)), 0);
 
-                this.OnProcessed?.Invoke(audio.Samples, workflow.Data, duration);
+                this.OnProcessed?.Invoke(audio.Samples, workflow.Data);
 
                 if (this._save2File)
                 {
