@@ -101,27 +101,33 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
+            if (session.PrivateProvider.AudioProcessor is null)
+            {
+                this.Logger.LogError("Audio processor is not built for device {deviceId}.", session.DeviceId);
+                return;
+            }
+
             OutAudioSegment outAudioSegment = workflow.Data;
 
             try
             {
-                session.PrivateProvider.AudioProcessor!.ProcessAudio(outAudioSegment.AudioType, outAudioSegment.AudioData, outAudioSegment.Content, outAudioSegment.IsFirstSegment, outAudioSegment.IsLastSegment, outAudioSegment.AudioData.Length);
+                session.PrivateProvider.AudioProcessor.ProcessAudio(outAudioSegment.AudioType, outAudioSegment.AudioData, outAudioSegment.Content, outAudioSegment.IsFirstSegment, outAudioSegment.IsLastSegment, outAudioSegment.AudioData.Length);
 
                 if (outAudioSegment.IsLastSegment)
                 {
-                    session.PrivateProvider.AudioProcessor!.CompleteStream(outAudioSegment.AudioType);
+                    session.PrivateProvider.AudioProcessor.CompleteStream(outAudioSegment.AudioType);
 
                     if (session.CloseAfterChat)
                     {
-                        session.PrivateProvider.AudioProcessor!.CompleteStream(AudioType.Music);
-                        session.PrivateProvider.AudioProcessor!.CompleteStream(AudioType.SystemNotification);
-                        session.PrivateProvider.AudioProcessor!.CompleteStream(AudioType.Other);
+                        session.PrivateProvider.AudioProcessor.CompleteStream(AudioType.Music);
+                        session.PrivateProvider.AudioProcessor.CompleteStream(AudioType.SystemNotification);
+                        session.PrivateProvider.AudioProcessor.CompleteStream(AudioType.Other);
                     }
                 }
             }
             catch (OperationCanceledException)
             {
-                session.PrivateProvider.AudioProcessor!.ClearAllBuffers();
+                session.PrivateProvider.AudioProcessor.ClearAllBuffers();
                 this.FireAbort(session.DeviceId, session.SessionId, "audio process");
             }
         }
