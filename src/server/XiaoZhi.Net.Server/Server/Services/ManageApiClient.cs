@@ -18,15 +18,16 @@ namespace XiaoZhi.Net.Server.Services
             this._baseApiUrl = apiConfig.ManageApiUrl;
         }
 
-        public async Task<PrivateModelsConfig?> LoadConfigFromApi(string deviceId, string clientId)
+        public async Task<PrivateModelsConfig?> LoadConfigFromApi(string deviceId, string sessionId)
         {
-            var postBody = new
-            {
-                MacAddress = deviceId,
-                ClientId = clientId
-            };
-            var response = await _baseApiUrl.AppendPathSegment(ApiActions.GetDeviceConfig)
-                       .PostJsonAsync(postBody).ReceiveJson<ApiResponse<PrivateModelsConfig>>();
+            var response = await _baseApiUrl
+                .AppendPathSegment(ApiActions.GetPrivateConfig)
+                .SetQueryParams(new
+                {
+                    deviceId,
+                    sessionId
+                })
+                .GetJsonAsync<ApiResponse<PrivateModelsConfig>>();
 
             switch (response.Code)
             {

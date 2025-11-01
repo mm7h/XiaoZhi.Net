@@ -12,6 +12,7 @@ namespace Demo.OTA.Server.Helpers
         {
             PropertyNameCaseInsensitive = true,
             PropertyNamingPolicy = new JsonSnakeCaseNamingPolicy(),
+            DictionaryKeyPolicy = new JsonSnakeCaseNamingPolicy(),
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 

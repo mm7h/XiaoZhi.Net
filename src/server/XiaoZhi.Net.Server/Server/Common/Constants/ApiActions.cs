@@ -3,7 +3,7 @@
     internal static class ApiActions
     {
         public const string GetGlobalConfig = "/config";
-        public const string GetDeviceConfig = "/config/agent-models";
+        public const string GetPrivateConfig = "/config/private-config";
 
     }
 }
