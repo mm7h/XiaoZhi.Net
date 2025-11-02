@@ -1,0 +1,191 @@
+﻿using Microsoft.Extensions.Logging;
+using SherpaOnnx;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Dtos;
+
+namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
+{
+    internal abstract class BaseSherpaAsr<TLogger> : BaseProvider<TLogger, ModelSetting>
+    {
+        private const int MAX_BATCH_SIZE = 5;
+        private const int MAX_WAITING_TIME_MS = 100;
+        //private const int MAX_QUEUE_SIZE = 100;
+
+        private readonly ConcurrentQueue<AsrRequest> _requestQueue;
+        private readonly CancellationTokenSource _shutdownCts;
+
+        private readonly ConcurrentDictionary<string, OfflineStream> _streamMapping;
+
+        private OfflineRecognizer? _offlineRecognizer;
+        private Task? _backgroudProcessingTask;
+
+        protected BaseSherpaAsr(ILogger<TLogger> logger) : base(logger)
+        {
+            this._requestQueue = new ConcurrentQueue<AsrRequest>();
+            this._streamMapping = new ConcurrentDictionary<string, OfflineStream>();
+            this._shutdownCts = new CancellationTokenSource();
+        }
+
+        public override string ProviderType => "asr";
+
+        public async Task<string> ConvertSpeechText(Workflow<CircularBuffer> workflow, int sampleRate, int frameSize, CancellationToken token)
+        {
+            if (this._offlineRecognizer == null)
+            {
+                throw new ArgumentNullException("Please build asr provider first.");
+            }
+            if (workflow.Data.Size <= 50)
+            {
+                this.Logger.LogWarning("The audio data for the device {deviceId} is too short.", workflow.DeviceId);
+                workflow.Data.Reset();
+                return string.Empty;
+            }
+            try
+            {
+                OfflineStream offlineStream = this._streamMapping.GetOrAdd(workflow.SessionId, (key) => this._offlineRecognizer.CreateStream());
+
+                AsrRequest asrRequest = new AsrRequest
+                {
+                    SampleRate = sampleRate,
+                    FrameSize = frameSize,
+                    Stream = offlineStream,
+                    ResultTcs = new TaskCompletionSource<string>(),
+                    Token = token
+                };
+
+                this._requestQueue.Enqueue(asrRequest);
+                string result = await asrRequest.ResultTcs.Task;
+                return result;
+            }
+            catch (OperationCanceledException)
+            {
+                workflow.Data.Reset();
+                this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                workflow.Data.Reset();
+                this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
+                return string.Empty;
+            }
+        }
+
+        public async Task<string> ConvertSpeechText(CircularBuffer voicePackets, int sampleRate, int frameSize, CancellationToken token)
+        {
+            /*
+            try
+            {
+                if (this._offlineRecognizer == null)
+                {
+                    throw new ArgumentNullException("Please build asr provider first.");
+                }
+                await _asrConvertSlim.WaitAsync(token);
+
+                if (voicePackets.Size > 50)
+                {
+                    using (var stream = this.OfflineRecognizer.CreateStream())
+                    {
+                        while (voicePackets.GetFrames(frameSize, out float[] chunk))
+                        {
+                            stream.AcceptWaveform(sampleRate, chunk);
+                        }
+
+                        this.OfflineRecognizer.Decode(stream);
+
+                        string speechResult = stream.Result.Text;
+                        return speechResult;
+                    }
+                }
+                else
+                {
+                    return string.Empty;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.LogWarning("User canceled the job for {providerType}.", ProviderType);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Unexpected error(s) for {providerType}.", ProviderType);
+                return string.Empty;
+            }
+            finally
+            {
+                voicePackets.Reset();
+                _asrConvertSlim.Release();
+            }
+            */
+            return string.Empty;
+        }
+
+        protected void BuildOfflineRecognizer(OfflineRecognizerConfig config)
+        {
+            this._offlineRecognizer = new OfflineRecognizer(config);
+            this._backgroudProcessingTask = Task.Run(this.Processing);
+        }
+
+        private async Task Processing()
+        {
+            if (this._offlineRecognizer == null)
+            {
+                throw new ArgumentNullException("Please build asr provider first.");
+            }
+            CancellationToken shutDownToken = this._shutdownCts.Token;
+            DateTime lastProcessTime = DateTime.Now;
+            TimeSpan maxWaitTime = TimeSpan.FromMilliseconds(MAX_WAITING_TIME_MS);
+
+            while (!shutDownToken.IsCancellationRequested)
+            {
+                if (this._requestQueue.Count > MAX_BATCH_SIZE || lastProcessTime - DateTime.Now > maxWaitTime)
+                {
+
+                    List<AsrRequest> batchRequests = new List<AsrRequest>(this._requestQueue.Count);
+                    while (batchRequests.Count < MAX_BATCH_SIZE && this._requestQueue.TryDequeue(out AsrRequest? request))
+                    {
+                        if (request != null)
+                        {
+                            batchRequests.Add(request);
+                        }
+                    }
+                    if (batchRequests.Count > 0)
+                    {
+                        try
+                        {
+                            await Task.Run(() =>
+                            {
+                                this._offlineRecognizer.Decode(batchRequests.Select(b => b.Stream));
+                            });
+                            //todo: 将返回结果返回给各个请求
+                        }
+                        catch (Exception ex)
+                        {
+                            foreach (var req in batchRequests)
+                            {
+                                req.ResultTcs.SetException(ex);
+                            }
+                        }
+                    }
+                    lastProcessTime = DateTime.Now;
+                }
+                else
+                {
+                    await Task.Delay(10, shutDownToken);
+                }
+            }
+        }
+
+        public override void Dispose()
+        {
+
+        }
+    }
+}

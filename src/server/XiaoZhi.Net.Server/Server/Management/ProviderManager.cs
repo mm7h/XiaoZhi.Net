@@ -12,7 +12,6 @@ using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Media;
 using XiaoZhi.Net.Server.Providers;
-using XiaoZhi.Net.Server.Providers.ASR;
 using XiaoZhi.Net.Server.Providers.AudioCodec;
 using XiaoZhi.Net.Server.Providers.AudioMixer;
 using XiaoZhi.Net.Server.Providers.AudioPlayer;
@@ -30,6 +29,7 @@ using XiaoZhi.Net.Server.Providers.Memory;
 using XiaoZhi.Net.Server.Providers.Punctuation;
 using XiaoZhi.Net.Server.Providers.TTS;
 using XiaoZhi.Net.Server.Providers.VAD;
+using XiaoZhi.Net.Server.Providers.ASR.Sherpa;
 using XiaoZhi.Net.Server.Services;
 
 namespace XiaoZhi.Net.Server.Management
@@ -394,10 +394,10 @@ namespace XiaoZhi.Net.Server.Management
                     services.AddKeyedTransient<IAsr, SenseVoice>(modelName);
                     services.AddKeyedSingleton<IAsr, SenseVoice>(key);
                     break;
-                case "paraformer":
-                    services.AddKeyedTransient<IAsr, Paraformer>(modelName);
-                    services.AddKeyedSingleton<IAsr, Paraformer>(key);
-                    break;
+                //case "paraformer":
+                //    services.AddKeyedTransient<IAsr, Paraformer>(modelName);
+                //    services.AddKeyedSingleton<IAsr, Paraformer>(key);
+                //    break;
                 default:
                     throw new ModelBuildException("Invalid asr model.");
             }

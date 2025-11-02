@@ -21,6 +21,9 @@ Dotnet backend service for xiaozhi-esp32, helps you quickly build an ESP32 devic
         <PackageProjectUrl>https://github.com/mm7h/XiaoZhi.Net</PackageProjectUrl>
     </PropertyGroup>
     <ItemGroup>
+      <Compile Remove="Server\Providers\ASR\Sherpa\Paraformer.cs" />
+    </ItemGroup>
+    <ItemGroup>
       <Content Include="robot.ico" />
     </ItemGroup>
 

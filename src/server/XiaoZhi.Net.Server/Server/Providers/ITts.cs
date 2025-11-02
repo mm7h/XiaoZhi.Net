@@ -11,6 +11,6 @@ namespace XiaoZhi.Net.Server.Providers
         event Action<float[]> OnProcessing;
         event Action<float[], OutSegment> OnProcessed;
         int GetTtsSampleRate();
-        Task SynthesisAsync(Workflow<OutSegment> sessionContext, CancellationToken token);
+        Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token);
     }
 }
