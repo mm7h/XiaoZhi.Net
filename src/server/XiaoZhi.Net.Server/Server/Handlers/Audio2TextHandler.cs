@@ -22,7 +22,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public Audio2TextHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_ASR)] IAsr asr,
             [FromKeyedServices(GlobalProviderNames.GLOBAL_PUNCTUATION)] IPunctuation punctuation,
-            ObjectPool<Workflow<CircularBuffer>> circularBufferWorkflowPool,
+            ObjectPool<Workflow<CircularBuffer>> circularBufferWorkflowPool, 
             ObjectPool<Workflow<string>> stringWorkflowPool,
             XiaoZhiConfig config,
             ILogger<Audio2TextHandler> logger) : base(config, logger)
@@ -82,11 +82,11 @@ namespace XiaoZhi.Net.Server.Handlers
                 string speechText;
                 if (session.PrivateProvider.Asr is not null)
                 {
-                    speechText = await session.PrivateProvider.Asr.ConvertSpeechText(workflow.Data, session.AudioSetting.SampleRate, session.AudioSetting.FrameSize, session.SessionCtsToken);
+                    speechText = await session.PrivateProvider.Asr.ConvertSpeechTextAsync(workflow, session.AudioSetting.SampleRate, session.AudioSetting.FrameSize, session.SessionCtsToken);
                 }
                 else
                 {
-                    speechText = await this._asr.ConvertSpeechText(workflow.Data, this.Config.AudioSetting.SampleRate, this.Config.AudioSetting.FrameSize, session.SessionCtsToken);
+                    speechText = await this._asr.ConvertSpeechTextAsync(workflow, this.Config.AudioSetting.SampleRate, this.Config.AudioSetting.FrameSize, session.SessionCtsToken);
                 }
 
                 if (string.IsNullOrEmpty(speechText) || string.IsNullOrEmpty(DialogueHelper.GetStringNoPunctuationOrEmoji(speechText)))

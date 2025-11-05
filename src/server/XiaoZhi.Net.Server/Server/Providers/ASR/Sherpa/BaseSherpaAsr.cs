@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
+using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 {
@@ -34,7 +35,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 
         public override string ProviderType => "asr";
 
-        public async Task<string> ConvertSpeechText(Workflow<CircularBuffer> workflow, int sampleRate, int frameSize, CancellationToken token)
+        public async Task<string> ConvertSpeechTextAsync(Workflow<CircularBuffer> workflow, int sampleRate, int frameSize, CancellationToken token)
         {
             if (this._offlineRecognizer == null)
             {
@@ -50,14 +51,12 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
             {
                 OfflineStream offlineStream = this._streamMapping.GetOrAdd(workflow.SessionId, (key) => this._offlineRecognizer.CreateStream());
 
-                AsrRequest asrRequest = new AsrRequest
+                while (workflow.Data.GetFrames(frameSize, out float[] chunk))
                 {
-                    SampleRate = sampleRate,
-                    FrameSize = frameSize,
-                    Stream = offlineStream,
-                    ResultTcs = new TaskCompletionSource<string>(),
-                    Token = token
-                };
+                    offlineStream.AcceptWaveform(sampleRate, chunk);
+                }
+
+                AsrRequest asrRequest = new AsrRequest(workflow.SessionId, workflow.DeviceId, offlineStream, sampleRate, frameSize, token);
 
                 this._requestQueue.Enqueue(asrRequest);
                 string result = await asrRequest.ResultTcs.Task;
@@ -75,56 +74,6 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                 this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
                 return string.Empty;
             }
-        }
-
-        public async Task<string> ConvertSpeechText(CircularBuffer voicePackets, int sampleRate, int frameSize, CancellationToken token)
-        {
-            /*
-            try
-            {
-                if (this._offlineRecognizer == null)
-                {
-                    throw new ArgumentNullException("Please build asr provider first.");
-                }
-                await _asrConvertSlim.WaitAsync(token);
-
-                if (voicePackets.Size > 50)
-                {
-                    using (var stream = this.OfflineRecognizer.CreateStream())
-                    {
-                        while (voicePackets.GetFrames(frameSize, out float[] chunk))
-                        {
-                            stream.AcceptWaveform(sampleRate, chunk);
-                        }
-
-                        this.OfflineRecognizer.Decode(stream);
-
-                        string speechResult = stream.Result.Text;
-                        return speechResult;
-                    }
-                }
-                else
-                {
-                    return string.Empty;
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                Logger.LogWarning("User canceled the job for {providerType}.", ProviderType);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Unexpected error(s) for {providerType}.", ProviderType);
-                return string.Empty;
-            }
-            finally
-            {
-                voicePackets.Reset();
-                _asrConvertSlim.Release();
-            }
-            */
-            return string.Empty;
         }
 
         protected void BuildOfflineRecognizer(OfflineRecognizerConfig config)
@@ -153,25 +102,35 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                     {
                         if (request != null)
                         {
+                            if (request.Token.IsCancellationRequested)
+                            {
+                                request.ResultTcs.SetCanceled();
+                                request.Stream.Dispose();
+                                this._streamMapping.Remove(request.SessionId, out _);
+                                continue;
+                            }
                             batchRequests.Add(request);
                         }
                     }
                     if (batchRequests.Count > 0)
                     {
-                        try
+                        await Task.Run(() =>
                         {
-                            await Task.Run(() =>
-                            {
-                                this._offlineRecognizer.Decode(batchRequests.Select(b => b.Stream));
-                            });
-                            //todo: 将返回结果返回给各个请求
-                        }
-                        catch (Exception ex)
+                            this._offlineRecognizer.Decode(batchRequests.Select(b => b.Stream));
+                        });
+
+                        // 将返回结果返回给各个请求
+                        foreach (AsrRequest request in batchRequests)
                         {
-                            foreach (var req in batchRequests)
+                            if (request.Token.IsCancellationRequested)
                             {
-                                req.ResultTcs.SetException(ex);
+                                request.ResultTcs.SetCanceled();
+                                request.Stream.Dispose();
+                                this._streamMapping.Remove(request.SessionId, out _);
+                                continue;
                             }
+                            string resultText = request.Stream.Result.Text;
+                            request.ResultTcs.SetResult(resultText);
                         }
                     }
                     lastProcessTime = DateTime.Now;
@@ -185,7 +144,20 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 
         public override void Dispose()
         {
+            this._shutdownCts.Cancel();
 
+            try
+            {
+                this._backgroudProcessingTask?.Wait(TimeSpan.FromSeconds(5));
+            }
+            catch (Exception)
+            {
+                this.Logger.LogError("Failed to waiting for background task to complete.");
+            }
+
+            this._offlineRecognizer?.Dispose();
+            this._shutdownCts.Dispose();
+            this._streamMapping.Clear();
         }
     }
 }

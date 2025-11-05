@@ -42,7 +42,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public IPEndPoint EndPoint { get; }
         public ListenMode ListenMode { get; set; }
         public AudioPacket AudioPacketContext { get; }
-        public AsrAudioStream? AsrAudioStream { get; private set; }
         public VadStatus VadStatusContext { get; }
         public CancellationToken SessionCtsToken => this._sessionCts.Token;
         public HandlerPipeline HandlerPipeline { get; }
@@ -78,11 +77,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
                     this.ListenMode = ListenMode.Realtime;
                     break;
             }
-        }
-
-        public void SetAsrAudioStream(OfflineStream offlineStream)
-        {
-            this.AsrAudioStream = new AsrAudioStream(this.SessionId, offlineStream);
         }
 
         public void ManualStart()
