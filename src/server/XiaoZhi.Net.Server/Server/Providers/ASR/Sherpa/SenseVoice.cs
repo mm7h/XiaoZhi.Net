@@ -29,7 +29,6 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                 offlineRecognizerConfig.ModelConfig.SenseVoice.Model = Path.Combine(ModelFileFoler, "model.onnx");
                 offlineRecognizerConfig.ModelConfig.SenseVoice.UseInverseTextNormalization = modelSetting.Config.UseInverseTextNormalization ?? 1;
                 offlineRecognizerConfig.ModelConfig.Tokens = Path.Combine(ModelFileFoler, "tokens.txt");
-                offlineRecognizerConfig.DecodingMethod = modelSetting.Config.DecodingMethod ?? "greedy_search";
                 if (offlineRecognizerConfig.DecodingMethod == "modified_beam_search")
                 {
                     offlineRecognizerConfig.MaxActivePaths = modelSetting.Config.MaxActivePaths ?? 4;
@@ -38,6 +37,11 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                 {
                     offlineRecognizerConfig.HotwordsFile = Path.Combine(ModelFileFoler, "hotwords.txt");
                     offlineRecognizerConfig.HotwordsScore = modelSetting.Config.HotwordsScore ?? 1.5F;
+                    offlineRecognizerConfig.DecodingMethod = "modified_beam_search";
+                }
+                else
+                {
+                    offlineRecognizerConfig.DecodingMethod = "greedy_search";
                 }
                 //this._config.RuleFsts = this.ModelSetting.Config.RuleFsts;
 

@@ -1,12 +1,6 @@
 ﻿using SherpaOnnx;
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using XiaoZhi.Net.Server;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {
@@ -28,24 +22,32 @@ namespace XiaoZhi.Net.Test.OtherSamples
             await TestBatchAsr();
         }
 
-        public static async Task TestBatchAsr()
+        public static Task TestBatchAsr()
         {
             OfflineRecognizerConfig offlineRecognizerConfig = new OfflineRecognizerConfig();
             offlineRecognizerConfig.ModelConfig.SenseVoice.Model = Path.Combine(MODEL_FILE_FOLER, "model.onnx");
             offlineRecognizerConfig.ModelConfig.SenseVoice.UseInverseTextNormalization = 1;
             offlineRecognizerConfig.ModelConfig.Tokens = Path.Combine(MODEL_FILE_FOLER, "tokens.txt");
-            offlineRecognizerConfig.DecodingMethod = "greedy_search";
+
             if (offlineRecognizerConfig.DecodingMethod == "modified_beam_search")
             {
                 offlineRecognizerConfig.MaxActivePaths = 4;
             }
-            offlineRecognizerConfig.HotwordsFile = Path.Combine(MODEL_FILE_FOLER, "hotwords.txt");
+            if (File.Exists(Path.Combine(MODEL_FILE_FOLER, "hotwords.txt")))
+            {
+                offlineRecognizerConfig.HotwordsFile = Path.Combine(MODEL_FILE_FOLER, "hotwords.txt");
+                offlineRecognizerConfig.DecodingMethod = "modified_beam_search";
+            }
+            else
+            {
+                offlineRecognizerConfig.DecodingMethod = "greedy_search";
+            }
+
             offlineRecognizerConfig.HotwordsScore = 1.5F;
             var offlineRecognizer = new OfflineRecognizer(offlineRecognizerConfig);
 
             Console.WriteLine("ASR model created.");
-
-            await Task.Run(() => Processing(offlineRecognizer));
+            _ = Task.Run(() => Processing(offlineRecognizer));
 
             Console.WriteLine("type \"1\" or \"2\" to add the audio data.");
             Console.WriteLine("Press exit to quit.");
@@ -68,15 +70,16 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     switch (wavFileIndex)
                     {
                         case 1:
-                            await ConvertSpeechTextAsync(sessionId, TEST_WAV_FILE1, offlineRecognizer);
+                            _ = ConvertSpeechTextAsync(sessionId, TEST_WAV_FILE1, offlineRecognizer);
                             break;
                         case 2:
-                            await ConvertSpeechTextAsync(sessionId, TEST_WAV_FILE2, offlineRecognizer);
+                            _ = ConvertSpeechTextAsync(sessionId, TEST_WAV_FILE2, offlineRecognizer);
                             break;
                         default:
                             Console.WriteLine("Invalid number");
                             break;
                     }
+                    Console.WriteLine("Please continue...");
                 }
                 else
                 {
@@ -84,6 +87,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 }
             }
             Console.WriteLine("Done.");
+            return Task.CompletedTask;
         }
 
         private static async Task Processing(OfflineRecognizer offlineRecognizer)
@@ -93,7 +97,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             TimeSpan maxWaitTime = TimeSpan.FromMilliseconds(MAX_WAITING_TIME_MS);
             while (!shutDownToken.IsCancellationRequested)
             {
-                if (_requestQueue.Count > MAX_BATCH_SIZE || lastProcessTime - DateTime.Now > maxWaitTime)
+                if (_requestQueue.Count > MAX_BATCH_SIZE || DateTime.Now - lastProcessTime > maxWaitTime)
                 {
 
                     List<AsrRequest> batchRequests = new List<AsrRequest>(_requestQueue.Count);
@@ -132,29 +136,30 @@ namespace XiaoZhi.Net.Test.OtherSamples
                             request.ResultTcs.SetResult(resultText);
                         }
                     }
-                    lastProcessTime = DateTime.Now;
                 }
                 else
                 {
-                    await Task.Delay(10, shutDownToken);
+                    lastProcessTime = DateTime.Now;
+                    await Task.Delay(200, shutDownToken);
                 }
             }
         }
 
-        private static async Task<string> ConvertSpeechTextAsync(string sessionId, string wavFile, OfflineRecognizer offlineRecognizer)
+        private static async Task ConvertSpeechTextAsync(string sessionId, string wavFile, OfflineRecognizer offlineRecognizer)
         {
             Console.WriteLine($"Session {sessionId} trys to process.");
+
             OfflineStream offlineStream = _streamMapping.GetOrAdd(sessionId, (key) => offlineRecognizer.CreateStream());
 
             var reader = new WaveReader(wavFile);
 
             string deviceId = $"device-{Random.Shared.Next(0, 10)}";
-
-            AsrRequest asrRequest = new AsrRequest(sessionId, deviceId, offlineStream, 16000, CancellationToken.None);
+            offlineStream.AcceptWaveform(reader.SampleRate, reader.Samples);
+            AsrRequest asrRequest = new AsrRequest(sessionId, deviceId, offlineStream, reader.SampleRate, CancellationToken.None);
 
             _requestQueue.Enqueue(asrRequest);
             string result = await asrRequest.ResultTcs.Task;
-            return result;
+            await Console.Out.WriteLineAsync($"Session: {sessionId}, result: {result}");
         }
     }
 
