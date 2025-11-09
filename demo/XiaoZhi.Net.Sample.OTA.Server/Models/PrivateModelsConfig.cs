@@ -8,10 +8,4 @@
         //public ModelSetting? MemorySetting { get; set; }
         public ModelSetting? TtsSetting { get; set; }
     }
-
-    public class ModelSetting
-    {
-        public string ModelName { get; set; } = null!;
-        public dynamic Config { get; set; } = null!;
-    }
 }

@@ -25,8 +25,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
         public bool Save2File { get; private set; }
         public string SavePath { get; private set; } = string.Empty;
         //https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html#map-between-speaker-id-and-speaker-name
-        public int SepakerId { get; private set; } = 50;
-        public float SpeakSpeed { get; set; } = 1.0f;
+        public int SpeakerId { get; private set; } = 50;
+        public float SpeechRate { get; private set; } = 1.0f;
 
         public virtual int GetTtsSampleRate()
         {
@@ -47,7 +47,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
                 Stopwatch timer = Stopwatch.StartNew();
                 this.OnBeforeProcessing?.Invoke(workflow.Data);
 
-                OfflineTtsGeneratedAudio audio = this._offlineTts.Generate(segment, this.SpeakSpeed, this.SepakerId);
+                OfflineTtsGeneratedAudio audio = this._offlineTts.Generate(segment, this.SpeechRate, this.SpeakerId);
 
                 double duration = Math.Max((this.CalculateDuration(audio.SampleRate, audio.NumSamples) * 1000 - (workflow.Data.IsFirstSegment ? 300 + timer.ElapsedMilliseconds : 0)), 0);
 
@@ -97,8 +97,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
             offlineTtsConfig.Model.Provider = "cpu";
 
             this.Save2File = modelSetting.Config.Save2File ?? false;
-            this.SpeakSpeed = modelSetting.Config.SpeakSpeed ?? 1.0f;
-            this.SepakerId = modelSetting.Config.SpeakerId ?? 50;
+            this.SpeechRate = modelSetting.Config.SpeechRate ?? 1.0f;
+            this.SpeakerId = modelSetting.Config.SpeakerId ?? 50;
 
             if (this.Save2File)
             {

@@ -12,8 +12,8 @@ namespace XiaoZhi.Net.Test
             //await Sample10_NumberAudioPlayer.Run();
             //await Sample11_AudioMixer.Run();
             //await Sample12_AudioMixerWithTTS.Run();
-            await Sample13_AudioSubtitleSyncTracker.Run();
-            //await Sample14_HuoshanBidirection.Run();
+            //await Sample13_AudioSubtitleSyncTracker.Run();
+            await Sample14_HuoshanBidirection.Run();
             //await Sample15_BatchAsr.Run();
             //ModelsInit();
         }

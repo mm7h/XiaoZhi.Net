@@ -44,7 +44,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 session.AudioSetting.SampleRate = sampleRate;
                 session.AudioSetting.Channels = channels;
                 session.AudioSetting.FrameDuration = frameDuration;
-                session.IsDeviceBinded = true;
+                session.IsDeviceBinded = true; // todo: debug
                 this._providerManager.BuildAudioPlayer(session);
                 this._providerManager.BuildAudioProcessor(session);
                 this._providerManager.BuildAudioResampler(session);

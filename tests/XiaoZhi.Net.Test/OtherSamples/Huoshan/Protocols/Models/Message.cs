@@ -333,19 +333,19 @@ namespace XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Models
                 case MsgType.AudioOnlyClient:
                     if (MsgTypeFlag == MsgTypeFlagBits.PositiveSeq || MsgTypeFlag == MsgTypeFlagBits.NegativeSeq)
                     {
-                        return $"MsgType: {MsgType}, EventType: {EventType}, Sequence: {Sequence}, PayloadSize: {Payload.Length}";
+                        return $"SessionId: {SessionId}, ConnectId: {ConnectId}, MsgType: {MsgType}, EventType: {EventType}, Sequence: {Sequence}, PayloadSize: {Payload.Length}";
                     }
-                    return $"MsgType: {MsgType}, EventType: {EventType}, PayloadSize: {Payload.Length}";
+                    return $"SessionId: {SessionId}, ConnectId: {ConnectId}, MsgType: {MsgType}, EventType: {EventType}, PayloadSize: {Payload.Length}";
 
                 case MsgType.Error:
-                    return $"MsgType: {MsgType}, EventType: {EventType}, ErrorCode: {ErrorCode}, Payload: {GetPayloadString()}";
+                    return $"SessionId: {SessionId}, ConnectId: {ConnectId}, MsgType: {MsgType}, EventType: {EventType}, ErrorCode: {ErrorCode}, Payload: {GetPayloadString()}";
 
                 default:
                     if (MsgTypeFlag == MsgTypeFlagBits.PositiveSeq || MsgTypeFlag == MsgTypeFlagBits.NegativeSeq)
                     {
-                        return $"MsgType: {MsgType}, EventType: {EventType}, Sequence: {Sequence}, Payload: {GetPayloadString()}";
+                        return $"SessionId: {SessionId}, ConnectId: {ConnectId}, MsgType: {MsgType}, EventType: {EventType}, Sequence: {Sequence}, Payload: {GetPayloadString()}";
                     }
-                    return $"MsgType: {MsgType}, EventType: {EventType}, Payload: {GetPayloadString()}";
+                    return $"SessionId: {SessionId}, ConnectId: {ConnectId}, MsgType: {MsgType}, EventType: {EventType}, Payload: {GetPayloadString()}";
             }
         }
 

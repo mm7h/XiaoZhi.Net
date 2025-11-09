@@ -16,7 +16,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
         public override string ProviderType => "tts";
 
-        
+        public bool Save2File { get; protected set; }
+        public string SavePath { get; protected set; } = string.Empty;
+        public string SpeakerId { get; protected set; } = string.Empty;
+        public int SpeechRate { get; protected set; } = 0;
+        public int LoudnessRate { get; protected set; } = 0;
 
         protected async Task SendMessage(Message message)
         {

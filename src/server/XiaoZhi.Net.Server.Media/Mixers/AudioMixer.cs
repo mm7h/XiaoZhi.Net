@@ -215,11 +215,11 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 var frame = frameToPlay.Value;
                 OutputAudioData(frame.Data, frame.IsFirst, frame.IsLast);
             }
-            else
-            {
-                var silent = new float[_frameSampleCount];
-                OutputAudioData(silent, false, false);
-            }
+            //else
+            //{
+            //    var silent = new float[_frameSampleCount];
+            //    OutputAudioData(silent, false, false);
+            //}
         }
 
         private void OutputAudioData(float[] data, bool isFirst, bool isLast)

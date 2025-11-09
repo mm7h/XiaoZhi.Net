@@ -17,18 +17,12 @@ namespace XiaoZhi.Net.Server.Providers.TTS
     {
         private const string SERVICE_END_POINT = "wss://openspeech.bytedance.com/api/v3/tts/bidirection";
         private const string TTS_NAMESPACE = "BidirectionalTTS";
-        private const string AUDIO_ENCODING = "pcm";
+        private const string AUDIO_ENCODING = "wav";
         private const int SAMPLE_RATE = 16000;
         private static readonly TimeSpan DefaultWaitTimeout = TimeSpan.FromSeconds(15);
 
         private readonly List<PendingWait> _waits = new();
         private readonly object _waitsLock = new();
-
-        private bool _save2File = false;
-        private string? _savePath;
-        private string? _speaker;
-        private int _speechRate = 0;
-        private int _loudnessRate = 0;
 
         private string? _tssSessionId = null;
 
@@ -63,17 +57,17 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     this.Logger.LogWarning("Huoshan TTS configuration is incomplete, please check AppId, AccessToken, ResourceId and speaker.");
                     return false;
                 }
-                this._speaker = speaker;
-                this._speechRate = modelSetting.Config?.SpeechRate ?? 0;
-                this._loudnessRate = modelSetting.Config?.LoudnessRate ?? 0;
+                this.SpeakerId = speaker;
+                this.SpeechRate = modelSetting.Config?.SpeechRate ?? 0;
+                this.LoudnessRate = modelSetting.Config?.LoudnessRate ?? 0;
 
-                this._save2File = modelSetting.Config?.Save2File ?? false;
+                this.Save2File = modelSetting.Config?.Save2File ?? false;
 
-                if (this._save2File)
+                if (this.Save2File)
                 {
-                    this._savePath = modelSetting.Config?.SavePath ?? Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
-                    if (!Directory.Exists(this._savePath))
-                        Directory.CreateDirectory(this._savePath);
+                    this.SavePath = modelSetting.Config?.SavePath ?? Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
+                    if (!Directory.Exists(this.SavePath))
+                        Directory.CreateDirectory(this.SavePath);
                 }
 
                 IDictionary<string, string> headers = new Dictionary<string, string>
@@ -88,6 +82,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 this.WebSocketClient.OnBinaryMessage += this.WebSocketClient_OnBinaryMessage;
                 this.WebSocketClient.OnClose += this.WebSocketClient_OnClose;
                 this.WebSocketClient.OnError += this.WebSocketClient_OnError;
+
+                this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
 
                 return true;
             }
@@ -104,7 +100,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             {
                 if (this.WebSocketClient is null)
                 {
-                    this.Logger.LogError("WebSocket client is not initialized for Huoshan TTS.");
+                    this.Logger.LogError("WebSocket client is not initialized for Huoshan bidirection TTS.");
                     return;
                 }
 
@@ -133,19 +129,24 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                         { "Namespace", TTS_NAMESPACE },
                         { "ReqParams",
                             new {
-                                Speaker = this._speaker,
+                                Speaker = this.SpeakerId,
                                 AudioParams = new {
                                     Format = AUDIO_ENCODING,
                                     SampleRate = SAMPLE_RATE,
                                     EnableTimestamp = false,
-                                    SpeechRate = this._speechRate,
-                                    LoudnessRate = this._loudnessRate,
+                                    this.SpeechRate,
+                                    this.LoudnessRate,
                                 }
                             }
                         },
                         { "additions",
                             JsonHelper.Serialize(new {
-                                DisableMarkdownFilter = false
+                                DisableMarkdownFilter = false,
+                                CacheConfig = new 
+                                {
+                                    TextType = 1,
+                                    UseCache = true
+                                }
                             })
                         }
                     };
@@ -161,13 +162,13 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     { "ReqParams",
                         new {
                             Text = outSegment.Content,
-                            Speaker = this._speaker,
+                            Speaker = this.SpeakerId,
                             AudioParams = new {
                                 Format = AUDIO_ENCODING,
                                 SampleRate = SAMPLE_RATE,
                                 EnableTimestamp = false,
-                                SpeechRate = this._speechRate,
-                                LoudnessRate = this._loudnessRate,
+                                    this.SpeechRate,
+                                    this.LoudnessRate,
                             }
                         }
                     },
@@ -187,7 +188,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     try
                     {
                         float[]? allFloats = null;
-                        if (this._save2File && !string.IsNullOrEmpty(this._savePath))
+                        if (this.Save2File && !string.IsNullOrEmpty(this.SavePath))
                         {
                             TTSAudioFile? entry = null;
                             lock (this._fileLock)
@@ -202,11 +203,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
                             if (entry != null)
                             {
-                                // Read all bytes from the tmp file (writer is still open but flushed; FileShare.Read allows this)
+                                // Read all bytes from the tmp file while writer still open (allow concurrent read). Use FileShare.ReadWrite.
                                 byte[] allBytes;
                                 try
                                 {
-                                    using var rs = new FileStream(entry.TmpPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                                    using var rs = new FileStream(entry.TmpPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                                     allBytes = new byte[rs.Length];
                                     int read = 0;
                                     while (read < allBytes.Length)
@@ -334,15 +335,15 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             {
                 return;
             }
-            this.Logger.LogInformation("Huoshan WebSocket connected.");
+            this.Logger.LogDebug("Huoshan WebSocket connected.");
         }
 
         private void WebSocketClient_OnClose(System.Net.WebSockets.WebSocketCloseStatus? status, string? desc)
         {
-            this.Logger.LogWarning("Huoshan WebSocket closed: {Status} {Description}", status, desc);
+            this.Logger.LogDebug("Huoshan WebSocket closed: {Status} {Description}", status, desc);
             // ensure files are closed (leave as .tmp)
             this.CloseAllSessionFiles(finalize: false);
-            FailAllWaits(new OperationCanceledException($"WebSocket closed: {status} {desc}"));
+            this.FailAllWaits(new OperationCanceledException($"WebSocket closed: {status} {desc}"));
         }
 
         private void WebSocketClient_OnError(System.Net.WebSockets.WebSocketError error, string message)
@@ -375,7 +376,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             if (message.MsgType == MsgType.AudioOnlyServer && message.Payload != null && message.Payload.Length > 0)
             {
                 // Save raw audio chunk data if configured
-                if (this._save2File && !string.IsNullOrEmpty(this._savePath) && !string.IsNullOrEmpty(this._tssSessionId))
+                if (this.Save2File && !string.IsNullOrEmpty(this.SavePath) && !string.IsNullOrEmpty(this._tssSessionId))
                 {
                     try
                     {
@@ -594,16 +595,16 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
         private void AppendAudioPayloadChunk(string sessionId, byte[] audioData)
         {
-            if (string.IsNullOrEmpty(_savePath)) return;
+            if (string.IsNullOrEmpty(this.SavePath)) return;
             lock (_fileLock)
             {
                 if (!_sessionFiles.TryGetValue(sessionId, out var entry))
                 {
-                    // create new file
+                    // create new file (allow concurrent read + write)
                     var fileBase = $"{sessionId}_{DateTime.UtcNow:yyyyMMdd_HHmmssfff}";
-                    var tmpPath = Path.Combine(_savePath, fileBase + "." + AUDIO_ENCODING + ".tmp");
-                    var finalPath = Path.Combine(_savePath, fileBase + "." + AUDIO_ENCODING);
-                    var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.Read, 8192, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                    var tmpPath = Path.Combine(this.SavePath, fileBase + "." + AUDIO_ENCODING + ".tmp");
+                    var finalPath = Path.Combine(this.SavePath, fileBase + "." + AUDIO_ENCODING);
+                    var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite, 8192, FileOptions.Asynchronous | FileOptions.SequentialScan);
                     entry = new TTSAudioFile(sessionId, fs, tmpPath, finalPath);
                     this._sessionFiles[sessionId] = entry;
                     this.Logger.LogInformation("Start saving audio data for session {SessionId} -> {File}", sessionId, tmpPath);

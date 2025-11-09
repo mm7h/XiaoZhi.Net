@@ -88,7 +88,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     { "X-Api-App-Key", appId },
                     { "X-Api-Access-Key", accessToken },
                     { "X-Api-Resource-Id", resourceId },
-                    { "X-Api-Connect-Id", Guid.NewGuid().ToString() }
+                    { "X-Api-Connect-Id", "my-connect-Id" }
                 };
                 this.WebSocketClient = new WebSocketClient(headers);
                 this.WebSocketClient.OnOpen += this.WebSocketClient_OnOpen;
@@ -146,7 +146,12 @@ namespace XiaoZhi.Net.Test.OtherSamples
                         },
                         { "additions",
                             JsonHelper.Serialize(new {
-                                DisableMarkdownFilter = false
+                                DisableMarkdownFilter = false,
+                                CacheConfig = new
+                                {
+                                    TextType = 1,
+                                    UseCache = true
+                                }
                             })
                         }
                     };
