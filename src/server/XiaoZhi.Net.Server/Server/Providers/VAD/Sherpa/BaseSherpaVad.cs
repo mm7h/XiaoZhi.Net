@@ -1,17 +1,15 @@
 ﻿using Microsoft.Extensions.Logging;
 using SherpaOnnx;
 using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Helpers;
 
-namespace XiaoZhi.Net.Server.Providers.VAD
+namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 {
-    internal class Silero : BaseProvider<Silero, ModelSetting>, IVad
+    internal abstract class BaseSherpaVad<TLogger> : BaseProvider<TLogger, ModelSetting>
     {
-
         private VoiceActivityDetector? _vad;
         private int? _sampleRate;
         private int? _silenceThresholdMs;
@@ -20,41 +18,12 @@ namespace XiaoZhi.Net.Server.Providers.VAD
 
         private readonly SemaphoreSlim _vadConvertSlim = new SemaphoreSlim(1, 1);
 
-
-        public Silero(ILogger<Silero> logger) : base(logger)
+        protected BaseSherpaVad(ILogger<TLogger> logger) : base(logger)
         {
         }
 
-        public int FrameSize { get; private set; }
-
-        public override string ModelName => nameof(Silero);
         public override string ProviderType => "vad";
-        public override bool Build(ModelSetting modelSetting)
-        {
-            try
-            {
-                if (!this.CheckModelExist())
-                {
-                    return false;
-                }
-                VadModelConfig vadModelConfig = new VadModelConfig();
-                vadModelConfig.SileroVad.Model = Path.Combine(this.ModelFileFoler, "model.onnx");
-                vadModelConfig.SampleRate = modelSetting.Config.SampleRate;
-                this._sampleRate = modelSetting.Config.SampleRate;
-                this._silenceThresholdMs = modelSetting.Config.SilenceThresholdMs ?? 700;
-                this.FrameSize = vadModelConfig.SileroVad.WindowSize;
-                this._vad = new VoiceActivityDetector(vadModelConfig, 60);
-                this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
-                return false;
-            }
-
-        }
-
+        public int FrameSize { get; private set; }
         public async Task<bool> AnalysisVoiceAsync(Session sessionContext, CancellationToken token)
         {
             if (this._vad == null || !this._sampleRate.HasValue || !this._silenceThresholdMs.HasValue)
@@ -63,6 +32,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD
             }
             try
             {
+                //todo: 暂无法满足多session情况下并行使用同一模型
                 await this._vadConvertSlim.WaitAsync(token);
 
                 this._vad.Clear();
@@ -132,6 +102,14 @@ namespace XiaoZhi.Net.Server.Providers.VAD
                 this._vad.Clear();
                 this._vadConvertSlim.Release();
             }
+        }
+
+        public void Build(VadModelConfig vadModelConfig, ModelSetting modelSetting)
+        {
+            vadModelConfig.SampleRate = modelSetting.Config.SampleRate;
+            this._sampleRate = modelSetting.Config.SampleRate;
+            this._silenceThresholdMs = modelSetting.Config.SilenceThresholdMs ?? 700;
+            this._vad = new VoiceActivityDetector(vadModelConfig, 60);
         }
 
         public override void Dispose()

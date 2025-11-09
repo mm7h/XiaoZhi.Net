@@ -2,22 +2,16 @@
 using SherpaOnnx;
 using System;
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Helpers;
 
-namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
+namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 {
-    internal class Paraformer : BaseSherpaAsr<Paraformer>, IAsr
+    internal class Silero : BaseSherpaVad<Silero>, IVad
     {
-        private readonly SemaphoreSlim _asrConvertSlim = new SemaphoreSlim(1, 1);
-        private OfflineRecognizer? _offlineRecognizer;
-        public Paraformer(ILogger<Paraformer> logger) : base(logger)
+        public Silero(ILogger<Silero> logger) : base(logger)
         {
         }
 
-        public override string ModelName => nameof(Paraformer);
-
+        public override string ModelName => nameof(Silero);
         public override bool Build(ModelSetting modelSetting)
         {
             try
@@ -26,10 +20,10 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                 {
                     return false;
                 }
-                OfflineRecognizerConfig offlineRecognizerConfig = new OfflineRecognizerConfig();
-                offlineRecognizerConfig.ModelConfig.Paraformer.Model = Path.Combine(ModelFileFoler, "model.onnx");
+                VadModelConfig vadModelConfig = new VadModelConfig();
+                vadModelConfig.SileroVad.Model = Path.Combine(this.ModelFileFoler, "model.onnx");
 
-                this.Build(offlineRecognizerConfig, modelSetting);
+                this.Build(vadModelConfig, modelSetting);
 
                 this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
                 return true;
@@ -39,6 +33,9 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                 this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
+
         }
+
+        
     }
 }

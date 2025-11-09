@@ -26,10 +26,10 @@ using XiaoZhi.Net.Server.Providers.MCP.DeviceMcp;
 using XiaoZhi.Net.Server.Providers.MCP.McpEndpoint;
 using XiaoZhi.Net.Server.Providers.MCP.ServerMcp;
 using XiaoZhi.Net.Server.Providers.Memory;
-using XiaoZhi.Net.Server.Providers.Punctuation;
 using XiaoZhi.Net.Server.Providers.TTS;
-using XiaoZhi.Net.Server.Providers.VAD;
 using XiaoZhi.Net.Server.Providers.ASR.Sherpa;
+using XiaoZhi.Net.Server.Providers.TTS.Sherpa;
+using XiaoZhi.Net.Server.Providers.VAD.Sherpa;
 using XiaoZhi.Net.Server.Services;
 
 namespace XiaoZhi.Net.Server.Management
@@ -57,7 +57,6 @@ namespace XiaoZhi.Net.Server.Management
                 RegisterAudioDecoder(services, GlobalProviderNames.GLOBAL_AUDIO_DECODER);
                 RegisterVad(services, config, GlobalProviderNames.GLOBAL_VAD);
                 RegisterAsr(services, config, GlobalProviderNames.GLOBAL_ASR);
-                RegisterPunctuation(services, config, GlobalProviderNames.GLOBAL_PUNCTUATION);
                 RegisterLlm(services, config);
                 RegisterMemory(services, config, GlobalProviderNames.GLOBAL_MEMORY);
                 RegisterTts(services, config, GlobalProviderNames.GLOBAL_TTS);
@@ -100,15 +99,6 @@ namespace XiaoZhi.Net.Server.Management
             if (!asr.Build(this._config.AsrSetting))
             {
                 this._logger.LogError("Failed to build {modelName} provider.", asr.ModelName);
-                return false;
-            }
-            #endregion
-
-            #region Punctuation
-            IPunctuation punctuation = serviceProvider.GetRequiredKeyedService<IPunctuation>(GlobalProviderNames.GLOBAL_PUNCTUATION);
-            if (!punctuation.Build(this._config.PunctuationSetting))
-            {
-                this._logger.LogError("Failed to build {modelName} provider.", punctuation.ModelName);
                 return false;
             }
             #endregion
@@ -301,7 +291,6 @@ namespace XiaoZhi.Net.Server.Management
                 serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER),
                 serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR),
                 serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD),
-                serviceProvider.GetRequiredKeyedService<IPunctuation>(GlobalProviderNames.GLOBAL_PUNCTUATION),
                 serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY)
             };
 
@@ -313,7 +302,6 @@ namespace XiaoZhi.Net.Server.Management
         }
 
         #region Register providers
-
         #region AudioDecoder
         private static void RegisterAudioDecoder(IServiceCollection services, string key)
         {
@@ -400,22 +388,6 @@ namespace XiaoZhi.Net.Server.Management
                 //    break;
                 default:
                     throw new ModelBuildException("Invalid asr model.");
-            }
-        }
-        #endregion
-
-        #region Punctuation
-        private static void RegisterPunctuation(IServiceCollection services, XiaoZhiConfig config, string key)
-        {
-            string modelName = config.PunctuationSetting.ModelName.ToLower();
-            switch (modelName)
-            {
-                case "ct-transformer":
-                    services.AddKeyedTransient<IPunctuation, CtTransformer>(modelName);
-                    services.AddKeyedSingleton<IPunctuation, CtTransformer>(key);
-                    break;
-                default:
-                    throw new ModelBuildException("Invalid punctuation model.");
             }
         }
         #endregion

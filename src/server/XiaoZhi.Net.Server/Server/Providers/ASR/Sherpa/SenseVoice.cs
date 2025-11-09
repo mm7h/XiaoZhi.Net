@@ -10,7 +10,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 {
     internal class SenseVoice : BaseSherpaAsr<SenseVoice>, IAsr
     {
-        
+
         public SenseVoice(XiaoZhiConfig config, ILogger<SenseVoice> logger) : base(logger)
         {
         }
@@ -21,38 +21,23 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
         {
             try
             {
-                if (!CheckModelExist())
+                if (!this.CheckModelExist())
                 {
                     return false;
                 }
                 OfflineRecognizerConfig offlineRecognizerConfig = new OfflineRecognizerConfig();
                 offlineRecognizerConfig.ModelConfig.SenseVoice.Model = Path.Combine(ModelFileFoler, "model.onnx");
                 offlineRecognizerConfig.ModelConfig.SenseVoice.UseInverseTextNormalization = modelSetting.Config.UseInverseTextNormalization ?? 1;
-                offlineRecognizerConfig.ModelConfig.Tokens = Path.Combine(ModelFileFoler, "tokens.txt");
-                if (offlineRecognizerConfig.DecodingMethod == "modified_beam_search")
-                {
-                    offlineRecognizerConfig.MaxActivePaths = modelSetting.Config.MaxActivePaths ?? 4;
-                }
-                if (!string.IsNullOrEmpty(modelSetting.Config.HotwordsFile))
-                {
-                    offlineRecognizerConfig.HotwordsFile = Path.Combine(ModelFileFoler, "hotwords.txt");
-                    offlineRecognizerConfig.HotwordsScore = modelSetting.Config.HotwordsScore ?? 1.5F;
-                    offlineRecognizerConfig.DecodingMethod = "modified_beam_search";
-                }
-                else
-                {
-                    offlineRecognizerConfig.DecodingMethod = "greedy_search";
-                }
-                //this._config.RuleFsts = this.ModelSetting.Config.RuleFsts;
 
-                this.BuildOfflineRecognizer(offlineRecognizerConfig);
-                Logger.LogInformation("Builded the {providerType} model: {modelName}", ProviderType, ModelName);
+                this.Build(offlineRecognizerConfig, modelSetting);
+                
+                this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
 
                 return true;
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", ProviderType, ModelName);
+                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
         }

@@ -3,18 +3,18 @@ using SherpaOnnx;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 {
     internal abstract class BaseSherpaAsr<TLogger> : BaseProvider<TLogger, ModelSetting>
     {
-        private const int MAX_BATCH_SIZE = 5;
         private const int MAX_WAITING_TIME_MS = 100;
         //private const int MAX_QUEUE_SIZE = 100;
 
@@ -32,6 +32,8 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
             this._streamMapping = new ConcurrentDictionary<string, OfflineStream>();
             this._shutdownCts = new CancellationTokenSource();
         }
+
+        public int MaxBatchSize { get; protected set; } = 50;
 
         public override string ProviderType => "asr";
 
@@ -76,9 +78,26 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
             }
         }
 
-        protected void BuildOfflineRecognizer(OfflineRecognizerConfig config)
+        protected void Build(OfflineRecognizerConfig offlineRecognizerConfig, ModelSetting modelSetting)
         {
-            this._offlineRecognizer = new OfflineRecognizer(config);
+            offlineRecognizerConfig.ModelConfig.Tokens = Path.Combine(ModelFileFoler, "tokens.txt");
+
+            if (!string.IsNullOrEmpty(modelSetting.Config.HotwordsFile))
+            {
+                offlineRecognizerConfig.HotwordsFile = Path.Combine(ModelFileFoler, "hotwords.txt");
+                offlineRecognizerConfig.HotwordsScore = modelSetting.Config.HotwordsScore ?? 1.5F;
+                offlineRecognizerConfig.DecodingMethod = "modified_beam_search";
+                offlineRecognizerConfig.MaxActivePaths = modelSetting.Config.MaxActivePaths ?? 4;
+            }
+            else
+            {
+                offlineRecognizerConfig.DecodingMethod = "greedy_search";
+            }
+            //this._config.RuleFsts = this.ModelSetting.Config.RuleFsts;
+
+            this.MaxBatchSize = modelSetting.Config.MaxBatchSize ?? 50;
+
+            this._offlineRecognizer = new OfflineRecognizer(offlineRecognizerConfig);
             this._backgroudProcessingTask = Task.Run(this.Processing);
         }
 
@@ -89,16 +108,15 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                 throw new ArgumentNullException("Please build asr provider first.");
             }
             CancellationToken shutDownToken = this._shutdownCts.Token;
-            DateTime lastProcessTime = DateTime.Now;
             TimeSpan maxWaitTime = TimeSpan.FromMilliseconds(MAX_WAITING_TIME_MS);
+            Stopwatch stopwatch = Stopwatch.StartNew();
 
             while (!shutDownToken.IsCancellationRequested)
             {
-                if (this._requestQueue.Count > MAX_BATCH_SIZE || lastProcessTime - DateTime.Now > maxWaitTime)
+                if (this._requestQueue.Count >= this.MaxBatchSize || stopwatch.Elapsed >= maxWaitTime)
                 {
-
                     List<AsrRequest> batchRequests = new List<AsrRequest>(this._requestQueue.Count);
-                    while (batchRequests.Count < MAX_BATCH_SIZE && this._requestQueue.TryDequeue(out AsrRequest? request))
+                    while (batchRequests.Count < this.MaxBatchSize && this._requestQueue.TryDequeue(out AsrRequest? request))
                     {
                         if (request != null)
                         {
@@ -133,7 +151,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                             request.ResultTcs.SetResult(resultText);
                         }
                     }
-                    lastProcessTime = DateTime.Now;
+                    stopwatch.Restart();
                 }
                 else
                 {

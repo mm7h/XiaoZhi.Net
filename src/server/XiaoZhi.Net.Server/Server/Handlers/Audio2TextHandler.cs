@@ -8,27 +8,23 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Helpers;
-using XiaoZhi.Net.Server.Protocol;
 using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
     internal sealed class Audio2TextHandler : BaseHandler, IInHandler<CircularBuffer>, IOutHandler<string>
     {
-        private readonly IPunctuation _punctuation;
         private readonly ObjectPool<Workflow<CircularBuffer>> _circularBufferWorkflowPool;
         private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;
         private IAsr _asr;
 
         public Audio2TextHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_ASR)] IAsr asr,
-            [FromKeyedServices(GlobalProviderNames.GLOBAL_PUNCTUATION)] IPunctuation punctuation,
             ObjectPool<Workflow<CircularBuffer>> circularBufferWorkflowPool, 
             ObjectPool<Workflow<string>> stringWorkflowPool,
             XiaoZhiConfig config,
             ILogger<Audio2TextHandler> logger) : base(config, logger)
         {
             this._asr = asr;
-            this._punctuation = punctuation;
             this._circularBufferWorkflowPool = circularBufferWorkflowPool;
             this._stringWorkflowPool = stringWorkflowPool;
         }
@@ -79,15 +75,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     return;
                 }
 
-                string speechText;
-                if (session.PrivateProvider.Asr is not null)
-                {
-                    speechText = await session.PrivateProvider.Asr.ConvertSpeechTextAsync(workflow, session.AudioSetting.SampleRate, session.AudioSetting.FrameSize, session.SessionCtsToken);
-                }
-                else
-                {
-                    speechText = await this._asr.ConvertSpeechTextAsync(workflow, this.Config.AudioSetting.SampleRate, this.Config.AudioSetting.FrameSize, session.SessionCtsToken);
-                }
+                string speechText = await this._asr.ConvertSpeechTextAsync(workflow, this.Config.AudioSetting.SampleRate, this.Config.AudioSetting.FrameSize, session.SessionCtsToken);
 
                 if (string.IsNullOrEmpty(speechText) || string.IsNullOrEmpty(DialogueHelper.GetStringNoPunctuationOrEmoji(speechText)))
                 {
@@ -98,18 +86,10 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 await this.SendOutter.SendSttMessageAsync(speechText);
                 this.Logger.LogDebug("Device {deviceId} speak the text: {speechText}", session.DeviceId, speechText);
-                speechText = await this._punctuation.AppendPunctuationAsync(speechText, session.SessionCtsToken);
 
                 var nextWorkflow = this._stringWorkflowPool.Get();
-                try
-                {
-                    nextWorkflow.Initialize(workflow.SessionId, workflow.DeviceId, speechText);
-                    await this.NextWriter.WriteAsync(nextWorkflow);
-                }
-                finally
-                {
-                    this._stringWorkflowPool.Return(nextWorkflow);
-                }
+                nextWorkflow.Initialize(workflow.SessionId, workflow.DeviceId, speechText);
+                await this.NextWriter.WriteAsync(nextWorkflow);
             }
             catch (OperationCanceledException)
             {
