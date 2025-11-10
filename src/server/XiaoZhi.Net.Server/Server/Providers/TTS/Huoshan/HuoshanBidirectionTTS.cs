@@ -18,7 +18,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         private const string SERVICE_END_POINT = "wss://openspeech.bytedance.com/api/v3/tts/bidirection";
         private const string TTS_NAMESPACE = "BidirectionalTTS";
         private const string AUDIO_ENCODING = "pcm";
-        private const int SAMPLE_RATE = 16000;
+        private const int SAMPLE_RATE = 24000;
         private static readonly TimeSpan DefaultWaitTimeout = TimeSpan.FromSeconds(15);
 
         private readonly List<PendingWait> _waits = new();
@@ -227,7 +227,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                                 {
                                     try
                                     {
-                                        allFloats = allBytes.Bytes2Float();
+                                        allFloats = allBytes.PcmBytesToFloat(16);
                                     }
                                     catch (Exception ex)
                                     {
@@ -388,7 +388,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     }
                 }
 
-                this.OnProcessing?.Invoke(message.Payload.Bytes2Float());
+                this.OnProcessing?.Invoke(message.Payload.PcmBytesToFloat(16));
                 return;
             }
 

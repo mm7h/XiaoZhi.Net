@@ -18,7 +18,6 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ObjectPool<Workflow<OutSegment>> _outSegmentWorkflowPool;
         private readonly ObjectPool<OutSegment> _outSegmentPool;
 
-        private bool _useStreaming;
         private ILlm? _llm;
 
         public DialogueHandler(ObjectPool<Workflow<string>> stringWorkflowPool,
@@ -27,7 +26,6 @@ namespace XiaoZhi.Net.Server.Handlers
             XiaoZhiConfig config,
             ILogger<DialogueHandler> logger) : base(config, logger)
         {
-            this._useStreaming = this.Config.LlmSettings.First().Config.UseStreaming ?? false;
             this._stringWorkflowPool = stringWorkflowPool;
             this._outSegmentWorkflowPool = outSegmentWorkflowPool;
             this._outSegmentPool = outSegmentPool;
@@ -43,7 +41,6 @@ namespace XiaoZhi.Net.Server.Handlers
             if (privateProvider.Llm is not null)
             {
                 this._llm = privateProvider.Llm;
-                this._useStreaming = privateProvider.Llm.UseStreaming;
             }
             else
             {
@@ -116,7 +113,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 using (CodeTimer timer = CodeTimer.Create("Calling the LLM takes {elapsed:F2} ms.", this.Logger))
                 {
-                    if (this._useStreaming)
+                    if (this._llm.UseStreaming)
                     {
                         await this._llm.ChatByStreamingAsync(workflow.Data, session.SessionCtsToken);
                     }
@@ -187,9 +184,15 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private async void OnTokenGenerated(string content)
         {
+            if (this._llm is null)
+            {
+                this.Logger.LogError("The LLM model is not initialized.");
+                return;
+            }
+
             this.Logger.LogDebug("LLM's response text: {content}", content);
 
-            if (!this._useStreaming)
+            if (!this._llm.UseStreaming)
             {
                 Session session = this.SendOutter.GetSession();
                 await this.SendCustomMessage(session.SessionId, session.DeviceId, content);

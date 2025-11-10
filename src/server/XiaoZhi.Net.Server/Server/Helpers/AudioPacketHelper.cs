@@ -1,5 +1,6 @@
 ﻿using SherpaOnnx;
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 
 namespace XiaoZhi.Net.Server.Helpers
@@ -63,85 +64,104 @@ namespace XiaoZhi.Net.Server.Helpers
             return true;
         }
 
-        public static float[] Bytes2Float(this byte[] opusBytes)
+        /// <summary>
+        /// 将16-bit little-endian PCM字节转换为归一化float（-1f~1f）。
+        /// </summary>
+        public static float[] Pcm16BytesToFloat(this byte[] pcmBytes)
         {
-            if (opusBytes == null || opusBytes.Length == 0)
+            if (pcmBytes == null || pcmBytes.Length == 0)
                 return Array.Empty<float>();
 
-            // 计算是否需要填充字节
-            int remainder = opusBytes.Length % 4;
-            byte[] paddedBytes = opusBytes;
-
-            // 如果长度不是4的倍数，则进行填充
-            if (remainder != 0)
+            int sampleCount = pcmBytes.Length / 2;
+            float[] floats = new float[sampleCount];
+            ReadOnlySpan<byte> span = pcmBytes;
+            for (int i = 0; i < sampleCount; i++)
             {
-                int paddedLength = opusBytes.Length + (4 - remainder);
-                paddedBytes = new byte[paddedLength];
-                Array.Copy(opusBytes, paddedBytes, opusBytes.Length);
-                // 剩余部分默认为0，不需要显式填充
+                short s = BinaryPrimitives.ReadInt16LittleEndian(span.Slice(i * 2, 2));
+                floats[i] = s / 32768f;
             }
-
-            // 计算浮点数数组大小
-            int floatCount = paddedBytes.Length / 4;
-            float[] floats = new float[floatCount];
-
-            // 转换为浮点数
-            for (int i = 0; i < floatCount; i++)
-            {
-                floats[i] = BitConverter.ToSingle(paddedBytes, i * 4);
-            }
-
             return floats;
+        }
+
+        public static float[] PcmBytesToFloat(this byte[] pcmBytes, int bitDepth)
+        {
+            if (pcmBytes == null || pcmBytes.Length == 0)
+                return Array.Empty<float>();
+
+            return bitDepth switch
+            {
+                16 => pcmBytes.Pcm16BytesToFloat(),
+                24 => Convert24BitPcm(pcmBytes),
+                32 => Convert32BitPcm(pcmBytes),
+                _ => throw new NotSupportedException($"Unsupported PCM bit depth: {bitDepth}")
+            };
+
+            static float[] Convert24BitPcm(byte[] bytes)
+            {
+                int sampleCount = bytes.Length / 3;
+                float[] floats = new float[sampleCount];
+                for (int i = 0; i < sampleCount; i++)
+                {
+                    int index = i * 3;
+                    int value = bytes[index] | (bytes[index + 1] << 8) | (bytes[index + 2] << 16);
+                    // 24-bit有符号：如果最高位(第23位)为1，需要符号扩展
+                    if ((value & 0x800000) != 0)
+                        value |= unchecked((int)0xFF000000);
+                    floats[i] = value / 8388608f; // 2^23
+                }
+                return floats;
+            }
+
+            static float[] Convert32BitPcm(byte[] bytes)
+            {
+                int sampleCount = bytes.Length / 4;
+                float[] floats = new float[sampleCount];
+                for (int i = 0; i < sampleCount; i++)
+                {
+                    int raw = BitConverter.ToInt32(bytes, i * 4);
+                    floats[i] = raw / 2147483648f; // 2^31
+                }
+                return floats;
+            }
         }
 
         public static byte[] Float2PcmBytes(this float[] audioData, int bitDepth = 16, int channels = 1)
         {
             if (audioData == null || audioData.Length == 0)
                 throw new ArgumentException(nameof(audioData));
-
-            if (bitDepth != 16 && bitDepth != 24 && bitDepth != 32)
+            if (bitDepth is not (16 or 24 or 32))
                 throw new ArgumentException("Only support 16-bit, 24-bit and 32-bit PCM format.");
 
-            int sampleCount = audioData.Length / channels; // 每个声道的样本数量
-            int bytesPerSample = bitDepth / 8;             // 每个样本占用的字节数
-            int totalBytes = sampleCount * channels * bytesPerSample; // 总字节数
-
-            List<byte> pcmData = new List<byte>(totalBytes);
+            int sampleCount = audioData.Length / channels;
+            int bytesPerSample = bitDepth / 8;
+            int totalBytes = sampleCount * channels * bytesPerSample;
+            var pcmData = new List<byte>(totalBytes);
 
             for (int i = 0; i < sampleCount; i++)
             {
-                float sample = Math.Clamp(audioData[i], -1.0f, 1.0f);
+                float sample = Math.Clamp(audioData[i], -1f, 1f);
                 WriteSample(pcmData, sample, bitDepth);
             }
-
             return pcmData.ToArray();
         }
 
-        /// <summary>
-        /// 将单个样本写入 PCM 数据流
-        /// </summary>
-        /// <param name="pcmData">用于存储 PCM 数据的 List<byte></param>
-        /// <param name="sample">归一化的浮点样本值（-1.0 到 1.0）</param>
-        /// <param name="bitDepth">位深度（16、24 或 32）</param>
         private static void WriteSample(List<byte> pcmData, float sample, int bitDepth)
         {
             switch (bitDepth)
             {
                 case 16:
-                    // 缩放到 16-bit 范围
-                    short pcm16 = (short)(sample * 32767.0f);
-                    pcmData.AddRange(BitConverter.GetBytes(pcm16)); // 小端模式
+                    short pcm16 = (short)(sample * 32767f);
+                    pcmData.AddRange(BitConverter.GetBytes(pcm16));
                     break;
                 case 24:
-                    // 缩放到 24-bit 范围
-                    int pcm24 = (int)(sample * 8388607.0f); // 2^23 - 1
-                    pcmData.Add((byte)(pcm24 & 0xFF));         // 低字节
-                    pcmData.Add((byte)((pcm24 >> 8) & 0xFF));  // 中字节
-                    pcmData.Add((byte)((pcm24 >> 16) & 0xFF)); // 高字节
+                    int pcm24 = (int)(sample * 8388607f);
+                    pcmData.Add((byte)(pcm24 & 0xFF));
+                    pcmData.Add((byte)((pcm24 >> 8) & 0xFF));
+                    pcmData.Add((byte)((pcm24 >> 16) & 0xFF));
                     break;
                 case 32:
-                    // 直接写入 IEEE 754 浮点数
-                    pcmData.AddRange(BitConverter.GetBytes(sample)); // 小端模式
+                    int pcm32 = (int)(sample * 2147483647f);
+                    pcmData.AddRange(BitConverter.GetBytes(pcm32));
                     break;
                 default:
                     throw new ArgumentException("Unsupported bit depth: " + bitDepth);

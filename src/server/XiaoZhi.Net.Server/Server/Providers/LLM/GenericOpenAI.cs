@@ -6,19 +6,16 @@ using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using OpenAI.Chat;
 using System;
-using System.ClientModel;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Providers.LLM.Plugins;
-using static System.Collections.Specialized.BitVector32;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
 {
