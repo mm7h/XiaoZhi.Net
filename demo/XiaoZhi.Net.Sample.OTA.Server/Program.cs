@@ -1,17 +1,18 @@
-using Demo.OTA.Server.Helpers;
 using Demo.OTA.Server.Models;
-using System.Text.Json.Serialization;
+using Newtonsoft.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
 builder.Services.AddControllers()
-    .AddJsonOptions(option =>
+    .AddNewtonsoftJson(options =>
     {
-        option.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
-        option.JsonSerializerOptions.PropertyNamingPolicy = new JsonSnakeCaseNamingPolicy();
-        option.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+        options.SerializerSettings.ContractResolver = new DefaultContractResolver
+        {
+            NamingStrategy = new SnakeCaseNamingStrategy()
+        };
+        options.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore;
     });
 
 builder.Services.Configure<XiaoZhiOptions>(builder.Configuration.GetSection("XiaoZhi"));

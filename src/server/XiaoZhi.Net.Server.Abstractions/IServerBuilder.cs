@@ -10,21 +10,6 @@ namespace XiaoZhi.Net.Server.Abstractions
         /// </summary>
         IHostBuilder HostBuilder { get; }
         /// <summary>
-        /// 从manage api初始化服务
-        /// </summary>
-        /// <param name="apiConfig">配置信息</param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        Task<IServerBuilder> Initialize(XiaoZhiApiConfig apiConfig);
-        /// <summary>
-        /// 从manage api初始化服务
-        /// </summary>
-        /// <param name="apiConfig">配置信息</param>
-        /// <param name="connectionStore">自定义的连接信息存储管理器</param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        Task<IServerBuilder> Initialize(XiaoZhiApiConfig apiConfig, IStore connectionStore);
-        /// <summary>
         /// 初始化服务
         /// </summary>
         /// <param name="config">配置信息</param>
@@ -61,6 +46,13 @@ namespace XiaoZhi.Net.Server.Abstractions
         /// </summary>
         /// <returns></returns>
         IServerBuilder WithVerify<T>() where T : class, IBasicVerify;
+        /// <summary>
+        /// 添加管理API配置
+        /// </summary>
+        /// <param name="manageApiUrl">url</param>
+        /// <param name="secret">密钥</param>
+        /// <returns></returns>
+        IServerBuilder WithManageApi(string manageApiUrl, string secret);
         /// <summary>
         /// 构建服务引擎
         /// </summary>

@@ -2,7 +2,6 @@
 using Flurl.Http;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Dtos;

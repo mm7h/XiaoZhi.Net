@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using XiaoZhi.Net.Server;
 using XiaoZhi.Net.Server.Common.Dtos;
 
@@ -9,14 +10,17 @@ namespace XiaoZhi.Net.Sample.OTA.Server.Controllers
     public class ConfigController : ControllerBase
     {
         private readonly IWebHostEnvironment _env;
-        public ConfigController(IWebHostEnvironment env)
+        private readonly ILogger<ConfigController> _logger;
+        public ConfigController(IWebHostEnvironment env, ILogger<ConfigController> logger)
         {
             this._env = env;
+            this._logger = logger;
         }
 
         [HttpGet]
         public XiaoZhiConfig GetConfig()
         {
+            this._logger.LogInformation("Got the request to get the xiao zhi config.");
             string configPath = Path.GetFullPath(Path.Combine(this._env.ContentRootPath, "..", "XiaoZhi.Net.Sample.Server", "configs", "config.json"));
             if (!System.IO.File.Exists(configPath))
                 throw new FileNotFoundException($"The file not found: {configPath}");
@@ -32,13 +36,11 @@ namespace XiaoZhi.Net.Sample.OTA.Server.Controllers
                 {
                     throw new Exception("Please set the environment variable \"OPEN_AI_API_KEY\"");
                 }
-                config.LlmSettings.First().Config.ApiKey = apiKey;
-                if (config.TtsSetting.ModelName == "huoshan-bidirection")
+                config.ConfiguredSettings["LLM"].First().Value.ApiKey = apiKey;
+                if (config.SelectedSettings["TTS"] == "HuoshanBidirection")
                 {
-                    config.TtsSetting.Config.AppId = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
-                    config.TtsSetting.Config.AccessToken = Environment.GetEnvironmentVariable("HuoshanAccessToken", EnvironmentVariableTarget.User)!;
-                    config.TtsSetting.Config.ResourceId = "volc.service_type.10029";
-                    config.TtsSetting.Config.Speaker = "zh_female_cancan_mars_bigtts";
+                    config.ConfiguredSettings["TTS"]["HuoshanBidirection"].AppId = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
+                    config.ConfiguredSettings["TTS"]["HuoshanBidirection"].AccessToken = Environment.GetEnvironmentVariable("HuoshanAccessToken", EnvironmentVariableTarget.User)!;
                 }
 #endif
                 return config;
@@ -51,7 +53,7 @@ namespace XiaoZhi.Net.Sample.OTA.Server.Controllers
         [HttpGet("private-config")]
         public PrivateModelsConfig GetPrivateConfig(string deviceId, string sessionId)
         {
-            Console.WriteLine($"[Info] {DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")} - Got the request from the device id: {deviceId} and session Id: {sessionId}.");
+            this._logger.LogInformation($"Got the request from the device id: {deviceId} and session Id: {sessionId}.");
 
             string appId = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
             string accessToken = Environment.GetEnvironmentVariable("HuoshanAccessToken", EnvironmentVariableTarget.User)!;

@@ -17,7 +17,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
     {
         private const string SERVICE_END_POINT = "wss://openspeech.bytedance.com/api/v3/tts/bidirection";
         private const string TTS_NAMESPACE = "BidirectionalTTS";
-        private const string AUDIO_ENCODING = "wav";
+        private const string AUDIO_ENCODING = "pcm";
         private const int SAMPLE_RATE = 16000;
         private static readonly TimeSpan DefaultWaitTimeout = TimeSpan.FromSeconds(15);
 
@@ -607,7 +607,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite, 8192, FileOptions.Asynchronous | FileOptions.SequentialScan);
                     entry = new TTSAudioFile(sessionId, fs, tmpPath, finalPath);
                     this._sessionFiles[sessionId] = entry;
-                    this.Logger.LogInformation("Start saving audio data for session {SessionId} -> {File}", sessionId, tmpPath);
+                    this.Logger.LogDebug("Start saving audio data for session {SessionId} -> {File}", sessionId, tmpPath);
                 }
 
                 // write chunk
@@ -640,7 +640,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                                 File.Delete(entry.FinalPath);
                             }
                             File.Move(entry.TmpPath, entry.FinalPath);
-                            this.Logger.LogInformation("Saved audio data for session {SessionId} -> {File}", sessionId, entry.FinalPath);
+                            this.Logger.LogDebug("Saved audio data for session {SessionId} -> {File}", sessionId, entry.FinalPath);
                         }
                         catch (Exception ex)
                         {

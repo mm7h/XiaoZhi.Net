@@ -18,14 +18,9 @@ namespace XiaoZhi.Net.Server
         public WebSocketServerOption WebSocketServerOption { get; set; } = new WebSocketServerOption();
         public MusicProviderSetting MusicProviderSetting { get; set; } = new MusicProviderSetting();
         public DeviceBindSetting DeviceBindSetting { get; set; } = new DeviceBindSetting();
+        public Dictionary<string, string> SelectedSettings { get; set; } = new Dictionary<string, string>();
+        public Dictionary<string, Dictionary<string, dynamic>> ConfiguredSettings { get; set; } = new Dictionary<string, Dictionary<string, dynamic>>();
         public AudioSetting AudioSetting { get; set; } = null!;
-        public ModelSetting VadSetting { get; set; } = null!;
-        public ModelSetting AsrSetting { get; set; } = null!;
-        public ModelSetting PunctuationSetting { get; set; } = null!;
-        public List<ModelSetting> LlmSettings { get; set; } = null!;
-        public ModelSetting MemorySetting { get; set; } = null!;
-        public ModelSetting TtsSetting { get; set; } = null!;
-        public ModelSetting? IntentSetting { get; set; }
         public Dictionary<string, ModelSetting>? McpSettings { get; set; }
 
     }

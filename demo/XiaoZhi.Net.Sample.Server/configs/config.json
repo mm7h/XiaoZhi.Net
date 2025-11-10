@@ -23,56 +23,56 @@
     "BindCodeDigitFolderPath": "configs/assets/bind_codes",
     "BindNotFoundFilePath": "configs/assets/bind_not_found.wav"
   },
-  "VadSetting": {
-    "ModelName": "silero",
-    "Config": {
-      "SampleRate": 16000,
-      "SilenceThresholdMs": 700
-    }
+  "SelectedSettings": {
+    "VAD": "Silero",
+    "ASR": "SenseVoice",
+    "LLM": "ChatGlm",
+    "TTS": "HuoshanBidirection",
+    "INTENT": "None",
+    "MEMORY": "FlashMemory"
   },
-  "AsrSetting": {
-    "ModelName": "sense-voice",
-    "Config": {
-      "UseInverseTextNormalization": 1,
-      "DecodingMethod": "greedy_search"
-    }
-    //paraformer
-    //"ModelName": "paraformer"
-  },
-  "PunctuationSetting": {
-    "ModelName": "ct-transformer"
-  },
-  "LlmSettings": [
-    {
-      "ModelName": "ChatGLM",
-      "Config": {
+  "ConfiguredSettings": {
+    "VAD": {
+      "Silero": {
+        "SampleRate": 16000,
+        "SilenceThresholdMs": 700
+      }
+    },
+    "ASR": {
+      "SenseVoice": {
+        "UseInverseTextNormalization": 1,
+        "DecodingMethod": "greedy_search"
+      },
+      "Paraformer": {}
+    },
+    "LLM": {
+      "ChatGlm": {
         "BaseUrl": "https://open.bigmodel.cn/api/paas/v4/",
         "ApiKey": "to your llm api key",
         "ModelName": "glm-4-flash",
         "UseStreaming": true
       }
-    }
-  ],
-  "MemorySetting": {
-    "ModelName": "flash-memory"
-  },
-  "TtsSetting": {
-    //"ModelName": "kokoro",
-    //"Config": {
-    //  "Lexicons": "./lexicon/lexicon-zh.txt,./lexicon/lexicon-us-en.txt",
-    //  "Save2File": false,
-    //  "SavePath": "./data/tts-cache"
-    //  "UseStreaming": false,
-    //}
-    "ModelName": "huoshan-bidirection",
-    "Config": {
-      "Save2File": true,
-      "AppId": "to your api id",
-      "AccessToken": "to your access token",
-      "ResourceId": "to your resource id",
-      "Speaker": "to your sepeaker name",
-      "SpeechRate": 0,
-      "LoudnessRate": 0
+    },
+    "TTS": {
+      "Kokoro": {
+        "Lexicons": "./lexicon/lexicon-zh.txt,./lexicon/lexicon-us-en.txt",
+        "Save2File": false,
+        "SavePath": "./data/tts-cache",
+        "UseStreaming": false
+      },
+      "HuoshanBidirection": {
+        "Save2File": true,
+        "AppId": "to your api id",
+        "AccessToken": "to your access token",
+        "ResourceId": "volc.service_type.10029",
+        "Speaker": "zh_female_cancan_mars_bigtts",
+        "SpeechRate": 0,
+        "LoudnessRate": 0
+      }
+    },
+    "INTENT": {},
+    "MEMORY": {
+      "FlashMemory": {}
     }
   },
   "McpSettings": {}

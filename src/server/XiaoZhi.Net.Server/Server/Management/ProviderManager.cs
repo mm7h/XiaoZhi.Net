@@ -5,6 +5,7 @@ using Microsoft.SemanticKernel;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -12,6 +13,7 @@ using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Media;
 using XiaoZhi.Net.Server.Providers;
+using XiaoZhi.Net.Server.Providers.ASR.Sherpa;
 using XiaoZhi.Net.Server.Providers.AudioCodec;
 using XiaoZhi.Net.Server.Providers.AudioMixer;
 using XiaoZhi.Net.Server.Providers.AudioPlayer;
@@ -27,7 +29,6 @@ using XiaoZhi.Net.Server.Providers.MCP.McpEndpoint;
 using XiaoZhi.Net.Server.Providers.MCP.ServerMcp;
 using XiaoZhi.Net.Server.Providers.Memory;
 using XiaoZhi.Net.Server.Providers.TTS;
-using XiaoZhi.Net.Server.Providers.ASR.Sherpa;
 using XiaoZhi.Net.Server.Providers.TTS.Sherpa;
 using XiaoZhi.Net.Server.Providers.VAD.Sherpa;
 using XiaoZhi.Net.Server.Services;
@@ -85,55 +86,77 @@ namespace XiaoZhi.Net.Server.Management
             }
             #endregion
 
-            #region Vad
-            IVad vad = serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
-            if (!vad.Build(this._config.VadSetting))
+            try
             {
-                this._logger.LogError("Failed to build {modelName} provider.", vad.ModelName);
+                #region Vad
+                IVad vad = serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
+                if (!vad.Build(this.GetSelectedSetting("VAD", this._config)))
+                {
+                    this._logger.LogError("Failed to build {modelName} provider.", vad.ModelName);
+                    return false;
+                }
+                #endregion
+
+                #region Asr
+                IAsr asr = serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
+                if (!asr.Build(this.GetSelectedSetting("ASR", this._config)))
+                {
+                    this._logger.LogError("Failed to build {modelName} provider.", asr.ModelName);
+                    return false;
+                }
+                #endregion
+
+                #region Memory
+                IMemory memory = serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY);
+                if (!memory.Build(this.GetSelectedSetting("MEMORY", this._config)))
+                {
+                    this._logger.LogError("Failed to build {modelName} provider.", memory.ModelName);
+                    return false;
+                }
+                #endregion
+
+                #region Tts
+                ITts tts = serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
+                if (!tts.Build(this.GetSelectedSetting("TTS", this._config)))
+                {
+                    this._logger.LogError("Failed to build {modelName} provider.", tts.ModelName);
+                    return false;
+                }
+                #endregion
+
+                #region FFmpeg
+                if (MediaFactory.CheckFFmpegInstalled(out string ffmpegVersion))
+                {
+                    this._logger.LogInformation("FFmpeg is installed successfully, version: {ffmpegVersion}.", ffmpegVersion);
+                }
+                else
+                {
+                    this._logger.LogWarning("FFmpeg is not installed or not found, please check your ffmpeg path configuration.");
+                    return false;
+                }
+                #endregion
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                this._logger.LogError(ex, "Failed to build provider components.");
                 return false;
             }
-            #endregion
+        }
 
-            #region Asr
-            IAsr asr = serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
-            if (!asr.Build(this._config.AsrSetting))
-            {
-                this._logger.LogError("Failed to build {modelName} provider.", asr.ModelName);
-                return false;
-            }
-            #endregion
+        private ModelSetting GetSelectedSetting(string selectedModelType, XiaoZhiConfig config)
+        {
+            string selectedModel = config.SelectedSettings[selectedModelType];
+            dynamic setting = config.ConfiguredSettings[selectedModelType][selectedModel];
 
-            #region Memory
-            IMemory memory = serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY);
-            if (!memory.Build(this._config.MemorySetting))
+            ModelSetting modelSetting = new ModelSetting
             {
-                this._logger.LogError("Failed to build {modelName} provider.", memory.ModelName);
-                return false;
-            }
-            #endregion
+                ModelName = selectedModel,
+                Config = setting
+            };
 
-            #region Tts
-            ITts tts = serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
-            if (!tts.Build(this._config.TtsSetting))
-            {
-                this._logger.LogError("Failed to build {modelName} provider.", tts.ModelName);
-                return false;
-            }
-            #endregion
-
-            #region FFmpeg
-            if (MediaFactory.CheckFFmpegInstalled(out string ffmpegVersion))
-            {
-                this._logger.LogInformation("FFmpeg is installed successfully, version: {ffmpegVersion}.", ffmpegVersion);
-            }
-            else
-            {
-                this._logger.LogWarning("FFmpeg is not installed or not found, please check your ffmpeg path configuration.");
-                return false;
-            } 
-            #endregion
-
-            return true;
+            return modelSetting;
         }
 
         public async Task InitializePrivateConfigAsync(Session session)
@@ -150,7 +173,7 @@ namespace XiaoZhi.Net.Server.Management
                     Kernel privateKernel = this._globalKernel.Clone();
                     ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
 
-                    ModelSetting llmModelSetting = this._config.LlmSettings.First();
+                    ModelSetting llmModelSetting = this.GetSelectedSetting("LLM", this._config);
                     string llmModelName = llmModelSetting.ModelName;
                     bool useStreaming = llmModelSetting.Config.UseStreaming ?? false;
 
@@ -164,7 +187,7 @@ namespace XiaoZhi.Net.Server.Management
                     session.PrivateProvider.SetKernel(privateKernel);
                     session.PrivateProvider.SetLlm(genericLlm);
 
-                    this._logger.LogInformation("Generic LLM {modeName} model initialized for device: {deviceId}.", llmModelSetting.ModelName, session.DeviceId); 
+                    this._logger.LogInformation("Generic LLM {modeName} model initialized for device: {deviceId}.", llmModelSetting.ModelName, session.DeviceId);
                     #endregion
 
                     return;
@@ -359,7 +382,7 @@ namespace XiaoZhi.Net.Server.Management
         #region VAD
         private static void RegisterVad(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            string modelName = config.VadSetting.ModelName.ToLower();
+            string modelName = ConvertToKebabCase(config.SelectedSettings["VAD"]);
             switch (modelName)
             {
                 case "silero":
@@ -375,17 +398,17 @@ namespace XiaoZhi.Net.Server.Management
         #region ASR
         private static void RegisterAsr(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            string modelName = config.AsrSetting.ModelName.ToLower();
+            string modelName = ConvertToKebabCase(config.SelectedSettings["ASR"]);
             switch (modelName)
             {
                 case "sense-voice":
                     services.AddKeyedTransient<IAsr, SenseVoice>(modelName);
                     services.AddKeyedSingleton<IAsr, SenseVoice>(key);
                     break;
-                //case "paraformer":
-                //    services.AddKeyedTransient<IAsr, Paraformer>(modelName);
-                //    services.AddKeyedSingleton<IAsr, Paraformer>(key);
-                //    break;
+                case "paraformer":
+                    services.AddKeyedTransient<IAsr, Paraformer>(modelName);
+                    services.AddKeyedSingleton<IAsr, Paraformer>(key);
+                    break;
                 default:
                     throw new ModelBuildException("Invalid asr model.");
             }
@@ -395,19 +418,19 @@ namespace XiaoZhi.Net.Server.Management
         #region LLM
         private static void RegisterLlm(IServiceCollection services, XiaoZhiConfig config)
         {
-            foreach (var llmSetting in config.LlmSettings)
+            foreach (var llmSettingItem in config.ConfiguredSettings["LLM"])
             {
-                string endPoint = llmSetting.Config.BaseUrl;
-                string apiKey = llmSetting.Config.ApiKey;
-                string modelId = llmSetting.Config.ModelName;
+                string endPoint = llmSettingItem.Value.BaseUrl;
+                string apiKey = llmSettingItem.Value.ApiKey;
+                string modelId = llmSettingItem.Value.ModelName;
 
-                switch (llmSetting.ModelName.ToLower())
+                switch (ConvertToKebabCase(llmSettingItem.Key))
                 {
                     case "qwen":
                     case "doubao":
                     case "deepseek":
-                    case "chatglm":
-                        services.AddOpenAIChatCompletion(modelId, new Uri(endPoint), apiKey, orgId: "Xiao Zhi", $"LLM_{llmSetting.ModelName}");
+                    case "chat-glm":
+                        services.AddOpenAIChatCompletion(modelId, new Uri(endPoint), apiKey, orgId: "Xiao Zhi", $"LLM_{llmSettingItem.Key}");
                         break;
                     default:
                         throw new ModelBuildException("Invalid llm model.");
@@ -429,7 +452,7 @@ namespace XiaoZhi.Net.Server.Management
         #region Memory
         private static void RegisterMemory(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            string modelName = config.MemorySetting.ModelName.ToLower();
+            string modelName = ConvertToKebabCase(config.SelectedSettings["MEMORY"]);
             switch (modelName)
             {
                 case "flash-memory":
@@ -449,7 +472,7 @@ namespace XiaoZhi.Net.Server.Management
         #region TTS
         private static void RegisterTts(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            string modelName = config.TtsSetting.ModelName.ToLower();
+            string modelName = ConvertToKebabCase(config.SelectedSettings["TTS"]);
             switch (modelName)
             {
                 case "kokoro":
@@ -562,5 +585,13 @@ namespace XiaoZhi.Net.Server.Management
         }
         #endregion
         #endregion
+
+        private static string ConvertToKebabCase(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return input;
+
+            return Regex.Replace(input, "(?<!^)([A-Z])", "-$1").ToLower();
+        }
     }
 }

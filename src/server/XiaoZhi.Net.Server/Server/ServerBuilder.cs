@@ -1,6 +1,4 @@
-﻿using Flurl;
-using Flurl.Http;
-using Flurl.Http.Configuration;
+﻿using Flurl.Http.Configuration;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -9,11 +7,8 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Abstractions.Store;
-using XiaoZhi.Net.Server.Common.Constants;
-using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Management;
 using XiaoZhi.Net.Server.Services;
@@ -39,69 +34,6 @@ namespace XiaoZhi.Net.Server
         public static IServerBuilder CreateServerBuilder(IHostBuilder hostBuilder) => new ServerBuilder(hostBuilder);
 
         public IHostBuilder HostBuilder { get; private set; }
-
-        /// <summary>
-        /// 通过Remote API初始化服务
-        /// </summary>
-        /// <param name="apiConfig"></param>
-        /// <returns></returns>
-        public async Task<IServerBuilder> Initialize(XiaoZhiApiConfig apiConfig)
-        {
-            return await this.Initialize(apiConfig, DefaultMemoryStore.Default);
-        }
-
-        /// <summary>
-        /// 通过Remote API初始化服务
-        /// </summary>
-        /// <param name="apiConfig"></param>
-        /// <param name="connectionStore"></param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        public async Task<IServerBuilder> Initialize(XiaoZhiApiConfig apiConfig, IStore connectionStore)
-        {
-            try
-            {
-                ApiResponse<XiaoZhiConfig> res = await apiConfig.ManageApiUrl
-                    .AppendPathSegment(ApiActions.GetGlobalConfig)
-                    .WithHeader("authorization", apiConfig.Secret)
-                    .WithSettings(s =>
-                    {
-                        s.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
-                    })
-                    .GetJsonAsync<ApiResponse<XiaoZhiConfig>>();
-
-
-                this.HostBuilder.ConfigureServices((context, services) =>
-                {
-                    services.AddSingleton(context.HostingEnvironment);
-                    services.AddSingleton(context.Configuration);
-
-                    services.AddSingleton(apiConfig);
-                    services.AddSingleton<IFlurlClientCache>(_ => new FlurlClientCache()
-                        .Add("ManageApi", apiConfig.ManageApiUrl, builder =>
-                        {
-                            builder.Headers.Add("authorization", apiConfig.Secret);
-                            builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
-                        }));
-
-                    services.AddSingleton<XiaoZhiApiConfig>(apiConfig);
-                    services.AddSingleton<ManageApiClient>();
-                });
-
-                if (res.Data is null)
-                {
-                    throw new ArgumentNullException(nameof(XiaoZhiConfig), "Failed to get config from remote api.");
-                }
-
-
-                return this.Initialize(res.Data);
-            }
-            catch (Exception)
-            {
-
-                throw;
-            }
-        }
 
         /// <summary>
         /// 初始化服务
@@ -206,6 +138,21 @@ namespace XiaoZhi.Net.Server
                 services.AddSingleton<IBasicVerify, T>();
             });
 
+            return this;
+        }
+
+        public IServerBuilder WithManageApi(string manageApiUrl, string secret)
+        {
+            this.HostBuilder.ConfigureServices((context, services) =>
+            {
+                services.AddSingleton<IFlurlClientCache>(_ => new FlurlClientCache()
+                .Add("ManageApi", manageApiUrl, builder =>
+                {
+                    builder.Headers.Add("authorization", secret);
+                    builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
+                }));
+                services.AddSingleton<ManageApiClient>();
+            });
             return this;
         }
 

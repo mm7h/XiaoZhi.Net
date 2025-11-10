@@ -2,9 +2,6 @@
 using SherpaOnnx;
 using System;
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 {

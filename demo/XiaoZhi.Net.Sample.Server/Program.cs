@@ -26,13 +26,11 @@ try
             Console.WriteLine("Please set the environment variable \"OPEN_AI_API_KEY\"");
             return;
         }
-        config.LlmSettings.First().Config.ApiKey = apiKey;
-        if (config.TtsSetting.ModelName == "huoshan-bidirection")
+        config.ConfiguredSettings["LLM"].First().Value.ApiKey = apiKey;
+        if (config.SelectedSettings["TTS"] == "HuoshanBidirection")
         {
-            config.TtsSetting.Config.AppId = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
-            config.TtsSetting.Config.AccessToken = Environment.GetEnvironmentVariable("HuoshanAccessToken", EnvironmentVariableTarget.User)!;
-            config.TtsSetting.Config.ResourceId = "volc.service_type.10029";
-            config.TtsSetting.Config.Speaker = "zh_female_cancan_mars_bigtts";
+            config.ConfiguredSettings["TTS"]["HuoshanBidirection"].AppId = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
+            config.ConfiguredSettings["TTS"]["HuoshanBidirection"].AccessToken = Environment.GetEnvironmentVariable("HuoshanAccessToken", EnvironmentVariableTarget.User)!;
         }
 #endif
 
