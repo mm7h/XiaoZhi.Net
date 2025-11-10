@@ -108,15 +108,16 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 await this._llmSlim.WaitAsync(token);
                 this.OnBeforeTokenGenerate?.Invoke();
 
-                this.LLMChatHistory.AddUserMessage(userMessage);
-                var clientResult = await this._chatCompletionService.GetChatMessageContentAsync(this.LLMChatHistory, this._chatCompletionOptions, this._kernel, token);
+                //this.LLMChatHistory.AddUserMessage(userMessage);
+                //var clientResult = await this._chatCompletionService.GetChatMessageContentAsync(this.LLMChatHistory, this._chatCompletionOptions, this._kernel, token);
 
-                string content = !string.IsNullOrEmpty(clientResult.Content) ? clientResult.Content : string.Empty;
-                string assistantContent = MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(content), @"<think>.*?</think>", string.Empty, RegexOptions.Singleline));
+                //string content = !string.IsNullOrEmpty(clientResult.Content) ? clientResult.Content : string.Empty;
+                //string assistantContent = MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(content), @"<think>.*?</think>", string.Empty, RegexOptions.Singleline));
 
-                this.LLMChatHistory.AddAssistantMessage(assistantContent);
+                //this.LLMChatHistory.AddAssistantMessage(assistantContent);
 
-                this.OnTokenGenerated?.Invoke(assistantContent);
+                //this.OnTokenGenerated?.Invoke(assistantContent);
+                this.OnTokenGenerated?.Invoke("欢迎使用小智AI助手");
             }
             catch (OperationCanceledException)
             {
