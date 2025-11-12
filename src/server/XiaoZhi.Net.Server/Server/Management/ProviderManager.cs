@@ -347,7 +347,7 @@ namespace XiaoZhi.Net.Server.Management
                 return;
             }
 
-            this._logger.LogInformation("Session {sessionId} requires audio resampling from {ttsSampleRate} to {deviceSampleRate}.", session.SessionId, ttsSampleRate, session.AudioSetting.SampleRate);
+            this._logger.LogInformation("Device {deviceId} requires audio resampling from {ttsSampleRate} to {deviceSampleRate}.", session.DeviceId, ttsSampleRate, session.AudioSetting.SampleRate);
 
             ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, ttsSampleRate, session.AudioSetting.SampleRate);
             IAudioResampler audioResampler = this._serviceProvider.GetRequiredService<IAudioResampler>();
