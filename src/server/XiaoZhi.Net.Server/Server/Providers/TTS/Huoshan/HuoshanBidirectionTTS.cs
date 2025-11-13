@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Protocol.WebSocket;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan;
@@ -98,6 +99,10 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         {
             try
             {
+                if (!this.CheckDeviceRegistered())
+                {
+                    throw new SessionNotInitializedException();
+                }
                 if (this.WebSocketClient is null)
                 {
                     this.Logger.LogError("WebSocket client is not initialized for Huoshan bidirection TTS.");

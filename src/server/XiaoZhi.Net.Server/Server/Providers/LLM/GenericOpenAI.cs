@@ -14,6 +14,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
+using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Providers.LLM.Plugins;
 
@@ -95,6 +96,10 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
         public async Task ChatAsync(string userMessage, CancellationToken token)
         {
+            if (!this.CheckDeviceRegistered())
+            {
+                throw new SessionNotInitializedException();
+            }
             if (this._chatCompletionService is null)
             {
                 this.Logger.LogError("The {providerType} model: {modelName} is not built.", this.ProviderType, this.ModelName);
@@ -132,6 +137,10 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
         public async Task ChatByStreamingAsync(string userMessage, CancellationToken token)
         {
+            if (!this.CheckDeviceRegistered())
+            {
+                throw new SessionNotInitializedException();
+            }
             if (this._chatCompletionService is null)
             {
                 this.Logger.LogError("The {providerType} model: {modelName} is not built.", this.ProviderType, this.ModelName);

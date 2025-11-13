@@ -6,6 +6,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Exceptions;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 {
@@ -16,6 +17,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
         public event Action<OutSegment>? OnBeforeProcessing;
         public event Action<float[]>? OnProcessing;
         public event Action<float[], OutSegment>? OnProcessed;
+
+
 
         protected BaseSherpaTts(ILogger<TLogger> logger) : base(logger)
         {
@@ -35,6 +38,10 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 
         public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
         {
+            if (!this.CheckDeviceRegistered())
+            {
+                throw new SessionNotInitializedException();
+            }
             if (this._offlineTts == null)
             {
                 throw new ArgumentNullException("Please build tts provider first.");

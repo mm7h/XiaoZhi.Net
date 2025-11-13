@@ -7,5 +7,6 @@ namespace XiaoZhi.Net.Server.Providers
         string ProviderType { get; }
         string ModelName { get; }
         bool Build(TSettings settings);
+        void RejsterDevice(string deviceId, string sessionId);
     }
 }

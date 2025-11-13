@@ -169,27 +169,7 @@ namespace XiaoZhi.Net.Server.Management
                 {
                     this._logger.LogInformation("Remote service is unavailable or not configured, skipping private models config loading for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
 
-                    #region Generic LLM
-                    Kernel privateKernel = this._globalKernel.Clone();
-                    ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
-
-                    ModelSetting llmModelSetting = this.GetSelectedSetting("LLM", this._config);
-                    string llmModelName = llmModelSetting.ModelName;
-                    bool useStreaming = llmModelSetting.Config.UseStreaming ?? false;
-
-                    LLMBuildConfig llmBuildConfig = new LLMBuildConfig(llmModelName, this._config.Prompt, useStreaming, string.Empty, privateKernel, session);
-
-                    if (!genericLlm.Build(llmBuildConfig))
-                    {
-                        throw new ModelBuildException("Failed to build generic LLM model.");
-                    }
-                    privateKernel.Data.Add("session", session);
-                    session.PrivateProvider.SetKernel(privateKernel);
-                    session.PrivateProvider.SetLlm(genericLlm);
-
-                    this._logger.LogInformation("Generic LLM {modeName} model initialized for device: {deviceId}.", llmModelSetting.ModelName, session.DeviceId);
-                    #endregion
-
+                    this.RegisterGlobalProviders(session);
                     return;
                 }
 
@@ -198,6 +178,8 @@ namespace XiaoZhi.Net.Server.Management
                 if (privateModelsConfig is null)
                 {
                     this._logger.LogInformation("The device: {deviceId} with session: {sessionId} has not been configured with privatization settings and will use global providers.", session.DeviceId, session.SessionId);
+
+                    this.RegisterGlobalProviders(session);
                     return;
                 }
 
@@ -208,9 +190,15 @@ namespace XiaoZhi.Net.Server.Management
                     {
                         throw new ModelBuildException("Failed to build private VAD model.");
                     }
+                    privateVad.RejsterDevice(session.DeviceId, session.SessionId);
                     session.PrivateProvider.SetVad(privateVad);
 
                     this._logger.LogInformation("Private VAD {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.VadSetting.ModelName, session.DeviceId, session.SessionId);
+                }
+                else
+                {
+                    IVad vad = this._serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
+                    vad.RejsterDevice(session.DeviceId, session.SessionId);
                 }
 
                 if (privateModelsConfig.AsrSetting is not null)
@@ -220,9 +208,15 @@ namespace XiaoZhi.Net.Server.Management
                     {
                         throw new ModelBuildException("Failed to build private ASR model.");
                     }
+                    privateAsr.RejsterDevice(session.DeviceId, session.SessionId);
                     session.PrivateProvider.SetAsr(privateAsr);
 
                     this._logger.LogInformation("Private ASR {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.AsrSetting.ModelName, session.DeviceId, session.SessionId);
+                }
+                else
+                {
+                    IAsr asr = this._serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
+                    asr.RejsterDevice(session.DeviceId, session.SessionId);
                 }
 
                 if (privateModelsConfig.LlmSetting is not null)
@@ -241,11 +235,32 @@ namespace XiaoZhi.Net.Server.Management
                     {
                         throw new ModelBuildException("Failed to build private LLM model.");
                     }
+                    privateLlm.RejsterDevice(session.DeviceId, session.SessionId);
                     privateKernel.Data.Add("session", session);
                     session.PrivateProvider.SetKernel(privateKernel);
                     session.PrivateProvider.SetLlm(privateLlm);
 
                     this._logger.LogInformation("Private LLM {modeName} model initialized for device: {deviceId}.", privateModelsConfig.LlmSetting.ModelName, session.DeviceId);
+                }
+                else
+                {
+                    Kernel privateKernel = this._globalKernel.Clone();
+                    ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
+
+                    ModelSetting llmModelSetting = this.GetSelectedSetting("LLM", this._config);
+                    string llmModelName = llmModelSetting.ModelName;
+                    bool useStreaming = llmModelSetting.Config.UseStreaming ?? false;
+
+                    LLMBuildConfig llmBuildConfig = new LLMBuildConfig(llmModelName, this._config.Prompt, useStreaming, string.Empty, privateKernel, session);
+
+                    if (!genericLlm.Build(llmBuildConfig))
+                    {
+                        throw new ModelBuildException("Failed to build generic LLM model.");
+                    }
+                    genericLlm.RejsterDevice(session.DeviceId, session.SessionId);
+                    privateKernel.Data.Add("session", session);
+                    session.PrivateProvider.SetKernel(privateKernel);
+                    session.PrivateProvider.SetLlm(genericLlm);
                 }
 
                 if (privateModelsConfig.TtsSetting is not null)
@@ -255,10 +270,15 @@ namespace XiaoZhi.Net.Server.Management
                     {
                         throw new ModelBuildException("Failed to build private TTS model.");
                     }
+                    privateTts.RejsterDevice(session.DeviceId, session.SessionId);
                     session.PrivateProvider.SetTts(privateTts);
 
-
                     this._logger.LogInformation("Private TTS {modeName} model initialized for device: {deviceId} with session: {sessionId}.", privateModelsConfig.TtsSetting.ModelName, session.DeviceId, session.SessionId);
+                }
+                else 
+                {
+                    ITts tts = this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
+                    tts.RejsterDevice(session.DeviceId, session.SessionId);
                 }
             }
             catch (DeviceNotFoundException)
@@ -585,6 +605,48 @@ namespace XiaoZhi.Net.Server.Management
         }
         #endregion
         #endregion
+
+        private void RegisterGlobalProviders(Session session)
+        {
+            #region Generic LLM
+            Kernel privateKernel = this._globalKernel.Clone();
+            ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
+
+            ModelSetting llmModelSetting = this.GetSelectedSetting("LLM", this._config);
+            string llmModelName = llmModelSetting.ModelName;
+            bool useStreaming = llmModelSetting.Config.UseStreaming ?? false;
+
+            LLMBuildConfig llmBuildConfig = new LLMBuildConfig(llmModelName, this._config.Prompt, useStreaming, string.Empty, privateKernel, session);
+
+            if (!genericLlm.Build(llmBuildConfig))
+            {
+                throw new ModelBuildException("Failed to build generic LLM model.");
+            }
+            genericLlm.RejsterDevice(session.DeviceId, session.SessionId);
+            privateKernel.Data.Add("session", session);
+            session.PrivateProvider.SetKernel(privateKernel);
+            session.PrivateProvider.SetLlm(genericLlm);
+
+            this._logger.LogInformation("Generic LLM {modeName} model initialized for device: {deviceId}.", llmModelSetting.ModelName, session.DeviceId);
+            #endregion
+
+            this.RegisterDeviceToProviders(session);
+        }
+
+        private void RegisterDeviceToProviders(Session session)
+        {
+            IVad vad = this._serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
+            vad.RejsterDevice(session.DeviceId, session.SessionId);
+
+            IAsr asr = this._serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
+            asr.RejsterDevice(session.DeviceId, session.SessionId);
+
+            IMemory memory = this._serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY);
+            memory.RejsterDevice(session.DeviceId, session.SessionId);
+
+            ITts tts = this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
+            tts.RejsterDevice(session.DeviceId, session.SessionId);
+        }
 
         private static string ConvertToKebabCase(string input)
         {

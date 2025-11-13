@@ -4,6 +4,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
@@ -26,6 +27,10 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
         public int FrameSize { get; private set; }
         public async Task<bool> AnalysisVoiceAsync(Session sessionContext, CancellationToken token)
         {
+            if (!this.CheckDeviceRegistered())
+            {
+                throw new SessionNotInitializedException();
+            }
             if (this._vad == null || !this._sampleRate.HasValue || !this._silenceThresholdMs.HasValue)
             {
                 throw new ArgumentNullException("Please build vad provider first.");

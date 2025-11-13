@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
@@ -39,6 +40,10 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 
         public async Task<string> ConvertSpeechTextAsync(Workflow<CircularBuffer> workflow, int sampleRate, int frameSize, CancellationToken token)
         {
+            if (!this.CheckDeviceRegistered())
+            {
+                throw new SessionNotInitializedException();
+            }
             if (this._offlineRecognizer == null)
             {
                 throw new ArgumentNullException("Please build asr provider first.");
