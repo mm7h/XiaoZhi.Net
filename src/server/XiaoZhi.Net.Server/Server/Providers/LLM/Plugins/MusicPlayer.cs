@@ -5,39 +5,33 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Resources;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
 {
     [Description("播放服务端音乐的插件")]
-    internal class MusicPlayer : ILLMPlugin
+    internal class MusicPlayer : BasePlugin<MusicPlayer>, ILLMPlugin
     {
         private readonly IMusics _musicProvider;
-        private readonly ILogger<MusicPlayer> _logger;
-        private Session? _currentSession;
 
-        public MusicPlayer(IMusics musicProvider, ILogger<MusicPlayer> logger)
+        public MusicPlayer(IMusics musicProvider, ILogger<MusicPlayer> logger) : base(logger)
         {
             this._musicProvider = musicProvider;
-            this._logger = logger;
         }
 
-        public string ProviderType => "llm plugin";
+        public override string ModelName => nameof(MusicPlayer);
 
-        public string ModelName => nameof(MusicPlayer);
-
-        public bool Build(LLMPluginConfig config)
+        public override bool Build(LLMPluginConfig config)
         {
-            this._currentSession = config.Session;
+            this.CurrentSession = config.Session;
             return true;
         }
 
         [KernelFunction, Description("获取服务端音乐文件列表，返回包含音乐文件名称的列表信息")]
         public string GetMusicFilesAsync()
         {
-            if (this._currentSession is null)
+            if (this.CurrentSession is null)
             {
                 return "Failed to get music files, the current session is not initialized.";
             }
@@ -46,12 +40,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
                 IReadOnlyDictionary<string, string> musicFiles = this._musicProvider.MusicFiles;
                 if (!this._musicProvider.HasMusicFiles)
                 {
-                    this._logger.LogWarning("{ProviderType} - {ModelName}, Failed to get music files due to no files existing for device {deviceId}.", this.ProviderType, this.ModelName, this._currentSession.DeviceId);
+                    this.Logger.LogWarning("{ProviderType} - {ModelName}, Failed to get music files due to no files existing for device {deviceId}.", this.ProviderType, this.ModelName, this.DeviceId);
                     return "Failed to get music files due to no files existing.";
                 }
 
                 IEnumerable<string> musicNames = musicFiles.Keys;
-                this._logger.LogInformation("{ProviderType} - {ModelName}, Got {fileCount} music files success for device {deviceId}.", this.ProviderType, this.ModelName, musicNames.Count(), this._currentSession.DeviceId);
+                this.Logger.LogInformation("{ProviderType} - {ModelName}, Got {fileCount} music files success for device {deviceId}.", this.ProviderType, this.ModelName, musicNames.Count(), this.DeviceId);
 
                 return $"Get the music files success. Available music files: {string.Join(", ", musicNames)}";
             }
@@ -62,12 +56,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
         [KernelFunction, Description("播放服务端音乐文件（需要先调用方法 `" + nameof(GetMusicFilesAsync) + "` 来获取本地有哪些音乐文件；如果已经调用过该方法获取到了音乐文件列表，那么就不需要再调用了），返回播放结果的描述信息，你需要播报正在播放的音乐文件名称。")]
         public async ValueTask<string> PlayMusic([Description("是否为随机播放")] bool isRandom, [Description("音乐名称，如果是随机播放，那么不需要此参数")] string? musicName = null)
         {
-            if (this._currentSession is null)
+            if (this.CurrentSession is null)
             {
                 return "Failed to play music, the current session is not initialized.";
             }
 
-            if (this._currentSession.PrivateProvider.AudioPlayerClient is null)
+            if (this.CurrentSession.PrivateProvider.AudioPlayerClient is null)
             {
                 return "Failed to play music, the player is not initialized.";
             }
@@ -110,15 +104,15 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
 
                 try
                 {
-                    await this._currentSession.PrivateProvider.AudioPlayerClient.MusicPlayer.PlayAsync(this._currentSession.SessionCtsToken, musicFilePath);
+                    await this.CurrentSession.PrivateProvider.AudioPlayerClient.MusicPlayer.PlayAsync(this.CurrentSession.SessionCtsToken, musicFilePath);
 
-                    this._logger.LogInformation("{ProviderType} - {ModelName}, Playing the music file {musicFilePath} for device {deviceId}.", this.ProviderType, this.ModelName, musicFilePath, this._currentSession.DeviceId);
+                    this.Logger.LogInformation("{ProviderType} - {ModelName}, Playing the music file {musicFilePath} for device {deviceId}.", this.ProviderType, this.ModelName, musicFilePath, this.DeviceId);
 
                     return $"Successfully started playing music: {selectedMusicName}";
                 }
                 catch (Exception ex)
                 {
-                    this._logger.LogError(ex, "Failed to play music file {musicFilePath} for device {deviceId}.", musicFilePath, this._currentSession.DeviceId);
+                    this.Logger.LogError(ex, "Failed to play music file {musicFilePath} for device {deviceId}.", musicFilePath, this.DeviceId);
                     return $"Failed to play music: {selectedMusicName}. Error: {ex.Message}";
                 }
             }
@@ -126,6 +120,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
                 return "Failed to play music, the music provider is not initialized yet.";
         }
 
-        public void Dispose() { }
+        public override void Dispose() { }
     }
 }

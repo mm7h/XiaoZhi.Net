@@ -1,16 +1,12 @@
-﻿using System;
+﻿using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers
 {
     internal interface ITts : IProvider<ModelSetting>
     {
-        event Action<OutSegment> OnBeforeProcessing;
-        event Action<float[]> OnProcessing;
-        event Action<float[], OutSegment> OnProcessed;
         int GetTtsSampleRate();
-        Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token);
+        IAsyncEnumerable<OutAudioSegment> SynthesisEnumerableAsync(Workflow<OutSegment> workflow, CancellationToken token);
     }
 }

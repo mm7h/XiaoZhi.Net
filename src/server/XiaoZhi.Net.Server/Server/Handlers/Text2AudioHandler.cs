@@ -44,8 +44,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 this._tts = privateProvider.Tts;
 
             }
-            this._tts.OnBeforeProcessing += this.TTS_OnBeforeProcessing;
-            this._tts.OnProcessed += this.TTS_OnProcessed;
 
             if (privateProvider.AudioPlayerClient is not null)
             {
@@ -102,7 +100,23 @@ namespace XiaoZhi.Net.Server.Handlers
                     return;
                 }
 
-                await this._tts.SynthesisAsync(workflow, session.SessionCtsToken);
+                await foreach (OutAudioSegment result in this._tts.SynthesisEnumerableAsync(workflow, session.SessionCtsToken))
+                {
+                    OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
+                    Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
+                    if (session.PrivateProvider.AudioResampler is not null)
+                    {
+                        (float[] resampledAudioData, _) = await session.PrivateProvider.AudioResampler.ResampleAsync(result.AudioData, session.SessionCtsToken);
+                        outAudioSegment.Initialize(resampledAudioData, AudioType.TTS, result.Content, result.IsFirstSegment, result.IsLastSegment);
+                    }
+                    else
+                    {
+                        outAudioSegment.Initialize(result.AudioData, AudioType.TTS, result.Content, result.IsFirstSegment, result.IsLastSegment);
+                    }
+                    nextWorkflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
+
+                    await this.NextWriter.WriteAsync(nextWorkflow);
+                }
 
             }
             catch (OperationCanceledException)
@@ -175,40 +189,9 @@ namespace XiaoZhi.Net.Server.Handlers
             await this.NextWriter2.WriteAsync(workflow);
         }
 
-        private void TTS_OnBeforeProcessing(OutSegment segment)
-        {
-            if (segment.IsFirstSegment)
-            {
-                this.Logger.LogInformation("Send the first audio from segment: {content}", segment.Content);
-            }
-        }
-
-        private async void TTS_OnProcessed(float[] audioData, OutSegment segment)
-        {
-            Session session = this.SendOutter.GetSession();
-
-            OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
-            Workflow<OutAudioSegment> workflow = this._outAudioSegmentWorkflowPool.Get();
-
-            if (session.PrivateProvider.AudioResampler is not null)
-            {
-                (float[] resampledAudioData, _) = await session.PrivateProvider.AudioResampler.ResampleAsync(audioData, session.SessionCtsToken);
-                outAudioSegment.Initialize(resampledAudioData, AudioType.TTS, segment.Content, segment.IsFirstSegment, segment.IsLastSegment);
-            }
-            else
-            {
-                outAudioSegment.Initialize(audioData, AudioType.TTS, segment.Content, segment.IsFirstSegment, segment.IsLastSegment);
-            }
-            workflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
-
-            await this.NextWriter.WriteAsync(workflow);
-        }
-
         public override void Dispose()
         {
             Session session = this.SendOutter.GetSession();
-            this._tts.OnBeforeProcessing -= this.TTS_OnBeforeProcessing;
-            this._tts.OnProcessed -= this.TTS_OnProcessed;
             if (this._audioPlayerClient is not null)
             {
                 this._audioPlayerClient.SystemNotification.OnAudioData -= this.OnNotificationAudioDataAsync;

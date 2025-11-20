@@ -1,24 +1,31 @@
 ﻿using Microsoft.Extensions.Logging;
 using SherpaOnnx;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 {
-    internal abstract class BaseSherpaTts<TLogger> : BaseProvider<TLogger, ModelSetting>
+    internal abstract class BaseSherpaTts<TLogger> : BaseProvider<TLogger, ModelSetting>, ITts
     {
+#if DEBUG
+        private const int BOUNDED_CAPACITY = 500;
+#else
+        private const int BOUNDED_CAPACITY = 1500;
+#endif
         private OfflineTts? _offlineTts;
 
-        public event Action<OutSegment>? OnBeforeProcessing;
-        public event Action<float[]>? OnProcessing;
-        public event Action<float[], OutSegment>? OnProcessed;
-
-
+        // ActionBlock-based multi-consumer processing
+        private ActionBlock<TtsRequest>? _ttsBlock;
+        private int _degreeOfParallelism = Math.Max(1, Environment.ProcessorCount);
 
         protected BaseSherpaTts(ILogger<TLogger> logger) : base(logger)
         {
@@ -36,33 +43,68 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
             return this._offlineTts?.SampleRate ?? 24000;
         }
 
-        public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
+        public async IAsyncEnumerable<OutAudioSegment> SynthesisEnumerableAsync(Workflow<OutSegment> workflow, [EnumeratorCancellation] CancellationToken token)
         {
             if (!this.CheckDeviceRegistered())
             {
                 throw new SessionNotInitializedException();
             }
-            if (this._offlineTts == null)
+            if (this._offlineTts == null || this._ttsBlock == null)
             {
                 throw new ArgumentNullException("Please build tts provider first.");
             }
 
+            token.ThrowIfCancellationRequested();
+
+            TtsRequest request = new TtsRequest(
+                workflow.SessionId,
+                workflow.DeviceId,
+                workflow.Data.Content,
+                workflow.Data.IsFirstSegment,
+                workflow.Data.IsLastSegment,
+                token);
+
+            bool accepted = await this._ttsBlock.SendAsync(request, token).ConfigureAwait(false);
+            if (!accepted)
+            {
+                throw new InvalidOperationException("TTS block has been completed or declined the request.");
+            }
+
+            TtsResponse ttsResponse = await request.ResultTcs.Task.ConfigureAwait(false);
+            yield return new OutAudioSegment();
+        }
+
+        private void ProcessRequest(TtsRequest request)
+        {
             try
             {
-                string segment = workflow.Data.Content;
+                if (request.Token.IsCancellationRequested)
+                {
+                    request.ResultTcs.TrySetCanceled(request.Token);
+                    return;
+                }
 
+                if (this._offlineTts is null)
+                {
+                    request.ResultTcs.TrySetException(new InvalidOperationException("TTS engine is not initialized."));
+                    return;
+                }
+
+                string segment = request.Content;
                 Stopwatch timer = Stopwatch.StartNew();
-                this.OnBeforeProcessing?.Invoke(workflow.Data);
-
                 OfflineTtsGeneratedAudio audio = this._offlineTts.Generate(segment, this.SpeechRate, this.SpeakerId);
 
-                double duration = Math.Max((this.CalculateDuration(audio.SampleRate, audio.NumSamples) * 1000 - (workflow.Data.IsFirstSegment ? 300 + timer.ElapsedMilliseconds : 0)), 0);
+                double duration = Math.Max((this.CalculateDuration(audio.SampleRate, audio.NumSamples) * 1000 - (request.IsFirstSegment ? 300 + timer.ElapsedMilliseconds : 0)), 0);
 
-                this.OnProcessed?.Invoke(audio.Samples, workflow.Data);
+                OutSegment outSegment = new OutSegment();
+                outSegment.Initialize(request.Content, request.IsFirstSegment, request.IsLastSegment);
+
+                // Complete request
+                request.ResultTcs.TrySetResult(new TtsResponse(request.SessionId, request.DeviceId, outSegment, audio.Samples));
 
                 if (this.Save2File)
                 {
-                    string fileName = $"{this.ReplaceMacDelimiters(workflow.DeviceId)}_{DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString()}.wav";
+                    string fileName = $"{this.ReplaceMacDelimiters(request.DeviceId)}_{DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString()}.wav";
                     string filePath = Path.Combine(this.SavePath, fileName);
                     if (File.Exists(filePath))
                         File.Delete(filePath);
@@ -82,19 +124,16 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
                 }
                 audio.Dispose();
                 timer.Stop();
-
-
-                await Task.CompletedTask;
-
             }
             catch (OperationCanceledException)
             {
-                this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
-                throw;
+                // Prefer canceling the individual request; if not available, cancel with provider token
+                request.ResultTcs.TrySetCanceled(request.Token.CanBeCanceled ? request.Token : CancellationToken.None);
             }
             catch (Exception ex)
             {
                 this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
+                request.ResultTcs.TrySetException(ex);
             }
         }
 
@@ -114,6 +153,15 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
                     Directory.CreateDirectory(this.SavePath);
             }
             this._offlineTts = new OfflineTts(offlineTtsConfig);
+
+            ExecutionDataflowBlockOptions options = new ExecutionDataflowBlockOptions
+            {
+                MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount),
+                BoundedCapacity = BOUNDED_CAPACITY,
+                EnsureOrdered = false
+            };
+
+            this._ttsBlock = new ActionBlock<TtsRequest>(this.ProcessRequest, options);
         }
 
         private double CalculateDuration(int sampleRate, int numSamples)
@@ -129,6 +177,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
         }
         public override void Dispose()
         {
+            this._ttsBlock?.Complete();
             this._offlineTts?.Dispose();
         }
     }

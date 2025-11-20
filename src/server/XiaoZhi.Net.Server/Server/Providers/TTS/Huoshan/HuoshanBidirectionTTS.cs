@@ -1,8 +1,11 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Azure.Core.GeoJson;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
@@ -31,16 +34,16 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         private readonly object _fileLock = new();
         private readonly Dictionary<string, TTSAudioFile> _sessionFiles = new();
 
+        // Streaming channel state (per request / per sentence sequence)
+        private Channel<OutAudioSegment>? _currentStreamChannel;
+        private bool _streamingActive = false;
+
         public HuoshanBidirectionTTS(ILogger<HuoshanBidirectionTTS> logger) : base(logger)
         {
         }
 
         public override string ModelName => nameof(HuoshanBidirectionTTS);
         public override string ProviderType => "tts";
-
-        public event Action<OutSegment>? OnBeforeProcessing;
-        public event Action<float[]>? OnProcessing;
-        public event Action<float[], OutSegment>? OnProcessed;
 
         public int GetTtsSampleRate() => SAMPLE_RATE;
 
@@ -95,222 +98,118 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             }
         }
 
-        public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
+        // Streaming synthesis using channel
+        public async IAsyncEnumerable<OutAudioSegment> SynthesisEnumerableAsync(Workflow<OutSegment> workflow, [EnumeratorCancellation] CancellationToken token)
         {
-            try
+            if (!this.CheckDeviceRegistered())
             {
-                if (!this.CheckDeviceRegistered())
-                {
-                    throw new SessionNotInitializedException();
-                }
-                if (this.WebSocketClient is null)
-                {
-                    this.Logger.LogError("WebSocket client is not initialized for Huoshan bidirection TTS.");
-                    return;
-                }
+                throw new SessionNotInitializedException();
+            }
+            if (this.WebSocketClient is null)
+            {
+                throw new InvalidOperationException("WebSocket client is not initialized.");
+            }
 
-                if (!this.WebSocketClient.IsConnected)
-                {
-                    await this.ConnectAsync(SERVICE_END_POINT, token);
-                    await this.StartConnectionAsync(token);
-                }
+            if (!this.WebSocketClient.IsConnected)
+            {
+                await this.ConnectAsync(SERVICE_END_POINT, token);
+                await this.StartConnectionAsync(token);
+            }
 
-                string sessionId = workflow.SessionId;
-                OutSegment outSegment = workflow.Data;
+            if (string.IsNullOrEmpty(this._tssSessionId))
+            {
+                this._tssSessionId = Guid.NewGuid().ToString();
+            }
 
-                if (string.IsNullOrEmpty(this._tssSessionId))
-                {
-                    this._tssSessionId = Guid.NewGuid().ToString();
-                }
+            this._currentStreamChannel = Channel.CreateUnbounded<OutAudioSegment>(new UnboundedChannelOptions
+            {
+                SingleReader = true,
+                SingleWriter = false
+            });
+            this._streamingActive = true;
 
-                this.OnBeforeProcessing?.Invoke(outSegment);
+            OutSegment seg = workflow.Data;
 
-                if (outSegment.IsFirstSegment)
-                {
-                    Dictionary<string, object> startReq = new Dictionary<string, object>
-                    {
-                        { "User", new { Uid = workflow.DeviceId } },
-                        { "Event", (int)EventType.StartSession },
-                        { "Namespace", TTS_NAMESPACE },
-                        { "ReqParams",
-                            new {
-                                Speaker = this.SpeakerId,
-                                AudioParams = new {
-                                    Format = AUDIO_ENCODING,
-                                    SampleRate = SAMPLE_RATE,
-                                    EnableTimestamp = false,
-                                    this.SpeechRate,
-                                    this.LoudnessRate,
-                                }
-                            }
-                        },
-                        { "additions",
-                            JsonHelper.Serialize(new {
-                                DisableMarkdownFilter = false,
-                                CacheConfig = new 
-                                {
-                                    TextType = 1,
-                                    UseCache = true
-                                }
-                            })
-                        }
-                    };
-                    await this.StartSessionAsync(this._tssSessionId, JsonHelper.SerializeToUtf8Bytes(startReq), token);
-                }
-                token.ThrowIfCancellationRequested();
-
-                Dictionary<string, object> ttsReq = new Dictionary<string, object>
+            if (seg.IsFirstSegment)
+            {
+                Dictionary<string, object> startReq = new Dictionary<string, object>
                 {
                     { "User", new { Uid = workflow.DeviceId } },
-                    { "Event", (int)EventType.TaskRequest },
+                    { "Event", (int)EventType.StartSession },
                     { "Namespace", TTS_NAMESPACE },
                     { "ReqParams",
                         new {
-                            Text = outSegment.Content,
                             Speaker = this.SpeakerId,
                             AudioParams = new {
                                 Format = AUDIO_ENCODING,
                                 SampleRate = SAMPLE_RATE,
                                 EnableTimestamp = false,
-                                    this.SpeechRate,
-                                    this.LoudnessRate,
+                                this.SpeechRate,
+                                this.LoudnessRate,
                             }
                         }
                     },
+                    { "additions",
+                        JsonHelper.Serialize(new {
+                            DisableMarkdownFilter = false,
+                            CacheConfig = new
+                            {
+                                TextType = 1,
+                                UseCache = true
+                            }
+                        })
+                    }
                 };
-                await this.TaskRequestAsync(this._tssSessionId, JsonHelper.SerializeToUtf8Bytes(ttsReq));
-                token.ThrowIfCancellationRequested();
+                await this.StartSessionAsync(this._tssSessionId, JsonHelper.SerializeToUtf8Bytes(startReq), token);
+            }
+            token.ThrowIfCancellationRequested();
 
-                if (outSegment.IsLastSegment)
-                {
-                    // capture sid before it is nulled
-                    var sid = this._tssSessionId!;
-
-                    await this.FinishSessionAsync(sid, token);
-
-                    // After session finished, aggregate full audio and trigger OnProcessed
-                    #region Collect all tts audio data and save to file if required
-                    try
-                    {
-                        float[]? allFloats = null;
-                        if (this.Save2File && !string.IsNullOrEmpty(this.SavePath))
-                        {
-                            TTSAudioFile? entry = null;
-                            lock (this._fileLock)
-                            {
-                                this._sessionFiles.TryGetValue(sid, out entry);
-                                // Ensure any buffered data is flushed before we read from disk
-                                if (entry != null)
-                                {
-                                    try { entry.Stream.Flush(); } catch { }
-                                }
-                            }
-
-                            if (entry != null)
-                            {
-                                // Read all bytes from the tmp file while writer still open (allow concurrent read). Use FileShare.ReadWrite.
-                                byte[] allBytes;
-                                try
-                                {
-                                    using var rs = new FileStream(entry.TmpPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                                    allBytes = new byte[rs.Length];
-                                    int read = 0;
-                                    while (read < allBytes.Length)
-                                    {
-                                        int r = rs.Read(allBytes, read, allBytes.Length - read);
-                                        if (r == 0) break;
-                                        read += r;
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    this.Logger.LogError(ex, "Failed to read aggregated audio for TTS session {SessionId}", sid);
-                                    allBytes = Array.Empty<byte>();
-                                }
-
-                                if (allBytes.Length > 0)
-                                {
-                                    try
-                                    {
-                                        allFloats = allBytes.PcmBytesToFloat(16);
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        this.Logger.LogError(ex, "Failed to convert audio bytes to float for TTS session {SessionId}", sid);
-                                    }
-                                }
-
-                                // finalize and close writer stream, and move tmp -> final
-                                try
-                                {
-                                    this.CloseSessionFile(sid, finalize: true);
-                                }
-                                catch (Exception ex)
-                                {
-                                    this.Logger.LogError(ex, "Failed to finalize session file for TTS session {SessionId}", sid);
-                                }
-                            }
-                            else
-                            {
-                                this.Logger.LogWarning("Session file entry not found when finishing TTS session {SessionId}. OnProcessed will be skipped.", sid);
-                            }
-                        }
-                        else
-                        {
-                            // No persistent saving configured; cannot aggregate full audio with current implementation
-                            this.Logger.LogWarning("Save2File is disabled, cannot aggregate full audio for OnProcessed in TTS session {SessionId}.", sid);
-                        }
-
-                        if (allFloats != null && allFloats.Length > 0)
-                        {
-                            try
-                            {
-                                this.OnProcessed?.Invoke(allFloats, outSegment);
-                            }
-                            catch (Exception ex)
-                            {
-                                this.Logger.LogError(ex, "OnProcessed handler raised an exception for TTS session {SessionId}", sid);
-                            }
+            Dictionary<string, object> ttsReq = new Dictionary<string, object>
+            {
+                { "User", new { Uid = workflow.DeviceId } },
+                { "Event", (int)EventType.TaskRequest },
+                { "Namespace", TTS_NAMESPACE },
+                { "ReqParams",
+                    new {
+                        Text = seg.Content,
+                        Speaker = this.SpeakerId,
+                        AudioParams = new {
+                            Format = AUDIO_ENCODING,
+                            SampleRate = SAMPLE_RATE,
+                            EnableTimestamp = false,
+                            this.SpeechRate,
+                            this.LoudnessRate,
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        this.Logger.LogError(ex, "Unexpected error when aggregating audio for OnProcessed in TTS session {SessionId}", sid);
-                    } 
-                    #endregion
+                },
+            };
+            await this.TaskRequestAsync(this._tssSessionId, JsonHelper.SerializeToUtf8Bytes(ttsReq));
+            token.ThrowIfCancellationRequested();
 
-                    this._tssSessionId = null;
-                }
-            }
-            catch (OperationCanceledException)
+            if (seg.IsLastSegment)
             {
                 try
                 {
-                    if (!string.IsNullOrEmpty(this._tssSessionId))
-                    {
-                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                        await this.CancelSessionAsync(this._tssSessionId, cts.Token);
-                    }
-                }
-                catch (TimeoutException tex)
-                {
-                    this.Logger.LogWarning(tex, "CancelSession timed out for {providerType}.", this.ProviderType);
+                    await this.FinishSessionAsync(this._tssSessionId, token);
                 }
                 catch (Exception ex)
                 {
-                    this.Logger.LogDebug(ex, "CancelSession during cancellation raised an exception.");
+                    this.Logger.LogError(ex, "FinishSession failed for streaming TTS.");
                 }
+            }
 
-                this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
-                throw;
-            }
-            catch (TimeoutException tex)
+            // Yield streaming audio frames
+            await foreach (OutAudioSegment resp in this._currentStreamChannel.Reader.ReadAllAsync(token))
             {
-                this.Logger.LogWarning(tex, "CancelSession timed out for {providerType}.", this.ProviderType);
+                yield return resp;
             }
-            catch (Exception ex)
+
+            // Cleanup after streaming
+            this._streamingActive = false;
+            this._currentStreamChannel = null;
+            if (seg.IsLastSegment)
             {
-                this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
+                this._tssSessionId = null;
             }
         }
 
@@ -327,10 +226,12 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             }
             finally
             {
-                // Fail any pending waits to avoid hanging tasks
                 this.FailAllWaits(new OperationCanceledException("TTS provider disposed"));
-                // Close any pending session files without finalizing (keep .tmp)
                 this.CloseAllSessionFiles(finalize: false);
+                if (this._currentStreamChannel != null)
+                {
+                    this._currentStreamChannel.Writer.TryComplete(new OperationCanceledException("Provider disposed"));
+                }
             }
         }
 
@@ -346,17 +247,23 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         private void WebSocketClient_OnClose(System.Net.WebSockets.WebSocketCloseStatus? status, string? desc)
         {
             this.Logger.LogDebug("Huoshan WebSocket closed: {Status} {Description}", status, desc);
-            // ensure files are closed (leave as .tmp)
             this.CloseAllSessionFiles(finalize: false);
             this.FailAllWaits(new OperationCanceledException($"WebSocket closed: {status} {desc}"));
+            if (this._streamingActive && this._currentStreamChannel != null)
+            {
+                this._currentStreamChannel.Writer.TryComplete(new OperationCanceledException("WebSocket closed"));
+            }
         }
 
         private void WebSocketClient_OnError(System.Net.WebSockets.WebSocketError error, string message)
         {
             this.Logger.LogError("Huoshan WebSocket error: {Error} {Message}", error, message);
-            // ensure files are closed (leave as .tmp)
             this.CloseAllSessionFiles(finalize: false);
-            FailAllWaits(new Exception($"WebSocket error: {error} {message}"));
+            this.FailAllWaits(new Exception($"WebSocket error: {error} {message}"));
+            if (this._streamingActive && this._currentStreamChannel != null)
+            {
+                this._currentStreamChannel.Writer.TryComplete(new Exception($"WebSocket error: {error} {message}"));
+            }
         }
 
         private void WebSocketClient_OnBinaryMessage(byte[] data)
@@ -377,10 +284,9 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 return;
             }
 
-            // Route audio frames if needed in future
+            // Audio frame streaming
             if (message.MsgType == MsgType.AudioOnlyServer && message.Payload != null && message.Payload.Length > 0)
             {
-                // Save raw audio chunk data if configured
                 if (this.Save2File && !string.IsNullOrEmpty(this.SavePath) && !string.IsNullOrEmpty(this._tssSessionId))
                 {
                     try
@@ -389,15 +295,21 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     }
                     catch (Exception ex)
                     {
-                        this.Logger.LogError(ex, "Failed to append audio data for TTS session {SessionId}", this._tssSessionId);
+                        this.Logger.LogError(ex, "Failed to append audio data for TTS session {ttsSessionId}", this._tssSessionId);
                     }
                 }
 
-                this.OnProcessing?.Invoke(message.Payload.PcmBytesToFloat(16));
+                float[] pcmAudioData = message.Payload.PcmBytesToFloat(16);
+                if (this._streamingActive && this._currentStreamChannel != null)
+                {
+                    //var resp = new TtsResponse(this.SessionId, this.DeviceId, pcmAudioData);
+                    OutAudioSegment outAudioSegment = new OutAudioSegment();
+                    outAudioSegment.Initialize(pcmAudioData, Abstractions.Common.Enums.AudioType.TTS, string.Empty, isFirstSegment: false, isLastSegment: false);
+                    this._currentStreamChannel.Writer.TryWrite(outAudioSegment);
+                }
                 return;
             }
 
-            // Complete matching waiter if any
             bool matched = false;
             lock (this._waitsLock)
             {
@@ -414,7 +326,15 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 }
             }
 
-            // In case of failures, propagate to interested waiters
+            // Handle end-of-session to complete streaming channel
+            if (message.MsgType == MsgType.FullServerResponse && message.EventType == EventType.SessionFinished)
+            {
+                if (this._streamingActive && this._currentStreamChannel != null)
+                {
+                    this._currentStreamChannel.Writer.TryComplete();
+                }
+            }
+
             if (!matched)
             {
                 if (message.MsgType == MsgType.FullServerResponse)
@@ -423,12 +343,20 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     {
                         var ex = new Exception($"Server reported failure: {message}");
                         this.FailScopedWaits(message, ex);
+                        if (this._streamingActive && this._currentStreamChannel != null)
+                        {
+                            this._currentStreamChannel.Writer.TryComplete(ex);
+                        }
                     }
                 }
                 else if (message.MsgType == MsgType.Error)
                 {
                     var ex = new Exception($"Server error: {message}");
                     this.FailScopedWaits(message, ex);
+                    if (this._streamingActive && this._currentStreamChannel != null)
+                    {
+                        this._currentStreamChannel.Writer.TryComplete(ex);
+                    }
                 }
             }
         }
@@ -440,7 +368,6 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 for (int i = this._waits.Count - 1; i >= 0; i--)
                 {
                     var pw = this._waits[i];
-                    // If waiter would have matched this failure message, fail it
                     if (pw.Match(message))
                     {
                         this._waits.RemoveAt(i);
@@ -605,7 +532,6 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             {
                 if (!_sessionFiles.TryGetValue(sessionId, out var entry))
                 {
-                    // create new file (allow concurrent read + write)
                     var fileBase = $"{sessionId}_{DateTime.UtcNow:yyyyMMdd_HHmmssfff}";
                     var tmpPath = Path.Combine(this.SavePath, fileBase + "." + AUDIO_ENCODING + ".tmp");
                     var finalPath = Path.Combine(this.SavePath, fileBase + "." + AUDIO_ENCODING);
@@ -615,7 +541,6 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     this.Logger.LogDebug("Start saving audio data for session {SessionId} -> {File}", sessionId, tmpPath);
                 }
 
-                // write chunk
                 entry.Stream.Write(audioData, 0, audioData.Length);
             }
         }
@@ -639,7 +564,6 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     {
                         try
                         {
-                            // move .tmp -> .AUDIO_ENCODING
                             if (File.Exists(entry.FinalPath))
                             {
                                 File.Delete(entry.FinalPath);
