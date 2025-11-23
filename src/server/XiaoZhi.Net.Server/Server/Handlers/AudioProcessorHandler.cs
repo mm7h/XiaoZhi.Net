@@ -5,6 +5,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
@@ -14,7 +15,6 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ObjectPool<Workflow<OutAudioSegment>> _outAudioSegmentWorkflowPool;
         private readonly ObjectPool<MixedAudioPacket> _mixedAudioPacketPool;
         private readonly ObjectPool<Workflow<MixedAudioPacket>> _mixedAudioPacketWorkflowPool;
-
 
         public AudioProcessorHandler(ObjectPool<OutAudioSegment> outAudioSegmentPool, ObjectPool<Workflow<OutAudioSegment>> outAudioSegmentWorkflowPool,
             ObjectPool<MixedAudioPacket> mixedAudioPacketPool, ObjectPool<Workflow<MixedAudioPacket>> mixedAudioPacketWorkflowPool,
@@ -31,23 +31,22 @@ namespace XiaoZhi.Net.Server.Handlers
         public ChannelReader<Workflow<OutAudioSegment>> PreviousReader2 { get; set; } = null!;
         public ChannelReader<Workflow<OutAudioSegment>> PreviousReader3 { get; set; } = null!;
         public ChannelWriter<Workflow<MixedAudioPacket>> NextWriter { get; set; } = null!;
+
         public override bool Build(PrivateProvider privateProvider)
         {
             Session session = this.SendOutter.GetSession();
             if (privateProvider.AudioProcessor is not null)
             {
+                privateProvider.AudioProcessor.RegisterDevice(session.DeviceId, session.SessionId);
                 privateProvider.AudioProcessor.OnMixedAudioDataAvailable += this.OnMixedAudioDataAvailable;
                 return true;
             }
-            else
-            {
-                this.Logger.LogError("Audio processor is not built for device {deviceId}.", session.DeviceId);
-                return false;
-            }
+            this.Logger.LogError("Audio processor is not built for device {deviceId}.", session.DeviceId);
+            return false;
         }
+
         public async Task Handle()
         {
-            //tts
             await foreach (var workflow in this.PreviousReader.ReadAllAsync())
             {
                 try
@@ -63,7 +62,6 @@ namespace XiaoZhi.Net.Server.Handlers
         }
         public async Task Handle2()
         {
-            //music
             await foreach (var workflow in this.PreviousReader2.ReadAllAsync())
             {
                 try
@@ -79,11 +77,10 @@ namespace XiaoZhi.Net.Server.Handlers
         }
         public async Task Handle3()
         {
-            // notification
             await foreach (var workflow in this.PreviousReader3.ReadAllAsync())
             {
-                try
-                {
+                try 
+                { 
                     this.Handle(workflow);
                 }
                 finally
@@ -93,6 +90,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
             }
         }
+
         public void Handle(Workflow<OutAudioSegment> workflow)
         {
             Session session = this.SendOutter.GetSession();
@@ -107,16 +105,14 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
-            OutAudioSegment outAudioSegment = workflow.Data;
-
+            OutAudioSegment s = workflow.Data;
             try
             {
-                session.PrivateProvider.AudioProcessor.ProcessAudio(outAudioSegment.AudioType, outAudioSegment.AudioData, outAudioSegment.Content, outAudioSegment.IsFirstSegment, outAudioSegment.IsLastSegment, outAudioSegment.AudioData.Length);
+                session.PrivateProvider.AudioProcessor.ProcessAudio(s.AudioType, s.AudioData, s.Content, s.IsFirstFrame, s.IsLastFrame);
 
-                if (outAudioSegment.IsLastSegment)
+                if (s.IsLastSegment)
                 {
-                    session.PrivateProvider.AudioProcessor.CompleteStream(outAudioSegment.AudioType);
-
+                    session.PrivateProvider.AudioProcessor.CompleteStream(s.AudioType);
                     if (session.CloseAfterChat)
                     {
                         session.PrivateProvider.AudioProcessor.CompleteStream(AudioType.Music);
@@ -124,6 +120,7 @@ namespace XiaoZhi.Net.Server.Handlers
                         session.PrivateProvider.AudioProcessor.CompleteStream(AudioType.Other);
                     }
                 }
+                
             }
             catch (OperationCanceledException)
             {
@@ -136,10 +133,8 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             var mixedAudioPacket = this._mixedAudioPacketPool.Get();
             var workflow = this._mixedAudioPacketWorkflowPool.Get();
-
             mixedAudioPacket.Initialize(mixedPcmData, isFirst, isLast);
             workflow.Initialize(this.SendOutter.GetSession(), mixedAudioPacket);
-
             _ = this.NextWriter.WriteAsync(workflow);
         }
 

@@ -39,6 +39,8 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 this._asr = privateProvider.Asr;
             }
+            Session session = this.SendOutter.GetSession();
+            this._asr.RegisterDevice(session.DeviceId, session.SessionId);
             return true;
         }
 

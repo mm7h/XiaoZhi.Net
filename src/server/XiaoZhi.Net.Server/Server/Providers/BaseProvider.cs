@@ -23,7 +23,7 @@ namespace XiaoZhi.Net.Server.Providers
         public abstract bool Build(TSettings settings);
         public abstract void Dispose();
 
-        public virtual void RejsterDevice(string deviceId, string sessionId)
+        public virtual void RegisterDevice(string deviceId, string sessionId)
         {
             this.DeviceId = deviceId;
             this.SessionId = sessionId;

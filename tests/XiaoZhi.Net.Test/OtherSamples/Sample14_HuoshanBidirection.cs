@@ -151,6 +151,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
                                 {
                                     TextType = 1,
                                     UseCache = true
+                                },
+                                MyCustomerData = new { 
+                                    MyName = "Tom",
+                                    MyAge = 18
                                 }
                             })
                         }

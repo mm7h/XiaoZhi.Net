@@ -44,21 +44,23 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 this._vad = privateProvider.Vad;
             }
+            Session session = this.SendOutter.GetSession();
+            this._vad.RegisterDevice(session.DeviceId, session.SessionId);
             return true;
         }
 
         public async Task Handle(byte[] opusData)
         {
             Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
+            {
+                return;
+            }
             if (!session.IsIdle)
             {
 #if DEBUG
                 this.Logger.LogDebug("The previous audio packet is processing, this packet would be ignored.");
 #endif
-                return;
-            }
-            if (session is null || session.ShouldIgnore())
-            {
                 return;
             }
             try

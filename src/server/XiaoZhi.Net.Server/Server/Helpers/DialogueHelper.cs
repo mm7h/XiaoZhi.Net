@@ -139,7 +139,8 @@ namespace XiaoZhi.Net.Server.Helpers
             '，', ',',  // 中文逗号 + 英文逗号
             '。', '.',  // 中文句号 + 英文句号
             '！', '!',  // 中文感叹号 + 英文感叹号
-            '-', '－',  // 英文连字符 + 中文全角横线
+            ';', '；',  // 中文分号 + 英文分号
+            ':', '：', // 中文冒号 + 英文冒号
             '、'       // 中文顿号
         };
 
@@ -176,13 +177,29 @@ namespace XiaoZhi.Net.Server.Helpers
 
         public static IEnumerable<string> SplitContentByPunctuations(string content)
         {
-            string[] rawSegments = Regex.Split(content, PUNCTUATIONS_PATTERN);
+            if (string.IsNullOrEmpty(content)) yield break;
 
-            foreach (string segment in rawSegments)
+            StringBuilder sb = new StringBuilder();
+            foreach (char ch in content)
             {
-                if (!string.IsNullOrEmpty(segment))
+                sb.Append(ch);
+                if (PUNCTUATION_SET.Contains(ch))
                 {
-                    yield return segment.Trim();
+                    string segment = sb.ToString().Trim();
+                    if (segment.Length > 0)
+                    {
+                        yield return segment;
+                    }
+                    sb.Clear();
+                }
+            }
+
+            if (sb.Length > 0)
+            {
+                string tail = sb.ToString().Trim();
+                if (tail.Length > 0)
+                {
+                    yield return tail;
                 }
             }
         }

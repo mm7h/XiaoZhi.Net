@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Media.Abstractions;
 
@@ -49,18 +50,41 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
             }
         }
 
-        public void ProcessAudio(AudioType audioType, float[] audioData, string text, bool isFirst, bool isLast, int? sampleCount = null)
+        public void ProcessAudio(AudioType audioType, float[] audioData, string text, bool isFirstFrame, bool isLastFrame)
         {
-            this._audioMixer.AddAudioData(audioType, audioData);
-            if (sampleCount.HasValue)
+            // Add audio to mixer regardless of frame type (even empty frames help timing)
+            if (audioData.Length > 0)
             {
-                int channels = Math.Max(1, this._audioMixer.OutputChannels);
-                int monoSamples = sampleCount.Value / channels;
-                this._audioSubtitleSyncTracker.RegisterAudioSubtitle(audioType, text, monoSamples, isFirst, isLast);
+                this._audioMixer.AddAudioData(audioType, audioData);
             }
-            else
+
+            // Subtitle tracking logic
+            int channels = Math.Max(1, this._audioMixer.OutputChannels);
+            int monoSamples = audioData.Length / channels;
+
+            if (isFirstFrame)
             {
-                this._audioSubtitleSyncTracker.RegisterAudioSubtitle(audioType, text, isFirst, isLast);
+                // First frame may be empty (streaming mode). Register without sample count; samples attached later.
+                if (monoSamples > 0)
+                {
+                    this._audioSubtitleSyncTracker.RegisterAudioSubtitle(audioType, text, monoSamples);
+                }
+                else
+                {
+                    this._audioSubtitleSyncTracker.RegisterAudioSubtitle(audioType, text);
+                }
+            }
+            else if (!isFirstFrame && monoSamples > 0)
+            {
+                // Attach samples to next subtitle if not yet assigned
+                this._audioSubtitleSyncTracker.AttachSamplesToNextSubtitle(audioType, monoSamples);
+                this._audioSubtitleSyncTracker.NotifyAudioSamplesSent(audioType, monoSamples);
+            }
+
+            if (isLastFrame)
+            {
+                // Notify end; for streaming without total samples this will close remaining progress
+                this._audioSubtitleSyncTracker.NotifyAudioSendComplete(audioType);
             }
         }
 

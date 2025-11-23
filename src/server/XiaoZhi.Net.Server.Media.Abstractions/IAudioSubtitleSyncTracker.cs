@@ -10,12 +10,12 @@ namespace XiaoZhi.Net.Server.Media.Abstractions
         /// <summary>
         /// 注册音频-字幕配对信息（不包含样本数，后续可通过 AttachSamplesToNextSubtitle 附加）
         /// </summary>
-        void RegisterAudioSubtitle(AudioType audioType, string subtitleText, bool isFirstSegment, bool isLastSegment);
+        void RegisterAudioSubtitle(AudioType audioType, string subtitleText);
 
         /// <summary>
         /// 注册音频-字幕配对信息，并提供该字幕对应的音频样本数（单声道样本数）。
         /// </summary>
-        void RegisterAudioSubtitle(AudioType audioType, string subtitleText, int sampleCount, bool isFirstSegment, bool isLastSegment);
+        void RegisterAudioSubtitle(AudioType audioType, string subtitleText, int sampleCount);
 
         /// <summary>
         /// 为队列中下一个未绑定样本数的字幕附加音频样本数。

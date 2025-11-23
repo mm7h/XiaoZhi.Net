@@ -138,7 +138,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         await Task.Delay(15 * 1000);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting TTS playback...");
-                        subtitleTracker.RegisterAudioSubtitle(AudioType.TTS, "你好，欢迎使用小智AI助手1111!", ttsAudio.Length, true, true);
+                        subtitleTracker.RegisterAudioSubtitle(AudioType.TTS, "你好，欢迎使用小智AI助手1111!", ttsAudio.Length);
                         mixer.AddAudioData(AudioType.TTS, ttsAudio);
                         mixer.StopAudioStream(AudioType.TTS);
                     });
@@ -148,7 +148,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         await Task.Delay(35 * 1000);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting second TTS playback...");
-                        subtitleTracker.RegisterAudioSubtitle(AudioType.TTS, "你好，欢迎使用小智AI助手2222!", ttsAudio.Length, true, true);
+                        subtitleTracker.RegisterAudioSubtitle(AudioType.TTS, "你好，欢迎使用小智AI助手2222!", ttsAudio.Length);
                         mixer.AddAudioData(AudioType.TTS, ttsAudio);
                         mixer.StopAudioStream(AudioType.TTS);
                     });
@@ -158,7 +158,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         await Task.Delay(100 * 1000);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting second TTS playback...");
-                        subtitleTracker.RegisterAudioSubtitle(AudioType.TTS, "你好，欢迎使用小智AI助手3333!", ttsAudio.Length, true, true);
+                        subtitleTracker.RegisterAudioSubtitle(AudioType.TTS, "你好，欢迎使用小智AI助手3333!", ttsAudio.Length);
                         mixer.AddAudioData(AudioType.TTS, ttsAudio);
                         mixer.StopAudioStream(AudioType.TTS);
                     });
@@ -168,7 +168,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         await Task.Delay(25 * 1000);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting System Notification playback (should smoothly suppress TTS and music over 500ms)...");
-                        subtitleTracker.RegisterAudioSubtitle(AudioType.SystemNotification, "不好意思，明天这个时候再聊!", true, true);
+                        subtitleTracker.RegisterAudioSubtitle(AudioType.SystemNotification, "不好意思，明天这个时候再聊!");
                         await DecodeAudio(SYSTEM_AUDIO_FILE_PATH, AudioType.SystemNotification, mixer);
                     });
 

@@ -1,13 +1,14 @@
-﻿using Azure.Core.GeoJson;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Protocol.WebSocket;
@@ -28,14 +29,13 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         private readonly List<PendingWait> _waits = new();
         private readonly object _waitsLock = new();
 
-        private string? _tssSessionId = null;
+        private string? _ttsSessionId = null;
 
         // File saving state per session
         private readonly object _fileLock = new();
         private readonly Dictionary<string, TTSAudioFile> _sessionFiles = new();
 
-        // Streaming channel state (per request / per sentence sequence)
-        private Channel<OutAudioSegment>? _currentStreamChannel;
+        private ITtsEventCallback? _ttsEventCallback;
         private bool _streamingActive = false;
 
         public HuoshanBidirectionTTS(ILogger<HuoshanBidirectionTTS> logger) : base(logger)
@@ -98,8 +98,14 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             }
         }
 
-        // Streaming synthesis using channel
-        public async IAsyncEnumerable<OutAudioSegment> SynthesisEnumerableAsync(Workflow<OutSegment> workflow, [EnumeratorCancellation] CancellationToken token)
+        public void RegisterDevice(string deviceId, string sessionId, ITtsEventCallback callback)
+        {
+            this._ttsEventCallback = callback;
+            this.RegisterDevice(deviceId, sessionId);
+        }
+
+        // Streaming synthesis using channel (sentence based)
+        public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
         {
             if (!this.CheckDeviceRegistered())
             {
@@ -116,16 +122,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 await this.StartConnectionAsync(token);
             }
 
-            if (string.IsNullOrEmpty(this._tssSessionId))
+            if (string.IsNullOrEmpty(this._ttsSessionId))
             {
-                this._tssSessionId = Guid.NewGuid().ToString();
+                this._ttsSessionId = Guid.NewGuid().ToString();
             }
 
-            this._currentStreamChannel = Channel.CreateUnbounded<OutAudioSegment>(new UnboundedChannelOptions
-            {
-                SingleReader = true,
-                SingleWriter = false
-            });
             this._streamingActive = true;
 
             OutSegment seg = workflow.Data;
@@ -160,10 +161,10 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                         })
                     }
                 };
-                await this.StartSessionAsync(this._tssSessionId, JsonHelper.SerializeToUtf8Bytes(startReq), token);
+                await this.StartSessionAsync(this._ttsSessionId, JsonHelper.SerializeToUtf8Bytes(startReq), token);
             }
             token.ThrowIfCancellationRequested();
-
+            Console.WriteLine(seg.Content);
             Dictionary<string, object> ttsReq = new Dictionary<string, object>
             {
                 { "User", new { Uid = workflow.DeviceId } },
@@ -183,39 +184,38 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     }
                 },
             };
-            await this.TaskRequestAsync(this._tssSessionId, JsonHelper.SerializeToUtf8Bytes(ttsReq));
+
+            this._ttsEventCallback?.OnBeforeProcessing(seg.Content, seg.IsFirstSegment, seg.IsLastSegment);
+
+            await this.TaskRequestAsync(this._ttsSessionId, JsonHelper.SerializeToUtf8Bytes(ttsReq));
             token.ThrowIfCancellationRequested();
 
+            // Only finish session on last segment (last sentence in paragraph)
             if (seg.IsLastSegment)
             {
                 try
                 {
-                    await this.FinishSessionAsync(this._tssSessionId, token);
+                    await this.FinishSessionAsync(this._ttsSessionId, token);
+                    this.CloseSessionFile(this._ttsSessionId, finalize: true);
+                    this._ttsEventCallback?.OnPorcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Success);
                 }
                 catch (Exception ex)
                 {
                     this.Logger.LogError(ex, "FinishSession failed for streaming TTS.");
                 }
+                finally
+                {
+                    this._ttsSessionId = null;
+                }
             }
 
-            // Yield streaming audio frames
-            await foreach (OutAudioSegment resp in this._currentStreamChannel.Reader.ReadAllAsync(token))
-            {
-                yield return resp;
-            }
-
-            // Cleanup after streaming
+            // Cleanup per-sentence
             this._streamingActive = false;
-            this._currentStreamChannel = null;
-            if (seg.IsLastSegment)
-            {
-                this._tssSessionId = null;
-            }
         }
 
         public override void Dispose()
         {
-            this._tssSessionId = null;
+            this._ttsSessionId = null;
             try
             {
                 this.FinishConnectionAsync(CancellationToken.None).GetAwaiter().GetResult();
@@ -228,10 +228,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             {
                 this.FailAllWaits(new OperationCanceledException("TTS provider disposed"));
                 this.CloseAllSessionFiles(finalize: false);
-                if (this._currentStreamChannel != null)
-                {
-                    this._currentStreamChannel.Writer.TryComplete(new OperationCanceledException("Provider disposed"));
-                }
+                this._ttsEventCallback?.OnPorcessed(string.Empty, false, false, TtsGenerateResult.Aborted);
             }
         }
 
@@ -249,9 +246,9 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             this.Logger.LogDebug("Huoshan WebSocket closed: {Status} {Description}", status, desc);
             this.CloseAllSessionFiles(finalize: false);
             this.FailAllWaits(new OperationCanceledException($"WebSocket closed: {status} {desc}"));
-            if (this._streamingActive && this._currentStreamChannel != null)
+            if (this._streamingActive)
             {
-                this._currentStreamChannel.Writer.TryComplete(new OperationCanceledException("WebSocket closed"));
+                this._ttsEventCallback?.OnPorcessed(string.Empty, false, false, TtsGenerateResult.Failed);
             }
         }
 
@@ -260,9 +257,9 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             this.Logger.LogError("Huoshan WebSocket error: {Error} {Message}", error, message);
             this.CloseAllSessionFiles(finalize: false);
             this.FailAllWaits(new Exception($"WebSocket error: {error} {message}"));
-            if (this._streamingActive && this._currentStreamChannel != null)
+            if (this._streamingActive)
             {
-                this._currentStreamChannel.Writer.TryComplete(new Exception($"WebSocket error: {error} {message}"));
+                this._ttsEventCallback?.OnPorcessed(string.Empty, false, false, TtsGenerateResult.Failed);
             }
         }
 
@@ -283,29 +280,47 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 this.Logger.LogError(ex, "Failed to parse websocket binary message.");
                 return;
             }
+            // Sentence start marker -> push empty first frame
+            if (message.MsgType == MsgType.FullServerResponse && message.EventType == EventType.TTSSentenceStart)
+            {
+                if (this._streamingActive)
+                {
+                    string sentence = JsonObject.Parse(message.Payload)?["text"]?.GetValue<string>() ?? string.Empty;
+                    this._ttsEventCallback?.OnSentenceStart(sentence);
+                }
+                return;
+            }
 
             // Audio frame streaming
             if (message.MsgType == MsgType.AudioOnlyServer && message.Payload != null && message.Payload.Length > 0)
             {
-                if (this.Save2File && !string.IsNullOrEmpty(this.SavePath) && !string.IsNullOrEmpty(this._tssSessionId))
+                if (this.Save2File && !string.IsNullOrEmpty(this.SavePath) && !string.IsNullOrEmpty(this._ttsSessionId))
                 {
                     try
                     {
-                        this.AppendAudioPayloadChunk(this._tssSessionId, message.Payload);
+                        this.AppendAudioPayloadChunk(this._ttsSessionId, message.Payload);
                     }
                     catch (Exception ex)
                     {
-                        this.Logger.LogError(ex, "Failed to append audio data for TTS session {ttsSessionId}", this._tssSessionId);
+                        this.Logger.LogError(ex, "Failed to append audio data for TTS session {ttsSessionId}", this._ttsSessionId);
                     }
                 }
 
                 float[] pcmAudioData = message.Payload.PcmBytesToFloat(16);
-                if (this._streamingActive && this._currentStreamChannel != null)
+                if (this._streamingActive)
                 {
-                    //var resp = new TtsResponse(this.SessionId, this.DeviceId, pcmAudioData);
-                    OutAudioSegment outAudioSegment = new OutAudioSegment();
-                    outAudioSegment.Initialize(pcmAudioData, Abstractions.Common.Enums.AudioType.TTS, string.Empty, isFirstSegment: false, isLastSegment: false);
-                    this._currentStreamChannel.Writer.TryWrite(outAudioSegment);
+                    this._ttsEventCallback?.OnProcessing(pcmAudioData, false, false);
+                }
+                return;
+            }
+
+            // Sentence end marker -> push empty last frame then complete channel
+            if (message.MsgType == MsgType.FullServerResponse && message.EventType == EventType.TTSSentenceEnd)
+            {
+                if (this._streamingActive)
+                {
+                    string sentence = JsonObject.Parse(message.Payload)?["text"]?.GetValue<string>() ?? string.Empty;
+                    this._ttsEventCallback?.OnSentenceEnd(sentence);
                 }
                 return;
             }
@@ -326,13 +341,10 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 }
             }
 
-            // Handle end-of-session to complete streaming channel
+            // Handle session finished -> finalize file
             if (message.MsgType == MsgType.FullServerResponse && message.EventType == EventType.SessionFinished)
             {
-                if (this._streamingActive && this._currentStreamChannel != null)
-                {
-                    this._currentStreamChannel.Writer.TryComplete();
-                }
+                return;
             }
 
             if (!matched)
@@ -343,9 +355,9 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     {
                         var ex = new Exception($"Server reported failure: {message}");
                         this.FailScopedWaits(message, ex);
-                        if (this._streamingActive && this._currentStreamChannel != null)
+                        if (this._streamingActive)
                         {
-                            this._currentStreamChannel.Writer.TryComplete(ex);
+                            this._ttsEventCallback?.OnPorcessed(string.Empty, false, false, TtsGenerateResult.Failed);
                         }
                     }
                 }
@@ -353,9 +365,9 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 {
                     var ex = new Exception($"Server error: {message}");
                     this.FailScopedWaits(message, ex);
-                    if (this._streamingActive && this._currentStreamChannel != null)
+                    if (this._streamingActive)
                     {
-                        this._currentStreamChannel.Writer.TryComplete(ex);
+                        this._ttsEventCallback?.OnPorcessed(string.Empty, false, false, TtsGenerateResult.Failed);
                     }
                 }
             }

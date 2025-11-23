@@ -7,11 +7,13 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Providers;
+using XiaoZhi.Net.Server.Providers.TTS;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
-    internal sealed class Text2AudioHandler : BaseHandler, IInHandler<OutSegment>, IOutHandler<OutAudioSegment, OutAudioSegment, OutAudioSegment>
+    internal sealed class Text2AudioHandler : BaseHandler, IInHandler<OutSegment>, IOutHandler<OutAudioSegment, OutAudioSegment, OutAudioSegment>, ITtsEventCallback
     {
         private readonly ObjectPool<OutSegment> _outSegmentPool;
         private readonly ObjectPool<OutAudioSegment> _outAudioSegmentPool;
@@ -42,8 +44,10 @@ namespace XiaoZhi.Net.Server.Handlers
             if (privateProvider.Tts is not null)
             {
                 this._tts = privateProvider.Tts;
-
             }
+
+            Session session = this.SendOutter.GetSession();
+            this._tts.RegisterDevice(session.DeviceId, session.SessionId, this);
 
             if (privateProvider.AudioPlayerClient is not null)
             {
@@ -100,24 +104,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     return;
                 }
 
-                await foreach (OutAudioSegment result in this._tts.SynthesisEnumerableAsync(workflow, session.SessionCtsToken))
-                {
-                    OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
-                    Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
-                    if (session.PrivateProvider.AudioResampler is not null)
-                    {
-                        (float[] resampledAudioData, _) = await session.PrivateProvider.AudioResampler.ResampleAsync(result.AudioData, session.SessionCtsToken);
-                        outAudioSegment.Initialize(resampledAudioData, AudioType.TTS, result.Content, result.IsFirstSegment, result.IsLastSegment);
-                    }
-                    else
-                    {
-                        outAudioSegment.Initialize(result.AudioData, AudioType.TTS, result.Content, result.IsFirstSegment, result.IsLastSegment);
-                    }
-                    nextWorkflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
-
-                    await this.NextWriter.WriteAsync(nextWorkflow);
-                }
-
+                await this._tts.SynthesisAsync(workflow, session.SessionCtsToken);
             }
             catch (OperationCanceledException)
             {
@@ -168,7 +155,7 @@ namespace XiaoZhi.Net.Server.Handlers
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
             Workflow<OutAudioSegment> workflow = this._outAudioSegmentWorkflowPool.Get();
 
-            outAudioSegment.Initialize(pcmData, AudioType.SystemNotification, string.Empty, isFirst, isLast);
+            outAudioSegment.Initialize(pcmData, AudioType.SystemNotification, isFirstFrame: isFirst, isLastFrame: isLast);
 
             Session session = this.SendOutter.GetSession();
             workflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
@@ -181,7 +168,7 @@ namespace XiaoZhi.Net.Server.Handlers
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
             Workflow<OutAudioSegment> workflow = this._outAudioSegmentWorkflowPool.Get();
 
-            outAudioSegment.Initialize(pcmData, AudioType.Music, string.Empty, isFirst, isLast);
+            outAudioSegment.Initialize(pcmData, AudioType.Music, isFirstFrame: isFirst, isLastFrame: isLast);
 
             Session session = this.SendOutter.GetSession();
             workflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
@@ -198,6 +185,82 @@ namespace XiaoZhi.Net.Server.Handlers
                 this._audioPlayerClient.MusicPlayer.OnAudioData -= this.OnMusicAudioDataAsync;
             }
             this.NextWriter.Complete();
+            this.NextWriter2.Complete();
+            this.NextWriter3.Complete();
         }
+
+        #region ITtsEventCallback
+        public void OnBeforeProcessing(string sentence, bool isFirstSegment, bool isLastSegment)
+        {
+            Session session = this.SendOutter.GetSession();
+            if (isFirstSegment)
+            {
+                OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
+                Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
+                outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isFirstSegment: isFirstSegment, isLastSegment: isLastSegment);
+
+                nextWorkflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
+                this.NextWriter.WriteAsync(nextWorkflow);
+            }
+            this.Logger.LogDebug("TTS processing started for device: {deviceId}.", session.DeviceId);
+        }
+
+        public async void OnProcessing(float[] audioData, bool isFirstFrame, bool isLastFrame)
+        {
+            Session session = this.SendOutter.GetSession();
+            OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
+            Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
+            if (session.PrivateProvider.AudioResampler is not null && audioData.Length > 0)
+            {
+                (float[] resampledAudioData, _) = await session.PrivateProvider.AudioResampler.ResampleAsync(audioData, session.SessionCtsToken);
+                outAudioSegment.Initialize(audioType: AudioType.TTS, audioData: resampledAudioData, isFirstFrame: isFirstFrame, isLastFrame: isLastFrame);
+            }
+            else
+            {
+                outAudioSegment.Initialize(audioType: AudioType.TTS, audioData: audioData, isFirstFrame: isFirstFrame, isLastFrame: isLastFrame);
+            }
+
+
+            nextWorkflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
+            await this.NextWriter.WriteAsync(nextWorkflow);
+        }
+
+        public void OnPorcessed(string sentence, bool isFirstSegment, bool isLastSegment, TtsGenerateResult ttsGenerateResult)
+        {
+            Session session = this.SendOutter.GetSession();
+            if (isLastSegment)
+            {
+                OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
+                Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
+                outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isFirstSegment: isFirstSegment, isLastSegment: isLastSegment);
+
+                nextWorkflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
+                this.NextWriter.WriteAsync(nextWorkflow);
+            }
+            this.Logger.LogDebug("TTS processing completed for device: {deviceId}.", session.DeviceId);
+        }
+
+        public void OnSentenceStart(string sentence)
+        {
+            Session session = this.SendOutter.GetSession();
+            OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
+            Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
+            outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isFirstFrame: true);
+
+            nextWorkflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
+            this.NextWriter.WriteAsync(nextWorkflow);
+        }
+
+        public void OnSentenceEnd(string sentence)
+        {
+            Session session = this.SendOutter.GetSession();
+            OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
+            Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
+            outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isLastFrame: true);
+
+            nextWorkflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
+            this.NextWriter.WriteAsync(nextWorkflow);
+        }
+        #endregion
     }
 }

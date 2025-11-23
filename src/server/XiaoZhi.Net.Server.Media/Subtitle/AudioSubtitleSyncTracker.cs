@@ -32,8 +32,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
             _logger = logger ?? NullLogger<AudioSubtitleSyncTracker>.Instance;
         }
 
-        public void RegisterAudioSubtitle(AudioType audioType, string subtitleText,
-            bool isFirstSegment, bool isLastSegment)
+        public void RegisterAudioSubtitle(AudioType audioType, string subtitleText)
         {
             if (string.IsNullOrEmpty(subtitleText)) return;
             lock (_syncLock)
@@ -43,8 +42,6 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                 {
                     AudioType = audioType,
                     SubtitleText = subtitleText,
-                    IsFirstSegment = isFirstSegment,
-                    IsLastSegment = isLastSegment,
                     RegisterTime = DateTime.UtcNow,
                     TotalSamples = 0,
                     RemainingSamples = 0
@@ -54,8 +51,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
             _logger.LogDebug("Registered audio-subtitle: {SubtitleText}", subtitleText);
         }
 
-        public void RegisterAudioSubtitle(AudioType audioType, string subtitleText, int sampleCount,
-            bool isFirstSegment, bool isLastSegment)
+        public void RegisterAudioSubtitle(AudioType audioType, string subtitleText, int sampleCount)
         {
             if (string.IsNullOrEmpty(subtitleText)) return;
             if (sampleCount < 0) sampleCount = 0;
@@ -66,8 +62,6 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                 {
                     AudioType = audioType,
                     SubtitleText = subtitleText,
-                    IsFirstSegment = isFirstSegment,
-                    IsLastSegment = isLastSegment,
                     RegisterTime = DateTime.UtcNow,
                     RemainingSamples = sampleCount,
                     TotalSamples = sampleCount

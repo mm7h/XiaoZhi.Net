@@ -71,7 +71,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     await this.SendOutter.SendTtsMessageAsync(TtsStatus.Start);
                     await this.SendOutter.SendLlmMessageAsync(Emotion.Cool);
-                    this.Logger.LogInformation("Send the first audio from the device: {deviceId}.", session.DeviceId);
+                    this.Logger.LogDebug("Send the first audio frame from the device: {deviceId}.", session.DeviceId);
                 }
 
                 byte[] opusData = await session.PrivateProvider.AudioEncoder!.EncodeAsync(audioPacket.Data, session.SessionCtsToken);
@@ -81,7 +81,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     await this.SendOutter.SendTtsMessageAsync(TtsStatus.Stop);
                     await this.SendOutter.SendLlmMessageAsync(Emotion.Cool);
-                    this.Logger.LogInformation("Send the last audio from the device: {deviceId}.", session.DeviceId);
+                    this.Logger.LogDebug("Send the last audio frame from the device: {deviceId}.", session.DeviceId);
                     if (session.CloseAfterChat)
                     {
                         await this.SendOutter.CloseSessionAsync("Close Chat");

@@ -242,7 +242,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
             if (musicPlayerPlugin.Build(llmPluginConfig))
             {
-                musicPlayerPlugin.RejsterDevice(session.DeviceId, session.SessionId);
+                musicPlayerPlugin.RegisterDevice(session.DeviceId, session.SessionId);
                 string pluginName = musicPlayerPlugin.ModelName;
                 kernel.ImportPluginFromObject(musicPlayerPlugin, pluginName);
                 this.Logger.LogInformation("LLM plugin {pluginName} initialized for device: {deviceId}.", pluginName, session.DeviceId);

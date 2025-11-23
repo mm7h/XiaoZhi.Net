@@ -6,8 +6,6 @@ namespace XiaoZhi.Net.Server.Media.Common.Models
     {
         public AudioType AudioType { get; set; }
         public string SubtitleText { get; set; } = string.Empty;
-        public bool IsFirstSegment { get; set; }
-        public bool IsLastSegment { get; set; }
         public DateTime RegisterTime { get; set; }
         public bool SubtitleStartSent { get; set; }
         public bool SubtitleEndSent { get; set; }

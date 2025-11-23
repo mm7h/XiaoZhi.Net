@@ -251,7 +251,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 Id = new RequestId(2)
             };
 
-            this.Logger.LogDebug("Device {deviceId} request tools list.", CurrentSession.DeviceId);
+            this.Logger.LogDebug("Device {deviceId} request tools list.", this.CurrentSession.DeviceId);
 
             await this.SendMCPMessageAsync(request);
         }

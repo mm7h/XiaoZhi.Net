@@ -47,6 +47,8 @@ namespace XiaoZhi.Net.Server.Handlers
                 this.Logger.LogError("The session LLM model is not initialized.");
                 return false;
             }
+            Session session = this.SendOutter.GetSession();
+            this._llm.RegisterDevice(session.DeviceId, session.SessionId);
 
             this._llm.OnBeforeTokenGenerate += this.OnBeforeTokenGenerate;
             this._llm.OnTokenGenerating += this.OnTokenGenerating;
@@ -147,8 +149,6 @@ namespace XiaoZhi.Net.Server.Handlers
 
             foreach (string segment in segments)
             {
-                string segmentResult = DialogueHelper.GetStringNoPunctuationOrEmoji(segment);
-
                 segmentIndex++;
                 bool isFirst = segmentIndex == 1;
                 bool isLast = segmentIndex == segmentsCount;
@@ -160,7 +160,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 outSegments.Add(outSegment);
                 workflows.Add(workflow);
 
-                outSegment.Initialize(segmentResult, isFirst, isLast);
+                outSegment.Initialize(segment, isFirst, isLast);
                 workflow.Initialize(sessionId, deviceId, outSegment);
                 await this.NextWriter.WriteAsync(workflow);
             }

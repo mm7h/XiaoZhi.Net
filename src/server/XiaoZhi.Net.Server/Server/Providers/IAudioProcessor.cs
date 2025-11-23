@@ -9,7 +9,7 @@ namespace XiaoZhi.Net.Server.Providers
         event Action<AudioType, string> OnSubtitleStart;
         event Action<AudioType, string> OnSubtitleEnd;
 
-        void ProcessAudio(AudioType audioType, float[] audioData, string text, bool isFirst, bool isLast, int? sampleCount = null);
+        void ProcessAudio(AudioType audioType, float[] audioData, string text, bool isFirstFrame, bool isLastFrame);
 
         void CompleteStream(AudioType audioType);
 
