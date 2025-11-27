@@ -10,9 +10,8 @@ namespace XiaoZhi.Net.Server.Providers
         event Action<AudioType, string> OnSubtitleEnd;
 
         void ProcessAudio(AudioType audioType, float[] audioData, string text, bool isFirstFrame, bool isLastFrame);
-
         void CompleteStream(AudioType audioType);
-
         void ClearAllBuffers();
+        void SealCurrentSubtitle(AudioType audioType);
     }
 }

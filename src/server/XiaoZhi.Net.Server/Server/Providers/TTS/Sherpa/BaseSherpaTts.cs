@@ -4,9 +4,11 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Common.Exceptions;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
@@ -54,13 +56,53 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 
             try
             {
-                string segment = workflow.Data.Content;
+                OutSegment segment = workflow.Data;
 
                 if (this._ttsEventCallbackMapping.TryGetValue(workflow.DeviceId, out ITtsEventCallback? sessionCallback) && sessionCallback is not null)
                 {
                     Stopwatch timer = Stopwatch.StartNew();
-                    //todo: 流式改造
-                    OfflineTtsGeneratedAudio audio = this._offlineTts.Generate(segment, this.SpeechRate, this.SpeakerId);
+
+                    bool firstFrameSent = false;
+
+                    sessionCallback.OnBeforeProcessing(segment.Content, segment.IsFirstSegment, segment.IsLastSegment);
+
+                    OfflineTtsGeneratedAudio audio = this._offlineTts.GenerateWithCallbackProgress(segment.Content, this.SpeechRate, this.SpeakerId, (nint samples, int n, float progress) =>
+                    {
+                        if (token.IsCancellationRequested)
+                        {
+                            return 0;
+                        }
+                        float[] data = new float[n];
+                        Marshal.Copy(samples, data, 0, n);
+
+                        bool isFirstFrame = false;
+                        bool isLastFrame = false;
+
+                        if (!firstFrameSent)
+                        {
+                            sessionCallback.OnSentenceStart(segment.Content);
+                            firstFrameSent = true;
+                            isFirstFrame = true;
+                        }
+
+                        if (progress == 1.0f)
+                        {
+                            sessionCallback.OnSentenceEnd(segment.Content);
+                            isLastFrame = true;
+                        }
+
+                        sessionCallback.OnProcessing(data, isFirstFrame, isLastFrame);
+                        return 1;
+                    });
+
+                    if (token.IsCancellationRequested)
+                    {
+                        sessionCallback.OnProcessed(segment.Content, segment.IsFirstSegment, segment.IsLastSegment, TtsGenerateResult.Aborted);
+                    }
+                    else
+                    {
+                        sessionCallback.OnProcessed(segment.Content, segment.IsFirstSegment, segment.IsLastSegment, TtsGenerateResult.Success);
+                    }
 
                     double duration = Math.Max((this.CalculateDuration(audio.SampleRate, audio.NumSamples) * 1000 - (workflow.Data.IsFirstSegment ? 300 + timer.ElapsedMilliseconds : 0)), 0);
 
@@ -89,7 +131,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
                     timer.Stop();
                 }
                 else
-                { 
+                {
                     this.Logger.LogError("TTS event callback is not registered for device {deviceId}.", workflow.DeviceId);
                 }
                 await Task.CompletedTask;

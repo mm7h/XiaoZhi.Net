@@ -115,6 +115,10 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
                 this.FireAbort(session.DeviceId, session.SessionId, "text to audio");
             }
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, "Error occurred during text to audio processing for device: {deviceId}.", session.DeviceId);
+            }
         }
 
         private async Task CheckBindDevice(Session session)
@@ -225,7 +229,7 @@ namespace XiaoZhi.Net.Server.Handlers
             await this.NextWriter.WriteAsync(nextWorkflow);
         }
 
-        public void OnPorcessed(string sentence, bool isFirstSegment, bool isLastSegment, TtsGenerateResult ttsGenerateResult)
+        public void OnProcessed(string sentence, bool isFirstSegment, bool isLastSegment, TtsGenerateResult ttsGenerateResult)
         {
             Session session = this.SendOutter.GetSession();
             if (isLastSegment)
@@ -260,6 +264,9 @@ namespace XiaoZhi.Net.Server.Handlers
 
             nextWorkflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
             this.NextWriter.WriteAsync(nextWorkflow);
+
+            // 句子结束（上游不再产出该句样本），通知字幕跟踪器封口当前句子的产出累计
+            session.PrivateProvider.AudioProcessor?.SealCurrentSubtitle(AudioType.TTS);
         }
         #endregion
     }

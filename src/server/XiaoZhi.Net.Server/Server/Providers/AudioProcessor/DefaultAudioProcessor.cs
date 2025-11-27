@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Concurrent;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Media.Abstractions;
 
@@ -58,39 +57,31 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
                 this._audioMixer.AddAudioData(audioType, audioData);
             }
 
-            // Subtitle tracking logic
             int channels = Math.Max(1, this._audioMixer.OutputChannels);
             int monoSamples = audioData.Length / channels;
 
             if (isFirstFrame)
             {
-                // First frame may be empty (streaming mode). Register without sample count; samples attached later.
+                this._audioSubtitleSyncTracker.RegisterAudioSubtitle(audioType, text);
                 if (monoSamples > 0)
                 {
-                    this._audioSubtitleSyncTracker.RegisterAudioSubtitle(audioType, text, monoSamples);
-                }
-                else
-                {
-                    this._audioSubtitleSyncTracker.RegisterAudioSubtitle(audioType, text);
+                    this._audioSubtitleSyncTracker.AttachSamplesToNextSubtitle(audioType, monoSamples);
                 }
             }
-            else if (!isFirstFrame && monoSamples > 0)
+            else if (monoSamples > 0)
             {
-                // Attach samples to next subtitle if not yet assigned
                 this._audioSubtitleSyncTracker.AttachSamplesToNextSubtitle(audioType, monoSamples);
-                this._audioSubtitleSyncTracker.NotifyAudioSamplesSent(audioType, monoSamples);
-            }
-
-            if (isLastFrame)
-            {
-                // Notify end; for streaming without total samples this will close remaining progress
-                this._audioSubtitleSyncTracker.NotifyAudioSendComplete(audioType);
             }
         }
 
         public void CompleteStream(AudioType audioType)
         {
             this._audioMixer.StopAudioStream(audioType);
+        }
+
+        public void SealCurrentSubtitle(AudioType audioType)
+        {
+            this._audioSubtitleSyncTracker.SealCurrentSubtitle(audioType);
         }
 
         public void ClearAllBuffers()

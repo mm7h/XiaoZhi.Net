@@ -115,11 +115,11 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 using (CodeTimer timer = CodeTimer.Create("Calling the LLM takes {elapsed:F2} ms.", this.Logger))
                 {
-                    if (this._llm.UseStreaming)
-                    {
-                        await this._llm.ChatByStreamingAsync(workflow.Data, session.SessionCtsToken);
-                    }
-                    else
+                    //if (this._llm.UseStreaming)
+                    //{
+                    //    await this._llm.ChatByStreamingAsync(workflow.Data, session.SessionCtsToken);
+                    //}
+                    //else
                     {
                         await this._llm.ChatAsync(workflow.Data, session.SessionCtsToken);
                     }
@@ -192,7 +192,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             this.Logger.LogDebug("LLM's response text: {content}", content);
 
-            if (!this._llm.UseStreaming)
+            //if (!this._llm.UseStreaming)
             {
                 Session session = this.SendOutter.GetSession();
                 await this.SendCustomMessage(session.SessionId, session.DeviceId, content);

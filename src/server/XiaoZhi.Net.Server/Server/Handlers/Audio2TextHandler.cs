@@ -97,6 +97,10 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 this.FireAbort(session.DeviceId, session.SessionId, "audio to text");
             }
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, "Failed to process the message packet from device: {deviceId}.", session.DeviceId);
+            }
         }
 
         public override void Dispose()

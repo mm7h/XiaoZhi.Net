@@ -127,6 +127,10 @@ namespace XiaoZhi.Net.Server.Handlers
                 session.PrivateProvider.AudioProcessor.ClearAllBuffers();
                 this.FireAbort(session.DeviceId, session.SessionId, "audio process");
             }
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, "Failed to process the audio segment from device: {deviceId}.", session.DeviceId);
+            }
         }
 
         private void OnMixedAudioDataAvailable(float[] mixedPcmData, bool isFirst, bool isLast)

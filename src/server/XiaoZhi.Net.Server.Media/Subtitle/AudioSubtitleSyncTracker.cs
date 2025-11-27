@@ -8,12 +8,13 @@ using XiaoZhi.Net.Server.Media.Common.Models;
 namespace XiaoZhi.Net.Server.Media.Subtitle
 {
     /// <summary>
-    /// 音频-字幕同步跟踪器：根据实际发送出的样本数精确对齐字幕
+    /// 音频-字幕同步跟踪器
     /// </summary>
     internal sealed class AudioSubtitleSyncTracker : IAudioSubtitleSyncTracker
     {
         private readonly ILogger<AudioSubtitleSyncTracker> _logger;
         private readonly ConcurrentDictionary<AudioType, Queue<SubtitleTrackingInfo>> _pendingSubtitles;
+        private readonly ConcurrentDictionary<AudioType, SubtitleTrackingInfo?> _currentProducing = new();
         private readonly object _syncLock = new();
         private bool _disposed = false;
 
@@ -47,6 +48,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                     RemainingSamples = 0
                 };
                 queue.Enqueue(trackingInfo);
+                _currentProducing[audioType] = trackingInfo;
             }
             _logger.LogDebug("Registered audio-subtitle: {SubtitleText}", subtitleText);
         }
@@ -67,6 +69,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                     TotalSamples = sampleCount
                 };
                 queue.Enqueue(trackingInfo);
+                _currentProducing[audioType] = trackingInfo;
             }
             _logger.LogDebug("Registered audio-subtitle with samples: {SubtitleText}, samples={Samples}", subtitleText, sampleCount);
         }
@@ -74,17 +77,36 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
         public void AttachSamplesToNextSubtitle(AudioType audioType, int sampleCount)
         {
             if (sampleCount < 0) sampleCount = 0;
+            if (sampleCount == 0) return;
             lock (_syncLock)
             {
-                if (_pendingSubtitles.TryGetValue(audioType, out var queue) && queue.Count > 0)
+                SubtitleTrackingInfo? target = null;
+                if (_currentProducing.TryGetValue(audioType, out var producing) && producing is not null)
                 {
-                    var info = queue.Peek();
-                    if (info.TotalSamples == 0)
-                    {
-                        info.TotalSamples = sampleCount;
-                        info.RemainingSamples = sampleCount;
-                        _logger.LogDebug("Attached samples to subtitle: {Subtitle}, samples={Samples}", info.SubtitleText, sampleCount);
-                    }
+                    target = producing;
+                }
+                else if (_pendingSubtitles.TryGetValue(audioType, out var queue) && queue.Count > 0)
+                {
+                    target = queue.Peek();
+                }
+
+                if (target is not null)
+                {
+                    target.TotalSamples += sampleCount;
+                    target.RemainingSamples += sampleCount;
+                    _logger.LogDebug("Accumulated samples to subtitle: {Subtitle}, +{Samples}, total={Total}", target.SubtitleText, sampleCount, target.TotalSamples);
+                }
+            }
+        }
+
+        public void SealCurrentSubtitle(AudioType audioType)
+        {
+            lock (_syncLock)
+            {
+                if (_currentProducing.ContainsKey(audioType))
+                {
+                    _currentProducing[audioType] = null;
+                    _logger.LogDebug("Sealed current producing subtitle for {AudioType}", audioType);
                 }
             }
         }
@@ -128,9 +150,6 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                     }
                     else
                     {
-                        // 未提供样本数：流式模式。仅触发开始，不在此处结束；
-                        // 结束由 NotifyAudioSendComplete(audioType) 统一触发。
-                        samplesSent = 0;
                         break;
                     }
                 }
@@ -158,6 +177,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                         }
                     }
                 }
+                _currentProducing[audioType] = null;
             }
         }
 
@@ -177,6 +197,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                     }
                     _logger.LogDebug("Cleared all subtitle tracking for {AudioType}", audioType);
                 }
+                _currentProducing[audioType] = null;
             }
         }
 
@@ -196,6 +217,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                     }
                 }
                 _pendingSubtitles.Clear();
+                _currentProducing.Clear();
                 _logger.LogDebug("Cleared all subtitle tracking data");
             }
         }

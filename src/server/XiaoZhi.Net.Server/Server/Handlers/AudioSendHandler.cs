@@ -92,6 +92,10 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 this.FireAbort(session.DeviceId, session.SessionId, "audio sending");
             }
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, "Failed to process the audio packet from device: {deviceId}.", session.DeviceId);
+            }
         }
 
         private async void OnSubtitleStart(AudioType audioType, string subtitle)

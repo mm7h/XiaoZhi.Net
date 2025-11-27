@@ -197,7 +197,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 {
                     await this.FinishSessionAsync(this._ttsSessionId, token);
                     this.CloseSessionFile(this._ttsSessionId, finalize: true);
-                    this._ttsEventCallback?.OnPorcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Success);
+                    this._ttsEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Success);
                 }
                 catch (Exception ex)
                 {
@@ -228,7 +228,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             {
                 this.FailAllWaits(new OperationCanceledException("TTS provider disposed"));
                 this.CloseAllSessionFiles(finalize: false);
-                this._ttsEventCallback?.OnPorcessed(string.Empty, false, false, TtsGenerateResult.Aborted);
+                this._ttsEventCallback?.OnProcessed(string.Empty, false, false, TtsGenerateResult.Aborted);
             }
         }
 
@@ -248,7 +248,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             this.FailAllWaits(new OperationCanceledException($"WebSocket closed: {status} {desc}"));
             if (this._streamingActive)
             {
-                this._ttsEventCallback?.OnPorcessed(string.Empty, false, false, TtsGenerateResult.Failed);
+                this._ttsEventCallback?.OnProcessed(string.Empty, false, false, TtsGenerateResult.Failed);
             }
         }
 
@@ -259,7 +259,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             this.FailAllWaits(new Exception($"WebSocket error: {error} {message}"));
             if (this._streamingActive)
             {
-                this._ttsEventCallback?.OnPorcessed(string.Empty, false, false, TtsGenerateResult.Failed);
+                this._ttsEventCallback?.OnProcessed(string.Empty, false, false, TtsGenerateResult.Failed);
             }
         }
 
@@ -314,7 +314,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 return;
             }
 
-            // Sentence end marker -> push empty last frame then complete channel
+            // Sentence end marker -> seal current producing subtitle so subsequent samples go to next sentence
             if (message.MsgType == MsgType.FullServerResponse && message.EventType == EventType.TTSSentenceEnd)
             {
                 if (this._streamingActive)
@@ -357,7 +357,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                         this.FailScopedWaits(message, ex);
                         if (this._streamingActive)
                         {
-                            this._ttsEventCallback?.OnPorcessed(string.Empty, false, false, TtsGenerateResult.Failed);
+                            this._ttsEventCallback?.OnProcessed(string.Empty, false, false, TtsGenerateResult.Failed);
                         }
                     }
                 }
@@ -367,7 +367,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     this.FailScopedWaits(message, ex);
                     if (this._streamingActive)
                     {
-                        this._ttsEventCallback?.OnPorcessed(string.Empty, false, false, TtsGenerateResult.Failed);
+                        this._ttsEventCallback?.OnProcessed(string.Empty, false, false, TtsGenerateResult.Failed);
                     }
                 }
             }
