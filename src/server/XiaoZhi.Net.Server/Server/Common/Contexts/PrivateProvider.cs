@@ -87,9 +87,19 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         }
         public void Release()
         {
-            this.Vad?.Dispose();
-            this.Asr?.Dispose();
-            this.Tts?.Dispose();
+            if (this.Vad is not null && !this.Vad.IsSherpaModel)
+            {
+                this.Vad.Dispose();
+            }
+            if (this.Asr is not null && !this.Asr.IsSherpaModel)
+            {
+                this.Asr.Dispose();
+            }
+            if (this.Tts is not null && !this.Tts.IsSherpaModel)
+            {
+                this.Tts.Dispose();
+            }
+
             this.AudioResampler?.Dispose();
             this.AudioEncoder?.Dispose();
             this._iotClient?.Dispose();
