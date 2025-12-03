@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
+using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
@@ -13,6 +14,10 @@ namespace XiaoZhi.Net.Server.Handlers
     {
         private readonly ObjectPool<MixedAudioPacket> _mixedAudioPacketPool;
         private readonly ObjectPool<Workflow<MixedAudioPacket>> _mixedAudioPacketWorkflowPool;
+
+        private IAudioProcessor? _audioProcessor;
+        private IAudioEncoder? _audioEncoder;
+
         public AudioSendHandler(ObjectPool<MixedAudioPacket> mixedAudioPacketPool, ObjectPool<Workflow<MixedAudioPacket>> mixedAudioPacketWorkflowPool, XiaoZhiConfig config, ILogger<AudioSendHandler> logger) : base(config, logger)
         {
             this._mixedAudioPacketPool = mixedAudioPacketPool;
@@ -26,17 +31,26 @@ namespace XiaoZhi.Net.Server.Handlers
         public override bool Build(PrivateProvider privateProvider)
         {
             Session session = this.SendOutter.GetSession();
-            if (privateProvider.AudioProcessor is not null)
+
+            if (privateProvider.AudioProcessor is null)
             {
-                privateProvider.AudioProcessor.OnSubtitleStart += this.OnSubtitleStart;
-                privateProvider.AudioProcessor.OnSubtitleEnd += this.OnSubtitleEnd;
-                return true;
-            }
-            else
-            {
-                this.Logger.LogError("Audio processor is not built for device {deviceId}.", session.DeviceId);
+                this.Logger.LogError("Audio processor is not configured for the device: {deviceId}.", session.DeviceId);
                 return false;
             }
+
+            if (privateProvider.AudioEncoder is null)
+            {
+                this.Logger.LogError("Audio encoder is not configured for the device: {deviceId}.", session.DeviceId);
+                return false;
+            }
+
+            this._audioProcessor = privateProvider.AudioProcessor;
+            this._audioProcessor.OnSubtitleStart += this.OnSubtitleStart;
+            this._audioProcessor.OnSubtitleEnd += this.OnSubtitleEnd;
+
+            this._audioEncoder = privateProvider.AudioEncoder;
+
+            return true;
         }
 
         public async Task Handle()
@@ -62,7 +76,16 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 return;
             }
-
+            if (this._audioProcessor is null)
+            {
+                this.Logger.LogError("Audio processor is not configured for the device: {deviceId}.", session.DeviceId);
+                return;
+            }
+            if (this._audioEncoder is null)
+            {
+                this.Logger.LogError("Audio encoder is not configured for the device: {deviceId}.", session.DeviceId);
+                return;
+            }
             try
             {
                 MixedAudioPacket audioPacket = workflow.Data;
@@ -74,7 +97,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     this.Logger.LogDebug("Send the first audio frame from the device: {deviceId}.", session.DeviceId);
                 }
 
-                byte[] opusData = await session.PrivateProvider.AudioEncoder!.EncodeAsync(audioPacket.Data, session.SessionCtsToken);
+                byte[] opusData = await this._audioEncoder.EncodeAsync(audioPacket.Data, session.SessionCtsToken);
                 await this.SendOutter.SendAsync(opusData);
 
                 if (audioPacket.IsLastFrame)

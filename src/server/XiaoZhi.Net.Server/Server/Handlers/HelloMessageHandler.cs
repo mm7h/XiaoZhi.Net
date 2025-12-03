@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
@@ -25,7 +26,7 @@ namespace XiaoZhi.Net.Server.Handlers
             return true;
         }
 
-        public void Handle(JsonObject helloMessage)
+        public async Task Handle(JsonObject helloMessage)
         {
             Session session = this.SendOutter.GetSession();
 
@@ -45,32 +46,35 @@ namespace XiaoZhi.Net.Server.Handlers
                 session.AudioSetting.Channels = channels;
                 session.AudioSetting.FrameDuration = frameDuration;
                 session.IsDeviceBinded = true; // todo: debug
-                this._providerManager.BuildAudioPlayer(session);
-                this._providerManager.BuildAudioProcessor(session);
-                this._providerManager.BuildAudioResampler(session);
-                this._providerManager.BuildAudioEncoder(session);
 
                 defultHelloMessage.AudioParams.Format = format;
                 defultHelloMessage.AudioParams.SampleRate = sampleRate;
                 defultHelloMessage.AudioParams.Channels = channels;
                 defultHelloMessage.AudioParams.FrameDuration = frameDuration;
             }
+            bool providerInitResult = await this._providerManager.InitializePrivateConfigAsync(session);
+            bool handlerInitResult = this._handlerManager.InitializePrivateConfig(session);
 
-            this._handlerManager.InitializePrivateConfig(session);
-
-            this.SendOutter.SendAsync(JsonHelper.Serialize(defultHelloMessage));
-
-            if (helloMessage.TryGetPropertyValue("features", out var features) && features is not null)
+            if (providerInitResult && handlerInitResult)
             {
-                JsonObject featuresObj = features.AsObject();
-                if (featuresObj.TryGetPropertyValue("mcp", out var mcp) && mcp is not null)
+                await this.SendOutter.SendAsync(JsonHelper.Serialize(defultHelloMessage));
+
+                if (helloMessage.TryGetPropertyValue("features", out var features) && features is not null)
                 {
-                    bool isSupportMCP = mcp.GetValue<bool>();
-                    if (isSupportMCP)
+                    JsonObject featuresObj = features.AsObject();
+                    if (featuresObj.TryGetPropertyValue("mcp", out var mcp) && mcp is not null)
                     {
-                        this._providerManager.BuildMCP(session);
+                        bool isSupportMCP = mcp.GetValue<bool>();
+                        if (isSupportMCP)
+                        {
+                            this._providerManager.BuildMCP(session);
+                        }
                     }
                 }
+            }
+            else
+            {
+                this.Logger.LogError("Failed to initialize providers or handlers for the device: {deviceId}.", session.DeviceId);
             }
         }
     }

@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Dtos;
@@ -25,7 +24,6 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
         public override string ModelName => "Resampler";
         public override string ProviderType => "default audio resampler";
 
-        [MemberNotNullWhen(true, nameof(Channels), nameof(InSampleRate), nameof(OutSampleRate))]
         public override bool Build(ResamplerBuildConfig config)
         {
             try
@@ -36,7 +34,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
 
                 this._resampler = ResamplerFactory.CreateResampler(config.Channels, config.InSampleRate, config.OutSampleRate, 6);
 
-                this.Logger.LogInformation("Built the default {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogInformation("Builed the default {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)

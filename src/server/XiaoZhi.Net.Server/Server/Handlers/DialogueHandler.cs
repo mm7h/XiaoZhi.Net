@@ -38,21 +38,19 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override bool Build(PrivateProvider privateProvider)
         {
-            if (privateProvider.Llm is not null)
+            Session session = this.SendOutter.GetSession();
+            if (privateProvider.Llm is null)
             {
-                this._llm = privateProvider.Llm;
-            }
-            else
-            {
-                this.Logger.LogError("The session LLM model is not initialized.");
+                this.Logger.LogError("LLM provider is not configured for the device: {deviceId}.", session.DeviceId);
                 return false;
             }
-            Session session = this.SendOutter.GetSession();
-            this._llm.RegisterDevice(session.DeviceId, session.SessionId);
 
+            this._llm = privateProvider.Llm;
             this._llm.OnBeforeTokenGenerate += this.OnBeforeTokenGenerate;
             this._llm.OnTokenGenerating += this.OnTokenGenerating;
             this._llm.OnTokenGenerated += this.OnTokenGenerated;
+            this._llm.RegisterDevice(session.DeviceId, session.SessionId);
+
             return true;
         }
 
@@ -88,20 +86,19 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public async Task Handle(Workflow<string> workflow, bool addToChatHistory = true)
         {
-            if (this._llm is null)
-            {
-                this.Logger.LogError("The LLM model is not initialized.");
-                return;
-            }
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
             {
                 return;
             }
+            if (this._llm is null)
+            {
+                this.Logger.LogError("LLM provider is not configured for the device: {deviceId}.", session.DeviceId);
+                return;
+            }
 
             if (!session.IsDeviceBinded)
             {
-                // 从对象池获取OutSegment对象
                 var outSegment = this._outSegmentPool.Get();
                 var notBindWorkflow = this._outSegmentWorkflowPool.Get();
 
@@ -115,11 +112,11 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 using (CodeTimer timer = CodeTimer.Create("Calling the LLM takes {elapsed:F2} ms.", this.Logger))
                 {
-                    //if (this._llm.UseStreaming)
-                    //{
-                    //    await this._llm.ChatByStreamingAsync(workflow.Data, session.SessionCtsToken);
-                    //}
-                    //else
+                    if (this._llm.UseStreaming)
+                    {
+                        await this._llm.ChatByStreamingAsync(workflow.Data, session.SessionCtsToken);
+                    }
+                    else
                     {
                         await this._llm.ChatAsync(workflow.Data, session.SessionCtsToken);
                     }
@@ -153,7 +150,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 bool isFirst = segmentIndex == 1;
                 bool isLast = segmentIndex == segmentsCount;
 
-                // 从对象池获取对象
                 var outSegment = this._outSegmentPool.Get();
                 var workflow = this._outSegmentWorkflowPool.Get();
 
@@ -192,7 +188,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             this.Logger.LogDebug("LLM's response text: {content}", content);
 
-            //if (!this._llm.UseStreaming)
+            if (!this._llm.UseStreaming)
             {
                 Session session = this.SendOutter.GetSession();
                 await this.SendCustomMessage(session.SessionId, session.DeviceId, content);

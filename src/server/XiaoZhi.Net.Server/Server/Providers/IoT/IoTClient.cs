@@ -3,7 +3,6 @@ using Microsoft.SemanticKernel;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -31,7 +30,6 @@ namespace XiaoZhi.Net.Server.Providers.IoT
         public override string ProviderType => "IoTClient";
 
 
-        [MemberNotNullWhen(true, nameof(CurrentSession))]
         public override bool Build(Session session)
         {
             this.CurrentSession = session;
@@ -130,7 +128,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
 
                         IDictionary<string, object?> propertyDic = new Dictionary<string, object?>
                         {
-                            { "session-id", this.CurrentSession.SessionId },
+                            { "session_id", this.CurrentSession.SessionId },
                             { "iot_device_component_name", iotDeviceComponentName }
                         };
 
@@ -180,7 +178,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
 
                         IDictionary<string, object?> methodDic = new Dictionary<string, object?>
                         {
-                            { "session-id", this.CurrentSession.SessionId },
+                            { "session_id", this.CurrentSession.SessionId },
                             { "iot_device_component_name", iotDeviceComponentName }
                         };
 

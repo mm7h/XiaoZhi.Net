@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
+using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
@@ -15,6 +16,8 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ObjectPool<Workflow<OutAudioSegment>> _outAudioSegmentWorkflowPool;
         private readonly ObjectPool<MixedAudioPacket> _mixedAudioPacketPool;
         private readonly ObjectPool<Workflow<MixedAudioPacket>> _mixedAudioPacketWorkflowPool;
+
+        private IAudioProcessor? _audioProcessor;
 
         public AudioProcessorHandler(ObjectPool<OutAudioSegment> outAudioSegmentPool, ObjectPool<Workflow<OutAudioSegment>> outAudioSegmentWorkflowPool,
             ObjectPool<MixedAudioPacket> mixedAudioPacketPool, ObjectPool<Workflow<MixedAudioPacket>> mixedAudioPacketWorkflowPool,
@@ -35,14 +38,15 @@ namespace XiaoZhi.Net.Server.Handlers
         public override bool Build(PrivateProvider privateProvider)
         {
             Session session = this.SendOutter.GetSession();
-            if (privateProvider.AudioProcessor is not null)
+            if (privateProvider.AudioProcessor is null)
             {
-                privateProvider.AudioProcessor.RegisterDevice(session.DeviceId, session.SessionId);
-                privateProvider.AudioProcessor.OnMixedAudioDataAvailable += this.OnMixedAudioDataAvailable;
-                return true;
+                this.Logger.LogError("Audio processor is not configured for the device: {deviceId}.", session.DeviceId);
+                return false;
             }
-            this.Logger.LogError("Audio processor is not built for device {deviceId}.", session.DeviceId);
-            return false;
+            this._audioProcessor = privateProvider.AudioProcessor;
+            this._audioProcessor.RegisterDevice(session.DeviceId, session.SessionId);
+            this._audioProcessor.OnMixedAudioDataAvailable += this.OnMixedAudioDataAvailable;
+            return true;
         }
 
         public async Task Handle()
@@ -79,8 +83,8 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             await foreach (var workflow in this.PreviousReader3.ReadAllAsync())
             {
-                try 
-                { 
+                try
+                {
                     this.Handle(workflow);
                 }
                 finally
@@ -99,7 +103,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
-            if (session.PrivateProvider.AudioProcessor is null)
+            if (this._audioProcessor is null)
             {
                 this.Logger.LogError("Audio processor is not built for device {deviceId}.", session.DeviceId);
                 return;
@@ -108,23 +112,23 @@ namespace XiaoZhi.Net.Server.Handlers
             OutAudioSegment s = workflow.Data;
             try
             {
-                session.PrivateProvider.AudioProcessor.ProcessAudio(s.AudioType, s.AudioData, s.Content, s.IsFirstFrame, s.IsLastFrame);
+                this._audioProcessor.ProcessAudio(s.AudioType, s.AudioData, s.Content, s.IsFirstFrame, s.IsLastFrame);
 
                 if (s.IsLastSegment)
                 {
-                    session.PrivateProvider.AudioProcessor.CompleteStream(s.AudioType);
+                    this._audioProcessor.CompleteStream(s.AudioType);
                     if (session.CloseAfterChat)
                     {
-                        session.PrivateProvider.AudioProcessor.CompleteStream(AudioType.Music);
-                        session.PrivateProvider.AudioProcessor.CompleteStream(AudioType.SystemNotification);
-                        session.PrivateProvider.AudioProcessor.CompleteStream(AudioType.Other);
+                        this._audioProcessor.CompleteStream(AudioType.Music);
+                        this._audioProcessor.CompleteStream(AudioType.SystemNotification);
+                        this._audioProcessor.CompleteStream(AudioType.Other);
                     }
                 }
-                
+
             }
             catch (OperationCanceledException)
             {
-                session.PrivateProvider.AudioProcessor.ClearAllBuffers();
+                this._audioProcessor.ClearAllBuffers();
                 this.FireAbort(session.DeviceId, session.SessionId, "audio process");
             }
             catch (Exception ex)

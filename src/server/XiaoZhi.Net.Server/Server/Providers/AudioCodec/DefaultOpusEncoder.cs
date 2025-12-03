@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,7 +22,6 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
         public DefaultOpusEncoder(ILogger<DefaultOpusEncoder> logger) : base(logger)
         { }
 
-        [MemberNotNullWhen(true, nameof(SampleRate), nameof(Channels), nameof(FrameDuration), nameof(FrameSize))]
         public override bool Build(AudioSetting audioSetting)
         {
             try

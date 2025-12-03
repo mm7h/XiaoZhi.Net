@@ -14,20 +14,19 @@ namespace XiaoZhi.Net.Server.Handlers
 {
     internal sealed class AudioReceiveHandler : BaseHandler, IOutHandler<CircularBuffer>
     {
-        private readonly IAudioDecoder _audioDecoder;
         private readonly ObjectPool<Workflow<CircularBuffer>> _workflowPool;
         private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;
         private readonly CircularBuffer _receivedPcmPacketFrame;
-        private IVad _vad;
 
-        public AudioReceiveHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_VAD)] IVad vad,
-            [FromKeyedServices(GlobalProviderNames.GLOBAL_AUDIO_DECODER)] IAudioDecoder audioDecoder,
+        private IVad? _vad;
+        private IAudioDecoder? _audioDecoder;
+
+        public AudioReceiveHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_AUDIO_DECODER)] IAudioDecoder audioDecoder,
             ObjectPool<Workflow<CircularBuffer>> workflowPool,
             ObjectPool<Workflow<string>> stringWorkflowPool,
             XiaoZhiConfig config,
             ILogger<AudioReceiveHandler> logger) : base(config, logger)
         {
-            this._vad = vad;
             this._audioDecoder = audioDecoder;
             this._workflowPool = workflowPool;
             this._stringWorkflowPool = stringWorkflowPool;
@@ -40,12 +39,25 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override bool Build(PrivateProvider privateProvider)
         {
-            if (privateProvider.Vad is not null)
-            {
-                this._vad = privateProvider.Vad;
-            }
             Session session = this.SendOutter.GetSession();
+            if (privateProvider.Vad is null)
+            {
+                this.Logger.LogError("VAD provider is not configured for the device: {deviceId}.", session.DeviceId);
+                return false;
+            }
+
+            if (privateProvider.AudioDecoder is null)
+            {
+                this.Logger.LogError("Audio decoder is not configured for the device: {deviceId}.", session.DeviceId);
+                return false;
+            }
+
+            this._vad = privateProvider.Vad;
             this._vad.RegisterDevice(session.DeviceId, session.SessionId);
+
+            this._audioDecoder = privateProvider.AudioDecoder;
+            this._audioDecoder.RegisterDevice(session.DeviceId, session.SessionId);
+
             return true;
         }
 
@@ -54,6 +66,16 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
             {
+                return;
+            }
+            if (this._vad is null)
+            {
+                this.Logger.LogError("VAD provider is not configured for the device: {deviceId}.", session.DeviceId);
+                return;
+            }
+            if (this._audioDecoder is null)
+            { 
+                this.Logger.LogError("Audio decoder is not configured for the device: {deviceId}.", session.DeviceId);
                 return;
             }
             if (!session.IsIdle)

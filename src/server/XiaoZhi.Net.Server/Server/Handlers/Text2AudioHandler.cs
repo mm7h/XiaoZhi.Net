@@ -20,7 +20,7 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ObjectPool<Workflow<OutAudioSegment>> _outAudioSegmentWorkflowPool;
         private readonly ObjectPool<Workflow<OutSegment>> _outSegmentWorkflowPool;
 
-        private ITts _tts;
+        private ITts? _tts;
 
         private IAudioPlayerClient? _audioPlayerClient;
 
@@ -41,20 +41,26 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override bool Build(PrivateProvider privateProvider)
         {
-            if (privateProvider.Tts is not null)
+            Session session = this.SendOutter.GetSession();
+            if (privateProvider.Tts is null)
             {
-                this._tts = privateProvider.Tts;
+                this.Logger.LogError("TTS provider is not configured for the device: {deviceId}.", session.DeviceId);
+                return false;
             }
 
-            Session session = this.SendOutter.GetSession();
+            if (privateProvider.AudioPlayerClient is null)
+            {
+                this.Logger.LogError("AudioPlayerClient is not configured for the device: {deviceId}.", session.DeviceId);
+                return false;
+            }
+
+            this._tts = privateProvider.Tts;
             this._tts.RegisterDevice(session.DeviceId, session.SessionId, this);
 
-            if (privateProvider.AudioPlayerClient is not null)
-            {
-                this._audioPlayerClient = privateProvider.AudioPlayerClient;
-                this._audioPlayerClient.SystemNotification.OnAudioData += this.OnNotificationAudioDataAsync;
-                this._audioPlayerClient.MusicPlayer.OnAudioData += this.OnMusicAudioDataAsync;
-            }
+            this._audioPlayerClient = privateProvider.AudioPlayerClient;
+            this._audioPlayerClient.SystemNotification.OnAudioData += this.OnNotificationAudioDataAsync;
+            this._audioPlayerClient.MusicPlayer.OnAudioData += this.OnMusicAudioDataAsync;
+            this._audioPlayerClient.RegisterDevice(session.DeviceId, session.SessionId);
 
             return true;
         }
@@ -86,6 +92,12 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
             {
+                return;
+            }
+
+            if (this._tts is null)
+            {
+                this.Logger.LogError("TTS provider is not configured for the device: {deviceId}.", session.DeviceId);
                 return;
             }
 

@@ -127,7 +127,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         }
         #endregion
 
-        protected override async ValueTask OnSessionConnectedAsync()
+        protected override ValueTask OnSessionConnectedAsync()
         {
             string deviceId = this.HttpHeader.Items.Get("device-id")!;
             string token = this.HttpHeader.Items.Get("authorization")!;
@@ -137,11 +137,12 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
             Session session = new Session(this.SessionId, deviceId, token, userEndPoint, this);
 
             this._handlerManager.InitializeHelloMessageHandler(session);
-            await this._providerManager.InitializePrivateConfigAsync(session);
 
             session.RefreshLastActivityTime();
 
             this.XiaoZhiSession = session;
+
+            return ValueTask.CompletedTask;
         }
 
         protected override async ValueTask OnSessionClosedAsync(SuperSocket.Connection.CloseEventArgs e)

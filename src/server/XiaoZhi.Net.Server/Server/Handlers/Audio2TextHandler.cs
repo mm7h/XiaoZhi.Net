@@ -16,15 +16,13 @@ namespace XiaoZhi.Net.Server.Handlers
     {
         private readonly ObjectPool<Workflow<CircularBuffer>> _circularBufferWorkflowPool;
         private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;
-        private IAsr _asr;
+        private IAsr? _asr;
 
-        public Audio2TextHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_ASR)] IAsr asr,
-            ObjectPool<Workflow<CircularBuffer>> circularBufferWorkflowPool, 
+        public Audio2TextHandler(ObjectPool<Workflow<CircularBuffer>> circularBufferWorkflowPool, 
             ObjectPool<Workflow<string>> stringWorkflowPool,
             XiaoZhiConfig config,
             ILogger<Audio2TextHandler> logger) : base(config, logger)
         {
-            this._asr = asr;
             this._circularBufferWorkflowPool = circularBufferWorkflowPool;
             this._stringWorkflowPool = stringWorkflowPool;
         }
@@ -35,11 +33,13 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override bool Build(PrivateProvider privateProvider)
         {
-            if (privateProvider.Asr is not null)
-            {
-                this._asr = privateProvider.Asr;
-            }
             Session session = this.SendOutter.GetSession();
+            if (privateProvider.Asr is null)
+            {
+                this.Logger.LogError("ASR provider is not configured for the device: {deviceId}.", session.DeviceId);
+                return false;
+            }
+            this._asr = privateProvider.Asr;
             this._asr.RegisterDevice(session.DeviceId, session.SessionId);
             return true;
         }
@@ -66,7 +66,11 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 return;
             }
-
+            if (this._asr is null)
+            {
+                this.Logger.LogError("ASR provider is not configured for the device: {deviceId}.", session.DeviceId);
+                return;
+            }
             try
             {
                 if (!session.IsDeviceBinded)

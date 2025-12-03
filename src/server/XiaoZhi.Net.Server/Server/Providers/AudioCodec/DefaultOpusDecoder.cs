@@ -1,7 +1,6 @@
 ﻿using Concentus;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,7 +22,6 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
         {
         }
 
-        [MemberNotNullWhen(true, nameof(SampleRate), nameof(Channels), nameof(FrameDuration), nameof(FrameSize))]
         public override bool Build(AudioSetting audioSetting)
         {
             try
@@ -42,6 +40,11 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
                 this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
+        }
+
+        public override void RegisterDevice(string deviceId, string sessionId)
+        {
+            // No device-specific registration needed for the default Opus decoder.
         }
 
         public async Task<float[]> DecodeAsync(byte[] opusData, CancellationToken token)

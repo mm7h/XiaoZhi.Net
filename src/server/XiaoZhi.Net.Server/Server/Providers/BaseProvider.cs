@@ -1,7 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
+using XiaoZhi.Net.Server.Common.Constants;
 
 namespace XiaoZhi.Net.Server.Providers
 {
@@ -14,6 +16,7 @@ namespace XiaoZhi.Net.Server.Providers
 
         public abstract string ProviderType { get; }
         public abstract string ModelName { get; }
+        public bool IsSherpaModel => this.CheckIsSherpaModel();
         protected string ModelFileFoler => Path.Combine(Environment.CurrentDirectory, "models", this.ProviderType, this.ConvertToKebabCase(this.ModelName));
 
         protected ILogger<TLogger> Logger { get; }
@@ -34,7 +37,7 @@ namespace XiaoZhi.Net.Server.Providers
         {
             if (string.IsNullOrEmpty(this.DeviceId) || string.IsNullOrEmpty(this.SessionId))
             {
-                this.Logger.LogError("The device [{deviceId}] with session id: {sessionId} is not registered to the provider {providerType}.", string.IsNullOrEmpty(this.DeviceId) ? "unkonwn" :this.DeviceId, string.IsNullOrEmpty(this.SessionId) ? "unkonwn" : this.SessionId, this.ProviderType);
+                this.Logger.LogError("The device [{deviceId}] with session id: {sessionId} is not registered to the provider {providerType}.", string.IsNullOrEmpty(this.DeviceId) ? "unkonwn" : this.DeviceId, string.IsNullOrEmpty(this.SessionId) ? "unkonwn" : this.SessionId, this.ProviderType);
                 return false;
             }
             return true;
@@ -59,6 +62,18 @@ namespace XiaoZhi.Net.Server.Providers
             }
 
             return Regex.Replace(deviceId, @"[^a-fA-F0-9]", newDelimiter);
+        }
+
+        private bool CheckIsSherpaModel()
+        {
+            switch (this.ProviderType.ToLower())
+            {
+                case "vad" when SherpaModels.VadModels.Contains(this.ModelName):
+                case "asr" when SherpaModels.AsrModels.Contains(this.ModelName):
+                case "tts" when SherpaModels.TtsModels.Contains(this.ModelName):
+                    return true;
+            }
+            return false;
         }
 
         private string ConvertToKebabCase(string input)

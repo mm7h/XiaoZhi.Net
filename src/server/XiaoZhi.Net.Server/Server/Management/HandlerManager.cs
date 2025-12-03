@@ -53,7 +53,7 @@ namespace XiaoZhi.Net.Server.Management
             session.HandlerPipeline.InitHelloMessageHandler(helloMessageHandler);
         }
 
-        public void InitializePrivateConfig(Session session)
+        public bool InitializePrivateConfig(Session session)
         {
             var textHandler = this._serviceProvider.GetRequiredService<TextHandler>();
             var audioReceiveHandler = this._serviceProvider.GetRequiredService<AudioReceiveHandler>();
@@ -101,7 +101,7 @@ namespace XiaoZhi.Net.Server.Management
             if (!buildResults)
             {
                 this._logger.LogError("Failed to build the handler pipeline for device: {deviceId}.", session.DeviceId);
-                return;
+                return false;
             }
 
             this.BuildHandlersWorkflow(CHANNEL_CAPACITY, audioReceiveHandler, audio2TextHandler);
@@ -111,6 +111,8 @@ namespace XiaoZhi.Net.Server.Management
             this.BuildHandlersWorkflow(CHANNEL_CAPACITY, audioProcessorHandler, audioSendHandler);
 
             session.HandlerPipeline.InitHandlerPipeline(handlerContainer);
+
+            return true;
         }
 
         private void InitializeSendOutter(Session session, IHandler outHandler)

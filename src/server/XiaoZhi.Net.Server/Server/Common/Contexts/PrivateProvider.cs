@@ -1,6 +1,5 @@
 ﻿using Microsoft.SemanticKernel;
 using System;
-using System.Diagnostics.CodeAnalysis;
 using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
@@ -13,24 +12,29 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private IAudioProcessor? _audioProcessor;
         private IAudioPlayerClient? _audioPlayerClient;
 
+        public IAudioDecoder? AudioDecoder { get; private set; }
         public IVad? Vad { get; private set; }
         public IAsr? Asr { get; private set; }
         public ILlm? Llm { get; private set; }
         public ITts? Tts { get; private set; }
         public IAudioResampler? AudioResampler { get; private set; }
         public IAudioEncoder? AudioEncoder { get; private set; }
-        [DisallowNull]
+        
         public Kernel Kernel => this._kernel ?? throw new InvalidOperationException("Kernel is not set. Please set the kernel before using the session.");
         public bool HasIoT { get; private set; }
-        [DisallowNull]
+        
         public IIoTClient IoTClient => this._iotClient ?? throw new InvalidOperationException("IoTClient is not set. Please set the iot client before using the session.");
-        [DisallowNull]
+        
         public IMcpClient McpClient => this._mcpClient ?? throw new InvalidOperationException("MCPClient is not set. Please set the mcp client before using the session.");
-        [DisallowNull]
+        
         public IAudioProcessor AudioProcessor => this._audioProcessor ?? throw new InvalidOperationException("AudioProcessor is not set. Please set the audio processor before using the session.");
-        [DisallowNull]
+        
         public IAudioPlayerClient AudioPlayerClient => this._audioPlayerClient ?? throw new InvalidOperationException("AudioPlayerClient is not set. Please set the audio player client before using the session.");
 
+        public void SetAudioDecoder(IAudioDecoder audioDecoder)
+        {
+            this.AudioDecoder = audioDecoder;
+        }
         public void SetVad(IVad vad)
         {
             this.Vad = vad;

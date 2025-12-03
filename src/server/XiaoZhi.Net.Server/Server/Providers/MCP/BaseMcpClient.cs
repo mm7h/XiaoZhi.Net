@@ -424,7 +424,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             this.CurrentSession = config.Session;
             this.AdditionalMetadataDic = new Dictionary<string, object?>
             {
-                { "session-id", this.CurrentSession.SessionId }
+                { "session_id", this.CurrentSession.SessionId }
             };
         }
 
