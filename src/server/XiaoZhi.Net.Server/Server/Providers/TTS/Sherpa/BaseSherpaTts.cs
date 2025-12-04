@@ -45,10 +45,6 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 
         public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
         {
-            if (!this.CheckDeviceRegistered())
-            {
-                throw new SessionNotInitializedException();
-            }
             if (this._offlineTts == null)
             {
                 throw new ArgumentNullException("Please build tts provider first.");

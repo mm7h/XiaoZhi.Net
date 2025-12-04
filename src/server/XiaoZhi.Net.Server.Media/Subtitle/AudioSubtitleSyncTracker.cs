@@ -94,7 +94,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                 {
                     target.TotalSamples += sampleCount;
                     target.RemainingSamples += sampleCount;
-                    _logger.LogDebug("Accumulated samples to subtitle: {Subtitle}, +{Samples}, total={Total}", target.SubtitleText, sampleCount, target.TotalSamples);
+                    _logger.LogDebug("Accumulated samples to subtitle: {Subtitle}.", target.SubtitleText);
                 }
             }
         }

@@ -25,12 +25,16 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 
         public override string ProviderType => "vad";
         public int FrameSize { get; private set; }
+        public void Build(VadModelConfig vadModelConfig, ModelSetting modelSetting)
+        {
+            vadModelConfig.SampleRate = modelSetting.Config.SampleRate;
+            this._sampleRate = modelSetting.Config.SampleRate;
+            this._silenceThresholdMs = modelSetting.Config.SilenceThresholdMs ?? 700;
+            this._vad = new VoiceActivityDetector(vadModelConfig, 60);
+        }
+
         public async Task<bool> AnalysisVoiceAsync(Session sessionContext, CancellationToken token)
         {
-            if (!this.CheckDeviceRegistered())
-            {
-                throw new SessionNotInitializedException();
-            }
             if (this._vad == null || !this._sampleRate.HasValue || !this._silenceThresholdMs.HasValue)
             {
                 throw new ArgumentNullException("Please build vad provider first.");
@@ -107,14 +111,6 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
                 this._vad.Clear();
                 this._vadConvertSlim.Release();
             }
-        }
-
-        public void Build(VadModelConfig vadModelConfig, ModelSetting modelSetting)
-        {
-            vadModelConfig.SampleRate = modelSetting.Config.SampleRate;
-            this._sampleRate = modelSetting.Config.SampleRate;
-            this._silenceThresholdMs = modelSetting.Config.SilenceThresholdMs ?? 700;
-            this._vad = new VoiceActivityDetector(vadModelConfig, 60);
         }
 
         public override void Dispose()
