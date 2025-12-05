@@ -36,7 +36,7 @@ Dotnet backend service for xiaozhi-esp32, helps you quickly build an ESP32 devic
         <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.1" />
         <PackageReference Include="Microsoft.SemanticKernel" Version="1.60.0" />
         <PackageReference Include="ModelContextProtocol-SemanticKernel" Version="0.3.0-preview-01" />
-        <PackageReference Include="org.k2fsa.sherpa.onnx" Version="1.12.15" />
+        <PackageReference Include="org.k2fsa.sherpa.onnx" Version="1.12.17" />
         <PackageReference Include="Serilog" Version="4.3.0" />
         <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.2" />
         <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />

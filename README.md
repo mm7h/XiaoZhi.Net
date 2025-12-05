@@ -2,36 +2,15 @@
 
 （中文 | [English](https://translate.google.com/?hl=zh-cn&sl=auto&tl=en&op=translate)）
 
-**XiaoZhi.Net.Server** 是基于 `.Net 8`开发的C# SDK，为 [XiaoZhi ESP32](https://github.com/78/xiaozhi-esp32) 项目提供后端服务支持。
+**XiaoZhi.Net.Server** 是使用 `.Net 8`开发的C# SDK，基于[Websocket](https://ccnphfhqs21z.feishu.cn/wiki/M0XiwldO9iJwHikpXD5cEx71nKh) 协议为 [XiaoZhi ESP32](https://github.com/78/xiaozhi-esp32) 项目提供后端服务支持。
 
 ## 快速开始 👋
-
-### 自定义插件 👇️
-
-插件需遵循 `SemanticKernel` 规范。
-以下是一个获取当前时间的例子：
-
-```csharp
-using Microsoft.SemanticKernel;
-using System.ComponentModel;
-
-[Description("获取关于当前日期和时间插件")]
-internal class GetTime
-{
-    [KernelFunction, Description("获取当前的日期和时间")]
-    public DateTime GetNowTime()
-    {
-        return DateTime.Now;
-    }
-}
-```
-
 ### 快速创建 Xiao Zhi 服务 👇️
 
 ```csharp
 IHost? serverHost = null;
 // 获取服务引擎构建器
-IServerBuilder serverBuilder = EngineFactory.CreateServerBuilder();
+IServerBuilder serverBuilder = EngineFactory.CreateXiaoZhiServerBuilder();
 try
 {
     Console.WriteLine("Hello, Xiao Zhi!");
@@ -42,22 +21,15 @@ try
     XiaoZhiConfig? config = Newtonsoft.Json.JsonConvert.DeserializeObject<XiaoZhiConfig>(configJson);
     if (config is not null)
     {
-#if DEBUG
-        // 为了方便调试，你可以在环境变量中设置 LLM 的 API Key
-        string? apiKey = Environment.GetEnvironmentVariable("OPEN_AI_API_KEY", EnvironmentVariableTarget.User);
-        if (string.IsNullOrEmpty(apiKey))
-        {
-            Console.WriteLine("Please set the environment variable \"OPEN_AI_API_KEY\"");
-            return;
-        }
-        config.LlmSettings.First().Config.ApiKey = apiKey;
-#endif
-
         // 开始初始化服务
         serverHost = serverBuilder.Initialize(config)
             // 添加插件
             .WithPlugin<GetTime>(nameof(GetTime))
-            //构建服务引擎
+            // ffmpeg音频支持
+            .InitializeFFmpeg()
+            // 多媒体文件格式支持
+            .WithAllMedia(useFFmpeg: true)
+            // 构建服务引擎
             .Build();
 
         await serverHost.RunAsync();
@@ -78,6 +50,28 @@ finally
         await serverHost.StopAsync();
     }
     Console.WriteLine("The server stopped.");
+    Console.WriteLine("Press any key to exit...");
+    Console.ReadKey();
+}
+```
+
+### 自定义插件 👇️
+
+插件需遵循 `SemanticKernel` 规范。
+以下是一个获取当前时间的例子：
+
+```csharp
+using Microsoft.SemanticKernel;
+using System.ComponentModel;
+
+[Description("获取关于当前日期和时间插件")]
+public class GetTime
+{
+    [KernelFunction, Description("获取当前的日期和时间")]
+    public DateTime GetNowTime()
+    {
+        return DateTime.Now;
+    }
 }
 ```
 
@@ -90,79 +84,66 @@ finally
 ## 功能清单 ✨
 
 ### 已实现 ✅
+| 功能名称| 说明|
+|:---:|:---------|
+|语音对话|支持实时/手动语音对话，可随时打断，流式TTS返回，兼容多语种，长时间无对话时自动休眠|
+|自定义插件|支持自定义插件函数，方便LLM调用|
+|IOT/MCP|同时支持两种协议调用（IOT协议后续将会被移除）|
+|短期记忆|以设备和单次连接为单位的短期记忆缓存|
+|多媒体音频播放|得力于ffmpeg编码支持，可以播放常见格式的音频文件|
+|音频重采样|服务端TTS输出会以小智设备提供采样率进行音频重采样|
+|连接验证|可根据小智设备信息进行连接服务器前的登入验证|
 
-- **通信协议**
-  基于 [xiaozhi-esp32](https://ccnphfhqs21z.feishu.cn/wiki/M0XiwldO9iJwHikpXD5cEx71nKh) 协议，通过 WebSocket 实现数据交互。
-- **对话交互**
-  支持唤醒对话、手动对话及实时打断。长时间无对话时自动休眠
-- **多语言识别**
-  默认使用本地模型 `Sense Voice`，可支持国语、粤语、英语等。
-- **LLM 模块**
-  支持灵活切换 LLM 模块，目前只实现了 `ChatGLMLLM`，理论上支持Open AI Api规范的LLM都可以快速接入。
-- **TTS 模块**
-  默认使用本地模型 `Kokoro`。
-- **记忆功能**
-  以设备和当前连接为单位的记忆缓存。
-- **自定义发送文字内容**
-  可以向指定的设备发送文字内容，并让设备朗读出来。
-
-### 后续开发 🚧
+### 正在开发 🚧
 
 - [ ] 更多的本地模型支持
 - [ ] 意图识别
-- [ ] 音乐播放
 - [ ] 对接更多第三方 LLM、TTS 服务
-- [ ] IOT功能
-- [ ] MCP功能
+- [ ] 长期记忆存储
+- [ ] RAG知识库
 - [ ] 智控台管理（ [Abp](https://github.com/abpframework/abp) ）
 
-## 本项目已接入的平台/组件列表 📋
+## 已接入的平台/使用的模型列表 📋
 
 ### LLM 语言模型
 
-| 类型  |   平台名称|  使用方式|收费模式|备注|
-|:---:|:---------:|:----:|:----:|:--:|
-| LLM |智谱（ChatGLMLLM）|openai 接口调用|免费|需要[申请密钥](https://bigmodel.cn/usercenter/proj-mgmt/apikeys)|
+|平台名称|使用方式|收费模式|备注|
+|:-:|:-:|:-:|:-:|
+|智谱（ChatGLMLLM）|API调用|免费|需要[申请密钥](https://bigmodel.cn/usercenter/proj-mgmt/apikeys)|
 
 ---
 
 ### TTS 语音合成
 
-| 类型  |平台 / 模型 名称| 使用方式 |收费模式   |备注|
-|:---:|:---------:|:----:|:----:|:--:|
-| TTS |**[Kokoro (multi-lang-v1\_1)](https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2)**| 本地调用 |    免费    ||
+|平台 / 模型名称|使用方式|收费模式|备注|
+|:-:|:-:|:-:|:-:|
+|[Kokoro](#)|本地调用|免费||
+|[火山双向流式](#)|API调用|付费||
 
 ---
 
 ### VAD 语音活动检测
 
-| 类型  |   模型名称    | 使用方式 | 收费模式 | 备注 |
-|:---:|:---------:|:----:|:----:|:--:|
-| VAD | **[SileroVAD (v5)](https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad_v5.onnx)**| 本地调用 |  免费  |    |
+|模型名称|使用方式|收费模式|备注|
+|:-:|:-:|:-:|:-:|
+|[SileroVAD](#)|本地调用|免费||
 
 ---
 
 ### ASR 语音识别
 
-| 类型  |   平台 / 模型 名称    | 使用方式 | 收费模式 | 备注 |
-|:---:|:---------:|:----:|:----:|:--:|
-| ASR |**[Sense Voice (2024-07-17)](https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17.tar.bz2)**| 本地调用 |  免费  |    |
+|平台 / 模型名称|使用方式|收费模式|备注|
+|:-:|:-:|:-:|:-:|
+|[Sense Voice](#)|本地调用|免费||
 
----
-
-### Punctuation 标点符号添加
-
-| 类型  |   平台 / 模型 名称    | 使用方式 | 收费模式 | 备注 |
-|:---:|:---------:|:----:|:----:|:--:|
-| PUN |**[CT Transformer (2024-04-12)]([https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17.tar.bz2](https://github.com/k2-fsa/sherpa-onnx/releases/download/punctuation-models/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12.tar.bz2))**| 本地调用 |  免费  |  对ASR识别出的文字添加标点，便于LLM理解  |
 
 ---
 
 ### Memory 记忆存储
 
-|   类型   |      平台名称       | 使用方式 |   收费模式   | 备注 |
-|:------:|:---------------:|:----:|:--------:|:--:|
-| Memory |本地缓存| 本地调用 | 免费 |  服务端停止后所有记忆将会丢失  |
+|平台 / 模型名称|使用方式|收费模式| 备注 |
+|:-:|:-:|:-:|:-:|
+|内存缓存|本地调用|免费|服务端停止或连接断开后所有记忆将会丢失|
 
 ---
 
@@ -173,18 +154,21 @@ finally
 ```
 .
 ├── configs
-│   └── config.json 主配置文件
+│   ├── assets # 系统语音音频文件
+│   │   ├── bind_codes # 数字播报音频文件
+│   │   ├── bind_code.wav
+│   │   ├── bind_not_found.wav
+│   │   └── ...
+│   └── config.json # 主配置文件
 ├── data
 │   └── tts-cache # 当开启保存tts生成的文件后，生成的语音将会保存在这里
+├── ffmpeg # 存放`ffmpeg v7.x` 二进制文件
 ├── logs # 系统日志文件
 ├── models  # 所有模型存放的目录
 │   ├── asr  # 模型类型
 │   │   └── sense-voice  # 模型名称文件夹
 │   │       ├── model.onnx  # 模型文件
 │   │       └── tokens.txt  # 模型所需tokens文件
-│   ├── punctuation
-│   │   └── ct-transformer
-│   │       └── model.onnx  # 模型文件
 │   ├── tts
 │   │   └── kokoro
 │   │       ├── dict
@@ -197,7 +181,9 @@ finally
 │   └── vad
 │       └── silero
 │           └── model.onnx  # 模型文件
-└── XiaoZhi.Net.Sample.Server.exe # 演示程序入口
+├── musics  # 本地音乐文件目录
+└── XiaoZhi.Net.Test.exe # 测试主程序
+
 ```
 
 ### 二、模型下载

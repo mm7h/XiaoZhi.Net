@@ -40,7 +40,8 @@ try
             .WithPlugin<GetTime>(nameof(GetTime))
             // ffmpeg音频支持
             .InitializeFFmpeg()
-            .WithAllMedia(false)
+            // 多媒体文件格式支持
+            .WithAllMedia(useFFmpeg: true)
             // 构建服务引擎
             .Build();
 
