@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -15,6 +16,8 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
         private readonly IUrlAudioPlayer _urlAudioPlayer;
 
         private Channel<string>? _processingChannel;
+        private CancellationTokenSource? _processingCts;
+        private Task? _processingTask;
         private CancellationTokenSource? _cancellationTokenSource;
         private AudioSetting? _audioSetting;
 
@@ -59,7 +62,8 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             };
             this._processingChannel = Channel.CreateBounded<string>(boundedChannelOptions);
 
-            Task.Factory.StartNew(this.AudioFileProcessingAsync, TaskCreationOptions.LongRunning).ConfigureAwait(false);
+            this._processingCts = new CancellationTokenSource();
+            this._processingTask = Task.Run(() => this.AudioFileProcessingAsync(this._processingCts.Token));
 
             return true;
         }
@@ -173,16 +177,31 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             }
         }
 
-        private async Task AudioFileProcessingAsync()
+        private async Task AudioFileProcessingAsync(CancellationToken cancellationToken)
         {
             if (this._processingChannel is null) return;
-            await foreach (string file in this._processingChannel.Reader.ReadAllAsync())
+            try
             {
-                await this.AudioFileProcessingAsync(file);
+                await foreach (string file in this._processingChannel.Reader.ReadAllAsync(cancellationToken))
+                {
+                    await this.AudioFileProcessingAsync(file, cancellationToken);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                this.Logger.LogDebug("Audio file processing canceled.");
+            }
+            finally
+            {
+                var playbackCts = Interlocked.Exchange(ref this._cancellationTokenSource, null);
+                playbackCts?.Dispose();
+
+                var processingCts = Interlocked.Exchange(ref this._processingCts, null);
+                processingCts?.Dispose();
             }
         }
 
-        private async Task AudioFileProcessingAsync(string file)
+        private async Task AudioFileProcessingAsync(string file, CancellationToken cancellationToken)
         {
             if (this._audioSetting is null)
             {
@@ -197,6 +216,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             try
             {
                 this.PlayingMusicName = fileName;
+                cancellationToken.ThrowIfCancellationRequested();
                 await this._urlAudioPlayer.LoadAsync(file, this._audioSetting.SampleRate, this._audioSetting.Channels, this._audioSetting.FrameDuration);
 
                 this.Logger.LogDebug("Loaded audio file: {file}, start playing.", fileName);
@@ -206,16 +226,15 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             }
             catch (OperationCanceledException)
             {
-                this.PlayingMusicName = null;
                 this.Logger.LogDebug("Canceled playing audio file: {file}.", fileName);
             }
             catch (Exception ex)
             {
-                this.PlayingMusicName = null;
                 this.Logger.LogError(ex, "Error processing audio file: {file}.", fileName);
             }
             finally
             {
+                this.PlayingMusicName = null;
                 this._cancellationTokenSource?.Dispose();
             }
         }
@@ -226,8 +245,41 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
         public override void Dispose()
         {
+            this._processingChannel?.Writer.TryComplete();
+
+            var processingCts = Interlocked.Exchange(ref this._processingCts, null);
+            processingCts?.Cancel();
+
             this._urlAudioPlayer.OnAudioDataAvailable -= this.FireAudioData;
+
+            if (this._processingTask is { } task)
+            {
+                try
+                {
+                    if (!task.Wait(TimeSpan.FromSeconds(3)))
+                    {
+                        this.Logger.LogWarning("Processing task did not complete within timeout, forcing disposal.");
+                        // 任务超时未完成，手动释放
+                        processingCts?.Dispose();
+                    }
+                }
+                catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is OperationCanceledException))
+                {
+                    // 任务被取消是预期行为，忽略
+                }
+                catch (Exception ex)
+                {
+                    this.Logger.LogError(ex, "Error waiting for processing task to complete.");
+                    processingCts?.Dispose();
+                }
+            }
+            else
+            {
+                processingCts?.Dispose();
+            }
+
             this._urlAudioPlayer.Dispose();
+            this._cancellationTokenSource?.Dispose();
             this._audioPlayerSlim.Dispose();
         }
     }
