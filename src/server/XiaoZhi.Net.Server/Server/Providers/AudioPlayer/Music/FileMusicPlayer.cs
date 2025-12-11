@@ -15,6 +15,8 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
         private readonly IUrlAudioPlayer _urlAudioPlayer;
 
         private Channel<string>? _processingChannel;
+        private CancellationTokenSource? _processingCts;
+        private Task? _processingTask;
         private CancellationTokenSource? _cancellationTokenSource;
         private AudioSetting? _audioSetting;
 
@@ -59,7 +61,8 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             };
             this._processingChannel = Channel.CreateBounded<string>(boundedChannelOptions);
 
-            Task.Factory.StartNew(this.AudioFileProcessingAsync, TaskCreationOptions.LongRunning).ConfigureAwait(false);
+            this._processingCts = new CancellationTokenSource();
+            this._processingTask = Task.Run(() => this.AudioFileProcessingAsync(this._processingCts.Token));
 
             return true;
         }
@@ -88,7 +91,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
                 foreach (string file in files)
                 {
-                    await this._processingChannel.Writer.WriteAsync(file);
+                    await this._processingChannel.Writer.WriteAsync(file, cancellationToken);
                 }
             }
             finally
@@ -173,22 +176,32 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             }
         }
 
-        private async Task AudioFileProcessingAsync()
+        private async Task AudioFileProcessingAsync(CancellationToken cancellationToken)
         {
             if (this._processingChannel is null) return;
-            await foreach (string file in this._processingChannel.Reader.ReadAllAsync())
+            try
             {
-                await this.AudioFileProcessingAsync(file);
+                await foreach (string file in this._processingChannel.Reader.ReadAllAsync(cancellationToken))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await this.AudioFileProcessingAsync(file, cancellationToken);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                this.Logger.LogDebug("Audio file processing canceled.");
             }
         }
 
-        private async Task AudioFileProcessingAsync(string file)
+        private async Task AudioFileProcessingAsync(string file, CancellationToken cancellationToken)
         {
             if (this._audioSetting is null)
             {
                 this.Logger.LogError("The audio player is not built yet.");
                 return;
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             string fileName = Path.GetFileName(file);
 
@@ -226,8 +239,12 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
         public override void Dispose()
         {
+            this._processingChannel?.Writer.TryComplete();
+            this._processingCts?.Cancel();
             this._urlAudioPlayer.OnAudioDataAvailable -= this.FireAudioData;
             this._urlAudioPlayer.Dispose();
+            this._processingCts?.Dispose();
+            this._cancellationTokenSource?.Dispose();
             this._audioPlayerSlim.Dispose();
         }
     }

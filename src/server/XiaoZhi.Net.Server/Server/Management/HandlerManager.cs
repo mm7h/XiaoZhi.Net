@@ -132,7 +132,7 @@ namespace XiaoZhi.Net.Server.Management
             previous.NextWriter = channel.Writer;
             next.PreviousReader = channel.Reader;
 
-            Task.Run(next.Handle);
+            _ = next.Handle();
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
         }
 
@@ -147,17 +147,17 @@ namespace XiaoZhi.Net.Server.Management
             Channel<Workflow<T1>> channel = Channel.CreateBounded<Workflow<T1>>(boundedChannelOptions);
             previous.NextWriter = channel.Writer;
             next.PreviousReader = channel.Reader;
-            Task.Run(next.Handle);
+            _ = next.Handle();
 
             Channel<Workflow<T2>> channel2 = Channel.CreateBounded<Workflow<T2>>(boundedChannelOptions);
             previous.NextWriter2 = channel2.Writer;
             next.PreviousReader2 = channel2.Reader;
-            Task.Run(next.Handle2);
+            _ = next.Handle2();
 
             Channel<Workflow<T3>> channel3 = Channel.CreateBounded<Workflow<T3>>(boundedChannelOptions);
             previous.NextWriter3 = channel3.Writer;
             next.PreviousReader3 = channel3.Reader;
-            Task.Run(next.Handle3);
+            _ = next.Handle3();
 
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
         }
@@ -173,12 +173,12 @@ namespace XiaoZhi.Net.Server.Management
             Channel<Workflow<T>> channel1 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous1.NextWriter = channel1.Writer;
             next.PreviousReader = channel1.Reader;
-            Task.Run(next.Handle);
+            _ = next.Handle();
 
             Channel<Workflow<T>> channel2 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous2.NextWriter = channel2.Writer;
             next.PreviousReader2 = channel2.Reader;
-            Task.Run(next.Handle2);
+            _ = next.Handle2();
 
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous1.GetType().Name, next.GetType().Name);
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous2.GetType().Name, next.GetType().Name);
