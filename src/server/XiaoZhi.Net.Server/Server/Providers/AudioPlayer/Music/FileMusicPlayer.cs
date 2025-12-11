@@ -241,6 +241,15 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
         {
             this._processingChannel?.Writer.TryComplete();
             this._processingCts?.Cancel();
+            if (this._processingTask is { IsCompleted: false })
+            {
+                try
+                {
+                    this._processingTask.Wait(TimeSpan.FromSeconds(1));
+                }
+                catch (AggregateException ex) when (ex.InnerException is OperationCanceledException)
+                { }
+            }
             this._urlAudioPlayer.OnAudioDataAvailable -= this.FireAudioData;
             this._urlAudioPlayer.Dispose();
             this._processingCts?.Dispose();

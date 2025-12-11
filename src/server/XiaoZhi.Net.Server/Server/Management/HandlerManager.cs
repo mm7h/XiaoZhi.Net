@@ -132,7 +132,7 @@ namespace XiaoZhi.Net.Server.Management
             previous.NextWriter = channel.Writer;
             next.PreviousReader = channel.Reader;
 
-            _ = next.Handle();
+            this.ObserveHandler(next.Handle(), next.GetType().Name);
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
         }
 
@@ -147,17 +147,17 @@ namespace XiaoZhi.Net.Server.Management
             Channel<Workflow<T1>> channel = Channel.CreateBounded<Workflow<T1>>(boundedChannelOptions);
             previous.NextWriter = channel.Writer;
             next.PreviousReader = channel.Reader;
-            _ = next.Handle();
+            this.ObserveHandler(next.Handle(), next.GetType().Name);
 
             Channel<Workflow<T2>> channel2 = Channel.CreateBounded<Workflow<T2>>(boundedChannelOptions);
             previous.NextWriter2 = channel2.Writer;
             next.PreviousReader2 = channel2.Reader;
-            _ = next.Handle2();
+            this.ObserveHandler(next.Handle2(), next.GetType().Name);
 
             Channel<Workflow<T3>> channel3 = Channel.CreateBounded<Workflow<T3>>(boundedChannelOptions);
             previous.NextWriter3 = channel3.Writer;
             next.PreviousReader3 = channel3.Reader;
-            _ = next.Handle3();
+            this.ObserveHandler(next.Handle3(), next.GetType().Name);
 
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
         }
@@ -173,12 +173,12 @@ namespace XiaoZhi.Net.Server.Management
             Channel<Workflow<T>> channel1 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous1.NextWriter = channel1.Writer;
             next.PreviousReader = channel1.Reader;
-            _ = next.Handle();
+            this.ObserveHandler(next.Handle(), next.GetType().Name);
 
             Channel<Workflow<T>> channel2 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous2.NextWriter = channel2.Writer;
             next.PreviousReader2 = channel2.Reader;
-            _ = next.Handle2();
+            this.ObserveHandler(next.Handle2(), next.GetType().Name);
 
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous1.GetType().Name, next.GetType().Name);
             this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous2.GetType().Name, next.GetType().Name);
@@ -190,6 +190,13 @@ namespace XiaoZhi.Net.Server.Management
             {
                 this._logger?.LogDebug("Device: {deviceId}, session: {sessionId} abort the tasks, message: {message}.", deviceId, sessionId, message);
             };
+        }
+
+        private void ObserveHandler(Task handlerTask, string handlerName)
+        {
+            _ = handlerTask.ContinueWith(
+                t => this._logger?.LogError(t.Exception, "Handler {handler} loop faulted.", handlerName),
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
         }
     }
 }
