@@ -183,13 +183,20 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             {
                 await foreach (string file in this._processingChannel.Reader.ReadAllAsync(cancellationToken))
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
                     await this.AudioFileProcessingAsync(file, cancellationToken);
                 }
             }
             catch (OperationCanceledException)
             {
                 this.Logger.LogDebug("Audio file processing canceled.");
+            }
+            finally
+            {
+                var playbackCts = Interlocked.Exchange(ref this._cancellationTokenSource, null);
+                playbackCts?.Dispose();
+
+                var processingCts = Interlocked.Exchange(ref this._processingCts, null);
+                processingCts?.Dispose();
             }
         }
 
@@ -201,8 +208,6 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                 return;
             }
 
-            cancellationToken.ThrowIfCancellationRequested();
-
             string fileName = Path.GetFileName(file);
 
             this.Logger.LogDebug("Start processing audio file: {file}.", fileName);
@@ -210,6 +215,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             try
             {
                 this.PlayingMusicName = fileName;
+                cancellationToken.ThrowIfCancellationRequested();
                 await this._urlAudioPlayer.LoadAsync(file, this._audioSetting.SampleRate, this._audioSetting.Channels, this._audioSetting.FrameDuration);
 
                 this.Logger.LogDebug("Loaded audio file: {file}, start playing.", fileName);
@@ -219,17 +225,15 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             }
             catch (OperationCanceledException)
             {
-                this.PlayingMusicName = null;
                 this.Logger.LogDebug("Canceled playing audio file: {file}.", fileName);
             }
             catch (Exception ex)
             {
-                this.PlayingMusicName = null;
                 this.Logger.LogError(ex, "Error processing audio file: {file}.", fileName);
             }
             finally
             {
-                this._cancellationTokenSource?.Dispose();
+                this.PlayingMusicName = null;
             }
         }
         private void FireAudioData(float[] pcmData, bool isFirst, bool isLast)
@@ -240,19 +244,30 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
         public override void Dispose()
         {
             this._processingChannel?.Writer.TryComplete();
-            this._processingCts?.Cancel();
-            if (this._processingTask is { IsCompleted: false })
-            {
-                try
-                {
-                    this._processingTask.Wait(TimeSpan.FromSeconds(1));
-                }
-                catch (AggregateException ex) when (ex.InnerException is OperationCanceledException)
-                { }
-            }
+            var processingCts = Interlocked.Exchange(ref this._processingCts, null);
+            processingCts?.Cancel();
             this._urlAudioPlayer.OnAudioDataAvailable -= this.FireAudioData;
             this._urlAudioPlayer.Dispose();
-            this._processingCts?.Dispose();
+            if (this._processingTask is { } task && processingCts is not null)
+            {
+                _ = task.ContinueWith(
+                    _ =>
+                    {
+                        try
+                        {
+                            processingCts.Dispose();
+                        }
+                        catch (Exception ex)
+                        {
+                            this.Logger.LogError(ex, "Failed to dispose processing cancellation token.");
+                        }
+                    },
+                    TaskScheduler.Default);
+            }
+            else
+            {
+                processingCts?.Dispose();
+            }
             this._cancellationTokenSource?.Dispose();
             this._audioPlayerSlim.Dispose();
         }
