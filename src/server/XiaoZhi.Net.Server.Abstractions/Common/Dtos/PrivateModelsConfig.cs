@@ -1,6 +1,6 @@
-﻿namespace XiaoZhi.Net.Server.Common.Dtos
+﻿namespace XiaoZhi.Net.Server.Abstractions.Common.Dtos
 {
-    internal class PrivateModelsConfig
+    public class PrivateModelsConfig
     {
         public ModelSetting? VadSetting { get; set; }
         public ModelSetting? AsrSetting { get; set; }

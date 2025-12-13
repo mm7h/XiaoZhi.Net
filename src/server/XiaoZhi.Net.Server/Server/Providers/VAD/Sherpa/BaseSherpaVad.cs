@@ -4,7 +4,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
@@ -27,13 +26,13 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
         public int FrameSize { get; private set; }
         public void Build(VadModelConfig vadModelConfig, ModelSetting modelSetting)
         {
-            vadModelConfig.SampleRate = modelSetting.Config.SampleRate;
-            this._sampleRate = modelSetting.Config.SampleRate;
-            this._silenceThresholdMs = modelSetting.Config.SilenceThresholdMs ?? 700;
+            this._sampleRate = modelSetting.Config.GetConfigValueOrDefault("SampleRate", 16000);
+            vadModelConfig.SampleRate = this._sampleRate.Value;
+            this._silenceThresholdMs = modelSetting.Config.GetConfigValueOrDefault("SilenceThresholdMs", 700);
             this._vad = new VoiceActivityDetector(vadModelConfig, 60);
         }
 
-        public async Task<bool> AnalysisVoiceAsync(Session sessionContext, CancellationToken token)
+        public async Task<bool> AnalysisVoiceAsync(Session session, CancellationToken token)
         {
             if (this._vad == null || !this._sampleRate.HasValue || !this._silenceThresholdMs.HasValue)
             {
@@ -44,12 +43,12 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
                 //todo: 暂无法满足多session情况下并行使用同一模型
                 await this._vadConvertSlim.WaitAsync(token);
 
-                this._vad.Clear();
+                this._vad.Reset();
 
                 bool clientHaveVoice = false;
                 int voiceFrameCount = 0;
 
-                while (sessionContext.AudioPacketContext.VadPacket.GetFrames(this.FrameSize, out float[] chunk))
+                while (session.AudioPacketContext.VadPacket.GetFrames(this.FrameSize, out float[] chunk))
                 {
                     token.ThrowIfCancellationRequested();
                     if (chunk.Length == 0)
@@ -69,24 +68,24 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 
                     clientHaveVoice = voiceFrameCount >= REQUIRED_VOICE_FRAMES;
 
-                    if (sessionContext.VadStatusContext.HaveVoice && !clientHaveVoice)
+                    if (session.VadStatusContext.HaveVoice && !clientHaveVoice)
                     {
-                        long stopDuration = DateTimeOffset.Now.ToUnixTimeMilliseconds() - sessionContext.VadStatusContext.HaveVoiceLatestTime;
+                        long stopDuration = DateTimeOffset.Now.ToUnixTimeMilliseconds() - session.VadStatusContext.HaveVoiceLatestTime;
                         if (stopDuration > this._silenceThresholdMs)
                         {
 #if DEBUG
                             this.Logger.LogDebug("The voice is stopped.");
 #endif
-                            sessionContext.VadStatusContext.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
-                            sessionContext.VadStatusContext.VoiceStop = true;
+                            session.VadStatusContext.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                            session.VadStatusContext.VoiceStop = true;
                             return true;
                         }
                     }
 
                     if (clientHaveVoice)
                     {
-                        sessionContext.VadStatusContext.HaveVoice = true;
-                        sessionContext.VadStatusContext.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                        session.VadStatusContext.HaveVoice = true;
+                        session.VadStatusContext.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
                     }
                 }
 
@@ -96,7 +95,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
             }
             catch (OperationCanceledException)
             {
-                sessionContext.VadStatusContext.Reset();
+                session.VadStatusContext.Reset();
                 this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
                 throw;
             }
@@ -107,8 +106,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
             }
             finally
             {
-                this._vad.Flush();
-                this._vad.Clear();
+                this._vad.Reset();
                 this._vadConvertSlim.Release();
             }
         }

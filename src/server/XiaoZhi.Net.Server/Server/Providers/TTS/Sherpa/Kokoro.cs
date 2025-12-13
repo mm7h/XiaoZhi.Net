@@ -3,6 +3,7 @@ using SherpaOnnx;
 using System;
 using System.IO;
 using System.Linq;
+using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 {
@@ -31,7 +32,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
                 config.Model.Kokoro.DataDir = Path.Combine(this.ModelFileFoler, "espeak-ng-data");
                 config.Model.Kokoro.DictDir = Path.Combine(this.ModelFileFoler, "dict");
 
-                string lexicons = modelSetting.Config.Lexicons ?? "";
+                string lexicons = modelSetting.Config.GetConfigValueOrDefault("Lexicons", string.Empty);
                 if (!string.IsNullOrEmpty(lexicons))
                 {
                     string lexiconPath = string.Join(',', lexicons.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(l => Path.Combine(this.ModelFileFoler, l)));

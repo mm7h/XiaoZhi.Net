@@ -64,6 +64,7 @@ namespace XiaoZhi.Net.Server.Providers
             return Regex.Replace(deviceId, @"[^a-fA-F0-9]", newDelimiter);
         }
 
+
         private bool CheckIsSherpaModel()
         {
             switch (this.ProviderType.ToLower())

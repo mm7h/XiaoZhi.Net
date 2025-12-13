@@ -51,10 +51,10 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         {
             try
             {
-                string? appId = modelSetting.Config?.AppId;
-                string? accessToken = modelSetting.Config?.AccessToken;
-                string? resourceId = modelSetting.Config?.ResourceId;
-                string? speaker = modelSetting.Config?.Speaker;
+                string? appId = modelSetting.Config.GetConfigValueOrDefault("AppId");
+                string? accessToken = modelSetting.Config.GetConfigValueOrDefault("AccessToken");
+                string? resourceId = modelSetting.Config.GetConfigValueOrDefault("ResourceId");
+                string? speaker = modelSetting.Config.GetConfigValueOrDefault("Speaker");
 
                 if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(resourceId) || string.IsNullOrEmpty(speaker))
                 {
@@ -62,14 +62,14 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     return false;
                 }
                 this.SpeakerId = speaker;
-                this.SpeechRate = modelSetting.Config?.SpeechRate ?? 0;
-                this.LoudnessRate = modelSetting.Config?.LoudnessRate ?? 0;
+                this.SpeechRate = modelSetting.Config.GetConfigValueOrDefault("SpeechRate", 0);
+                this.LoudnessRate = modelSetting.Config.GetConfigValueOrDefault("LoudnessRate", 0);
 
-                this.Save2File = modelSetting.Config?.Save2File ?? false;
+                this.Save2File = modelSetting.Config.GetConfigValueOrDefault("Save2File", false);
 
                 if (this.Save2File)
                 {
-                    this.SavePath = modelSetting.Config?.SavePath ?? Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
+                    this.SavePath = modelSetting.Config.GetConfigValueOrDefault("SavePath", Path.Combine(Environment.CurrentDirectory, "data", "tts-cache"));
                     if (!Directory.Exists(this.SavePath))
                         Directory.CreateDirectory(this.SavePath);
                 }
@@ -164,7 +164,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 await this.StartSessionAsync(this._ttsSessionId, JsonHelper.SerializeToUtf8Bytes(startReq), token);
             }
             token.ThrowIfCancellationRequested();
-            Console.WriteLine(seg.Content);
+
             Dictionary<string, object> ttsReq = new Dictionary<string, object>
             {
                 { "User", new { Uid = workflow.DeviceId } },

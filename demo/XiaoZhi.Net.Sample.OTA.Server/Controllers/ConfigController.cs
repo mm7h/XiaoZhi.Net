@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using XiaoZhi.Net.Server;
-using XiaoZhi.Net.Server.Common.Dtos;
+using XiaoZhi.Net.Server.Abstractions.Common.Dtos;
 
 namespace XiaoZhi.Net.Sample.OTA.Server.Controllers
 {
@@ -36,11 +35,11 @@ namespace XiaoZhi.Net.Sample.OTA.Server.Controllers
                 {
                     throw new Exception("Please set the environment variable \"OPEN_AI_API_KEY\"");
                 }
-                config.ConfiguredSettings["LLM"].First().Value.ApiKey = apiKey;
+                config.ConfiguredSettings["LLM"].First().Value["ApiKey"] = apiKey;
                 if (config.SelectedSettings["TTS"] == "HuoshanBidirection")
                 {
-                    config.ConfiguredSettings["TTS"]["HuoshanBidirection"].AppId = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
-                    config.ConfiguredSettings["TTS"]["HuoshanBidirection"].AccessToken = Environment.GetEnvironmentVariable("HuoshanAccessToken", EnvironmentVariableTarget.User)!;
+                    config.ConfiguredSettings["TTS"]["HuoshanBidirection"]["AppId"] = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
+                    config.ConfiguredSettings["TTS"]["HuoshanBidirection"]["AccessToken"] = Environment.GetEnvironmentVariable("HuoshanAccessToken", EnvironmentVariableTarget.User)!;
                 }
 #endif
                 return config;
@@ -51,7 +50,7 @@ namespace XiaoZhi.Net.Sample.OTA.Server.Controllers
             }
         }
         [HttpGet("private-config")]
-        public PrivateModelsConfig GetPrivateConfig(string deviceId, string sessionId)
+        public ApiResponse<PrivateModelsConfig> GetPrivateConfig(string deviceId, string sessionId)
         {
             this._logger.LogInformation($"Got the request from the device id: {deviceId} and session Id: {sessionId}.");
 
@@ -63,20 +62,20 @@ namespace XiaoZhi.Net.Sample.OTA.Server.Controllers
                 TtsSetting = new ModelSetting
                 {
                     ModelName = "huoshan-bidirection",
-                    Config = new
+                    Config = new Dictionary<string, string>
                     {
-                        Save2File = true,
-                        AppId = appId,
-                        AccessToken = accessToken,
-                        ResourceId = "volc.service_type.10029",
-                        Speaker = "zh_female_cancan_mars_bigtts",
-                        SpeechRate = 0,
-                        LoudnessRate = 0
+                        ["Save2File"] = "true",
+                        ["AppId"] = appId,
+                        ["AccessToken"] = accessToken,
+                        ["ResourceId"] = "volc.service_type.10029",
+                        ["Speaker"] = "zh_female_cancan_mars_bigtts",
+                        ["SpeechRate"] = "0",
+                        ["LoudnessRate"] = "0"
                     }
                 }
             };
 
-            return config;
+            return ApiResponse<PrivateModelsConfig>.Success(config);
         }
     }
 }

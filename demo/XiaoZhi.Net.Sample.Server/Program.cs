@@ -26,11 +26,11 @@ try
             Console.WriteLine("Please set the environment variable \"OPEN_AI_API_KEY\"");
             return;
         }
-        config.ConfiguredSettings["LLM"].First().Value.ApiKey = apiKey;
+        config.ConfiguredSettings["LLM"].First().Value["ApiKey"] = apiKey;
         if (config.SelectedSettings["TTS"] == "HuoshanBidirection")
         {
-            config.ConfiguredSettings["TTS"]["HuoshanBidirection"].AppId = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
-            config.ConfiguredSettings["TTS"]["HuoshanBidirection"].AccessToken = Environment.GetEnvironmentVariable("HuoshanAccessToken", EnvironmentVariableTarget.User)!;
+            config.ConfiguredSettings["TTS"]["HuoshanBidirection"]["AppId"] = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
+            config.ConfiguredSettings["TTS"]["HuoshanBidirection"]["AccessToken"] = Environment.GetEnvironmentVariable("HuoshanAccessToken", EnvironmentVariableTarget.User)!;
         }
 #endif
 
@@ -42,6 +42,7 @@ try
             .InitializeFFmpeg()
             // 多媒体文件格式支持
             .WithAllMedia(useFFmpeg: true)
+            .WithManageApi("http://localhost:5118", "your-secret")
             // 构建服务引擎
             .Build();
 

@@ -25,24 +25,32 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
 
         public override bool Build(MCPClientBuildConfig config)
         {
-            this.InitSession(config);
-            ModelSetting modelSetting = config.ModelSetting;
-
-            this._endpointUrl = modelSetting?.Config?.EndpointUrl;
-
-            if (string.IsNullOrEmpty(this._endpointUrl))
+            try
             {
-                this.Logger.LogWarning("Endpoint URL is empty, skip this mcp tpye.");
+                this.InitSession(config);
+                ModelSetting modelSetting = config.ModelSetting;
+
+                this._endpointUrl = modelSetting.Config.GetConfigValueOrDefault("EndpointUrl");
+
+                if (string.IsNullOrEmpty(this._endpointUrl))
+                {
+                    this.Logger.LogWarning("Endpoint URL is empty, skip this mcp tpye.");
+                    return true;
+                }
+
+                Dictionary<string, string>? headers = modelSetting.Config.GetConfigValueOrDefault<Dictionary<string, string>>("Headers");
+                this._webSocketClient = new WebSocketClient(headers);
+                this._webSocketClient.OnOpen += this.WebSocketClientEngine_OnOpen;
+                this._webSocketClient.OnTextMessage += this.WebSocketClient_OnMessage;
+
+                this._webSocketClient.ConnectAsync(this._endpointUrl).ConfigureAwait(false);
                 return true;
             }
-
-            Dictionary<string, string>? headers = modelSetting?.Config?.Headers.ToObject<Dictionary<string, string>>();
-            this._webSocketClient = new WebSocketClient(headers);
-            this._webSocketClient.OnOpen += this.WebSocketClientEngine_OnOpen;
-            this._webSocketClient.OnTextMessage += this.WebSocketClient_OnMessage;
-
-            this._webSocketClient.ConnectAsync(this._endpointUrl).ConfigureAwait(false);
-            return true;
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                return false;
+            }
         }
 
 
@@ -52,7 +60,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
             {
                 throw new ArgumentNullException(nameof(message), "Message cannot be null.");
             }
-            
+
             if (this._webSocketClient is null)
             {
                 throw new InvalidOperationException("WebSocket client is not initialized.");

@@ -7,10 +7,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Exceptions;
+using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Media;
 using XiaoZhi.Net.Server.Providers;
 using XiaoZhi.Net.Server.Providers.ASR.Sherpa;
@@ -99,7 +101,7 @@ namespace XiaoZhi.Net.Server.Management
 
                 #region Asr
                 IAsr asr = serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
-                if ( asr.IsSherpaModel && !asr.Build(this.GetSelectedSetting("ASR", this._config)))
+                if (asr.IsSherpaModel && !asr.Build(this.GetSelectedSetting("ASR", this._config)))
                 {
                     this._logger.LogError("Failed to build {modelName} provider.", asr.ModelName);
                     return false;
@@ -199,7 +201,7 @@ namespace XiaoZhi.Net.Server.Management
                 else
                 {
                     IVad genericVad = this._serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
-                    if (genericVad.IsSherpaModel && !genericVad.Build(this.GetSelectedSetting("VAD", this._config)))
+                    if (!genericVad.IsSherpaModel && !genericVad.Build(this.GetSelectedSetting("VAD", this._config)))
                     {
                         this._logger.LogError("Failed to build {modelName} provider.", genericVad.ModelName);
                         return false;
@@ -224,7 +226,7 @@ namespace XiaoZhi.Net.Server.Management
                 else
                 {
                     IAsr genericAsr = this._serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
-                    if (genericAsr.IsSherpaModel && !genericAsr.Build(this.GetSelectedSetting("ASR", this._config)))
+                    if (!genericAsr.IsSherpaModel && !genericAsr.Build(this.GetSelectedSetting("ASR", this._config)))
                     {
                         this._logger.LogError("Failed to build {modelName} provider.", genericAsr.ModelName);
                         return false;
@@ -240,9 +242,9 @@ namespace XiaoZhi.Net.Server.Management
                     ILlm privateLlm = this._serviceProvider.GetRequiredService<ILlm>();
 
                     string llmModelName = privateModelsConfig.LlmSetting.ModelName;
-                    string prompt = privateModelsConfig.LlmSetting.Config?.Prompt ?? this._config.Prompt;
-                    bool useStreaming = privateModelsConfig.LlmSetting.Config?.UseStreaming ?? false;
-                    string summaryMemory = privateModelsConfig.LlmSetting.Config?.SummaryMemory ?? string.Empty;
+                    string prompt = privateModelsConfig.LlmSetting.Config.GetConfigValueOrDefault("Prompt", this._config.Prompt);
+                    bool useStreaming = privateModelsConfig.LlmSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
+                    string summaryMemory = privateModelsConfig.LlmSetting.Config.GetConfigValueOrDefault("SummaryMemory", string.Empty);
 
                     LLMBuildConfig llmBuildConfig = new LLMBuildConfig(llmModelName, prompt, useStreaming, summaryMemory, privateKernel, session);
 
@@ -264,7 +266,7 @@ namespace XiaoZhi.Net.Server.Management
 
                     ModelSetting llmModelSetting = this.GetSelectedSetting("LLM", this._config);
                     string llmModelName = llmModelSetting.ModelName;
-                    bool useStreaming = llmModelSetting.Config.UseStreaming ?? false;
+                    bool useStreaming = llmModelSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
 
                     LLMBuildConfig llmBuildConfig = new LLMBuildConfig(llmModelName, this._config.Prompt, useStreaming, string.Empty, privateKernel, session);
 
@@ -293,7 +295,7 @@ namespace XiaoZhi.Net.Server.Management
                 else
                 {
                     ITts genericTts = this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
-                    if (genericTts.IsSherpaModel && !genericTts.Build(this.GetSelectedSetting("TTS", this._config)))
+                    if (!genericTts.IsSherpaModel && !genericTts.Build(this.GetSelectedSetting("TTS", this._config)))
                     {
                         this._logger.LogError("Failed to build {modelName} provider.", genericTts.ModelName);
                         return false;
@@ -302,6 +304,11 @@ namespace XiaoZhi.Net.Server.Management
 
                     this._logger.LogInformation("Generic TTS {modeName} model initialized for device: {deviceId}.", genericTts.ModelName, session.DeviceId);
                 }
+
+                this.BuildAudioPlayer(session);
+                this.BuildAudioProcessor(session);
+                this.BuildAudioResampler(session);
+                this.BuildAudioEncoder(session);
 
                 return true;
             }
@@ -469,9 +476,14 @@ namespace XiaoZhi.Net.Server.Management
         {
             foreach (var llmSettingItem in config.ConfiguredSettings["LLM"])
             {
-                string endPoint = llmSettingItem.Value.BaseUrl;
-                string apiKey = llmSettingItem.Value.ApiKey;
-                string modelId = llmSettingItem.Value.ModelName;
+                string? endPoint = llmSettingItem.Value.GetConfigValueOrDefault("BaseUrl");
+                string? apiKey = llmSettingItem.Value.GetConfigValueOrDefault("ApiKey");
+                string? modelId = llmSettingItem.Value.GetConfigValueOrDefault("ModelName");
+
+                if (string.IsNullOrEmpty(endPoint) || string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(modelId))
+                {
+                    throw new ModelBuildException($"Invalid llm model setting, endPoint: {endPoint}, apiKey: {apiKey}, modelId: {modelId}.");
+                }
 
                 switch (ConvertToKebabCase(llmSettingItem.Key))
                 {
@@ -639,7 +651,7 @@ namespace XiaoZhi.Net.Server.Management
             #region AudioDecoder
             IAudioDecoder genericAudioDecoder = this._serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER);
             session.PrivateProvider.SetAudioDecoder(genericAudioDecoder);
-            this._logger.LogInformation("Generic AudioDecoder {modeName} model initialized for device: {deviceId}.", genericAudioDecoder.ModelName, session.DeviceId); 
+            this._logger.LogInformation("Generic AudioDecoder {modeName} model initialized for device: {deviceId}.", genericAudioDecoder.ModelName, session.DeviceId);
             #endregion
 
             #region Vad
@@ -670,7 +682,7 @@ namespace XiaoZhi.Net.Server.Management
 
             ModelSetting llmModelSetting = this.GetSelectedSetting("LLM", this._config);
             string llmModelName = llmModelSetting.ModelName;
-            bool useStreaming = llmModelSetting.Config.UseStreaming ?? false;
+            bool useStreaming = llmModelSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
 
             LLMBuildConfig llmBuildConfig = new LLMBuildConfig(llmModelName, this._config.Prompt, useStreaming, string.Empty, privateKernel, session);
 

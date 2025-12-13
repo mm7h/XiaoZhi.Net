@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Dtos;
+using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.MCP.ServerMcp
 {
@@ -29,9 +30,9 @@ namespace XiaoZhi.Net.Server.Providers.MCP.ServerMcp
 
                 if (this.ModelName.ToLower() == "stdio-client")
                 {
-                    string name = modelSetting.Config.Name;
-                    string command = modelSetting.Config.Command;
-                    List<string> arguments = modelSetting.Config.Arguments?.ToObject<List<string>>() ?? new List<string>();
+                    string? name = modelSetting.Config.GetConfigValueOrDefault("Name");
+                    string command = modelSetting.Config.GetConfigValueOrDefault("Command", string.Empty);
+                    List<string> arguments = modelSetting.Config.GetConfigValueOrDefault("Arguments", new List<string>());
 
                     var transport = new StdioClientTransport(new()
                     {

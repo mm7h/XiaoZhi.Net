@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Common.Exceptions;
+using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 {
@@ -149,13 +150,13 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
             offlineTtsConfig.Model.NumThreads = 2;
             offlineTtsConfig.Model.Provider = "cpu";
 
-            this.Save2File = modelSetting.Config.Save2File ?? false;
-            this.SpeechRate = modelSetting.Config.SpeechRate ?? 1.0f;
-            this.SpeakerId = modelSetting.Config.SpeakerId ?? 50;
+            this.Save2File = modelSetting.Config.GetConfigValueOrDefault("Save2File", false);
+            this.SpeechRate = modelSetting.Config.GetConfigValueOrDefault("SpeechRate", 1.0f);
+            this.SpeakerId = modelSetting.Config.GetConfigValueOrDefault("SpeakerId", 50);
 
             if (this.Save2File)
             {
-                this.SavePath = modelSetting.Config.SavePath ?? Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
+                this.SavePath = modelSetting.Config.GetConfigValueOrDefault("SavePath", Path.Combine(Environment.CurrentDirectory, "data", "tts-cache"));
                 if (!Directory.Exists(this.SavePath))
                     Directory.CreateDirectory(this.SavePath);
             }

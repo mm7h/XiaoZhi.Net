@@ -1,13 +1,8 @@
-﻿using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+﻿using System.Collections.Generic;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server
 {
-    public sealed class XiaoZhiApiConfig
-    {
-        public string ManageApiUrl { get; set; } = null!;
-        public string Secret { get; set; } = null!;
-    }
-
     public sealed class XiaoZhiConfig
     {
         public ServerProtocol ServerProtocol { get; set; }
@@ -19,7 +14,7 @@ namespace XiaoZhi.Net.Server
         public MusicProviderSetting MusicProviderSetting { get; set; } = new MusicProviderSetting();
         public DeviceBindSetting DeviceBindSetting { get; set; } = new DeviceBindSetting();
         public Dictionary<string, string> SelectedSettings { get; set; } = new Dictionary<string, string>();
-        public Dictionary<string, Dictionary<string, dynamic>> ConfiguredSettings { get; set; } = new Dictionary<string, Dictionary<string, dynamic>>();
+        public Dictionary<string, Dictionary<string, Dictionary<string, string>>> ConfiguredSettings { get; set; } = new Dictionary<string, Dictionary<string, Dictionary<string, string>>>();
         public AudioSetting AudioSetting { get; set; } = null!;
         public Dictionary<string, ModelSetting>? McpSettings { get; set; }
 
@@ -53,7 +48,7 @@ namespace XiaoZhi.Net.Server
     public sealed class ModelSetting
     {
         public string ModelName { get; set; } = null!;
-        public dynamic Config { get; set; } = null!;
+        public Dictionary<string, string> Config { get; set; } = new Dictionary<string, string>();
     }
     public sealed class AudioSetting
     {

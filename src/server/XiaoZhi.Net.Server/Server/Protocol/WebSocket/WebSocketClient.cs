@@ -81,7 +81,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
                     this._socket.ReconnectionHappened
                         .Subscribe(e =>
                         {
-                            Console.WriteLine("ReconnectionHappened: " + e.Type);
+                            //Console.WriteLine("ReconnectionHappened: " + e.Type);
                         });
 
                     this._socket.DisconnectionHappened

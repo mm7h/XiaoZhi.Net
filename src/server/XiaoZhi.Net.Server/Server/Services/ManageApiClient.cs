@@ -1,25 +1,28 @@
 ﻿using Flurl;
 using Flurl.Http;
+using Flurl.Http.Configuration;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Constants;
-using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Exceptions;
 
 namespace XiaoZhi.Net.Server.Services
 {
     internal class ManageApiClient
     {
-        private readonly string _baseApiUrl;
-        public ManageApiClient(XiaoZhiApiConfig apiConfig)
+        private readonly IFlurlClient _manageApiClient;
+
+        public ManageApiClient(IFlurlClientCache clientCache)
         {
-            this._baseApiUrl = apiConfig.ManageApiUrl;
+            this._manageApiClient = clientCache.Get("ManageApi");
         }
 
         public async Task<PrivateModelsConfig?> LoadConfigFromApi(string deviceId, string sessionId)
         {
-            var response = await _baseApiUrl
+            var response = await this._manageApiClient
+                .Request()
                 .AppendPathSegment(ApiActions.GetPrivateConfig)
                 .SetQueryParams(new
                 {

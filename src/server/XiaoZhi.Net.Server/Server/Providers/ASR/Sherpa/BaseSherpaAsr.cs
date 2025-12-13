@@ -87,12 +87,13 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
         {
             offlineRecognizerConfig.ModelConfig.Tokens = Path.Combine(ModelFileFoler, "tokens.txt");
 
-            if (!string.IsNullOrEmpty(modelSetting.Config.HotwordsFile))
+            string? hotwordsFile = modelSetting.Config.GetConfigValueOrDefault("HotwordsFile");
+            if (!string.IsNullOrEmpty(hotwordsFile))
             {
-                offlineRecognizerConfig.HotwordsFile = Path.Combine(ModelFileFoler, "hotwords.txt");
-                offlineRecognizerConfig.HotwordsScore = modelSetting.Config.HotwordsScore ?? 1.5F;
+                offlineRecognizerConfig.HotwordsFile = Path.Combine(ModelFileFoler, hotwordsFile);
+                offlineRecognizerConfig.HotwordsScore = modelSetting.Config.GetConfigValueOrDefault("HotwordsScore", 1.5F);
                 offlineRecognizerConfig.DecodingMethod = "modified_beam_search";
-                offlineRecognizerConfig.MaxActivePaths = modelSetting.Config.MaxActivePaths ?? 4;
+                offlineRecognizerConfig.MaxActivePaths = modelSetting.Config.GetConfigValueOrDefault("MaxActivePaths", 4);
             }
             else
             {
@@ -100,7 +101,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
             }
             //this._config.RuleFsts = this.ModelSetting.Config.RuleFsts;
 
-            this.MaxBatchSize = modelSetting.Config.MaxBatchSize ?? 50;
+            this.MaxBatchSize = modelSetting.Config.GetConfigValueOrDefault("MaxBatchSize", 50);
 
             this._offlineRecognizer = new OfflineRecognizer(offlineRecognizerConfig);
             this._backgroudProcessingTask = Task.Run(this.Processing);

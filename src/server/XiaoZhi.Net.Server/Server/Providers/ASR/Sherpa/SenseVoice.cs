@@ -2,6 +2,7 @@
 using SherpaOnnx;
 using System;
 using System.IO;
+using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 {
@@ -24,10 +25,10 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                 }
                 OfflineRecognizerConfig offlineRecognizerConfig = new OfflineRecognizerConfig();
                 offlineRecognizerConfig.ModelConfig.SenseVoice.Model = Path.Combine(ModelFileFoler, "model.onnx");
-                offlineRecognizerConfig.ModelConfig.SenseVoice.UseInverseTextNormalization = modelSetting.Config.UseInverseTextNormalization ?? 1;
+                offlineRecognizerConfig.ModelConfig.SenseVoice.UseInverseTextNormalization = modelSetting.Config.GetConfigValueOrDefault("UseInverseTextNormalization", 1);
 
                 this.Build(offlineRecognizerConfig, modelSetting);
-                
+
                 this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
 
                 return true;

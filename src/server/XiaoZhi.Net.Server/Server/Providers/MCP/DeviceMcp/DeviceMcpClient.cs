@@ -25,10 +25,11 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
             this.InitSession(config);
             ModelSetting modelSetting = config.ModelSetting;
 
-            this._visionUrl = modelSetting.Config?.VisionUrl ?? "";
-            this._visionToken = modelSetting.Config?.VisionToken ?? "";
+            this._visionUrl = modelSetting.Config.GetConfigValueOrDefault("VisionUrl", string.Empty);
+            this._visionToken = modelSetting.Config.GetConfigValueOrDefault("VisionToken", string.Empty);
 
-            
+
+
 
             this.SendMcpInitializeAsync().ConfigureAwait(false);
             this.RequestToolsListAsync().ConfigureAwait(false);
