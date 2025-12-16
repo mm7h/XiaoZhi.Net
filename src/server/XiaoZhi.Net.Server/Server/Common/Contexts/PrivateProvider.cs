@@ -19,17 +19,17 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public ITts? Tts { get; private set; }
         public IAudioResampler? AudioResampler { get; private set; }
         public IAudioEncoder? AudioEncoder { get; private set; }
-        
+
         public Kernel Kernel => this._kernel ?? throw new InvalidOperationException("Kernel is not set. Please set the kernel before using the session.");
         public bool HasIoT { get; private set; }
-        
-        public IIoTClient IoTClient => this._iotClient ?? throw new InvalidOperationException("IoTClient is not set. Please set the iot client before using the session.");
-        
-        public IMcpClient McpClient => this._mcpClient ?? throw new InvalidOperationException("MCPClient is not set. Please set the mcp client before using the session.");
-        
-        public IAudioProcessor AudioProcessor => this._audioProcessor ?? throw new InvalidOperationException("AudioProcessor is not set. Please set the audio processor before using the session.");
-        
-        public IAudioPlayerClient AudioPlayerClient => this._audioPlayerClient ?? throw new InvalidOperationException("AudioPlayerClient is not set. Please set the audio player client before using the session.");
+
+        public IIoTClient? IoTClient => this._iotClient;
+
+        public IMcpClient? McpClient => this._mcpClient;
+
+        public IAudioProcessor? AudioProcessor => this._audioProcessor;
+
+        public IAudioPlayerClient? AudioPlayerClient => this._audioPlayerClient;
 
         public void SetAudioDecoder(IAudioDecoder audioDecoder)
         {

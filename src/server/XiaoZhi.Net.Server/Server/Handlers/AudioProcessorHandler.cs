@@ -5,7 +5,6 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
@@ -112,7 +111,7 @@ namespace XiaoZhi.Net.Server.Handlers
             OutAudioSegment s = workflow.Data;
             try
             {
-                this._audioProcessor.ProcessAudio(s.AudioType, s.AudioData, s.Content, s.IsFirstFrame, s.IsLastFrame);
+                this._audioProcessor.ProcessAudio(s.AudioType, s.AudioData, s.Content, s.Emotion, s.IsFirstFrame, s.IsLastFrame);
 
                 if (s.IsLastSegment)
                 {

@@ -5,8 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Providers;
 
@@ -102,7 +102,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 var outSegment = this._outSegmentPool.Get();
                 var notBindWorkflow = this._outSegmentWorkflowPool.Get();
 
-                outSegment.Initialize("NOT_BIND", true, true);
+                outSegment.Initialize("NOT_BIND", true, true, Emotion.Neutral);
                 notBindWorkflow.Initialize(workflow.SessionId, workflow.DeviceId, outSegment);
                 await this.NextWriter.WriteAsync(notBindWorkflow);
                 return;
@@ -133,31 +133,14 @@ namespace XiaoZhi.Net.Server.Handlers
             await this.Handle(workflow, false);
         }
 
-        public async Task SendCustomMessage(string sessionId, string deviceId, string content)
+        public async Task SendCustomMessage(string sessionId, string deviceId, IEnumerable<OutSegment> segments)
         {
-            content = DialogueHelper.GetStringNoPunctuationOrEmoji(content);
 
-            IEnumerable<string> segments = DialogueHelper.SplitContentByPunctuations(content);
-            int segmentsCount = segments.Count();
-            int segmentIndex = 0;
-
-            List<OutSegment> outSegments = new List<OutSegment>();
-            List<Workflow<OutSegment>> workflows = new List<Workflow<OutSegment>>();
-
-            foreach (string segment in segments)
+            foreach (OutSegment segment in segments)
             {
-                segmentIndex++;
-                bool isFirst = segmentIndex == 1;
-                bool isLast = segmentIndex == segmentsCount;
-
-                var outSegment = this._outSegmentPool.Get();
                 var workflow = this._outSegmentWorkflowPool.Get();
 
-                outSegments.Add(outSegment);
-                workflows.Add(workflow);
-
-                outSegment.Initialize(segment, isFirst, isLast);
-                workflow.Initialize(sessionId, deviceId, outSegment);
+                workflow.Initialize(sessionId, deviceId, segment);
                 await this.NextWriter.WriteAsync(workflow);
             }
         }
@@ -178,7 +161,7 @@ namespace XiaoZhi.Net.Server.Handlers
             await this.NextWriter.WriteAsync(workflow);
         }
 
-        private async void OnTokenGenerated(string content)
+        private async void OnTokenGenerated(IEnumerable<OutSegment> outSegments)
         {
             if (this._llm is null)
             {
@@ -186,12 +169,12 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
-            this.Logger.LogDebug("LLM's response text: {content}", content);
+            this.Logger.LogDebug("LLM's response text: {content}", string.Join(string.Empty, outSegments.Select(o => o.Content)));
 
             if (!this._llm.UseStreaming)
             {
                 Session session = this.SendOutter.GetSession();
-                await this.SendCustomMessage(session.SessionId, session.DeviceId, content);
+                await this.SendCustomMessage(session.SessionId, session.DeviceId, outSegments);
             }
 
             await this.SendOutter.SendLlmMessageAsync(Emotion.Winking);

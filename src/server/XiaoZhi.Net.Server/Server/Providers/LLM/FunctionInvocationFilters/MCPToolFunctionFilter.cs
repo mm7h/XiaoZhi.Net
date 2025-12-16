@@ -29,6 +29,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
                 {
                     try
                     {
+                        if (session.PrivateProvider.McpClient is null)
+                        {
+                            this._logger.LogWarning("MCP Client is not initialized for device: {deviceId}.", session.DeviceId);
+                            await next(context);
+                            return;
+                        }
                         ISubMcpClient? subMcpClient = session.PrivateProvider.McpClient.GetSubMcpClient(context.Function.PluginName);
 
                         if (subMcpClient is null)
@@ -50,6 +56,13 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
                 {
                     try
                     {
+                        if (session.PrivateProvider.IoTClient is null)
+                        {
+                            this._logger.LogWarning("IoT Client is not initialized for device: {deviceId}.", session.DeviceId);
+                            await next(context);
+                            return;
+                        }
+
                         if (context.Function.Name.ToLower().StartsWith("get_"))
                         {
                             // 获取iot属性值

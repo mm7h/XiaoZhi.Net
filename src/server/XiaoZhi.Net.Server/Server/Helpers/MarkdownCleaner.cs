@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 namespace XiaoZhi.Net.Server.Helpers
 {
     /// <summary>
-    /// Markdown清理工具：用于清理Markdown文本，使其更适合TTS处理
+    /// Markdown清理工具
     /// </summary>
     public class MarkdownCleaner
     {
@@ -30,7 +30,7 @@ namespace XiaoZhi.Net.Server.Helpers
         };
 
         /// <summary>
-        /// 清理Markdown文本的主入口方法
+        /// 清理Markdown文本
         /// </summary>
         /// <param name="text">要清理的Markdown文本</param>
         /// <returns>清理后的文本</returns>
@@ -46,7 +46,7 @@ namespace XiaoZhi.Net.Server.Helpers
                 text = pattern.Replace(text, replacer);
             }
 
-            return text.Trim();
+            return text;
         }
 
         /// <summary>

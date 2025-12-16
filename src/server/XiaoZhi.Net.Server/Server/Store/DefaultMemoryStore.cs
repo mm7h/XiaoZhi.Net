@@ -53,12 +53,11 @@ namespace XiaoZhi.Net.Server.Store
                 {
                     return (T)value;
                 }
-                return default;
+                throw new KeyNotFoundException($"Key '{key}' not found in the store.");
             }
             catch
             {
-                //log
-                return default;
+                throw;
             }
         }
 

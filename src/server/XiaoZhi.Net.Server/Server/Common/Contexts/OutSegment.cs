@@ -1,4 +1,6 @@
-﻿namespace XiaoZhi.Net.Server.Common.Contexts
+﻿using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+
+namespace XiaoZhi.Net.Server.Common.Contexts
 {
     internal class OutSegment
     {
@@ -9,6 +11,7 @@
             this._content = string.Empty;
             this.IsFirstSegment = false;
             this.IsLastSegment = false;
+            this.Emotion = Emotion.Neutral;
         }
 
         /// <summary>
@@ -26,18 +29,25 @@
         /// </summary>
         public bool IsLastSegment { get; set; }
 
-        public void Initialize(string content)
+        /// <summary>
+        /// 当前段落的情绪
+        /// </summary>
+        public Emotion Emotion { get; set; }
+
+        public void Initialize(string content, Emotion emotion)
         {
             this._content = content;
             this.IsFirstSegment = false;
             this.IsLastSegment = false;
+            this.Emotion = emotion;
         }
 
-        public void Initialize(string content, bool isFirst, bool isLast)
+        public void Initialize(string content, bool isFirst, bool isLast, Emotion emotion)
         {
             this._content = content;
             this.IsFirstSegment = isFirst;
             this.IsLastSegment = isLast;
+            this.Emotion = emotion;
         }
 
         public virtual void Reset()
@@ -45,6 +55,7 @@
             this._content = string.Empty;
             this.IsFirstSegment = false;
             this.IsLastSegment = false;
+            this.Emotion = Emotion.Neutral;
         }
     }
 }

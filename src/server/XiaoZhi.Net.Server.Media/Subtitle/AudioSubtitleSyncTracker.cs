@@ -18,8 +18,8 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
         private readonly object _syncLock = new();
         private bool _disposed = false;
 
-        public event Action<AudioType, string>? OnSubtitleStart;
-        public event Action<AudioType, string>? OnSubtitleEnd;
+        public event Action<AudioType, string, Emotion>? OnSubtitleStart;
+        public event Action<AudioType, string, Emotion>? OnSubtitleEnd;
 
         public AudioSubtitleSyncTracker(ILogger<AudioSubtitleSyncTracker>? logger = null)
         {
@@ -33,7 +33,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
             _logger = logger ?? NullLogger<AudioSubtitleSyncTracker>.Instance;
         }
 
-        public void RegisterAudioSubtitle(AudioType audioType, string subtitleText)
+        public void RegisterAudioSubtitle(AudioType audioType, string subtitleText, Emotion emotion)
         {
             if (string.IsNullOrEmpty(subtitleText)) return;
             lock (_syncLock)
@@ -44,6 +44,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                     AudioType = audioType,
                     SubtitleText = subtitleText,
                     RegisterTime = DateTime.UtcNow,
+                    Emotion = emotion,
                     TotalSamples = 0,
                     RemainingSamples = 0
                 };
@@ -53,7 +54,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
             _logger.LogDebug("Registered audio-subtitle: {SubtitleText}", subtitleText);
         }
 
-        public void RegisterAudioSubtitle(AudioType audioType, string subtitleText, int sampleCount)
+        public void RegisterAudioSubtitle(AudioType audioType, string subtitleText, int sampleCount, Emotion emotion)
         {
             if (string.IsNullOrEmpty(subtitleText)) return;
             if (sampleCount < 0) sampleCount = 0;
@@ -65,6 +66,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                     AudioType = audioType,
                     SubtitleText = subtitleText,
                     RegisterTime = DateTime.UtcNow,
+                    Emotion = emotion,
                     RemainingSamples = sampleCount,
                     TotalSamples = sampleCount
                 };
@@ -129,7 +131,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                     {
                         info.SubtitleStartSent = true;
                         info.IsAudioStarted = true;
-                        OnSubtitleStart?.Invoke(audioType, info.SubtitleText);
+                        OnSubtitleStart?.Invoke(audioType, info.SubtitleText, info.Emotion);
                         _logger.LogDebug("Subtitle started for {AudioType}: {SubtitleText}", audioType, info.SubtitleText);
                     }
 
@@ -144,7 +146,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                             info.SubtitleEndSent = true;
                             info.IsAudioCompleted = true;
                             queue.Dequeue();
-                            OnSubtitleEnd?.Invoke(audioType, info.SubtitleText);
+                            OnSubtitleEnd?.Invoke(audioType, info.SubtitleText, info.Emotion);
                             _logger.LogDebug("Subtitle ended for {AudioType}: {SubtitleText}", audioType, info.SubtitleText);
                         }
                     }
@@ -168,12 +170,12 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                         if (!info.SubtitleStartSent)
                         {
                             info.SubtitleStartSent = true;
-                            OnSubtitleStart?.Invoke(audioType, info.SubtitleText);
+                            OnSubtitleStart?.Invoke(audioType, info.SubtitleText, info.Emotion);
                         }
                         if (!info.SubtitleEndSent)
                         {
                             info.SubtitleEndSent = true;
-                            OnSubtitleEnd?.Invoke(audioType, info.SubtitleText);
+                            OnSubtitleEnd?.Invoke(audioType, info.SubtitleText, info.Emotion);
                         }
                     }
                 }
@@ -192,7 +194,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                         var trackingInfo = queue.Dequeue();
                         if (trackingInfo.SubtitleStartSent && !trackingInfo.SubtitleEndSent)
                         {
-                            OnSubtitleEnd?.Invoke(audioType, trackingInfo.SubtitleText);
+                            OnSubtitleEnd?.Invoke(audioType, trackingInfo.SubtitleText, trackingInfo.Emotion);
                         }
                     }
                     _logger.LogDebug("Cleared all subtitle tracking for {AudioType}", audioType);
@@ -212,7 +214,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
                         var trackingInfo = queue.Dequeue();
                         if (trackingInfo.SubtitleStartSent && !trackingInfo.SubtitleEndSent)
                         {
-                            OnSubtitleEnd?.Invoke(trackingInfo.AudioType, trackingInfo.SubtitleText);
+                            OnSubtitleEnd?.Invoke(trackingInfo.AudioType, trackingInfo.SubtitleText, trackingInfo.Emotion);
                         }
                     }
                 }

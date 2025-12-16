@@ -132,6 +132,11 @@ namespace XiaoZhi.Net.Server.Handlers
                 this._providerManager.BuildIoT(session);
             }
 
+            if (session.PrivateProvider.IoTClient is null)
+            {
+                this.Logger.LogError("IoT Client is not initialized for device: {deviceId}.", session.DeviceId);
+                return;
+            }
             session.PrivateProvider.IoTClient.HandleIoTMessage(jsonObject);
         }
 
@@ -140,7 +145,7 @@ namespace XiaoZhi.Net.Server.Handlers
             if (jsonObject.TryGetPropertyValue("payload", out var payload) && payload is not null && payload is JsonObject payloadObj)
             {
                 Session session = this.SendOutter.GetSession();
-                ISubMcpClient? subMcpClient = session.PrivateProvider.McpClient.GetSubMcpClient(SubMCPClientTypeNames.DeviceMcpClient);
+                ISubMcpClient? subMcpClient = session.PrivateProvider.McpClient?.GetSubMcpClient(SubMCPClientTypeNames.DeviceMcpClient);
                 if (subMcpClient is not null)
                 {
                     await subMcpClient.HandleMcpMessageAsync(payloadObj);

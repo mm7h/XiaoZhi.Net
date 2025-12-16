@@ -11,8 +11,8 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
         private readonly IAudioSubtitleSyncTracker _audioSubtitleSyncTracker;
 
         public event Action<float[], bool, bool>? OnMixedAudioDataAvailable;
-        public event Action<AudioType, string>? OnSubtitleStart;
-        public event Action<AudioType, string>? OnSubtitleEnd;
+        public event Action<AudioType, string, Emotion>? OnSubtitleStart;
+        public event Action<AudioType, string, Emotion>? OnSubtitleEnd;
 
         public DefaultAudioProcessor(IAudioMixer audioMixer, IAudioSubtitleSyncTracker audioSubtitleSyncTracker, ILogger<DefaultAudioProcessor> logger) : base(logger)
         {
@@ -49,7 +49,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
             }
         }
 
-        public void ProcessAudio(AudioType audioType, float[] audioData, string text, bool isFirstFrame, bool isLastFrame)
+        public void ProcessAudio(AudioType audioType, float[] audioData, string content, Emotion emotion, bool isFirstFrame, bool isLastFrame)
         {
             // Add audio to mixer regardless of frame type (even empty frames help timing)
             if (audioData.Length > 0)
@@ -62,7 +62,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
 
             if (isFirstFrame)
             {
-                this._audioSubtitleSyncTracker.RegisterAudioSubtitle(audioType, text);
+                this._audioSubtitleSyncTracker.RegisterAudioSubtitle(audioType, content, emotion);
                 if (monoSamples > 0)
                 {
                     this._audioSubtitleSyncTracker.AttachSamplesToNextSubtitle(audioType, monoSamples);
@@ -96,14 +96,14 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
             this.OnMixedAudioDataAvailable?.Invoke(audioPcmData, isFirst, isLast);
         }
 
-        private void FireOnSubtitleStart(AudioType audioType, string text)
+        private void FireOnSubtitleStart(AudioType audioType, string text, Emotion emotion)
         {
-            this.OnSubtitleStart?.Invoke(audioType, text);
+            this.OnSubtitleStart?.Invoke(audioType, text, emotion);
         }
 
-        private void FireOnSubtitleEnd(AudioType audioType, string text)
+        private void FireOnSubtitleEnd(AudioType audioType, string text, Emotion emotion)
         {
-            this.OnSubtitleEnd?.Invoke(audioType, text);
+            this.OnSubtitleEnd?.Invoke(audioType, text, emotion);
         }
 
         public override void Dispose()

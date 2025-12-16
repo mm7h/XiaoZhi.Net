@@ -124,7 +124,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 {
                     this._tssSessionId = Guid.NewGuid().ToString();
                 }
-
+                Console.WriteLine($"tssSessionId: {_tssSessionId}");
                 if (isFirstSegment)
                 {
                     Dictionary<string, object> startReq = new Dictionary<string, object>

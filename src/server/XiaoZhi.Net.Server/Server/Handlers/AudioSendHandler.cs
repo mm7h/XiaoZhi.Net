@@ -93,7 +93,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 if (audioPacket.IsFirstFrame)
                 {
                     await this.SendOutter.SendTtsMessageAsync(TtsStatus.Start);
-                    await this.SendOutter.SendLlmMessageAsync(Emotion.Cool);
                     this.Logger.LogDebug("Send the first audio frame from the device: {deviceId}.", session.DeviceId);
                 }
 
@@ -103,7 +102,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 if (audioPacket.IsLastFrame)
                 {
                     await this.SendOutter.SendTtsMessageAsync(TtsStatus.Stop);
-                    await this.SendOutter.SendLlmMessageAsync(Emotion.Cool);
                     this.Logger.LogDebug("Send the last audio frame from the device: {deviceId}.", session.DeviceId);
                     if (session.CloseAfterChat)
                     {
@@ -121,12 +119,13 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        private async void OnSubtitleStart(AudioType audioType, string subtitle)
+        private async void OnSubtitleStart(AudioType audioType, string subtitle, Emotion emotion)
         {
             await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceStart, subtitle);
+            await this.SendOutter.SendLlmMessageAsync(emotion);
         }
 
-        private async void OnSubtitleEnd(AudioType audioType, string subtitle)
+        private async void OnSubtitleEnd(AudioType audioType, string subtitle, Emotion emotion)
         {
             await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceEnd, subtitle);
         }

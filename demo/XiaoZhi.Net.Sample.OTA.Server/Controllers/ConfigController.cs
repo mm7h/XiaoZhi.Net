@@ -59,20 +59,20 @@ namespace XiaoZhi.Net.Sample.OTA.Server.Controllers
 
             PrivateModelsConfig config = new PrivateModelsConfig
             {
-                TtsSetting = new ModelSetting
-                {
-                    ModelName = "huoshan-bidirection",
-                    Config = new Dictionary<string, string>
-                    {
-                        ["Save2File"] = "true",
-                        ["AppId"] = appId,
-                        ["AccessToken"] = accessToken,
-                        ["ResourceId"] = "volc.service_type.10029",
-                        ["Speaker"] = "zh_female_cancan_mars_bigtts",
-                        ["SpeechRate"] = "0",
-                        ["LoudnessRate"] = "0"
-                    }
-                }
+                //TtsSetting = new ModelSetting
+                //{
+                //    ModelName = "huoshan-bidirection",
+                //    Config = new Dictionary<string, string>
+                //    {
+                //        ["Save2File"] = "true",
+                //        ["AppId"] = appId,
+                //        ["AccessToken"] = accessToken,
+                //        ["ResourceId"] = "volc.service_type.10029",
+                //        ["Speaker"] = "zh_female_cancan_mars_bigtts",
+                //        ["SpeechRate"] = "0",
+                //        ["LoudnessRate"] = "0"
+                //    }
+                //}
             };
 
             return ApiResponse<PrivateModelsConfig>.Success(config);

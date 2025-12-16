@@ -7,6 +7,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Common.Exceptions;
@@ -33,7 +34,9 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
         // File saving state per session
         private readonly object _fileLock = new();
-        private readonly Dictionary<string, TTSAudioFile> _sessionFiles = new();
+        private readonly Dictionary<string, TTSAudioFile> _sessionFiles = new Dictionary<string, TTSAudioFile>();
+
+        private readonly Dictionary<string, OutSegment> _processingSegments = new Dictionary<string, OutSegment>();
 
         private ITtsEventCallback? _ttsEventCallback;
         private bool _streamingActive = false;
@@ -125,6 +128,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             if (string.IsNullOrEmpty(this._ttsSessionId))
             {
                 this._ttsSessionId = Guid.NewGuid().ToString();
+                this._processingSegments.TryAdd(this._ttsSessionId, workflow.Data);
             }
 
             this._streamingActive = true;
@@ -205,6 +209,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 }
                 finally
                 {
+                    this._processingSegments.Remove(this._ttsSessionId);
                     this._ttsSessionId = null;
                 }
             }
@@ -283,10 +288,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             // Sentence start marker -> push empty first frame
             if (message.MsgType == MsgType.FullServerResponse && message.EventType == EventType.TTSSentenceStart)
             {
-                if (this._streamingActive)
+                if (this._streamingActive && !string.IsNullOrEmpty(message.SessionId))
                 {
                     string sentence = JsonObject.Parse(message.Payload)?["text"]?.GetValue<string>() ?? string.Empty;
-                    this._ttsEventCallback?.OnSentenceStart(sentence);
+                    Emotion segmentEmotion = this._processingSegments.TryGetValue(message.SessionId, out var seg) ? seg.Emotion : Emotion.Neutral;
+                    this._ttsEventCallback?.OnSentenceStart(sentence, segmentEmotion);
                 }
                 return;
             }
@@ -317,10 +323,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             // Sentence end marker -> seal current producing subtitle so subsequent samples go to next sentence
             if (message.MsgType == MsgType.FullServerResponse && message.EventType == EventType.TTSSentenceEnd)
             {
-                if (this._streamingActive)
+                if (this._streamingActive && !string.IsNullOrEmpty(message.SessionId))
                 {
                     string sentence = JsonObject.Parse(message.Payload)?["text"]?.GetValue<string>() ?? string.Empty;
-                    this._ttsEventCallback?.OnSentenceEnd(sentence);
+                    Emotion segmentEmotion = this._processingSegments.TryGetValue(message.SessionId, out var seg) ? seg.Emotion : Emotion.Neutral;
+                    this._ttsEventCallback?.OnSentenceEnd(sentence, segmentEmotion);
                 }
                 return;
             }

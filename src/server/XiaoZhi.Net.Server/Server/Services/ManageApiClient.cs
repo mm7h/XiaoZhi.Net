@@ -44,7 +44,7 @@ namespace XiaoZhi.Net.Server.Services
             }
         }
 
-        internal async Task SaveMemoryAsync(string deviceId, string sessionId, ChatHistory chats)
+        public Task SaveMemoryAsync(string deviceId, string sessionId, ChatHistory chats)
         {
             throw new NotImplementedException();
         }

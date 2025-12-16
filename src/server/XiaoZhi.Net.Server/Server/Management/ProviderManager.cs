@@ -23,6 +23,7 @@ using XiaoZhi.Net.Server.Providers.AudioPlayer.Music;
 using XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification;
 using XiaoZhi.Net.Server.Providers.IoT;
 using XiaoZhi.Net.Server.Providers.LLM;
+using XiaoZhi.Net.Server.Providers.LLM.Agents;
 using XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters;
 using XiaoZhi.Net.Server.Providers.LLM.Plugins;
 using XiaoZhi.Net.Server.Providers.MCP;
@@ -150,7 +151,21 @@ namespace XiaoZhi.Net.Server.Management
         private ModelSetting GetSelectedSetting(string selectedModelType, XiaoZhiConfig config)
         {
             string selectedModel = config.SelectedSettings[selectedModelType];
-            dynamic setting = config.ConfiguredSettings[selectedModelType][selectedModel];
+            Dictionary<string, string> setting = config.ConfiguredSettings[selectedModelType][selectedModel];
+
+            ModelSetting modelSetting = new ModelSetting
+            {
+                ModelName = selectedModel,
+                Config = setting
+            };
+
+            return modelSetting;
+        }
+
+        private ModelSetting GetSelectedLLMSetting(string selectedLLMType, XiaoZhiConfig config)
+        {
+            string selectedModel = config.SelectedSettings[selectedLLMType];
+            Dictionary<string, string> setting = config.ConfiguredSettings["LLM"][selectedModel];
 
             ModelSetting modelSetting = new ModelSetting
             {
@@ -236,48 +251,62 @@ namespace XiaoZhi.Net.Server.Management
                     this._logger.LogInformation("Generic ASR {modeName} model initialized for device: {deviceId}.", genericAsr.ModelName, session.DeviceId);
                 }
 
-                if (privateModelsConfig.LlmSetting is not null)
+                if (privateModelsConfig.EmotionLlmSetting is not null && privateModelsConfig.ChatLlmSetting is not null)
                 {
                     Kernel privateKernel = this._globalKernel.Clone();
                     ILlm privateLlm = this._serviceProvider.GetRequiredService<ILlm>();
 
-                    string llmModelName = privateModelsConfig.LlmSetting.ModelName;
-                    string prompt = privateModelsConfig.LlmSetting.Config.GetConfigValueOrDefault("Prompt", this._config.Prompt);
-                    bool useStreaming = privateModelsConfig.LlmSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
-                    string summaryMemory = privateModelsConfig.LlmSetting.Config.GetConfigValueOrDefault("SummaryMemory", string.Empty);
+                    string llmModelName = privateModelsConfig.ChatLlmSetting.ModelName;
+                    string prompt = privateModelsConfig.ChatLlmSetting.Config.GetConfigValueOrDefault("Prompt", this._config.Prompt);
+                    bool useStreaming = privateModelsConfig.ChatLlmSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
+                    string summaryMemory = privateModelsConfig.ChatLlmSetting.Config.GetConfigValueOrDefault("SummaryMemory", string.Empty);
 
-                    LLMBuildConfig llmBuildConfig = new LLMBuildConfig(llmModelName, prompt, useStreaming, summaryMemory, privateKernel, session);
+                    LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
+                        privateModelsConfig.EmotionLlmSetting.ModelName,
+                        privateModelsConfig.ChatLlmSetting.ModelName,
+                        prompt,
+                        useStreaming,
+                        summaryMemory,
+                        privateKernel);
 
+                    privateKernel.Data.Add("session", session);
                     if (!privateLlm.Build(llmBuildConfig))
                     {
                         this._logger.LogError("Failed to build private LLM model for device: {deviceId}.", session.DeviceId);
                         return false;
                     }
-                    privateKernel.Data.Add("session", session);
                     session.PrivateProvider.SetKernel(privateKernel);
                     session.PrivateProvider.SetLlm(privateLlm);
 
-                    this._logger.LogInformation("Private LLM {modeName} model initialized for device: {deviceId}.", privateModelsConfig.LlmSetting.ModelName, session.DeviceId);
+                    this._logger.LogInformation("Private emotion LLM {emotionLLMName} and chat LLM {chatLLMName} model initialized for device: {deviceId}.", privateModelsConfig.EmotionLlmSetting.ModelName, privateModelsConfig.ChatLlmSetting.ModelName, session.DeviceId);
                 }
                 else
                 {
                     Kernel privateKernel = this._globalKernel.Clone();
                     ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
 
-                    ModelSetting llmModelSetting = this.GetSelectedSetting("LLM", this._config);
-                    string llmModelName = llmModelSetting.ModelName;
-                    bool useStreaming = llmModelSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
+                    ModelSetting emotionLLMModelSetting = this.GetSelectedLLMSetting("EmotionLLM", this._config);
+                    ModelSetting chatLLMModelSetting = this.GetSelectedLLMSetting("ChatLLM", this._config);
+                    bool useStreaming = chatLLMModelSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
 
-                    LLMBuildConfig llmBuildConfig = new LLMBuildConfig(llmModelName, this._config.Prompt, useStreaming, string.Empty, privateKernel, session);
+                    LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
+                        emotionLLMModelSetting.ModelName, 
+                        chatLLMModelSetting.ModelName, 
+                        this._config.Prompt, 
+                        useStreaming, 
+                        summaryMemory: string.Empty, 
+                        privateKernel);
 
+                    privateKernel.Data.Add("session", session);
                     if (!genericLlm.Build(llmBuildConfig))
                     {
                         this._logger.LogError("Failed to build generic LLM model for device: {deviceId}.", session.DeviceId);
                         return false;
                     }
-                    privateKernel.Data.Add("session", session);
                     session.PrivateProvider.SetKernel(privateKernel);
                     session.PrivateProvider.SetLlm(genericLlm);
+
+                    this._logger.LogInformation("Generic emotion LLM {emotionLLMName} and chat LLM {chatLLMName} model initialized for device: {deviceId}.", emotionLLMModelSetting.ModelName, chatLLMModelSetting.ModelName, session.DeviceId);
                 }
 
                 if (privateModelsConfig.TtsSetting is not null)
@@ -305,11 +334,6 @@ namespace XiaoZhi.Net.Server.Management
                     this._logger.LogInformation("Generic TTS {modeName} model initialized for device: {deviceId}.", genericTts.ModelName, session.DeviceId);
                 }
 
-                this.BuildAudioPlayer(session);
-                this.BuildAudioProcessor(session);
-                this.BuildAudioResampler(session);
-                this.BuildAudioEncoder(session);
-
                 return true;
             }
             catch (DeviceNotFoundException)
@@ -330,6 +354,13 @@ namespace XiaoZhi.Net.Server.Management
                 session.IsDeviceBinded = false;
                 this._logger.LogError(ex, "Failed to load private models config for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
                 return false;
+            }
+            finally
+            {
+                this.BuildAudioPlayer(session);
+                this.BuildAudioProcessor(session);
+                this.BuildAudioResampler(session);
+                this.BuildAudioEncoder(session);
             }
         }
 
@@ -499,6 +530,8 @@ namespace XiaoZhi.Net.Server.Management
             }
 
             services.AddTransient<IFunctionInvocationFilter, MCPToolFunctionFilter>();
+            services.AddTransient<IEmotionAgent, EmotionAgent>();
+            services.AddTransient<IChatAgent, ChatAgent>();
             services.AddTransient<ILlm, GenericOpenAI>();
         }
         #endregion
@@ -680,21 +713,27 @@ namespace XiaoZhi.Net.Server.Management
             Kernel privateKernel = this._globalKernel.Clone();
             ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
 
-            ModelSetting llmModelSetting = this.GetSelectedSetting("LLM", this._config);
-            string llmModelName = llmModelSetting.ModelName;
-            bool useStreaming = llmModelSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
+            ModelSetting emotionLLMModelSetting = this.GetSelectedLLMSetting("EmotionLLM", this._config);
+            ModelSetting chatLLMModelSetting = this.GetSelectedLLMSetting("ChatLLM", this._config);
+            bool useStreaming = chatLLMModelSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
 
-            LLMBuildConfig llmBuildConfig = new LLMBuildConfig(llmModelName, this._config.Prompt, useStreaming, string.Empty, privateKernel, session);
+            LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
+                emotionLLMModelSetting.ModelName,
+                chatLLMModelSetting.ModelName,
+                this._config.Prompt,
+                useStreaming,
+                summaryMemory: string.Empty,
+                privateKernel);
 
+            privateKernel.Data.Add("session", session);
             if (!genericLlm.Build(llmBuildConfig))
             {
                 throw new ModelBuildException("Failed to build generic LLM model.");
             }
-            privateKernel.Data.Add("session", session);
             session.PrivateProvider.SetKernel(privateKernel);
             session.PrivateProvider.SetLlm(genericLlm);
 
-            this._logger.LogInformation("Generic LLM {modeName} model initialized for device: {deviceId}.", llmModelSetting.ModelName, session.DeviceId);
+            this._logger.LogInformation("Generic emotion LLM {emotionLLMName} and chat LLM {chatLLMName} model initialized for device: {deviceId}.", emotionLLMModelSetting.ModelName, chatLLMModelSetting.ModelName, session.DeviceId);
             #endregion
 
             #region Tts
@@ -707,11 +746,6 @@ namespace XiaoZhi.Net.Server.Management
             session.PrivateProvider.SetTts(genericTts);
             this._logger.LogInformation("Generic TTS {modeName} model initialized for device: {deviceId}.", genericTts.ModelName, session.DeviceId);
             #endregion
-
-            this.BuildAudioPlayer(session);
-            this.BuildAudioProcessor(session);
-            this.BuildAudioResampler(session);
-            this.BuildAudioEncoder(session);
 
             return true;
         }

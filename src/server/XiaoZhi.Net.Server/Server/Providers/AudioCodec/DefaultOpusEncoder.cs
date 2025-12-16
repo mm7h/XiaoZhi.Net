@@ -2,8 +2,10 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
+using System.Drawing;
 using System.Threading;
 using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace XiaoZhi.Net.Server.Providers.AudioCodec
 {
@@ -52,6 +54,17 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
             try
             {
                 await this._encodeSemaphoreSlim.WaitAsync(token);
+
+                if (pcmData.Length < this.FrameSize)
+                {
+                    float[] paddedData = new float[this.FrameSize];
+                    Array.Copy(pcmData, paddedData, pcmData.Length);
+                    for (int i = pcmData.Length; i < this.FrameSize; i++)
+                    {
+                        paddedData[i] = 0.0f;
+                    }
+                    pcmData = paddedData;
+                }
 
                 int encodedLength = this._encoder!.Encode(pcmData, pcmData.Length, byteData, byteData.Length);
 

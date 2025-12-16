@@ -32,7 +32,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
                 config.Model.Kokoro.DataDir = Path.Combine(this.ModelFileFoler, "espeak-ng-data");
                 config.Model.Kokoro.DictDir = Path.Combine(this.ModelFileFoler, "dict");
 
-                string lexicons = modelSetting.Config.GetConfigValueOrDefault("Lexicons", string.Empty);
+                string? lexicons = modelSetting.Config.GetConfigValueOrDefault("Lexicons");
                 if (!string.IsNullOrEmpty(lexicons))
                 {
                     string lexiconPath = string.Join(',', lexicons.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(l => Path.Combine(this.ModelFileFoler, l)));

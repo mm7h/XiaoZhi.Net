@@ -103,7 +103,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             if (!session.IsDeviceBinded)
             {
-                session.PrivateProvider.AudioProcessor.ClearAllBuffers();
+                session.PrivateProvider.AudioProcessor?.ClearAllBuffers();
                 await this.CheckBindDevice(session);
                 return;
             }
@@ -256,23 +256,23 @@ namespace XiaoZhi.Net.Server.Handlers
             this.Logger.LogDebug("TTS processing completed for device: {deviceId}.", session.DeviceId);
         }
 
-        public void OnSentenceStart(string sentence)
+        public void OnSentenceStart(string sentence, Emotion emotion)
         {
             Session session = this.SendOutter.GetSession();
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
             Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
-            outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isFirstFrame: true);
+            outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isFirstFrame: true, emotion: emotion);
 
             nextWorkflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
             this.NextWriter.WriteAsync(nextWorkflow);
         }
 
-        public void OnSentenceEnd(string sentence)
+        public void OnSentenceEnd(string sentence, Emotion emotion  )
         {
             Session session = this.SendOutter.GetSession();
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
             Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
-            outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isLastFrame: true);
+            outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isLastFrame: true, emotion: emotion);
 
             nextWorkflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
             this.NextWriter.WriteAsync(nextWorkflow);

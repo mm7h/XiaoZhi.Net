@@ -1,97 +1,82 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
-using OpenAI.Chat;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
-using XiaoZhi.Net.Server.Providers.LLM.Plugins;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
 {
     internal sealed class GenericOpenAI : BaseProvider<GenericOpenAI, LLMBuildConfig>, ILlm
     {
-        private readonly SemaphoreSlim _llmSlim = new SemaphoreSlim(1, 1);
-        private readonly IServiceProvider _serviceProvider;
-        private readonly ObjectPool<OutSegment> _outSegmentPool;
 
-        private OpenAIPromptExecutionSettings _chatCompletionOptions;
+        private readonly IEmotionAgent _emotionAgent;
+        private readonly IChatAgent _chatAgent;
+        private readonly ObjectPool<OutSegment> _outSegmentPool;
+        private readonly Dictionary<string, IAgent> _subAgents = new Dictionary<string, IAgent>();
         private Kernel? _kernel;
 
-        private IChatCompletionService? _chatCompletionService;
-        public GenericOpenAI(IServiceProvider serviceProvider,
+        public GenericOpenAI(IEmotionAgent emotionAgent,
+            IChatAgent chatAgent,
             ObjectPool<OutSegment> outSegmentPool,
             ILogger<GenericOpenAI> logger) : base(logger)
         {
-            this._serviceProvider = serviceProvider;
+            this._emotionAgent = emotionAgent;
+            this._chatAgent = chatAgent;
             this._outSegmentPool = outSegmentPool;
-            this._chatCompletionOptions = new OpenAIPromptExecutionSettings
-            {
-                Temperature = 0.5f,
-                MaxTokens = 80,
-                ResponseFormat = ChatResponseFormat.CreateTextFormat(),
-                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
-            };
-            this.LLMModelName = string.Empty;
+            this._subAgents = new Dictionary<string, IAgent>();
             this.LLMChatHistory = new ChatHistory();
         }
         public override string ModelName => nameof(GenericOpenAI);
         public override string ProviderType => "llm";
 
-        public string LLMModelName { get; private set; }
         public bool UseStreaming { get; private set; }
         public ChatHistory LLMChatHistory { get; }
 
         public event Action? OnBeforeTokenGenerate;
         public event Action<OutSegment>? OnTokenGenerating;
-        public event Action<string>? OnTokenGenerated;
+        public event Action<IEnumerable<OutSegment>>? OnTokenGenerated;
 
         public override bool Build(LLMBuildConfig modelSetting)
         {
             try
             {
-                this.LLMModelName = modelSetting.LlmModelName;
                 this._kernel = modelSetting.Kernel;
                 this.UseStreaming = modelSetting.UseStreaming;
 
+                this._subAgents.Add(SubAgentNames.EmotionAgent, this._emotionAgent);
+                this._subAgents.Add(SubAgentNames.ChatAgent, this._chatAgent);
 
-                this._chatCompletionService = this._serviceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{modelSetting.LlmModelName}");
+                var buildResults = this._subAgents.Values
+                    .AsParallel()
+                    .Select(client => client.Build(modelSetting))
+                    .ToArray();
 
-                this.LLMChatHistory.AddSystemMessage(modelSetting.Prompt);
-                if (!string.IsNullOrEmpty(modelSetting.SummaryMemory))
-                {
-                    this.LLMChatHistory.AddSystemMessage(modelSetting.SummaryMemory);
-                }
-
-                bool pluginsBuildResult = this.BuildPlugins(modelSetting.Session, this._kernel);
-
-                if (pluginsBuildResult)
-                {
-                    this.Logger.LogInformation("Builded the {providerType} model {modelName} to the device: {deviceId}.", this.ProviderType, this.ModelName, modelSetting.Session.DeviceId);
-                    return true;
-                }
-                else
-                { 
-                    this.Logger.LogError("Failed to build the plugins for {providerType} model {modelName} to the device: {deviceId}.", this.ProviderType, this.ModelName, modelSetting.Session.DeviceId);
-                    return false;
-                }
+                return buildResults.All(result => result);
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Invalid model settings for {providerType} model {modelName} to the device: {deviceId}.", this.ProviderType, this.ModelName, modelSetting.Session.DeviceId);
+                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
                 return false;
             }
+        }
+
+        public override void RegisterDevice(string deviceId, string sessionId)
+        {
+            foreach (var agent in this._subAgents.Values)
+            {
+                agent.RegisterDevice(deviceId, sessionId);
+            }
+            base.RegisterDevice(deviceId, sessionId);
         }
 
         public async Task ChatAsync(string userMessage, CancellationToken token)
@@ -100,25 +85,23 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             {
                 throw new SessionNotInitializedException();
             }
-            if (this._chatCompletionService is null)
+            if (!this._subAgents.Any() || this._kernel is null)
             {
                 this.Logger.LogError("The {providerType} model: {modelName} is not built.", this.ProviderType, this.ModelName);
                 return;
             }
+
             try
             {
-                await this._llmSlim.WaitAsync(token);
                 this.OnBeforeTokenGenerate?.Invoke();
 
-                this.LLMChatHistory.AddUserMessage(userMessage);
-                var clientResult = await this._chatCompletionService.GetChatMessageContentAsync(this.LLMChatHistory, this._chatCompletionOptions, this._kernel, token);
+                Emotion detectedEmotion = await this._emotionAgent.AnalyzeEmotionAsync(userMessage, token);
+                this.Logger.LogDebug("Detected emotion: {detectedEmotion} with the message: \"{userMessage}\" for the device: {deviceId}", detectedEmotion, userMessage, this.DeviceId);
+                string assistantResponse = await this._chatAgent.GenerateChatResponseAsync(userMessage, detectedEmotion, token);
 
-                string content = !string.IsNullOrEmpty(clientResult.Content) ? clientResult.Content : string.Empty;
-                string assistantContent = MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(content), @"<think>.*?</think>", string.Empty, RegexOptions.Singleline));
+                IEnumerable<OutSegment> allResponse = this.ParseContentToSegments(assistantResponse, detectedEmotion);
 
-                this.LLMChatHistory.AddAssistantMessage(assistantContent);
-
-                this.OnTokenGenerated?.Invoke(assistantContent);
+                this.OnTokenGenerated?.Invoke(allResponse);
             }
             catch (OperationCanceledException)
             {
@@ -129,10 +112,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             {
                 this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
             }
-            finally
-            {
-                this._llmSlim.Release();
-            }
         }
 
         public async Task ChatByStreamingAsync(string userMessage, CancellationToken token)
@@ -141,80 +120,43 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             {
                 throw new SessionNotInitializedException();
             }
-            if (this._chatCompletionService is null)
+            if (!this._subAgents.Any() || this._kernel is null)
             {
                 this.Logger.LogError("The {providerType} model: {modelName} is not built.", this.ProviderType, this.ModelName);
                 return;
             }
 
             List<OutSegment> allResponse = new List<OutSegment>();
-
             try
             {
-                await this._llmSlim.WaitAsync(token);
                 this.OnBeforeTokenGenerate?.Invoke();
 
-                this.LLMChatHistory.AddUserMessage(userMessage);
-
-                StringBuilder segmentResponse = new StringBuilder();
-
-                await foreach (var item in this._chatCompletionService.GetStreamingChatMessageContentsAsync(this.LLMChatHistory, this._chatCompletionOptions, this._kernel, token))
+                Emotion detectedEmotion = await this._emotionAgent.AnalyzeEmotionAsync(userMessage, token);
+                this.Logger.LogDebug("Detected emotion: {detectedEmotion} with the message: \"{userMessage}\" for the device: {deviceId}", detectedEmotion, userMessage, this.DeviceId);
+                await foreach (string sentence in this._chatAgent.GenerateChatResponseStreamingAsync(userMessage, detectedEmotion, token))
                 {
-                    string content = !string.IsNullOrEmpty(item.Content) ? item.Content : string.Empty;
-                    string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(content));
-                    segmentResponse.Append(text);
+                    var outSegment = this._outSegmentPool.Get();
+                    outSegment.Initialize(sentence, detectedEmotion);
 
-                    // 在累积的文本中查找分割点
-                    string currentSegment = segmentResponse.ToString();
-                    Match match = DialogueHelper.SENTENCE_SPLIT_REGEX.Match(currentSegment);
-
-                    while (match.Success)
+                    if (allResponse.Count == 0) 
                     {
-                        int splitPosition = match.Index + match.Length;
-                        string sentence = currentSegment.Substring(0, splitPosition);
-                        string remaining = currentSegment.Substring(splitPosition);
-
-                        var outSegment = this._outSegmentPool.Get();
-                        outSegment.Initialize(sentence);
-                        if (allResponse.Count == 0) outSegment.IsFirstSegment = true;
-
-                        allResponse.Add(outSegment);
-                        this.OnTokenGenerating?.Invoke(outSegment);
-
-                        // 重置累积内容为剩余部分
-                        segmentResponse.Clear();
-                        segmentResponse.Append(remaining);
-                        currentSegment = remaining;
-                        match = DialogueHelper.SENTENCE_SPLIT_REGEX.Match(currentSegment);
+                        outSegment.IsFirstSegment = true;
                     }
+                    allResponse.Add(outSegment);
+                    if (allResponse.Count >= 2)
+                    {
+                        this.OnTokenGenerating?.Invoke(allResponse[^2]);
+                    }
+                    
                 }
-
-                // 处理流结束的情况
                 if (allResponse.Any())
                 {
                     OutSegment lastOutSegment = allResponse.Last();
                     lastOutSegment.IsLastSegment = true;
+                    this.OnTokenGenerating?.Invoke(lastOutSegment);
                 }
-                else
-                {
-                    // 处理LLM回复的内容无法被句子分隔的问题
-                    if (segmentResponse.Length > 0)
-                    {
-                        var segment = this._outSegmentPool.Get();
-                        segment.Initialize(segmentResponse.ToString(), true, true);
-                        allResponse.Add(segment);
-                        this.OnTokenGenerating?.Invoke(segment);
-                    }
-                }
-                segmentResponse.Clear();
 
-                string allContent = string.Join(string.Empty, allResponse.Select(a => a.Content));
-
-                string assistantContent = MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(allContent), @"<think>.*?</think>", "", RegexOptions.Singleline));
-
-                this.LLMChatHistory.AddAssistantMessage(assistantContent);
-
-                this.OnTokenGenerated?.Invoke(assistantContent);
+                this.OnTokenGenerated?.Invoke(allResponse);
             }
             catch (OperationCanceledException)
             {
@@ -228,32 +170,28 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             finally
             {
                 allResponse.Clear();
-
-                this._llmSlim.Release();
             }
         }
 
-        private bool BuildPlugins(Session session, Kernel kernel)
+        private IEnumerable<OutSegment> ParseContentToSegments(string content, Emotion emotion)
         {
-            #region LocalMusicPlayer
-            MusicPlayer musicPlayerPlugin = this._serviceProvider.GetRequiredService<MusicPlayer>();
+            content = DialogueHelper.GetStringNoPunctuationOrEmoji(content);
 
-            LLMPluginConfig llmPluginConfig = new LLMPluginConfig(session);
+            IEnumerable<string> segments = DialogueHelper.SplitContentByPunctuations(content);
+            int segmentsCount = segments.Count();
+            int segmentIndex = 0;
 
-            if (musicPlayerPlugin.Build(llmPluginConfig))
+            foreach (string segment in segments)
             {
-                musicPlayerPlugin.RegisterDevice(session.DeviceId, session.SessionId);
-                string pluginName = musicPlayerPlugin.ModelName;
-                kernel.ImportPluginFromObject(musicPlayerPlugin, pluginName);
-                this.Logger.LogInformation("LLM plugin {pluginName} initialized for device: {deviceId}.", pluginName, session.DeviceId);
-            }
-            else
-            {
-                return false;
-            }
-            #endregion
+                segmentIndex++;
+                bool isFirst = segmentIndex == 1;
+                bool isLast = segmentIndex == segmentsCount;
 
-            return true;
+                var outSegment = this._outSegmentPool.Get();
+
+                outSegment.Initialize(segment, isFirst, isLast, emotion);
+                yield return outSegment;
+            }
         }
 
         public override void Dispose()

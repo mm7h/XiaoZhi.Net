@@ -67,9 +67,10 @@ namespace XiaoZhi.Net.Server.Providers.MCP.ServerMcp
             this._mcpClient?.DisposeAsync();
         }
 
-        protected override async Task SendMCPMessageAsync<TMessage>(TMessage message)
+        protected override Task SendMCPMessageAsync<TMessage>(TMessage message)
         {
-
+            // todo
+            return Task.CompletedTask;
         }
 
     }

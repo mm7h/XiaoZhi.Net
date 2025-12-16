@@ -15,8 +15,9 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         private readonly ILogger<FFmpegAudioMixer> _logger;
 
         // Audio stream management
-        private readonly Dictionary<AudioType, AudioStreamContext> _audioStreams;
+        private readonly Dictionary<AudioType, AudioStreamProcessor> _audioStreams;
         private readonly Dictionary<AudioType, IntPtr> _audioFifos; // AVAudioFifo*
+        private readonly Dictionary<AudioType, bool> _sourceClosedStates; // Track FFmpeg source filter closed state
         private readonly Dictionary<AudioType, VolumeTransitionControl> _volumeStates;
         private readonly Dictionary<AudioType, float> _volumeLevels;
         private readonly Dictionary<AudioType, int> _priorities;
@@ -42,6 +43,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         private volatile bool _isMixing = false;
         private volatile bool _shouldStop = false;
         private readonly object _filterLock = new();
+        private AudioMixerState _currentState = AudioMixerState.Idle;
 
         // Processing thread and synchronization
         private Thread? _mixingThread;
@@ -110,8 +112,9 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         public FFmpegAudioMixer(ILogger<FFmpegAudioMixer> logger)
         {
             _logger = logger;
-            _audioStreams = new Dictionary<AudioType, AudioStreamContext>();
+            _audioStreams = new Dictionary<AudioType, AudioStreamProcessor>();
             _audioFifos = new Dictionary<AudioType, IntPtr>();
+            _sourceClosedStates = new Dictionary<AudioType, bool>();
             _sourceFilterCtxs = new Dictionary<AudioType, IntPtr>();
             _volumeStates = new Dictionary<AudioType, VolumeTransitionControl>();
             _volumeLevels = new Dictionary<AudioType, float>();
@@ -158,7 +161,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     {
                         int initialDelay = _config.BufferPrefillFrames * _frameDuration;
                         _lastScheduledOutputTime = DateTime.UtcNow.AddMilliseconds(initialDelay);
-                        _logger.LogInformation("Buffer pacing baseline set with prefill delay {delay}ms", initialDelay);
+                        _logger.LogDebug("Buffer pacing baseline set with prefill delay {delay}ms", initialDelay);
                     }
 
                     if (_outputBuffer.Count < targetBufferDepth)
@@ -170,7 +173,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                         if (!_bufferPreFilled && _outputBuffer.Count >= _config.BufferPrefillFrames)
                         {
                             _bufferPreFilled = true;
-                            _logger.LogInformation("Prefilled {count} frames. Starting pacing timer.", _outputBuffer.Count);
+                            _logger.LogDebug("Prefilled {count} frames. Starting pacing timer.", _outputBuffer.Count);
                             StartPlaybackTimer();
                         }
                         canEnqueue = true;
@@ -203,11 +206,6 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             {
                 var frame = frameToPlay.Value;
                 OutputAudioData(frame.Data, frame.IsFirst, frame.IsLast);
-            }
-            else
-            {
-                var silent = new float[_frameSampleCount];
-                OutputAudioData(silent, false, false);
             }
         }
 
@@ -319,14 +317,17 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
             lock (_streamLock)
             {
-                // Get or create audio stream context
-                if (!_audioStreams.TryGetValue(audioType, out var streamContext))
+                // Get or create audio stream processor
+                if (!_audioStreams.TryGetValue(audioType, out var streamProcessor))
                 {
-                    streamContext = CreateAudioStreamContext(audioType);
-                    _audioStreams[audioType] = streamContext;
+                    streamProcessor = CreateAudioStreamProcessor(audioType);
+                    _audioStreams[audioType] = streamProcessor;
                     _totalStreamCount++;
                     _filterGraphDirty = true;
                 }
+
+                // Add data to the stream processor (for tracking purposes)
+                streamProcessor.AddData(audioData);
 
                 // Write data to FIFO buffer
                 WriteToAudioFifo(audioType, audioData);
@@ -349,24 +350,17 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         {
             lock (_streamLock)
             {
-                if (_audioStreams.TryGetValue(audioType, out var streamContext))
+                if (_audioStreams.TryGetValue(audioType, out var streamProcessor))
                 {
-                    streamContext.IsStopping = true;
+                    streamProcessor.Stop();
                     _logger.LogDebug("Marked audio stream {AudioType} for stopping", audioType);
                 }
             }
         }
 
-        private AudioStreamContext CreateAudioStreamContext(AudioType audioType)
+        private AudioStreamProcessor CreateAudioStreamProcessor(AudioType audioType)
         {
-            var context = new AudioStreamContext
-            {
-                AudioType = audioType,
-                IsActive = true,
-                IsStopping = false,
-                ProcessedFrameCount = 0,
-                SourceClosed = false
-            };
+            var processor = new AudioStreamProcessor(audioType, _outputSampleRate, _outputChannels, _frameDuration, _config);
 
             // Create FIFO buffer
             var fifo = ffmpeg.av_audio_fifo_alloc(_sampleFormat, _outputChannels, _frameSampleCount * 30);
@@ -376,67 +370,11 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             }
 
             _audioFifos[audioType] = (IntPtr)fifo;
+            _sourceClosedStates[audioType] = false;
 
-            _logger.LogDebug("Created audio stream context for {AudioType}", audioType);
-            return context;
+            _logger.LogDebug("Created audio stream processor for {AudioType}", audioType);
+            return processor;
         }
-
-        private void WriteToAudioFifo(AudioType audioType, float[] audioData)
-        {
-            if (!_audioFifos.TryGetValue(audioType, out var fifoPtr))
-                return;
-
-            try
-            {
-                // Apply volume control (avoid restarting transition on every write)
-                var volumeState = GetOrCreateVolumeState(audioType);
-                var targetVolume = _volumeLevels.GetValueOrDefault(audioType, 0.5f);
-
-                float currentVolume;
-                if (!_config.EnableSmoothVolumeControl)
-                {
-                    currentVolume = targetVolume;
-                }
-                else
-                {
-                    const float eps = 0.0001f;
-                    if (!volumeState.IsTransitioning && Math.Abs(volumeState.TargetVolume - targetVolume) > eps)
-                    {
-                        volumeState.StartTransition(targetVolume, _config.VolumeTransitionDurationMs, _config.TransitionCurve);
-                    }
-                    currentVolume = volumeState.UpdateAndGetCurrentVolume();
-                }
-
-                // Apply volume to audio data
-                var processedData = new float[audioData.Length];
-                for (int i = 0; i < audioData.Length; i++)
-                {
-                    processedData[i] = audioData[i] * currentVolume;
-                }
-
-                // Convert float[] to FFmpeg format (packed planar)
-                var dataPtr = Marshal.AllocHGlobal(processedData.Length * sizeof(float));
-                Marshal.Copy(processedData, 0, dataPtr, processedData.Length);
-
-                var samples = processedData.Length / _outputChannels;
-                var fifo = (AVAudioFifo*)fifoPtr;
-                var tmp = dataPtr; // needs an address of a single-plane pointer array
-                var ret = ffmpeg.av_audio_fifo_write(fifo, (void**)&tmp, samples);
-
-                Marshal.FreeHGlobal(dataPtr);
-
-                if (ret < 0)
-                {
-                    _logger.LogError("Failed to write audio data to FIFO for {AudioType}, error: {Error}",
-                        audioType, GetFFmpegErrorString(ret));
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error writing audio data to FIFO for {AudioType}", audioType);
-            }
-        }
-
         #endregion
 
         #region Filter graph management
@@ -621,9 +559,9 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             foreach (var kvp in _audioStreams.ToList())
             {
                 var audioType = kvp.Key;
-                var streamContext = kvp.Value;
+                var streamProcessor = kvp.Value;
 
-                if (streamContext.IsStopping && _audioFifos.TryGetValue(audioType, out var fifoPtr))
+                if (streamProcessor.IsStopping && _audioFifos.TryGetValue(audioType, out var fifoPtr))
                 {
                     var fifo = (AVAudioFifo*)fifoPtr;
                     var remainingSamples = ffmpeg.av_audio_fifo_size(fifo);
@@ -633,7 +571,8 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     if (remainingSamples == 0)
                     {
                         // Close source filter
-                        if (_sourceFilterCtxs.TryGetValue(audioType, out var srcPtr) && !streamContext.SourceClosed)
+                        var isSourceClosed = _sourceClosedStates.GetValueOrDefault(audioType, false);
+                        if (_sourceFilterCtxs.TryGetValue(audioType, out var srcPtr) && !isSourceClosed)
                         {
                             try
                             {
@@ -641,7 +580,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                                 var ret = ffmpeg.av_buffersrc_close(sourceCtx, _pts, 0);
                                 if (ret >= 0)
                                 {
-                                    streamContext.SourceClosed = true;
+                                    _sourceClosedStates[audioType] = true;
                                     _logger.LogDebug("Closed source filter for {AudioType}", audioType);
                                 }
                                 else
@@ -676,8 +615,12 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         {
             _logger.LogDebug("Removing audio stream {AudioType}", audioType);
 
-            // Remove audio stream context
-            _audioStreams.Remove(audioType);
+            // Remove and dispose audio stream processor
+            if (_audioStreams.TryGetValue(audioType, out var streamProcessor))
+            {
+                streamProcessor.Dispose();
+                _audioStreams.Remove(audioType);
+            }
 
             // Cleanup FIFO
             if (_audioFifos.TryGetValue(audioType, out var fifoPtr))
@@ -686,6 +629,9 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 _audioFifos.Remove(audioType);
             }
 
+            // Remove source closed state
+            _sourceClosedStates.Remove(audioType);
+
             // Remove source reference
             _sourceFilterCtxs.Remove(audioType);
             _completedStreamCount++;
@@ -693,7 +639,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             // Check if there are still active streams
             _filterGraphDirty = true;
 
-            var activeStreams = _audioStreams.Where(kvp => kvp.Value.IsActive && !kvp.Value.IsStopping).ToList();
+            var activeStreams = _audioStreams.Where(kvp => !kvp.Value.IsComplete && !kvp.Value.IsStopping).ToList();
 
             if (activeStreams.Count == 0)
             {
@@ -706,7 +652,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     if (_audioStreams.Count == 0 && _draining)
                     {
                         _logger.LogDebug("All streams completed, gracefully ending mixer");
-                    }
+                      }
                 });
             }
             else
@@ -732,15 +678,28 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             _currentStats.CurrentRms = (float)Math.Sqrt(sumSquares / audioData.Length);
             _currentStats.CurrentPeak = peak;
             _currentStats.CurrentGainDb = 20 * (float)Math.Log10(Math.Max(_currentStats.CurrentRms, 1e-10f));
-            _currentStats.ActiveStreamCount = _audioStreams.Count(kvp => kvp.Value.IsActive);
+            _currentStats.ActiveStreamCount = _audioStreams.Count(kvp => !kvp.Value.IsComplete);
 
             OnMixingStatsUpdated?.Invoke(_currentStats);
         }
 
         private void SetState(AudioMixerState newState)
         {
-            OnStateChanged?.Invoke(newState);
-            _logger.LogDebug("FFmpeg audio mixer state changed to {State}", newState);
+            if (_currentState != newState)
+            {
+                _currentState = newState;
+                if (newState == AudioMixerState.Mixing)
+                {
+                    _firstFrameAfterStart = true;
+                    _lastFrameEmitted = false; // reset last-frame flag on start
+                }
+                else
+                {
+                    _firstFrameAfterStart = false;
+                }
+                OnStateChanged?.Invoke(newState);
+                _logger.LogDebug("FFmpeg audio mixer state changed to {State}", newState);
+            }
         }
 
         public AudioMixerStats GetCurrentStats()
@@ -803,7 +762,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 if (isMultiStream)
                 {
                     // Use a more conservative normalization for multiple streams
-                    int activeCount = _audioStreams.Count(kvp => kvp.Value.IsActive);
+                    int activeCount = _audioStreams.Count(kvp => !kvp.Value.IsComplete);
                     targetFactor = (float)(0.75 / Math.Sqrt(Math.Max(activeCount, 1)));
                 }
                 else
@@ -924,8 +883,6 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             _hasEmittedFirst = false;
             _hasEmittedLast = false;
             _draining = false;
-            _firstFrameAfterStart = true;
-            _lastFrameEmitted = false;
             SetState(AudioMixerState.Mixing);
 
             _mixingThread = new Thread(MixingThreadProc)
@@ -952,11 +909,31 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                             DrainSinkAndEmitLast();
                         }
 
+                        // Check if all streams are completed and we should stop the thread
+                        bool shouldStopThread = false;
+                        lock (_streamLock)
+                        {
+                            if (_audioStreams.Count == 0 && _lastFrameEmitted)
+                            {
+                                shouldStopThread = true;
+                            }
+                        }
+
+                        if (shouldStopThread)
+                        {
+                            _logger.LogDebug("All streams completed, stopping mixing thread to allow restart for next session");
+                            break;
+                        }
+
                         // Wait for data or check whether we should stop
                         _dataAvailableEvent.Wait(TimeSpan.FromMilliseconds(50), _cancellationTokenSource.Token);
                         _dataAvailableEvent.Reset();
                     }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogDebug("Mixing thread cancelled");
             }
             catch (Exception ex)
             {
@@ -998,10 +975,10 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 var activeStreams = GetActiveStreamsWithBufferStrategy();
 
                 // Process each active audio stream
-                foreach (var (audioType, streamContext) in activeStreams)
+                foreach (var (audioType, streamProcessor) in activeStreams)
                 {
                     // Read from FIFO and push to filter
-                    if (ProcessAudioStream(audioType, streamContext))
+                    if (ProcessAudioStream(audioType, streamProcessor))
                     {
                         hasProcessedData = true;
                     }
@@ -1016,7 +993,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 else if (_audioStreams.Count > 0)
                 {
                     // If there are streams but no processed data, we may need to send silent frames to keep continuity
-                    bool hasActiveStreams = _audioStreams.Values.Any(s => s.IsActive && !s.IsStopping);
+                    bool hasActiveStreams = _audioStreams.Values.Any(s => !s.IsComplete && !s.IsStopping);
                     if (hasActiveStreams)
                     {
                         // Send a short silent frame to maintain audio continuity
@@ -1036,16 +1013,16 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             }
         }
 
-        private List<(AudioType type, AudioStreamContext context)> GetActiveStreamsWithBufferStrategy()
+        private List<(AudioType type, AudioStreamProcessor processor)> GetActiveStreamsWithBufferStrategy()
         {
-            var activeStreams = new List<(AudioType, AudioStreamContext)>();
+            var activeStreams = new List<(AudioType, AudioStreamProcessor)>();
 
             foreach (var kvp in _audioStreams)
             {
                 var audioType = kvp.Key;
-                var streamContext = kvp.Value;
+                var streamProcessor = kvp.Value;
 
-                if (!streamContext.IsActive)
+                if (streamProcessor.IsComplete)
                     continue;
 
                 if (!_audioFifos.TryGetValue(audioType, out var fifoPtr))
@@ -1056,11 +1033,11 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 var requiredSamples = _frameSampleCount / _outputChannels;
 
                 bool hasFullFrame = availableSamples >= requiredSamples;
-                bool isNewStream = streamContext.ProcessedFrameCount < 3;
+                bool isNewStream = streamProcessor.ProcessedFrameCount < 3;
 
                 if (hasFullFrame)
                 {
-                    activeStreams.Add((audioType, streamContext));
+                    activeStreams.Add((audioType, streamProcessor));
                 }
                 else if (isNewStream && _config.EnableSmoothVolumeControl)
                 {
@@ -1068,19 +1045,19 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     int minRequiredSamples = (int)(requiredSamples * _config.NewStreamBufferTolerance);
                     if (availableSamples >= minRequiredSamples)
                     {
-                        activeStreams.Add((audioType, streamContext));
+                        activeStreams.Add((audioType, streamProcessor));
                     }
                 }
-                else if (streamContext.IsStopping && availableSamples > 0)
+                else if (streamProcessor.IsStopping && availableSamples > 0)
                 {
-                    activeStreams.Add((audioType, streamContext));
+                    activeStreams.Add((audioType, streamProcessor));
                 }
             }
 
             return activeStreams;
         }
 
-        private bool ProcessAudioStream(AudioType audioType, AudioStreamContext streamContext)
+        private bool ProcessAudioStream(AudioType audioType, AudioStreamProcessor streamProcessor)
         {
             if (!_audioFifos.TryGetValue(audioType, out var fifoPtr) ||
                 !_sourceFilterCtxs.TryGetValue(audioType, out var sourceCtxPtr))
@@ -1094,7 +1071,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
             // Use improved buffering strategy
             bool hasFullFrame = availableSamples >= requiredSamples;
-            bool isNewStream = streamContext.ProcessedFrameCount < 3;
+            bool isNewStream = streamProcessor.ProcessedFrameCount < 3;
             bool canProcess = false;
 
             if (hasFullFrame)
@@ -1106,7 +1083,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 int minRequiredSamples = (int)(requiredSamples * _config.NewStreamBufferTolerance);
                 canProcess = availableSamples >= minRequiredSamples;
             }
-            else if (streamContext.IsStopping && availableSamples > 0)
+            else if (streamProcessor.IsStopping && availableSamples > 0)
             {
                 canProcess = true;
             }
@@ -1168,7 +1145,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     _subtitleSyncTracker?.NotifyAudioSamplesSent(audioType, nbSamples);
                 }
 
-                streamContext.ProcessedFrameCount++;
+                streamProcessor.MarkFrameProcessed();
                 _pts += nbSamples;
 
                 return true;
@@ -1177,6 +1154,62 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             {
                 _logger.LogError(ex, "Error processing audio stream {AudioType}", audioType);
                 return false;
+            }
+        }
+
+        private void WriteToAudioFifo(AudioType audioType, float[] audioData)
+        {
+            if (!_audioFifos.TryGetValue(audioType, out var fifoPtr))
+                return;
+
+            try
+            {
+                // Apply volume control (avoid restarting transition on every write)
+                var volumeState = GetOrCreateVolumeState(audioType);
+                var targetVolume = _volumeLevels.GetValueOrDefault(audioType, 0.5f);
+
+                float currentVolume;
+                if (!_config.EnableSmoothVolumeControl)
+                {
+                    currentVolume = targetVolume;
+                }
+                else
+                {
+                    const float eps = 0.0001f;
+                    if (!volumeState.IsTransitioning && Math.Abs(volumeState.TargetVolume - targetVolume) > eps)
+                    {
+                        volumeState.StartTransition(targetVolume, _config.VolumeTransitionDurationMs, _config.TransitionCurve);
+                    }
+                    currentVolume = volumeState.UpdateAndGetCurrentVolume();
+                }
+
+                // Apply volume to audio data
+                var processedData = new float[audioData.Length];
+                for (int i = 0; i < audioData.Length; i++)
+                {
+                    processedData[i] = audioData[i] * currentVolume;
+                }
+
+                // Convert float[] to FFmpeg format (packed planar)
+                var dataPtr = Marshal.AllocHGlobal(processedData.Length * sizeof(float));
+                Marshal.Copy(processedData, 0, dataPtr, processedData.Length);
+
+                var samples = processedData.Length / _outputChannels;
+                var fifo = (AVAudioFifo*)fifoPtr;
+                var tmp = dataPtr; // needs an address of a single-plane pointer array
+                var ret = ffmpeg.av_audio_fifo_write(fifo, (void**)&tmp, samples);
+
+                Marshal.FreeHGlobal(dataPtr);
+
+                if (ret < 0)
+                {
+                    _logger.LogError("Failed to write audio data to FIFO for {AudioType}, error: {Error}",
+                        audioType, GetFFmpegErrorString(ret));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error writing audio data to FIFO for {AudioType}", audioType);
             }
         }
 
@@ -1235,7 +1268,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     bool isFirst = _firstFrameAfterStart;
                     if (_firstFrameAfterStart) _firstFrameAfterStart = false;
 
-                    bool allComplete = _audioStreams.Values.All(s => s.IsStopping || !s.IsActive);
+                    bool allComplete = _audioStreams.Values.All(s => s.IsStopping || s.IsComplete);
                     bool hasTransitions = _volumeStates.Values.Any(v => v.IsTransitioning);
                     bool isLast = allComplete && !hasTransitions && !_lastFrameEmitted;
                     if (isLast) _lastFrameEmitted = true;
@@ -1311,10 +1344,6 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             }
         }
 
-        #endregion
-
-        #region Interface implementation
-
         public void ClearAllBuffers()
         {
             lock (_streamLock)
@@ -1322,6 +1351,12 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 foreach (var fifoPtr in _audioFifos.Values)
                 {
                     ffmpeg.av_audio_fifo_reset((AVAudioFifo*)fifoPtr);
+                }
+
+                // Clear stream processor buffers
+                foreach (var streamProcessor in _audioStreams.Values)
+                {
+                    streamProcessor.ClearBuffer();
                 }
 
                 // clear output buffer
@@ -1374,7 +1409,14 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 }
                 _audioFifos.Clear();
 
+                // Dispose all stream processors
+                foreach (var streamProcessor in _audioStreams.Values)
+                {
+                    streamProcessor.Dispose();
+                }
                 _audioStreams.Clear();
+                _sourceClosedStates.Clear();
+
                 _dataAvailableEvent.Dispose();
                 _cancellationTokenSource.Dispose();
 
@@ -1386,14 +1428,5 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         }
 
         #endregion
-
-        private class AudioStreamContext
-        {
-            public AudioType AudioType { get; set; }
-            public bool IsActive { get; set; }
-            public bool IsStopping { get; set; }
-            public int ProcessedFrameCount { get; set; }
-            public bool SourceClosed { get; set; }
-        }
     }
 }

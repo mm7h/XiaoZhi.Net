@@ -77,14 +77,14 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 
                         if (!firstFrameSent)
                         {
-                            sessionCallback.OnSentenceStart(segment.Content);
+                            sessionCallback.OnSentenceStart(segment.Content, segment.Emotion);
                             firstFrameSent = true;
                             isFirstFrame = true;
                         }
 
                         if (progress == 1.0f)
                         {
-                            sessionCallback.OnSentenceEnd(segment.Content);
+                            sessionCallback.OnSentenceEnd(segment.Content, segment.Emotion);
                             isLastFrame = true;
                         }
 

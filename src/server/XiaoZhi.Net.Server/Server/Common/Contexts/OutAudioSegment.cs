@@ -18,13 +18,13 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public bool IsLastFrame { get; set; }
 
         public void Initialize(float[]? audioData = null, AudioType audioType = AudioType.None, string? content = null, bool isFirstSegment = false, bool isLastSegment = false,
-            bool isFirstFrame = false, bool isLastFrame = false)
+            bool isFirstFrame = false, bool isLastFrame = false, Emotion emotion = Emotion.Neutral)
         {
             this._audioData = audioData ?? Array.Empty<float>();
             this.AudioType = audioType;
             this.IsFirstFrame = isFirstFrame;
             this.IsLastFrame = isLastFrame;
-            base.Initialize(content ?? string.Empty, isFirstSegment, isLastSegment);
+            base.Initialize(content ?? string.Empty, isFirstSegment, isLastSegment, emotion);
         }
 
         public override void Reset()

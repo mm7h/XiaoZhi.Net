@@ -1,4 +1,5 @@
-﻿using XiaoZhi.Net.Server.Common.Enums;
+﻿using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Providers.TTS
 {
@@ -7,7 +8,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         void OnBeforeProcessing(string sentence, bool isFirstSegment, bool isLastSegment);
         void OnProcessing(float[] audioData, bool isFirstFrame, bool isLastFrame);
         void OnProcessed(string sentence, bool isFirstSegment, bool isLastSegment, TtsGenerateResult ttsGenerateResult);
-        void OnSentenceStart(string sentence);
-        void OnSentenceEnd(string sentence);
+        void OnSentenceStart(string sentence, Emotion emotion);
+        void OnSentenceEnd(string sentence, Emotion emotion);
     }
 }

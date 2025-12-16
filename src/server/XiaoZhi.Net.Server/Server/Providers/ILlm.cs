@@ -1,5 +1,6 @@
 ﻿using Microsoft.SemanticKernel.ChatCompletion;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -11,8 +12,7 @@ namespace XiaoZhi.Net.Server.Providers
     {
         event Action OnBeforeTokenGenerate;
         event Action<OutSegment> OnTokenGenerating;
-        event Action<string> OnTokenGenerated;
-        string LLMModelName { get; }
+        event Action<IEnumerable<OutSegment>> OnTokenGenerated;
         bool UseStreaming { get; }
         ChatHistory LLMChatHistory { get; }
         Task ChatAsync(string userMessage, CancellationToken token);

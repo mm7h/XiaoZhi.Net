@@ -1,25 +1,24 @@
 ﻿using Microsoft.SemanticKernel;
-using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Common.Dtos
 {
     internal class LLMBuildConfig
     {
-        public LLMBuildConfig(string llmModelName, string prompt, bool useStreaming, string summaryMemory, Kernel kernel, Session session)
+        public LLMBuildConfig(string emotionLLMModelName, string chatLLMModelName, string prompt, bool useStreaming, string summaryMemory, Kernel kernel)
         {
-            this.LlmModelName = llmModelName;
+            this.EmotionLLMModelName = emotionLLMModelName;
+            this.ChatLLMModelName = chatLLMModelName;
             this.Prompt = prompt;
             this.UseStreaming = useStreaming;
             this.SummaryMemory = summaryMemory;
             this.Kernel = kernel;
-            this.Session = session;
         }
 
-        public string LlmModelName { get; }
+        public string EmotionLLMModelName { get; }
+        public string ChatLLMModelName { get; }
         public string Prompt { get; }
         public bool UseStreaming { get; }
         public string SummaryMemory { get; }
         public Kernel Kernel { get; }
-        public Session Session { get; }
     }
 }

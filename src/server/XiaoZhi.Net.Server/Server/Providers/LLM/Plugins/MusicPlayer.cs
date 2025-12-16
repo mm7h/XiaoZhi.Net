@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Resources;
 
@@ -24,8 +25,15 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
 
         public override bool Build(LLMPluginConfig config)
         {
-            this.CurrentSession = config.Session;
-            return true;
+            if (config.Kernel.Data.TryGetValue("session", out object? val) && val is Session session)
+            {
+                this.CurrentSession = session;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
 
         [KernelFunction, Description("获取服务端音乐文件列表，返回包含音乐文件名称的列表信息")]

@@ -42,7 +42,7 @@ try
             .InitializeFFmpeg()
             // 多媒体文件格式支持
             .WithAllMedia(useFFmpeg: true)
-            .WithManageApi("http://localhost:5118", "your-secret")
+            //.WithManageApi("http://localhost:5118", "your-secret")
             // 构建服务引擎
             .Build();
 

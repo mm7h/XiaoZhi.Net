@@ -2,16 +2,11 @@
 using SherpaOnnx;
 using System;
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 {
     internal class Paraformer : BaseSherpaAsr<Paraformer>, IAsr
     {
-        private readonly SemaphoreSlim _asrConvertSlim = new SemaphoreSlim(1, 1);
-        private OfflineRecognizer? _offlineRecognizer;
         public Paraformer(ILogger<Paraformer> logger) : base(logger)
         {
         }

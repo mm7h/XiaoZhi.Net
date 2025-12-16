@@ -26,8 +26,9 @@
   "SelectedSettings": {
     "VAD": "Silero",
     "ASR": "SenseVoice",
-    "LLM": "ChatGlm",
-    "TTS": "HuoshanBidirection",
+    "EmotionLLM": "ChatGlm",
+    "ChatLLM": "ChatGlm",
+    "TTS": "Kokoro",
     "INTENT": "None",
     "MEMORY": "FlashMemory"
   },

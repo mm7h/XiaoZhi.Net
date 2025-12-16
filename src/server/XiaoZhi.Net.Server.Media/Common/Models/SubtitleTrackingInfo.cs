@@ -11,7 +11,7 @@ namespace XiaoZhi.Net.Server.Media.Common.Models
         public bool SubtitleEndSent { get; set; }
         public bool IsAudioStarted { get; set; }
         public bool IsAudioCompleted { get; set; }
-
+        public Emotion Emotion { get; set; }
         // Sample-based tracking (mono sample counts)
         public int TotalSamples { get; set; }
         public int RemainingSamples { get; set; }
