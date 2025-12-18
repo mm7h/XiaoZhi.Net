@@ -72,23 +72,18 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
                         float[] data = new float[n];
                         Marshal.Copy(samples, data, 0, n);
 
-                        bool isFirstFrame = false;
-                        bool isLastFrame = false;
-
                         if (!firstFrameSent)
                         {
                             sessionCallback.OnSentenceStart(segment.Content, segment.Emotion);
                             firstFrameSent = true;
-                            isFirstFrame = true;
                         }
 
                         if (progress == 1.0f)
                         {
                             sessionCallback.OnSentenceEnd(segment.Content, segment.Emotion);
-                            isLastFrame = true;
                         }
 
-                        sessionCallback.OnProcessing(data, isFirstFrame, isLastFrame);
+                        sessionCallback.OnProcessing(data, false, false);
                         return 1;
                     });
 

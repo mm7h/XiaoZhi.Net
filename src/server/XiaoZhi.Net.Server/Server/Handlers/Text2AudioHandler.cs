@@ -267,7 +267,7 @@ namespace XiaoZhi.Net.Server.Handlers
             this.NextWriter.WriteAsync(nextWorkflow);
         }
 
-        public void OnSentenceEnd(string sentence, Emotion emotion  )
+        public void OnSentenceEnd(string sentence, Emotion emotion)
         {
             Session session = this.SendOutter.GetSession();
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();

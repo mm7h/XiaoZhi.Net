@@ -135,7 +135,6 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public async Task SendCustomMessage(string sessionId, string deviceId, IEnumerable<OutSegment> segments)
         {
-
             foreach (OutSegment segment in segments)
             {
                 var workflow = this._outSegmentWorkflowPool.Get();
@@ -153,11 +152,12 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private async void OnTokenGenerating(OutSegment outSegment)
         {
-            string segment = DialogueHelper.GetStringNoPunctuationOrEmoji(outSegment.Content);
+            var clonedSegment = this._outSegmentPool.Get();
+            clonedSegment.Initialize(outSegment.Content, outSegment.IsFirstSegment, outSegment.IsLastSegment, outSegment.Emotion);
 
             var workflow = this._outSegmentWorkflowPool.Get();
             Session session = this.SendOutter.GetSession();
-            workflow.Initialize(session.SessionId, session.DeviceId, outSegment);
+            workflow.Initialize(session.SessionId, session.DeviceId, clonedSegment);
             await this.NextWriter.WriteAsync(workflow);
         }
 
@@ -175,6 +175,14 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 Session session = this.SendOutter.GetSession();
                 await this.SendCustomMessage(session.SessionId, session.DeviceId, outSegments);
+            }
+            else
+            {
+                // In streaming mode we only log; return the original segments to the pool to avoid leaks
+                foreach (var seg in outSegments)
+                {
+                    this._outSegmentPool.Return(seg);
+                }
             }
 
             await this.SendOutter.SendLlmMessageAsync(Emotion.Winking);
