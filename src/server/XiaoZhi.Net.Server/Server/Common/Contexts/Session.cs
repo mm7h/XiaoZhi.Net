@@ -17,8 +17,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private CancellationTokenSource _sessionCts = null!;
 
         private readonly object _lock = new object();
-        private bool _isCanceling = false;
-        private DateTime _cancelCoolingTime = DateTime.Now;
+        private volatile bool _isReseting = false;
 
         public Session(string sessionId, string deviceId, string authToken, IPEndPoint userEndPoint, IBizSendOutter sendOutter)
         {
@@ -54,13 +53,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         public bool IsIdle => Interlocked.Read(ref _isAudioProcessing) == 1;
 
-        public bool ShouldIgnore()
-        {
-            lock (_lock)
-            {
-                return this._isCanceling && DateTime.Now < this._cancelCoolingTime;
-            }
-        }
+        public bool ShouldIgnore() => this._isReseting;
 
         public void SetListenMode(string mode)
         {
@@ -109,13 +102,16 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         }
         public void Abort()
         {
-            this._sessionCts.Cancel();
-            this._sessionCts.Dispose();
             lock (_lock)
             {
-                this._isCanceling = true;
-                this._cancelCoolingTime = DateTime.Now.AddSeconds(3);
+                if (this._isReseting)
+                {
+                    return;
+                }
+                this._isReseting = true;
             }
+            this._sessionCts.Cancel();
+            this._sessionCts.Dispose();
             this.CreateCancellationTokenSource();
         }
 
@@ -139,12 +135,9 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._sessionCts = new CancellationTokenSource();
             this._sessionCts.Token.Register(async () =>
             {
-                await Task.Delay(3000);
-                lock (_lock)
-                {
-                    this._isCanceling = false;
-                    this.Reset();
-                }
+                await Task.Yield();
+                this.Reset();
+                this._isReseting = false;
             });
         }
 
