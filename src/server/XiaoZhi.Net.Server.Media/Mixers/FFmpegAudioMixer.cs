@@ -72,6 +72,10 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         private volatile bool _firstFrameAfterStart = false;
         private volatile bool _lastFrameEmitted = false;
 
+        // When all inputs are gone, we enter a draining phase: keep draining the filter graph and
+        // only emit the final last-frame once the output pacing buffer becomes empty.
+        private volatile bool _pendingFinalLastFrame = false;
+
         private float _lastNormalizationFactor = 0.75f;
 
         // Subtitle synchronization tracker (optional)
@@ -206,6 +210,25 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             {
                 var frame = frameToPlay.Value;
                 OutputAudioData(frame.Data, frame.IsFirst, frame.IsLast);
+            }
+
+            // If we are waiting to emit the session-ending last frame, do it only after
+            // all queued audio has been played out.
+            if (_pendingFinalLastFrame && !_lastFrameEmitted)
+            {
+                bool canEmit;
+                lock (_bufferLock)
+                {
+                    canEmit = _outputBuffer.Count == 0;
+                }
+
+                if (canEmit)
+                {
+                    var silentFrame = new float[_frameSampleCount];
+                    EmitMixedAudio(silentFrame, false, true);
+                    _lastFrameEmitted = true;
+                    _pendingFinalLastFrame = false;
+                }
             }
         }
 
@@ -646,6 +669,15 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 _logger.LogDebug("No more active streams, will enter draining phase after delay");
                 _draining = true;
 
+                // We reached end-of-session (no active streams). Ensure we will emit exactly one
+                // last-frame AFTER all already enqueued audio has been played out.
+                // This avoids the sender stopping early while also guaranteeing the session ends.
+                if (!_lastFrameEmitted)
+                {
+                    _pendingFinalLastFrame = true;
+                    _dataAvailableEvent.Set();
+                }
+
                 // Delay a little before fully stopping, allowing other streams to continue
                 _ = Task.Delay(100).ContinueWith(_ =>
                 {
@@ -883,7 +915,22 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             _hasEmittedFirst = false;
             _hasEmittedLast = false;
             _draining = false;
+            _pendingFinalLastFrame = false;
             SetState(AudioMixerState.Mixing);
+
+            // Reset pacing/buffering state for a new mixing session.
+            // Otherwise a previous session may have left the playback timer running or
+            // the buffer marked as prefilled, causing incorrect output pacing and end-frame ordering.
+            lock (_bufferLock)
+            {
+                _outputBuffer.Clear();
+                _bufferPreFilled = false;
+                _playbackStarted = false;
+                _lastScheduledOutputTime = DateTime.MinValue;
+            }
+            _playbackTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            _playbackTimer?.Dispose();
+            _playbackTimer = null;
 
             _mixingThread = new Thread(MixingThreadProc)
             {
@@ -1268,19 +1315,25 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     bool isFirst = _firstFrameAfterStart;
                     if (_firstFrameAfterStart) _firstFrameAfterStart = false;
 
-                    bool allComplete = _audioStreams.Values.All(s => s.IsStopping || s.IsComplete);
-                    bool hasTransitions = _volumeStates.Values.Any(v => v.IsTransitioning);
-                    bool isLast = allComplete && !hasTransitions && !_lastFrameEmitted;
-                    if (isLast) _lastFrameEmitted = true;
-
-                    // Send mixed data using the buffering mechanism
-                    EmitMixedAudio(mixedData, isFirst, isLast);
+                    // IMPORTANT: do NOT mark last-frame here.
+                    // FFmpeg filter output may still have buffered audio and/or the output pacing buffer
+                    // may still contain frames. Marking last here can cause the sender to stop early.
+                    EmitMixedAudio(mixedData, isFirst, false);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving mixed audio data");
             }
+        }
+
+        private bool IsFullyDrainedForLastFrame()
+        {
+            // At end-of-session we remove streams and free FIFOs. So the reliable signal is:
+            // no active stream processors, no FIFOs left, and no queued output frames.
+            if (_audioStreams.Count != 0) return false;
+            if (_audioFifos.Count != 0) return false;
+            lock (_bufferLock) return _outputBuffer.Count == 0;
         }
 
         private void DrainSinkAndEmitLast()
@@ -1290,7 +1343,6 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
             try
             {
-                bool hasEmittedAnyFrame = false;
 
                 while (true)
                 {
@@ -1325,17 +1377,15 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                         if (_firstFrameAfterStart) _firstFrameAfterStart = false;
 
                         EmitMixedAudio(mixedData, isFirst, false);
-                        hasEmittedAnyFrame = true;
                     }
                 }
 
                 // Send a final silent frame to indicate the end
-                if (!_lastFrameEmitted)
+                // We can't emit last-frame until all already-enqueued audio has played out.
+                // Here we only schedule it; PlaybackTimerCallback will emit it once the output queue is empty.
+                if (!_lastFrameEmitted && !_pendingFinalLastFrame && IsFullyDrainedForLastFrame())
                 {
-                    var silentFrame = new float[_frameSampleCount];
-                    bool isFirst = _firstFrameAfterStart && !hasEmittedAnyFrame;
-                    EmitMixedAudio(silentFrame, isFirst, true);
-                    _lastFrameEmitted = true;
+                    _pendingFinalLastFrame = true;
                 }
             }
             catch (Exception ex)
