@@ -3,6 +3,7 @@ using Microsoft.Extensions.ObjectPool;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
@@ -133,10 +134,14 @@ namespace XiaoZhi.Net.Server.Handlers
             await this.Handle(workflow, false);
         }
 
-        public async Task SendCustomMessage(string sessionId, string deviceId, IEnumerable<OutSegment> segments)
+        public async Task SendCustomMessage(string sessionId, string deviceId, IEnumerable<OutSegment> segments, CancellationToken token)
         {
             foreach (OutSegment segment in segments)
             {
+                if (token.IsCancellationRequested)
+                {
+                    return;
+                }
                 var workflow = this._outSegmentWorkflowPool.Get();
 
                 workflow.Initialize(sessionId, deviceId, segment);
@@ -174,7 +179,7 @@ namespace XiaoZhi.Net.Server.Handlers
             if (!this._llm.UseStreaming)
             {
                 Session session = this.SendOutter.GetSession();
-                await this.SendCustomMessage(session.SessionId, session.DeviceId, outSegments);
+                await this.SendCustomMessage(session.SessionId, session.DeviceId, outSegments, session.SessionCtsToken);
             }
             else
             {

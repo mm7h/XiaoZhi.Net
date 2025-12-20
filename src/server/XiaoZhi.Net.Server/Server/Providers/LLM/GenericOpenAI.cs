@@ -98,7 +98,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 Emotion detectedEmotion = await this._emotionAgent.AnalyzeEmotionAsync(userMessage, token);
                 this.Logger.LogDebug("Detected emotion: {detectedEmotion} with the message: \"{userMessage}\" for the device: {deviceId}", detectedEmotion, userMessage, this.DeviceId);
                 string assistantResponse = await this._chatAgent.GenerateChatResponseAsync(userMessage, detectedEmotion, token);
-
+                token.ThrowIfCancellationRequested();
                 IEnumerable<OutSegment> allResponse = this.ParseContentToSegments(assistantResponse, detectedEmotion);
 
                 this.OnTokenGenerated?.Invoke(allResponse);
@@ -135,6 +135,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 this.Logger.LogDebug("Detected emotion: {detectedEmotion} with the message: \"{userMessage}\" for the device: {deviceId}", detectedEmotion, userMessage, this.DeviceId);
                 await foreach (string sentence in this._chatAgent.GenerateChatResponseStreamingAsync(userMessage, detectedEmotion, token))
                 {
+                    token.ThrowIfCancellationRequested();
                     var outSegment = this._outSegmentPool.Get();
                     outSegment.Initialize(sentence, detectedEmotion);
 

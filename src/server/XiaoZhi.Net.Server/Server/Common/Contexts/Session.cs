@@ -34,6 +34,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.CreateCancellationTokenSource();
         }
 
+        public event Action<CancellationToken>? SessionCtsTokenChanged;
         public string SessionId { get; }
         public string DeviceId { get; }
         public string AuthToken { get; }
@@ -111,7 +112,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
                 this._isReseting = true;
             }
             this._sessionCts.Cancel();
-            this._sessionCts.Dispose();
             this.CreateCancellationTokenSource();
         }
 
@@ -139,6 +139,11 @@ namespace XiaoZhi.Net.Server.Common.Contexts
                 this.Reset();
                 this._isReseting = false;
             });
+
+            // Inform subscribers that the token has been recreated.
+            var token = this._sessionCts.Token;
+            // todo: 通知链接了token的地方更新token
+            this.SessionCtsTokenChanged?.Invoke(token);
         }
 
         public override string ToString()

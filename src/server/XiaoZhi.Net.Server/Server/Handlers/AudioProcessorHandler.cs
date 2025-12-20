@@ -111,6 +111,7 @@ namespace XiaoZhi.Net.Server.Handlers
             OutAudioSegment s = workflow.Data;
             try
             {
+                session.SessionCtsToken.ThrowIfCancellationRequested();
                 this._audioProcessor.ProcessAudio(s.AudioType, s.AudioData, s.Content, s.Emotion, s.IsFirstFrame, s.IsLastFrame);
 
                 if (s.IsLastSegment)
