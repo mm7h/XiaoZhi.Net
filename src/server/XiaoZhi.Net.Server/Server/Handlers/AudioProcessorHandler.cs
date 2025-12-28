@@ -45,6 +45,7 @@ namespace XiaoZhi.Net.Server.Handlers
             this._audioProcessor = privateProvider.AudioProcessor;
             this._audioProcessor.RegisterDevice(session.DeviceId, session.SessionId);
             this._audioProcessor.OnMixedAudioDataAvailable += this.OnMixedAudioDataAvailable;
+            this.RegisterCancellationToken();
             return true;
         }
 
@@ -111,7 +112,7 @@ namespace XiaoZhi.Net.Server.Handlers
             OutAudioSegment s = workflow.Data;
             try
             {
-                session.SessionCtsToken.ThrowIfCancellationRequested();
+                this.HandlerToken.ThrowIfCancellationRequested();
                 this._audioProcessor.ProcessAudio(s.AudioType, s.AudioData, s.Content, s.Emotion, s.IsFirstFrame, s.IsLastFrame);
 
                 if (s.IsLastSegment)
@@ -149,6 +150,7 @@ namespace XiaoZhi.Net.Server.Handlers
         public override void Dispose()
         {
             this.NextWriter.Complete();
+            base.Dispose();
         }
     }
 }

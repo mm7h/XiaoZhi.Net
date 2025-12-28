@@ -39,6 +39,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             this._asr = privateProvider.Asr;
             this._asr.RegisterDevice(session.DeviceId, session.SessionId);
+            this.RegisterCancellationToken();
             return true;
         }
 
@@ -79,7 +80,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     return;
                 }
 
-                string speechText = await this._asr.ConvertSpeechTextAsync(workflow, this.Config.AudioSetting.SampleRate, this.Config.AudioSetting.FrameSize, session.SessionCtsToken);
+                string speechText = await this._asr.ConvertSpeechTextAsync(workflow, this.Config.AudioSetting.SampleRate, this.Config.AudioSetting.FrameSize, this.HandlerToken);
 
                 if (string.IsNullOrEmpty(speechText) || string.IsNullOrEmpty(DialogueHelper.GetStringNoPunctuationOrEmoji(speechText)))
                 {
@@ -108,6 +109,7 @@ namespace XiaoZhi.Net.Server.Handlers
         public override void Dispose()
         {
             this.NextWriter.Complete();
+            base.Dispose();
         }
     }
 }

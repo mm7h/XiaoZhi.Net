@@ -57,7 +57,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             this._audioDecoder = privateProvider.AudioDecoder;
             this._audioDecoder.RegisterDevice(session.DeviceId, session.SessionId);
-
+            this.RegisterCancellationToken();
             return true;
         }
 
@@ -87,9 +87,9 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             try
             {
-                float[] pcmData = await this._audioDecoder.DecodeAsync(opusData, session.SessionCtsToken);
+                float[] pcmData = await this._audioDecoder.DecodeAsync(opusData, this.HandlerToken);
 
-                session.SessionCtsToken.ThrowIfCancellationRequested();
+                this.HandlerToken.ThrowIfCancellationRequested();
                 if (session.ListenMode != ListenMode.Manual)
                 {
                     session.AudioPacketContext.VadPacket.Push(pcmData);
@@ -98,7 +98,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 bool haveVoice = false;
 
                 if (session.ListenMode != ListenMode.Manual)
-                    haveVoice = await this._vad.AnalysisVoiceAsync(session, session.SessionCtsToken);
+                    haveVoice = await this._vad.AnalysisVoiceAsync(session, this.HandlerToken);
                 else
                     haveVoice = session.VadStatusContext.HaveVoice;
 
@@ -124,7 +124,7 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             if (session.VadStatusContext.VoiceStop)
             {
-                session.SessionCtsToken.ThrowIfCancellationRequested();
+                this.HandlerToken.ThrowIfCancellationRequested();
                 session.RejectIncomingAudio();
 
                 if (this._receivedPcmPacketFrame.Size < 50)
@@ -180,6 +180,7 @@ namespace XiaoZhi.Net.Server.Handlers
         public override void Dispose()
         {
             this.NextWriter.Complete();
+            base.Dispose();
         }
     }
 }

@@ -31,6 +31,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override bool Build(PrivateProvider privateProvider)
         {
+            this.RegisterCancellationToken();
             return true;
         }
 
@@ -161,6 +162,7 @@ namespace XiaoZhi.Net.Server.Handlers
         public override void Dispose()
         {
             this.NextWriter.Complete();
+            base.Dispose();
         }
     }
 }

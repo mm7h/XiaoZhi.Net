@@ -116,7 +116,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     return;
                 }
 
-                await this._tts.SynthesisAsync(workflow, session.SessionCtsToken);
+                await this._tts.SynthesisAsync(workflow, this.HandlerToken);
             }
             catch (OperationCanceledException)
             {
@@ -203,6 +203,7 @@ namespace XiaoZhi.Net.Server.Handlers
             this.NextWriter.Complete();
             this.NextWriter2.Complete();
             this.NextWriter3.Complete();
+            base.Dispose();
         }
 
         #region ITtsEventCallback
@@ -228,7 +229,7 @@ namespace XiaoZhi.Net.Server.Handlers
             Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
             if (session.PrivateProvider.AudioResampler is not null && audioData.Length > 0)
             {
-                (float[] resampledAudioData, _) = await session.PrivateProvider.AudioResampler.ResampleAsync(audioData, session.SessionCtsToken);
+                (float[] resampledAudioData, _) = await session.PrivateProvider.AudioResampler.ResampleAsync(audioData, this.HandlerToken);
                 outAudioSegment.Initialize(audioType: AudioType.TTS, audioData: resampledAudioData, isFirstFrame: isFirstFrame, isLastFrame: isLastFrame);
             }
             else

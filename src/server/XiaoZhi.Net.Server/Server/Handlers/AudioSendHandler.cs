@@ -49,7 +49,7 @@ namespace XiaoZhi.Net.Server.Handlers
             this._audioProcessor.OnSubtitleEnd += this.OnSubtitleEnd;
 
             this._audioEncoder = privateProvider.AudioEncoder;
-
+            this.RegisterCancellationToken();
             return true;
         }
 
@@ -96,7 +96,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     this.Logger.LogDebug("Send the first audio frame from the device: {deviceId}.", session.DeviceId);
                 }
 
-                byte[] opusData = await this._audioEncoder.EncodeAsync(audioPacket.Data, session.SessionCtsToken);
+                byte[] opusData = await this._audioEncoder.EncodeAsync(audioPacket.Data, this.HandlerToken);
                 await this.SendOutter.SendAsync(opusData);
 
                 if (audioPacket.IsLastFrame)

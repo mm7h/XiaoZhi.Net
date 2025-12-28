@@ -112,7 +112,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
                 this._isReseting = true;
             }
             this._sessionCts.Cancel();
-            this.CreateCancellationTokenSource();
         }
 
         public void RefreshLastActivityTime()
@@ -138,12 +137,12 @@ namespace XiaoZhi.Net.Server.Common.Contexts
                 await Task.Yield();
                 this.Reset();
                 this._isReseting = false;
-            });
 
-            // Inform subscribers that the token has been recreated.
-            var token = this._sessionCts.Token;
-            // todo: 通知链接了token的地方更新token
-            this.SessionCtsTokenChanged?.Invoke(token);
+                this._sessionCts.Dispose();
+                this._sessionCts = new CancellationTokenSource();
+                var newToken = this._sessionCts.Token;
+                this.SessionCtsTokenChanged?.Invoke(newToken);
+            });
         }
 
         public override string ToString()

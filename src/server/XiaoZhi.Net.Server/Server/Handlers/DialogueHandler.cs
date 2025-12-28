@@ -51,7 +51,7 @@ namespace XiaoZhi.Net.Server.Handlers
             this._llm.OnTokenGenerating += this.OnTokenGenerating;
             this._llm.OnTokenGenerated += this.OnTokenGenerated;
             this._llm.RegisterDevice(session.DeviceId, session.SessionId);
-
+            this.RegisterCancellationToken();
             return true;
         }
 
@@ -115,11 +115,11 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     if (this._llm.UseStreaming)
                     {
-                        await this._llm.ChatByStreamingAsync(workflow.Data, session.SessionCtsToken);
+                        await this._llm.ChatByStreamingAsync(workflow.Data, this.HandlerToken);
                     }
                     else
                     {
-                        await this._llm.ChatAsync(workflow.Data, session.SessionCtsToken);
+                        await this._llm.ChatAsync(workflow.Data, this.HandlerToken);
                     }
                 }
             }
@@ -134,11 +134,11 @@ namespace XiaoZhi.Net.Server.Handlers
             await this.Handle(workflow, false);
         }
 
-        public async Task SendCustomMessage(string sessionId, string deviceId, IEnumerable<OutSegment> segments, CancellationToken token)
+        public async Task SendCustomMessage(string sessionId, string deviceId, IEnumerable<OutSegment> segments)
         {
             foreach (OutSegment segment in segments)
             {
-                if (token.IsCancellationRequested)
+                if (this.HandlerToken.IsCancellationRequested)
                 {
                     return;
                 }
@@ -179,7 +179,7 @@ namespace XiaoZhi.Net.Server.Handlers
             if (!this._llm.UseStreaming)
             {
                 Session session = this.SendOutter.GetSession();
-                await this.SendCustomMessage(session.SessionId, session.DeviceId, outSegments, session.SessionCtsToken);
+                await this.SendCustomMessage(session.SessionId, session.DeviceId, outSegments);
             }
             else
             {
@@ -202,6 +202,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 this._llm.OnTokenGenerated -= this.OnTokenGenerated;
             }
             this.NextWriter.Complete();
+            base.Dispose();
         }
     }
 }
