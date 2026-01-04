@@ -2,10 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -19,7 +17,7 @@ using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models;
 
 namespace XiaoZhi.Net.Server.Providers.TTS
 {
-    internal sealed class HuoshanBidirectionTTS : HuoshanTTS<HuoshanBidirectionTTS>, ITts
+    internal class HuoshanBidirectionTTS : HuoshanTTS<HuoshanBidirectionTTS>, ITts
     {
         private const string SERVICE_END_POINT = "wss://openspeech.bytedance.com/api/v3/tts/bidirection";
         private const string TTS_NAMESPACE = "BidirectionalTTS";
@@ -292,7 +290,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 {
                     string sentence = JsonObject.Parse(message.Payload)?["text"]?.GetValue<string>() ?? string.Empty;
                     Emotion segmentEmotion = this._processingSegments.TryGetValue(message.SessionId, out var seg) ? seg.Emotion : Emotion.Neutral;
-                    this._ttsEventCallback?.OnSentenceStart(sentence, segmentEmotion);
+                    string sentenceId = seg?.SentenceId ?? string.Empty;
+                    this._ttsEventCallback?.OnSentenceStart(sentence, segmentEmotion, this.GenerateId());
                 }
                 return;
             }
@@ -327,7 +326,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 {
                     string sentence = JsonObject.Parse(message.Payload)?["text"]?.GetValue<string>() ?? string.Empty;
                     Emotion segmentEmotion = this._processingSegments.TryGetValue(message.SessionId, out var seg) ? seg.Emotion : Emotion.Neutral;
-                    this._ttsEventCallback?.OnSentenceEnd(sentence, segmentEmotion);
+                    string sentenceId = seg?.SentenceId ?? string.Empty;
+                    this._ttsEventCallback?.OnSentenceEnd(sentence, segmentEmotion, this.GenerateId());
                 }
                 return;
             }

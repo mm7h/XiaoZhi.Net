@@ -10,7 +10,7 @@ namespace XiaoZhi.Net.Server.Media.Decoders.FFmpeg;
 /// This class cannot be inherited.
 /// <para>Implements: <see cref="IAudioDecoder"/>.</para>
 /// </summary>
-internal sealed unsafe class FFmpegStreamDecoder : IAudioDecoder
+internal unsafe class FFmpegStreamDecoder : IAudioDecoder
 {
     private const int StreamBufferSize = 4096;
     private const AVMediaType MediaType = AVMediaType.AVMEDIA_TYPE_AUDIO;

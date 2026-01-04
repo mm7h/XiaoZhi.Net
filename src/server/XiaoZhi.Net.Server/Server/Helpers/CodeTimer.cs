@@ -4,7 +4,7 @@ using System.Diagnostics;
 
 namespace XiaoZhi.Net.Server.Helpers
 {
-    internal sealed class CodeTimer : IDisposable
+    internal class CodeTimer : IDisposable
     {
         private readonly Stopwatch _stopwatch;
         private readonly string _template;

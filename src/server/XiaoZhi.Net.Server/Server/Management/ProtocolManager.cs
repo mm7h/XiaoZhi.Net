@@ -12,7 +12,7 @@ using XiaoZhi.Net.Server.Protocol.WebSocket.Handlers;
 
 namespace XiaoZhi.Net.Server.Management
 {
-    internal sealed class ProtocolManager
+    internal class ProtocolManager
     {
         public static IHostBuilder RegisterServices(IHostBuilder builder, XiaoZhiConfig config)
         {

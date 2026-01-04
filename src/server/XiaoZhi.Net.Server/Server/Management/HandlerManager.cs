@@ -11,12 +11,12 @@ using XiaoZhi.Net.Server.Handlers;
 
 namespace XiaoZhi.Net.Server.Management
 {
-    internal sealed class HandlerManager
+    internal class HandlerManager
     {
 #if DEBUG
-        private const int CHANNEL_CAPACITY = 500;
+        private const int CHANNEL_CAPACITY = 100;
 #else
-        private const int CHANNEL_CAPACITY = 1500;
+        private const int CHANNEL_CAPACITY = 200;
 #endif
 
         private readonly IServiceProvider _serviceProvider;

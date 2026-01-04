@@ -3,7 +3,7 @@ using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Common.ObjectPoolPolicies
 {
-    internal sealed class WorkflowPolicy<T> : PooledObjectPolicy<Workflow<T>> where T : class
+    internal class WorkflowPolicy<T> : PooledObjectPolicy<Workflow<T>> where T : class
     {
         public override Workflow<T> Create()
         {

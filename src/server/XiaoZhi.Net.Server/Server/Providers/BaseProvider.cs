@@ -54,6 +54,11 @@ namespace XiaoZhi.Net.Server.Providers
             return exist;
         }
 
+        protected virtual string GenerateId()
+        {
+            return Guid.NewGuid().ToString("N");
+        }
+
         protected string ReplaceMacDelimiters(string deviceId, string newDelimiter = "")
         {
             if (string.IsNullOrWhiteSpace(deviceId))

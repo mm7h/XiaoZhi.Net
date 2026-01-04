@@ -2,7 +2,7 @@
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
 {
-    internal sealed class TTSAudioFile
+    internal class TTSAudioFile
     {
         public TTSAudioFile(string sessionId, FileStream stream, string tmpPath, string finalPath)
         {

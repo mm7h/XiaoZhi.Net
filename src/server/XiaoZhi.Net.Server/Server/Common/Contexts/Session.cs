@@ -11,7 +11,7 @@ using XiaoZhi.Net.Server.Protocol;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {
-    internal sealed class Session
+    internal class Session
     {
         private long _isAudioProcessing;
         private CancellationTokenSource _sessionCts = null!;

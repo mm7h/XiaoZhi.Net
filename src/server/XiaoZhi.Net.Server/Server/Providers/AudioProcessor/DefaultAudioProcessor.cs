@@ -2,28 +2,24 @@
 using System;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Media.Abstractions;
+using XiaoZhi.Net.Server.Media.Abstractions.Dtos;
 
 namespace XiaoZhi.Net.Server.Providers.AudioMixer
 {
     internal class DefaultAudioProcessor : BaseProvider<DefaultAudioProcessor, AudioSetting>, IAudioProcessor
     {
         private readonly IAudioMixer _audioMixer;
-        private readonly IAudioSubtitleSyncTracker _audioSubtitleSyncTracker;
+        private readonly IAudioSubtitleRegister _audioSubtitleSyncTracker;
 
-        public event Action<float[], bool, bool>? OnMixedAudioDataAvailable;
-        public event Action<AudioType, string, Emotion>? OnSubtitleStart;
-        public event Action<AudioType, string, Emotion>? OnSubtitleEnd;
+        public event Action<float[], bool, bool, string?>? OnMixedAudioDataAvailable;
 
-        public DefaultAudioProcessor(IAudioMixer audioMixer, IAudioSubtitleSyncTracker audioSubtitleSyncTracker, ILogger<DefaultAudioProcessor> logger) : base(logger)
+        public DefaultAudioProcessor(IAudioMixer audioMixer, IAudioSubtitleRegister audioSubtitleSyncTracker, ILogger<DefaultAudioProcessor> logger) : base(logger)
         {
             this._audioMixer = audioMixer;
             this._audioSubtitleSyncTracker = audioSubtitleSyncTracker;
             this._audioMixer.OnMixedAudioDataAvailable += this.FireOnMixedAudioData;
-
-            // 订阅字幕跟踪器事件并向外转发
-            this._audioSubtitleSyncTracker.OnSubtitleStart += this.FireOnSubtitleStart;
-            this._audioSubtitleSyncTracker.OnSubtitleEnd += this.FireOnSubtitleEnd;
         }
+
         public override string ProviderType => "AudioProcessor";
 
         public override string ModelName => "default audio processor";
@@ -37,10 +33,10 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
                     this.Logger.LogWarning("The audio mixer has been initialized, no need to initialize again.");
                     return true;
                 }
-                // 将字幕同步跟踪器注入混音器以实现音频-字幕对齐
-                this._audioMixer.Initialize(settings.SampleRate, settings.Channels, settings.FrameDuration, null, this._audioSubtitleSyncTracker);
+                this._audioMixer.Initialize(settings.SampleRate, settings.Channels, settings.FrameDuration, null);
 
                 return true;
+
             }
             catch (Exception ex)
             {
@@ -49,39 +45,14 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
             }
         }
 
-        public void ProcessAudio(AudioType audioType, float[] audioData, string content, Emotion emotion, bool isFirstFrame, bool isLastFrame)
+        public void ProcessAudio(AudioType audioType, float[] audioData, string content, Emotion emotion, bool isFirstFrame, bool isLastFrame, string? sentenceId)
         {
-            // Add audio to mixer regardless of frame type (even empty frames help timing)
-            if (audioData.Length > 0)
-            {
-                this._audioMixer.AddAudioData(audioType, audioData);
-            }
-
-            int channels = Math.Max(1, this._audioMixer.OutputChannels);
-            int monoSamples = audioData.Length / channels;
-
-            if (isFirstFrame)
-            {
-                this._audioSubtitleSyncTracker.RegisterAudioSubtitle(audioType, content, emotion);
-                if (monoSamples > 0)
-                {
-                    this._audioSubtitleSyncTracker.AttachSamplesToNextSubtitle(audioType, monoSamples);
-                }
-            }
-            else if (monoSamples > 0)
-            {
-                this._audioSubtitleSyncTracker.AttachSamplesToNextSubtitle(audioType, monoSamples);
-            }
+            this._audioMixer.AddAudioData(audioType, audioData, sentenceId);
         }
 
         public void CompleteStream(AudioType audioType)
         {
             this._audioMixer.StopAudioStream(audioType);
-        }
-
-        public void SealCurrentSubtitle(AudioType audioType)
-        {
-            this._audioSubtitleSyncTracker.SealCurrentSubtitle(audioType);
         }
 
         public void ClearAllBuffers()
@@ -90,26 +61,24 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
             this._audioMixer.ClearAllBuffers();
         }
 
-
-        private void FireOnMixedAudioData(float[] audioPcmData, bool isFirst, bool isLast)
+        public void RegisterSubtitle(string sentenceId, AudioType audioType, TtsStatus ttsStatus, string text, Emotion emotion)
         {
-            this.OnMixedAudioDataAvailable?.Invoke(audioPcmData, isFirst, isLast);
+            this._audioSubtitleSyncTracker.Register(sentenceId, audioType, ttsStatus, text, emotion);
         }
 
-        private void FireOnSubtitleStart(AudioType audioType, string text, Emotion emotion)
+        public bool GetSubtitle(string sentenceId, out AudioSubtitle subtitle)
         {
-            this.OnSubtitleStart?.Invoke(audioType, text, emotion);
+            return this._audioSubtitleSyncTracker.GetSubtitle(sentenceId, out subtitle);
         }
 
-        private void FireOnSubtitleEnd(AudioType audioType, string text, Emotion emotion)
+        private void FireOnMixedAudioData(float[] audioPcmData, bool isFirst, bool isLast, string? sentenceId)
         {
-            this.OnSubtitleEnd?.Invoke(audioType, text, emotion);
+            this.OnMixedAudioDataAvailable?.Invoke(audioPcmData, isFirst, isLast, sentenceId);
         }
+
 
         public override void Dispose()
         {
-            this._audioSubtitleSyncTracker.OnSubtitleStart -= this.FireOnSubtitleStart;
-            this._audioSubtitleSyncTracker.OnSubtitleEnd -= this.FireOnSubtitleEnd;
             this._audioSubtitleSyncTracker.ClearAll();
             this._audioMixer.ClearAllBuffers();
             this._audioMixer.OnMixedAudioDataAvailable -= this.FireOnMixedAudioData;

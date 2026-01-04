@@ -38,7 +38,7 @@ using XiaoZhi.Net.Server.Services;
 
 namespace XiaoZhi.Net.Server.Management
 {
-    internal sealed class ProviderManager
+    internal class ProviderManager
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly Kernel _globalKernel;

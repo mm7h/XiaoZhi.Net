@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel;
 
-namespace XiaoZhi.Net.Server.Common.Enums
+namespace XiaoZhi.Net.Server.Abstractions.Common.Enums
 {
-    internal enum TtsStatus
+    public enum TtsStatus
     {
         [Description("start")]
         Start,

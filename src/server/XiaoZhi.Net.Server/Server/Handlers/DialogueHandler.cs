@@ -13,7 +13,7 @@ using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
-    internal sealed class DialogueHandler : BaseHandler, IInHandler<string, string>, IOutHandler<OutSegment>
+    internal class DialogueHandler : BaseHandler, IInHandler<string, string>, IOutHandler<OutSegment>
     {
         private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;
         private readonly ObjectPool<Workflow<OutSegment>> _outSegmentWorkflowPool;

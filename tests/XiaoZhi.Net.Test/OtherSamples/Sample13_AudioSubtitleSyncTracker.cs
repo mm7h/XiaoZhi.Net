@@ -51,17 +51,17 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
                     Console.WriteLine("Creating AudioMixer with smooth volume control...");
 
-                    IAudioSubtitleSyncTracker subtitleTracker = MediaFactory.CreateAudioSubtitleSyncTracker();
+                    // IAudioSubtitleSyncTracker subtitleTracker = MediaFactory.CreateAudioSubtitleSyncTracker();
 
-                    subtitleTracker.OnSubtitleStart += (audioType, text, emotion) =>
-                    {
-                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Subtitle Start - Type: {audioType}, Text: {text}");
-                    };
+                    // subtitleTracker.OnSubtitleStart += (audioType, text, emotion) =>
+                    // {
+                    //     Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Subtitle Start - Type: {audioType}, Text: {text}");
+                    // };
 
-                    subtitleTracker.OnSubtitleEnd += (audioType, text, emotion) =>
-                    {
-                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Subtitle End - Type: {audioType}, Text: {text}");
-                    };
+                    // subtitleTracker.OnSubtitleEnd += (audioType, text, emotion) =>
+                    // {
+                    //     Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Subtitle End - Type: {audioType}, Text: {text}");
+                    // };
 
                     IAudioMixer mixer = MediaFactory.CreateFFmpegAudioMixer(
                         SAMPLE_RATE,
@@ -72,8 +72,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                             VolumeTransitionDurationMs = 1000,
                             TransitionCurve = VolumeTransitionCurve.Logarithmic,
                             EnableSmoothVolumeControl = true
-                        },
-                        subtitleTracker
+                        }
                     );
                     Console.WriteLine("Setting up event handlers...");
                     mixer.OnStateChanged += (state) =>
@@ -93,7 +92,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     };
 
                     int frameCount = 0;
-                    mixer.OnMixedAudioDataAvailable += (pcmData, isFirst, isLast) =>
+                    mixer.OnMixedAudioDataAvailable += (pcmData, isFirst, isLast, sentenceId) =>
                     {
                         var byteData = new byte[pcmData.Length * 4];
                         Buffer.BlockCopy(pcmData, 0, byteData, 0, byteData.Length);
@@ -115,6 +114,11 @@ namespace XiaoZhi.Net.Test.OtherSamples
                         {
                             Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] *** Last mixed audio frame received (Frame #{frameCount})");
                         }
+                        if (!string.IsNullOrEmpty(sentenceId))
+                        {
+                             Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] *** Frame has SentenceId: {sentenceId}");
+                        }
+
 
                         // Log frame processing for debugging
                         if (frameCount % 100 == 0)
@@ -138,8 +142,8 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         await Task.Delay(15 * 1000);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting TTS playback...");
-                        subtitleTracker.RegisterAudioSubtitle(AudioType.TTS, "你好，欢迎使用小智AI助手1111!", ttsAudio.Length, Emotion.Neutral);
-                        mixer.AddAudioData(AudioType.TTS, ttsAudio);
+                        // subtitleTracker.RegisterAudioSubtitle(AudioType.TTS, "你好，欢迎使用小智AI助手1111!", ttsAudio.Length, Emotion.Neutral);
+                        mixer.AddAudioData(AudioType.TTS, ttsAudio, "1111");
                         mixer.StopAudioStream(AudioType.TTS);
                     });
 
@@ -148,8 +152,8 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         await Task.Delay(35 * 1000);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting second TTS playback...");
-                        subtitleTracker.RegisterAudioSubtitle(AudioType.TTS, "你好，欢迎使用小智AI助手2222!", ttsAudio.Length, Emotion.Neutral);
-                        mixer.AddAudioData(AudioType.TTS, ttsAudio);
+                        // subtitleTracker.RegisterAudioSubtitle(AudioType.TTS, "你好，欢迎使用小智AI助手2222!", ttsAudio.Length, Emotion.Neutral);
+                        mixer.AddAudioData(AudioType.TTS, ttsAudio, "2222");
                         mixer.StopAudioStream(AudioType.TTS);
                     });
 
@@ -158,17 +162,18 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         await Task.Delay(100 * 1000);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting second TTS playback...");
-                        subtitleTracker.RegisterAudioSubtitle(AudioType.TTS, "你好，欢迎使用小智AI助手3333!", ttsAudio.Length, Emotion.Neutral);
-                        mixer.AddAudioData(AudioType.TTS, ttsAudio);
+                        // subtitleTracker.RegisterAudioSubtitle(AudioType.TTS, "你好，欢迎使用小智AI助手3333!", ttsAudio.Length, Emotion.Neutral);
+                        mixer.AddAudioData(AudioType.TTS, ttsAudio, "3333");
                         mixer.StopAudioStream(AudioType.TTS);
                     });
+
 
                     // Start system notification after 25 seconds (highest priority) - should suppress both smoothly
                     Task systemTask = Task.Run(async () =>
                     {
                         await Task.Delay(25 * 1000);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting System Notification playback (should smoothly suppress TTS and music over 500ms)...");
-                        subtitleTracker.RegisterAudioSubtitle(AudioType.SystemNotification, "不好意思，明天这个时候再聊!", Emotion.Neutral);
+                        // subtitleTracker.RegisterAudioSubtitle(AudioType.SystemNotification, "不好意思，明天这个时候再聊!", Emotion.Neutral);
                         await DecodeAudio(SYSTEM_AUDIO_FILE_PATH, AudioType.SystemNotification, mixer);
                     });
 

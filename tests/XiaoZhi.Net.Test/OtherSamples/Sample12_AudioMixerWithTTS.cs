@@ -82,10 +82,11 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     };
 
                     int frameCount = 0;
-                    mixer.OnMixedAudioDataAvailable += (pcmData, isFirst, isLast) =>
+                    mixer.OnMixedAudioDataAvailable += (pcmData, isFirst, isLast, sentenceId) =>
                     {
                         var byteData = new byte[pcmData.Length * 4];
                         Buffer.BlockCopy(pcmData, 0, byteData, 0, byteData.Length);
+
 
                         // Reduced waiting time for lower latency
                         while (provider.BufferedBytes + byteData.Length > provider.BufferLength)

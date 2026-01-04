@@ -18,13 +18,13 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public bool IsLastFrame { get; set; }
 
         public void Initialize(float[]? audioData = null, AudioType audioType = AudioType.None, string? content = null, bool isFirstSegment = false, bool isLastSegment = false,
-            bool isFirstFrame = false, bool isLastFrame = false, Emotion emotion = Emotion.Neutral)
+            bool isFirstFrame = false, bool isLastFrame = false, Emotion emotion = Emotion.Neutral, string? sentenceId = null)
         {
             this._audioData = audioData ?? Array.Empty<float>();
             this.AudioType = audioType;
             this.IsFirstFrame = isFirstFrame;
             this.IsLastFrame = isLastFrame;
-            base.Initialize(content ?? string.Empty, isFirstSegment, isLastSegment, emotion);
+            base.Initialize(content ?? string.Empty, isFirstSegment, isLastSegment, emotion, sentenceId);
         }
 
         public override void Reset()
@@ -35,5 +35,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.IsLastFrame = false;
             base.Reset();
         }
+
+
     }
 }

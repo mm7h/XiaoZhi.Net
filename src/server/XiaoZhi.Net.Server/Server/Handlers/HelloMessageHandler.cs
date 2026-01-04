@@ -8,7 +8,7 @@ using XiaoZhi.Net.Server.Management;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
-    internal sealed class HelloMessageHandler : BaseHandler
+    internal class HelloMessageHandler : BaseHandler
     {
         private readonly ProviderManager _providerManager;
         private readonly HandlerManager _handlerManager;

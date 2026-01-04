@@ -2,7 +2,7 @@
 
 namespace XiaoZhi.Net.Server.Common.Exceptions
 {
-    internal class SessionNotInitializedException: Exception
+    internal class SessionNotInitializedException : Exception
     {
     }
 }

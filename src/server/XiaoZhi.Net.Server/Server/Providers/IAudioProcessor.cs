@@ -1,17 +1,18 @@
 using System;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.Media.Abstractions.Dtos;
 
 namespace XiaoZhi.Net.Server.Providers
 {
     internal interface IAudioProcessor : IProvider<AudioSetting>
     {
-        event Action<float[], bool, bool> OnMixedAudioDataAvailable;
-        event Action<AudioType, string, Emotion> OnSubtitleStart;
-        event Action<AudioType, string, Emotion> OnSubtitleEnd;
+        event Action<float[], bool, bool, string?> OnMixedAudioDataAvailable;
 
-        void ProcessAudio(AudioType audioType, float[] audioData, string content, Emotion emotion, bool isFirstFrame, bool isLastFrame);
+        void ProcessAudio(AudioType audioType, float[] audioData, string content, Emotion emotion, bool isFirstFrame, bool isLastFrame, string? sentenceId);
         void CompleteStream(AudioType audioType);
         void ClearAllBuffers();
-        void SealCurrentSubtitle(AudioType audioType);
+        void RegisterSubtitle(string sentenceId, AudioType audioType, TtsStatus ttsStatus, string text, Emotion emotion);
+        bool GetSubtitle(string sentenceId, out AudioSubtitle subtitle);
     }
+
 }

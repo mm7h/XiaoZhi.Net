@@ -7,7 +7,7 @@ namespace XiaoZhi.Net.Server.Media.Processors;
 /// This class cannot be inherited.
 /// <para>Implements: <see cref="SampleProcessorBase"/>.</para>
 /// </summary>
-internal sealed class VolumeProcessor : SampleProcessorBase
+internal class VolumeProcessor : SampleProcessorBase
 {
     /// <summary>
     /// Initializes <see cref="VolumeProcessor"/>. The volume range should between 0f to 1f.

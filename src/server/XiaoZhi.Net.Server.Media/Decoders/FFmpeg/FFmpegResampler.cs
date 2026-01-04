@@ -3,7 +3,7 @@ using XiaoZhi.Net.Server.Media.Utilities.Extensions;
 
 namespace XiaoZhi.Net.Server.Media.Decoders.FFmpeg;
 
-internal sealed unsafe class FFmpegResampler : IDisposable
+internal unsafe class FFmpegResampler : IDisposable
 {
     public const AVSampleFormat FFmpegSampleFormat = AVSampleFormat.AV_SAMPLE_FMT_FLT;
     private const int LogOffset = 0;

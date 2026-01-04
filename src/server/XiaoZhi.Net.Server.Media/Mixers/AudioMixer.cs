@@ -12,7 +12,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
     /// <summary>
     /// Audio mixer with advanced volume control and smooth transitions
     /// </summary>
-    internal sealed class AudioMixer : IAudioMixer
+    internal class AudioMixer : IAudioMixer
     {
         private readonly ILogger<AudioMixer> _logger;
         private readonly object _syncLock = new();
@@ -58,9 +58,6 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         private bool _bufferPreFilled = false;
         private bool _playbackStarted = false;
 
-        // ×ÖÄ»Í¬²½¸ú×ÙÆ÷
-        private IAudioSubtitleSyncTracker? _subtitleSyncTracker;
-
         public AudioMixer(ILogger<AudioMixer>? logger = null)
         {
             _logger = logger ?? NullLogger<AudioMixer>.Instance;
@@ -69,7 +66,8 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         }
 
         public event Action<AudioMixerState>? OnStateChanged;
-        public event Action<float[], bool, bool>? OnMixedAudioDataAvailable;
+        public event Action<float[], bool, bool, string?>? OnMixedAudioDataAvailable;
+
         public event Action<AudioMixerStats>? OnMixingStatsUpdated;
 
         public bool IsInitialized => _initialized;
@@ -77,7 +75,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         public int OutputChannels => _outputChannels;
         public int FrameDuration => _frameDuration;
 
-        public bool Initialize(int outputSampleRate, int outputChannels, int frameDuration, AudioMixerConfig? config = null, IAudioSubtitleSyncTracker? subtitleSyncTracker = null)
+        public bool Initialize(int outputSampleRate, int outputChannels, int frameDuration, AudioMixerConfig? config = null)
         {
             lock (_syncLock)
             {
@@ -93,9 +91,6 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     {
                         _config = config;
                     }
-
-                    // ÉèÖÃ×ÖÄ»Í¬²½¸ú×ÙÆ÷
-                    _subtitleSyncTracker = subtitleSyncTracker;
 
                     _baseVolumeLevels = new()
                     {
@@ -124,8 +119,8 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     _initialized = true;
                     SetState(AudioMixerState.Idle);
 
-                    _logger.LogInformation("AudioMixer initialized: {SampleRate}Hz, {Channels} channels, {FrameDuration}ms frames, timer interval: {TimerInterval}ms, subtitle sync: {HasSubtitleSync}",
-                        outputSampleRate, outputChannels, frameDuration, timerInterval, _subtitleSyncTracker != null);
+                    _logger.LogInformation("AudioMixer initialized: {SampleRate}Hz, {Channels} channels, {FrameDuration}ms frames, timer interval: {TimerInterval}ms",
+                        outputSampleRate, outputChannels, frameDuration, timerInterval);
 
                     return true;
                 }
@@ -137,26 +132,11 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             }
         }
 
-        private void EmitMixedAudio(float[] mixedData, bool isFirst, bool isLast)
+        private void EmitMixedAudio(float[] mixedData, bool isFirst, bool isLast, string? sentenceId)
         {
             int targetBufferDepth = _config.MaxOutputBufferFrames;
             if (targetBufferDepth <= 0) targetBufferDepth = 1;
 
-            if (_subtitleSyncTracker != null)
-            {
-                var activeAudioTypes = _audioInputs
-                    .Where(kvp => kvp.Value.HasAnyData() || kvp.Value.ProcessedFrameCount > 0)
-                    .Select(kvp => kvp.Key)
-                    .ToList();
-
-                foreach (var audioType in activeAudioTypes)
-                {
-                    if (isLast)
-                    {
-                        _subtitleSyncTracker.NotifyAudioSendComplete(audioType);
-                    }
-                }
-            }
 
             while (true)
             {
@@ -175,7 +155,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     if (_outputBuffer.Count < targetBufferDepth)
                     {
                         nextIdealTime = _lastScheduledOutputTime.AddMilliseconds(_frameDuration);
-                        var frame = new OutputBufferFrame(mixedData.ToArray(), isFirst, isLast);
+                        var frame = new OutputBufferFrame(mixedData.ToArray(), isFirst, isLast, sentenceId);
                         _outputBuffer.Enqueue(frame);
                         _lastScheduledOutputTime = nextIdealTime;
                         if (!_bufferPreFilled && _outputBuffer.Count >= _config.BufferPrefillFrames)
@@ -213,15 +193,15 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             if (frameToPlay.HasValue)
             {
                 var frame = frameToPlay.Value;
-                OutputAudioData(frame.Data, frame.IsFirst, frame.IsLast);
+                OutputAudioData(frame.Data, frame.IsFirst, frame.IsLast, frame.SentenceId);
             }
         }
 
-        private void OutputAudioData(float[] data, bool isFirst, bool isLast)
+        private void OutputAudioData(float[] data, bool isFirst, bool isLast, string? sentenceId)
         {
             try
             {
-                OnMixedAudioDataAvailable?.Invoke(data, isFirst, isLast);
+                OnMixedAudioDataAvailable?.Invoke(data, isFirst, isLast, sentenceId);
             }
             catch (Exception ex)
             {
@@ -229,12 +209,18 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             }
         }
 
-        public void AddAudioData(AudioType audioType, float[] audioData)
+        public void AddAudioData(AudioType audioType, float[] audioData, string? sentenceId = null)
         {
-            if (!_initialized || _disposed || audioData == null || audioData.Length == 0)
+            if (!_initialized || _disposed || audioData == null)
             {
                 return;
             }
+
+            if (audioData.Length == 0 && string.IsNullOrEmpty(sentenceId))
+            {
+                return;
+            }
+
 
             // Get or create input stream for this audio type
             var audioInput = _audioInputs.GetOrAdd(audioType,
@@ -243,7 +229,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             _volumeStates.GetOrAdd(audioType, _ => new VolumeTransitionControl());
 
             // Add data to the input stream with automatic frame boundary detection
-            audioInput.AddData(audioData);
+            audioInput.AddData(audioData, sentenceId);
 
             // Reset last-frame flag as new data arrived in current session
             _lastFrameEmitted = false;
@@ -436,7 +422,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                             }
 
                             bool markLastNow = shouldMarkLast && !_lastFrameEmitted;
-                            EmitMixedAudio(silentFrame, isFirst, markLastNow);
+                            EmitMixedAudio(silentFrame, isFirst, markLastNow, null);
                             if (markLastNow)
                             {
                                 _lastFrameEmitted = true;
@@ -462,7 +448,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                                     _firstFrameAfterStart = false;
                                 }
 
-                                EmitMixedAudio(silentFrame, isFirst, true);
+                                EmitMixedAudio(silentFrame, isFirst, true, null);
                                 _lastFrameEmitted = true;
                                 hasProcessedData = true;
                             }
@@ -488,12 +474,16 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                         UpdateVolumeTargets();
                     }
 
-                    var mixedAudio = MixAudioStreamsWithSmoothVolume(activeInputs, currentActiveTypes);
-                    if (mixedAudio == null || mixedAudio.Length == 0)
+                    var (mixedAudio, sentenceId) = MixAudioStreamsWithSmoothVolume(activeInputs, currentActiveTypes);
+                    if (mixedAudio == null)
                         break;
-                    ApplyEnhancedLimiting(mixedAudio);
-                    ApplyDynamicGainControlSmooth(mixedAudio, activeInputs.Count > 1);
-                    UpdateStatistics(mixedAudio, activeInputs.Count);
+                    
+                    if (mixedAudio.Length > 0)
+                    {
+                        ApplyEnhancedLimiting(mixedAudio);
+                        ApplyDynamicGainControlSmooth(mixedAudio, activeInputs.Count > 1);
+                        UpdateStatistics(mixedAudio, activeInputs.Count);
+                    }
 
                     bool isFirstFrame = false;
                     if (_firstFrameAfterStart)
@@ -507,7 +497,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     bool isLastCandidate = allCompleteNow && !hasTransitions;
                     bool markLast = isLastCandidate && !_lastFrameEmitted;
 
-                    EmitMixedAudio(mixedAudio, isFirstFrame, markLast);
+                    EmitMixedAudio(mixedAudio, isFirstFrame, markLast, sentenceId);
                     if (markLast)
                     {
                         _lastFrameEmitted = true;
@@ -529,9 +519,6 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 foreach (var completedStream in completedStreams)
                 {
                     var audioType = completedStream.Key;
-
-                    // ending subtitle for this audio type (handle unknown-sample subtitles)
-                    _subtitleSyncTracker?.NotifyAudioSendComplete(audioType);
 
                     if (_audioInputs.TryRemove(audioType, out var stream))
                     {
@@ -578,6 +565,13 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
             foreach (var input in inputsWithData)
             {
+                // Handle meta-only frames (no audio data but has metadata)
+                if (input.AvailableDataCount == 0)
+                {
+                    activeInputs.Add(input);
+                    continue;
+                }
+
                 bool hasFullFrame = input.HasDataForFrame(_frameSampleCount);
                 bool isNewStream = input.ProcessedFrameCount < 3;
 
@@ -603,37 +597,43 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             return activeInputs;
         }
 
-        private float[]? MixAudioStreamsWithSmoothVolume(List<AudioStreamProcessor> activeInputs, List<AudioType> currentActiveTypes)
+        private (float[]? data, string? sentenceId) MixAudioStreamsWithSmoothVolume(List<AudioStreamProcessor> activeInputs, List<AudioType> currentActiveTypes)
         {
             if (activeInputs.Count == 0)
             {
-                return null;
+                return (null, null);
             }
 
             var mixedAudio = new float[_frameSampleCount];
+            string? selectedSentenceId = null;
+            bool hasAudioContent = false;
 
             // Track per-stream energy to decide normalization participants
             var streamEnergies = new List<(AudioStreamProcessor stream, float energy, bool warmup)>();
 
-            // Track samples actually consumed from each stream for subtitle sync (mono samples)
-            var consumedSamplesByType = new Dictionary<AudioType, int>();
-
             foreach (var input in activeInputs)
             {
                 int samplesRead;
-                var frameData = input.GetFrameDataWithPartialSupport(_frameSampleCount, out samplesRead);
-                if (frameData == null || frameData.Length == 0)
+                var frameData = input.GetFrameDataWithPartialSupport(_frameSampleCount, out samplesRead, out string? sentenceId);
+                if (frameData == null)
                     continue;
 
-                // Convert to mono sample count for subtitles
-                int monoSamplesRead = samplesRead / Math.Max(1, _outputChannels);
-                if (monoSamplesRead > 0)
+                // Prioritize TTS sentence ID
+                if (input.AudioType == AudioType.TTS && !string.IsNullOrEmpty(sentenceId))
                 {
-                    if (!consumedSamplesByType.TryAdd(input.AudioType, monoSamplesRead))
-                    {
-                        consumedSamplesByType[input.AudioType] += monoSamplesRead;
-                    }
+                    selectedSentenceId = sentenceId;
                 }
+                else if (selectedSentenceId == null && !string.IsNullOrEmpty(sentenceId))
+                {
+                    selectedSentenceId = sentenceId;
+                }
+
+                if (frameData.Length == 0)
+                {
+                    continue;
+                }
+
+                hasAudioContent = true;
 
                 // short fade in/out to reduce clicks
                 const int fadeLength = 16;
@@ -673,13 +673,9 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 streamEnergies.Add((input, avgAbs, warmup));
             }
 
-            // After reading frames, notify subtitle tracker about consumed samples
-            if (_subtitleSyncTracker != null && consumedSamplesByType.Count > 0)
+            if (!hasAudioContent)
             {
-                foreach (var kv in consumedSamplesByType)
-                {
-                    _subtitleSyncTracker.NotifyAudioSamplesSent(kv.Key, kv.Value);
-                }
+                return (Array.Empty<float>(), selectedSentenceId);
             }
 
             if (streamEnergies.Count <= 1)
@@ -688,7 +684,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 float targetNorm = 0.75f;
                 _lastNormalizationFactor = SmoothNormalization(_lastNormalizationFactor, targetNorm);
                 for (int i = 0; i < mixedAudio.Length; i++) mixedAudio[i] *= _lastNormalizationFactor;
-                return mixedAudio;
+                return (mixedAudio, selectedSentenceId);
             }
 
             // Decide which streams participate in normalization (exclude very low energy / warmup streams)
@@ -702,7 +698,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             _lastNormalizationFactor = SmoothNormalization(_lastNormalizationFactor, targetFactor);
 
             for (int i = 0; i < mixedAudio.Length; i++) mixedAudio[i] *= _lastNormalizationFactor;
-            return mixedAudio;
+            return (mixedAudio, selectedSentenceId);
         }
 
         private static float SmoothNormalization(float previous, float target)
@@ -816,10 +812,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 SetState(AudioMixerState.Idle);
                 _hasPendingData = false;
                 
-                // ÇåÀí×ÖÄ»Í¬²½¸ú×Ù
-                _subtitleSyncTracker?.ClearAll();
-                
-                _logger.LogDebug("Cleared all audio buffers and subtitle tracking");
+                _logger.LogDebug("Cleared all audio buffers");
             }
         }
 
@@ -865,7 +858,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     while (_outputBuffer.Count > 0)
                     {
                         var frame = _outputBuffer.Dequeue();
-                        OutputAudioData(frame.Data, frame.IsFirst, frame.IsLast);
+                        OutputAudioData(frame.Data, frame.IsFirst, frame.IsLast, frame.SentenceId);
                     }
                 }
                 SetState(AudioMixerState.Stopped);

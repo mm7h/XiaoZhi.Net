@@ -17,7 +17,8 @@ namespace XiaoZhi.Net.Server.Media.Abstractions
         /// <summary>
         /// Mixed audio data available event
         /// </summary>
-        event Action<float[], bool, bool>? OnMixedAudioDataAvailable;
+        event Action<float[], bool, bool, string?>? OnMixedAudioDataAvailable;
+
 
         /// <summary>
         /// Audio statistics information event
@@ -51,16 +52,17 @@ namespace XiaoZhi.Net.Server.Media.Abstractions
         /// <param name="outputChannels">Output channel count</param>
         /// <param name="frameDuration">Frame duration in milliseconds</param>
         /// <param name="config">Mixer configuration</param>
-        /// <param name="subtitleSyncTracker">Optional subtitle synchronization tracker</param>
         /// <returns>Whether initialization was successful</returns>
-        bool Initialize(int outputSampleRate, int outputChannels, int frameDuration, AudioMixerConfig? config = null, IAudioSubtitleSyncTracker? subtitleSyncTracker = null);
+        bool Initialize(int outputSampleRate, int outputChannels, int frameDuration, AudioMixerConfig? config = null);
 
         /// <summary>
         /// Add audio data to the specified priority audio mixer
         /// </summary>
         /// <param name="audioType">Audio type with priority</param>
         /// <param name="audioData">Audio data</param>
-        void AddAudioData(AudioType audioType, float[] audioData);
+        /// <param name="sentenceId">Optional sentence ID for subtitle synchronization</param>
+        void AddAudioData(AudioType audioType, float[] audioData, string? sentenceId = null);
+
 
         /// <summary>
         /// Stop the specified type of audio stream

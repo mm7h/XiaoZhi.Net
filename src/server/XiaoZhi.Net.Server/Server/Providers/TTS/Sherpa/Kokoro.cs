@@ -7,7 +7,7 @@ using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 {
-    internal sealed class Kokoro : BaseSherpaTts<Kokoro>, ITts
+    internal class Kokoro : BaseSherpaTts<Kokoro>, ITts
     {
        
 

@@ -8,7 +8,7 @@ using XiaoZhi.Net.Server.Media.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Media.Mixers
 {
-    internal sealed unsafe class FFmpegAudioMixer : IAudioMixer
+    internal unsafe class FFmpegAudioMixer : IAudioMixer
     {
         #region Private fields
 
@@ -16,7 +16,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         // Audio stream management
         private readonly Dictionary<AudioType, AudioStreamProcessor> _audioStreams;
-        private readonly Dictionary<AudioType, IntPtr> _audioFifos; // AVAudioFifo*
+        // private readonly Dictionary<AudioType, IntPtr> _audioFifos; // Removed in favor of AudioStreamProcessor buffer
         private readonly Dictionary<AudioType, bool> _sourceClosedStates; // Track FFmpeg source filter closed state
         private readonly Dictionary<AudioType, VolumeTransitionControl> _volumeStates;
         private readonly Dictionary<AudioType, float> _volumeLevels;
@@ -64,6 +64,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         // Output buffering mechanism - new
         private readonly Queue<OutputBufferFrame> _outputBuffer = new Queue<OutputBufferFrame>();
+        private readonly Queue<string?> _pendingSentenceIds = new Queue<string?>();
         private readonly object _bufferLock = new();
         private Timer? _playbackTimer;
         private DateTime _lastScheduledOutputTime = DateTime.MinValue;
@@ -78,30 +79,31 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         private float _lastNormalizationFactor = 0.75f;
 
-        // Subtitle synchronization tracker (optional)
-        private IAudioSubtitleSyncTracker? _subtitleSyncTracker;
-
         // Output buffer frame structure
         private struct OutputBufferFrame
         {
             public float[] Data;
             public bool IsFirst;
             public bool IsLast;
+            public string? SentenceId;
 
-            public OutputBufferFrame(float[] data, bool isFirst, bool isLast)
+            public OutputBufferFrame(float[] data, bool isFirst, bool isLast, string? sentenceId)
             {
                 Data = data;
                 IsFirst = isFirst;
                 IsLast = isLast;
+                SentenceId = sentenceId;
             }
         }
+
 
         #endregion
 
         #region Events and properties
 
         public event Action<AudioMixerState>? OnStateChanged;
-        public event Action<float[], bool, bool>? OnMixedAudioDataAvailable;
+        public event Action<float[], bool, bool, string?>? OnMixedAudioDataAvailable;
+
         public event Action<AudioMixerStats>? OnMixingStatsUpdated;
 
         public bool IsInitialized => _initialized;
@@ -117,7 +119,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         {
             _logger = logger;
             _audioStreams = new Dictionary<AudioType, AudioStreamProcessor>();
-            _audioFifos = new Dictionary<AudioType, IntPtr>();
+            // _audioFifos = new Dictionary<AudioType, IntPtr>();
             _sourceClosedStates = new Dictionary<AudioType, bool>();
             _sourceFilterCtxs = new Dictionary<AudioType, IntPtr>();
             _volumeStates = new Dictionary<AudioType, VolumeTransitionControl>();
@@ -135,26 +137,14 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         #region Output buffering and smooth delivery
 
-        private void EmitMixedAudio(float[] mixedData, bool isFirst, bool isLast)
+        private void EmitMixedAudio(float[] mixedData, bool isFirst, bool isLast, string? sentenceId = null)
         {
             int targetBufferDepth = _config.MaxOutputBufferFrames;
             if (targetBufferDepth <= 0) targetBufferDepth = 1;
 
-            // On final frame, end all remaining subtitles (consistent with AudioMixer behavior)
-            if (isLast && _subtitleSyncTracker != null)
-            {
-                List<AudioType> activeTypes;
-                lock (_streamLock)
-                {
-                    activeTypes = _audioStreams.Keys.ToList();
-                }
-                foreach (var audioType in activeTypes)
-                {
-                    _subtitleSyncTracker.NotifyAudioSendComplete(audioType);
-                }
-            }
 
             while (true)
+
             {
                 if (_disposed) return;
                 bool canEnqueue = false;
@@ -171,7 +161,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     if (_outputBuffer.Count < targetBufferDepth)
                     {
                         nextIdealTime = _lastScheduledOutputTime.AddMilliseconds(_frameDuration);
-                        var frame = new OutputBufferFrame(mixedData.ToArray(), isFirst, isLast);
+                        var frame = new OutputBufferFrame(mixedData.ToArray(), isFirst, isLast, sentenceId);
                         _outputBuffer.Enqueue(frame);
                         _lastScheduledOutputTime = nextIdealTime;
                         if (!_bufferPreFilled && _outputBuffer.Count >= _config.BufferPrefillFrames)
@@ -209,7 +199,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             if (frameToPlay.HasValue)
             {
                 var frame = frameToPlay.Value;
-                OutputAudioData(frame.Data, frame.IsFirst, frame.IsLast);
+                OutputAudioData(frame.Data, frame.IsFirst, frame.IsLast, frame.SentenceId);
             }
 
             // If we are waiting to emit the session-ending last frame, do it only after
@@ -225,24 +215,25 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 if (canEmit)
                 {
                     var silentFrame = new float[_frameSampleCount];
-                    EmitMixedAudio(silentFrame, false, true);
+                    EmitMixedAudio(silentFrame, false, true, null);
                     _lastFrameEmitted = true;
                     _pendingFinalLastFrame = false;
                 }
             }
         }
 
-        private void OutputAudioData(float[] data, bool isFirst, bool isLast)
+        private void OutputAudioData(float[] data, bool isFirst, bool isLast, string? sentenceId)
         {
             try
             {
-                OnMixedAudioDataAvailable?.Invoke(data, isFirst, isLast);
+                OnMixedAudioDataAvailable?.Invoke(data, isFirst, isLast, sentenceId);
             }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Error in OnMixedAudioDataAvailable callback");
             }
         }
+
 
         #endregion
 
@@ -283,7 +274,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             _volumeLevels[AudioType.Music] = _config.MusicVolumeConfig.BaseVolume;
         }
 
-        public bool Initialize(int outputSampleRate, int outputChannels, int frameDuration, AudioMixerConfig? config = null, IAudioSubtitleSyncTracker? subtitleSyncTracker = null)
+        public bool Initialize(int outputSampleRate, int outputChannels, int frameDuration, AudioMixerConfig? config = null)
         {
             lock (_filterLock)
             {
@@ -300,9 +291,6 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                         _config = config;
                     }
 
-                    // Support subtitle synchronization tracker
-                    _subtitleSyncTracker = subtitleSyncTracker;
-
                     _outputSampleRate = outputSampleRate;
                     _outputChannels = outputChannels;
                     _frameDuration = frameDuration;
@@ -317,8 +305,8 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     _initialized = true;
                     SetState(AudioMixerState.Idle);
 
-                    _logger.LogInformation("FFmpeg audio mixer initialized successfully with SampleRate={SampleRate}, Channels={Channels}, FrameDuration={FrameDuration}ms, subtitle sync: {HasSubtitleSync}",
-                        outputSampleRate, outputChannels, frameDuration, _subtitleSyncTracker != null);
+                    _logger.LogInformation("FFmpeg audio mixer initialized successfully with SampleRate={SampleRate}, Channels={Channels}, FrameDuration={FrameDuration}ms",
+                        outputSampleRate, outputChannels, frameDuration);
                     return true;
                 }
                 catch (Exception ex)
@@ -333,10 +321,17 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         #region Audio stream management
 
-        public void AddAudioData(AudioType audioType, float[] audioData)
+        public void AddAudioData(AudioType audioType, float[] audioData, string? sentenceId = null)
         {
-            if (!_initialized || _disposed || audioData == null || audioData.Length == 0)
+            if (!_initialized || _disposed || audioData == null)
+            {
                 return;
+            }
+
+            if (audioData.Length == 0 && string.IsNullOrEmpty(sentenceId))
+            {
+                return;
+            }
 
             lock (_streamLock)
             {
@@ -350,10 +345,9 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 }
 
                 // Add data to the stream processor (for tracking purposes)
-                streamProcessor.AddData(audioData);
+                streamProcessor.AddData(audioData, sentenceId);
 
-                // Write data to FIFO buffer
-                WriteToAudioFifo(audioType, audioData);
+                // WriteToAudioFifo removed - we now use AudioStreamProcessor as the buffer
 
                 // Reset last-frame flag since new data arrived
                 _lastFrameEmitted = false;
@@ -385,14 +379,8 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         {
             var processor = new AudioStreamProcessor(audioType, _outputSampleRate, _outputChannels, _frameDuration, _config);
 
-            // Create FIFO buffer
-            var fifo = ffmpeg.av_audio_fifo_alloc(_sampleFormat, _outputChannels, _frameSampleCount * 30);
-            if (fifo == null)
-            {
-                throw new InvalidOperationException($"Failed to allocate audio FIFO for {audioType}");
-            }
-
-            _audioFifos[audioType] = (IntPtr)fifo;
+            // FIFO allocation removed - using AudioStreamProcessor buffer directly
+            
             _sourceClosedStates[audioType] = false;
 
             _logger.LogDebug("Created audio stream processor for {AudioType}", audioType);
@@ -584,10 +572,9 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 var audioType = kvp.Key;
                 var streamProcessor = kvp.Value;
 
-                if (streamProcessor.IsStopping && _audioFifos.TryGetValue(audioType, out var fifoPtr))
+                if (streamProcessor.IsStopping)
                 {
-                    var fifo = (AVAudioFifo*)fifoPtr;
-                    var remainingSamples = ffmpeg.av_audio_fifo_size(fifo);
+                    var remainingSamples = streamProcessor.AvailableDataCount;
 
                     _logger.LogTrace("Stream {AudioType} stopping, remaining samples: {Samples}", audioType, remainingSamples);
 
@@ -619,9 +606,9 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                         }
 
                         // notify only once when the stream is fully done
-                        _subtitleSyncTracker?.NotifyAudioSendComplete(audioType);
-
+                        
                         streamsToRemove.Add(audioType);
+
                         _logger.LogDebug("Stream {AudioType} completed and will be removed", audioType);
                     }
                 }
@@ -645,12 +632,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 _audioStreams.Remove(audioType);
             }
 
-            // Cleanup FIFO
-            if (_audioFifos.TryGetValue(audioType, out var fifoPtr))
-            {
-                ffmpeg.av_audio_fifo_free((AVAudioFifo*)fifoPtr);
-                _audioFifos.Remove(audioType);
-            }
+            // FIFO cleanup removed
 
             // Remove source closed state
             _sourceClosedStates.Remove(audioType);
@@ -670,7 +652,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 _draining = true;
 
                 // We reached end-of-session (no active streams). Ensure we will emit exactly one
-                // last-frame AFTER all already enqueued audio has been played out.
+                // last-frame AFTER all already enqueued audio has played out.
                 // This avoids the sender stopping early while also guaranteeing the session ends.
                 if (!_lastFrameEmitted)
                 {
@@ -1021,14 +1003,48 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 // Get active streams with improved buffer strategy
                 var activeStreams = GetActiveStreamsWithBufferStrategy();
 
+                string? batchSentenceId = null;
+
                 // Process each active audio stream
                 foreach (var (audioType, streamProcessor) in activeStreams)
                 {
-                    // Read from FIFO and push to filter
-                    if (ProcessAudioStream(audioType, streamProcessor))
+                    // Read from buffer and push to filter
+                    var (processed, sentenceId) = ProcessAudioStream(audioType, streamProcessor);
+                    if (processed)
                     {
                         hasProcessedData = true;
                     }
+
+                    // Priority logic for sentence ID (TTS > others)
+                    if (!string.IsNullOrEmpty(sentenceId))
+                    {
+                        if (audioType == AudioType.TTS)
+                        {
+                            batchSentenceId = sentenceId;
+                        }
+                        else if (batchSentenceId == null)
+                        {
+                            batchSentenceId = sentenceId;
+                        }
+                    }
+                }
+
+                bool metaOnlyEmitted = false;
+                if (hasProcessedData)
+                {
+                    lock (_bufferLock)
+                    {
+                        _pendingSentenceIds.Enqueue(batchSentenceId);
+                    }
+                }
+                else if (batchSentenceId != null)
+                {
+                    // No audio processed, but we have a sentenceId. Emit empty frame.
+                    bool isFirst = _firstFrameAfterStart;
+                    if (_firstFrameAfterStart) _firstFrameAfterStart = false;
+
+                    EmitMixedAudio(Array.Empty<float>(), isFirst, false, batchSentenceId);
+                    metaOnlyEmitted = true;
                 }
 
                 // Retrieve mixed audio data from the filter graph
@@ -1041,22 +1057,23 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 {
                     // If there are streams but no processed data, we may need to send silent frames to keep continuity
                     bool hasActiveStreams = _audioStreams.Values.Any(s => !s.IsComplete && !s.IsStopping);
-                    if (hasActiveStreams)
+                    if (hasActiveStreams && !metaOnlyEmitted)
                     {
                         // Send a short silent frame to maintain audio continuity
                         var silentFrame = new float[_frameSampleCount];
                         bool isFirst = _firstFrameAfterStart;
                         if (_firstFrameAfterStart) _firstFrameAfterStart = false;
 
-                        EmitMixedAudio(silentFrame, isFirst, false);
+                        EmitMixedAudio(silentFrame, isFirst, false, null);
                         _logger.LogTrace("Emitted silence frame to maintain audio continuity");
+
                     }
                 }
 
                 // Cleanup completed streams
                 CleanupCompletedStreams();
 
-                return hasProcessedData || hasActiveTransitions;
+                return hasProcessedData || hasActiveTransitions || metaOnlyEmitted;
             }
         }
 
@@ -1072,18 +1089,24 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 if (streamProcessor.IsComplete)
                     continue;
 
-                if (!_audioFifos.TryGetValue(audioType, out var fifoPtr))
-                    continue;
+                // FIFO check removed
+                // if (!_audioFifos.TryGetValue(audioType, out var fifoPtr))
+                //    continue;
 
-                var fifo = (AVAudioFifo*)fifoPtr;
-                var availableSamples = ffmpeg.av_audio_fifo_size(fifo);
-                var requiredSamples = _frameSampleCount / _outputChannels;
+                // var fifo = (AVAudioFifo*)fifoPtr;
+                var availableSamples = streamProcessor.AvailableDataCount; // ffmpeg.av_audio_fifo_size(fifo);
+                var requiredSamples = _frameSampleCount; // / _outputChannels; // AvailableDataCount is total samples (floats)
 
                 bool hasFullFrame = availableSamples >= requiredSamples;
                 bool isNewStream = streamProcessor.ProcessedFrameCount < 3;
 
                 if (hasFullFrame)
                 {
+                    activeStreams.Add((audioType, streamProcessor));
+                }
+                else if (availableSamples == 0 && streamProcessor.HasAnyData())
+                {
+                    // Handle meta-only frames
                     activeStreams.Add((audioType, streamProcessor));
                 }
                 else if (isNewStream && _config.EnableSmoothVolumeControl)
@@ -1104,17 +1127,15 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             return activeStreams;
         }
 
-        private bool ProcessAudioStream(AudioType audioType, AudioStreamProcessor streamProcessor)
+        private (bool processed, string? sentenceId) ProcessAudioStream(AudioType audioType, AudioStreamProcessor streamProcessor)
         {
-            if (!_audioFifos.TryGetValue(audioType, out var fifoPtr) ||
-                !_sourceFilterCtxs.TryGetValue(audioType, out var sourceCtxPtr))
-                return false;
+            if (!_sourceFilterCtxs.TryGetValue(audioType, out var sourceCtxPtr))
+                return (false, null);
 
-            var fifo = (AVAudioFifo*)fifoPtr;
             var sourceCtx = (AVFilterContext*)sourceCtxPtr;
 
-            var availableSamples = ffmpeg.av_audio_fifo_size(fifo);
-            var requiredSamples = _frameSampleCount / _outputChannels;
+            var availableSamples = streamProcessor.AvailableDataCount;
+            var requiredSamples = _frameSampleCount; // Total samples
 
             // Use improved buffering strategy
             bool hasFullFrame = availableSamples >= requiredSamples;
@@ -1122,6 +1143,10 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             bool canProcess = false;
 
             if (hasFullFrame)
+            {
+                canProcess = true;
+            }
+            else if (availableSamples == 0 && streamProcessor.HasAnyData())
             {
                 canProcess = true;
             }
@@ -1136,82 +1161,21 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             }
 
             if (!canProcess)
-                return false;
+                return (false, null);
 
             try
             {
-                // Create audio frame
-                var frame = ffmpeg.av_frame_alloc();
-                if (frame == null)
-                    return false;
+                // Get data from processor
+                int samplesRead;
+                string? sentenceId;
+                var audioData = streamProcessor.GetFrameDataWithPartialSupport(_frameSampleCount, out samplesRead, out sentenceId);
 
-                // Set frame parameters
-                frame->nb_samples = Math.Min(availableSamples, _frameSampleCount / _outputChannels);
-
-                AVChannelLayout ch;
-                ffmpeg.av_channel_layout_from_mask(&ch, _channelLayout);
-                frame->ch_layout = ch;
-                frame->format = (int)_sampleFormat;
-                frame->sample_rate = _outputSampleRate;
-                frame->pts = _pts;
-
-                // Allocate frame buffer
-                var ret = ffmpeg.av_frame_get_buffer(frame, 0);
-                if (ret < 0)
+                if (audioData == null || audioData.Length == 0)
                 {
-                    ffmpeg.av_frame_free(&frame);
-                    return false;
+                    return (false, sentenceId);
                 }
 
-                // Read from FIFO (packed format, single plane)
-                void** planes = stackalloc void*[1];
-                planes[0] = frame->data[0];
-                ret = ffmpeg.av_audio_fifo_read(fifo, planes, frame->nb_samples);
-                if (ret <= 0)
-                {
-                    ffmpeg.av_frame_free(&frame);
-                    return false;
-                }
-
-                int nbSamples = frame->nb_samples;
-
-                // push the frame to the filter
-                ret = ffmpeg.av_buffersrc_add_frame_flags(sourceCtx, frame, 0);
-                ffmpeg.av_frame_free(&frame);
-
-                if (ret < 0)
-                {
-                    _logger.LogError("Failed to add frame to filter for {AudioType}: {Error}",
-                        audioType, GetFFmpegErrorString(ret));
-                    return false;
-                }
-
-                // notify the subtitle tracker of the actual sent (consumed) mono samples
-                if (nbSamples > 0)
-                {
-                    _subtitleSyncTracker?.NotifyAudioSamplesSent(audioType, nbSamples);
-                }
-
-                streamProcessor.MarkFrameProcessed();
-                _pts += nbSamples;
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error processing audio stream {AudioType}", audioType);
-                return false;
-            }
-        }
-
-        private void WriteToAudioFifo(AudioType audioType, float[] audioData)
-        {
-            if (!_audioFifos.TryGetValue(audioType, out var fifoPtr))
-                return;
-
-            try
-            {
-                // Apply volume control (avoid restarting transition on every write)
+                // Apply volume control
                 var volumeState = GetOrCreateVolumeState(audioType);
                 var targetVolume = _volumeLevels.GetValueOrDefault(audioType, 0.5f);
 
@@ -1230,35 +1194,65 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     currentVolume = volumeState.UpdateAndGetCurrentVolume();
                 }
 
-                // Apply volume to audio data
-                var processedData = new float[audioData.Length];
+                // Apply volume
                 for (int i = 0; i < audioData.Length; i++)
                 {
-                    processedData[i] = audioData[i] * currentVolume;
+                    audioData[i] *= currentVolume;
                 }
 
-                // Convert float[] to FFmpeg format (packed planar)
-                var dataPtr = Marshal.AllocHGlobal(processedData.Length * sizeof(float));
-                Marshal.Copy(processedData, 0, dataPtr, processedData.Length);
+                // Create audio frame
+                var frame = ffmpeg.av_frame_alloc();
+                if (frame == null)
+                    return (false, null);
 
-                var samples = processedData.Length / _outputChannels;
-                var fifo = (AVAudioFifo*)fifoPtr;
-                var tmp = dataPtr; // needs an address of a single-plane pointer array
-                var ret = ffmpeg.av_audio_fifo_write(fifo, (void**)&tmp, samples);
+                // Set frame parameters
+                frame->nb_samples = audioData.Length / _outputChannels;
 
-                Marshal.FreeHGlobal(dataPtr);
+                AVChannelLayout ch;
+                ffmpeg.av_channel_layout_from_mask(&ch, _channelLayout);
+                frame->ch_layout = ch;
+                frame->format = (int)_sampleFormat;
+                frame->sample_rate = _outputSampleRate;
+                frame->pts = _pts;
+
+                // Allocate frame buffer
+                var ret = ffmpeg.av_frame_get_buffer(frame, 0);
+                if (ret < 0)
+                {
+                    ffmpeg.av_frame_free(&frame);
+                    return (false, null);
+                }
+
+                // Copy data to frame (packed format)
+                Marshal.Copy(audioData, 0, (IntPtr)frame->data[0], audioData.Length);
+
+                int nbSamples = frame->nb_samples;
+
+                // push the frame to the filter
+                ret = ffmpeg.av_buffersrc_add_frame_flags(sourceCtx, frame, 0);
+                ffmpeg.av_frame_free(&frame);
 
                 if (ret < 0)
                 {
-                    _logger.LogError("Failed to write audio data to FIFO for {AudioType}, error: {Error}",
+                    _logger.LogError("Failed to add frame to filter for {AudioType}: {Error}",
                         audioType, GetFFmpegErrorString(ret));
+                    return (false, null);
                 }
+
+                streamProcessor.MarkFrameProcessed();
+
+                _pts += nbSamples;
+
+                return (true, sentenceId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error writing audio data to FIFO for {AudioType}", audioType);
+                _logger.LogError(ex, "Error processing audio stream {AudioType}", audioType);
+                return (false, null);
             }
         }
+
+        // WriteToAudioFifo removed - we now use AudioStreamProcessor as the buffer
 
         private void RetrieveMixedAudioData()
         {
@@ -1288,7 +1282,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                         bool isFirst = _firstFrameAfterStart;
                         if (_firstFrameAfterStart) _firstFrameAfterStart = false;
 
-                        EmitMixedAudio(silentFrame, isFirst, false);
+                        EmitMixedAudio(silentFrame, isFirst, false, null);
                     }
                     return;
                 }
@@ -1315,10 +1309,19 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     bool isFirst = _firstFrameAfterStart;
                     if (_firstFrameAfterStart) _firstFrameAfterStart = false;
 
+                    string? sentenceId = null;
+                    lock (_bufferLock)
+                    {
+                        if (_pendingSentenceIds.Count > 0)
+                        {
+                            sentenceId = _pendingSentenceIds.Dequeue();
+                        }
+                    }
+
                     // IMPORTANT: do NOT mark last-frame here.
                     // FFmpeg filter output may still have buffered audio and/or the output pacing buffer
                     // may still contain frames. Marking last here can cause the sender to stop early.
-                    EmitMixedAudio(mixedData, isFirst, false);
+                    EmitMixedAudio(mixedData, isFirst, false, sentenceId);
                 }
             }
             catch (Exception ex)
@@ -1332,7 +1335,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             // At end-of-session we remove streams and free FIFOs. So the reliable signal is:
             // no active stream processors, no FIFOs left, and no queued output frames.
             if (_audioStreams.Count != 0) return false;
-            if (_audioFifos.Count != 0) return false;
+            // if (_audioFifos.Count != 0) return false;
             lock (_bufferLock) return _outputBuffer.Count == 0;
         }
 
@@ -1376,7 +1379,16 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                         bool isFirst = _firstFrameAfterStart;
                         if (_firstFrameAfterStart) _firstFrameAfterStart = false;
 
-                        EmitMixedAudio(mixedData, isFirst, false);
+                        string? sentenceId = null;
+                        lock (_bufferLock)
+                        {
+                            if (_pendingSentenceIds.Count > 0)
+                            {
+                                sentenceId = _pendingSentenceIds.Dequeue();
+                            }
+                        }
+
+                        EmitMixedAudio(mixedData, isFirst, false, sentenceId);
                     }
                 }
 
@@ -1398,10 +1410,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         {
             lock (_streamLock)
             {
-                foreach (var fifoPtr in _audioFifos.Values)
-                {
-                    ffmpeg.av_audio_fifo_reset((AVAudioFifo*)fifoPtr);
-                }
+                // FIFO reset removed
 
                 // Clear stream processor buffers
                 foreach (var streamProcessor in _audioStreams.Values)
@@ -1413,13 +1422,14 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 lock (_bufferLock)
                 {
                     _outputBuffer.Clear();
+                    _pendingSentenceIds.Clear();
                     _bufferPreFilled = false;
                 }
 
                 // clear all pending subtitle tracking
-                _subtitleSyncTracker?.ClearAll();
-
+                
                 _logger.LogDebug("Cleared all audio buffers");
+
             }
         }
 
@@ -1439,7 +1449,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     while (_outputBuffer.Count > 0)
                     {
                         var frame = _outputBuffer.Dequeue();
-                        OutputAudioData(frame.Data, frame.IsFirst, frame.IsLast);
+                        OutputAudioData(frame.Data, frame.IsFirst, frame.IsLast, frame.SentenceId);
                     }
                 }
 
@@ -1453,11 +1463,12 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 // Cleanup FFmpeg resources
                 CleanupFilterGraph();
 
-                foreach (var fifoPtr in _audioFifos.Values)
-                {
-                    ffmpeg.av_audio_fifo_free((AVAudioFifo*)fifoPtr);
-                }
-                _audioFifos.Clear();
+                // FIFO free removed
+                // foreach (var fifoPtr in _audioFifos.Values)
+                // {
+                //     ffmpeg.av_audio_fifo_free((AVAudioFifo*)fifoPtr);
+                // }
+                // _audioFifos.Clear();
 
                 // Dispose all stream processors
                 foreach (var streamProcessor in _audioStreams.Values)

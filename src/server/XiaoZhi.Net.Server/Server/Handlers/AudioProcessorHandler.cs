@@ -9,7 +9,7 @@ using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
-    internal sealed class AudioProcessorHandler : BaseHandler, IInHandler<OutAudioSegment, OutAudioSegment, OutAudioSegment>, IOutHandler<MixedAudioPacket>
+    internal class AudioProcessorHandler : BaseHandler, IInHandler<OutAudioSegment, OutAudioSegment, OutAudioSegment>, IOutHandler<MixedAudioPacket>
     {
         private readonly ObjectPool<OutAudioSegment> _outAudioSegmentPool;
         private readonly ObjectPool<Workflow<OutAudioSegment>> _outAudioSegmentWorkflowPool;
@@ -113,7 +113,13 @@ namespace XiaoZhi.Net.Server.Handlers
             try
             {
                 this.HandlerToken.ThrowIfCancellationRequested();
-                this._audioProcessor.ProcessAudio(s.AudioType, s.AudioData, s.Content, s.Emotion, s.IsFirstFrame, s.IsLastFrame);
+
+                if (!string.IsNullOrEmpty(s.SentenceId))
+                {
+                    this._audioProcessor.RegisterSubtitle(s.SentenceId, s.AudioType, s.IsFirstFrame ? TtsStatus.SentenceStart : TtsStatus.SentenceEnd, s.Content, s.Emotion);
+                }
+
+                this._audioProcessor.ProcessAudio(s.AudioType, s.AudioData, s.Content, s.Emotion, s.IsFirstFrame, s.IsLastFrame, s.SentenceId);
 
                 if (s.IsLastSegment)
                 {
@@ -138,14 +144,15 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        private void OnMixedAudioDataAvailable(float[] mixedPcmData, bool isFirst, bool isLast)
+        private void OnMixedAudioDataAvailable(float[] mixedPcmData, bool isFirst, bool isLast, string? sentenceId)
         {
             var mixedAudioPacket = this._mixedAudioPacketPool.Get();
             var workflow = this._mixedAudioPacketWorkflowPool.Get();
-            mixedAudioPacket.Initialize(mixedPcmData, isFirst, isLast);
+            mixedAudioPacket.Initialize(mixedPcmData, isFirst, isLast, sentenceId);
             workflow.Initialize(this.SendOutter.GetSession(), mixedAudioPacket);
             _ = this.NextWriter.WriteAsync(workflow);
         }
+
 
         public override void Dispose()
         {

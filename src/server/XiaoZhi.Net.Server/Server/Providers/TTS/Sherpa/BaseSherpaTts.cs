@@ -74,13 +74,13 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 
                         if (!firstFrameSent)
                         {
-                            sessionCallback.OnSentenceStart(segment.Content, segment.Emotion);
+                            sessionCallback.OnSentenceStart(segment.Content, segment.Emotion, this.GenerateId());
                             firstFrameSent = true;
                         }
 
                         if (progress == 1.0f)
                         {
-                            sessionCallback.OnSentenceEnd(segment.Content, segment.Emotion);
+                            sessionCallback.OnSentenceEnd(segment.Content, segment.Emotion, this.GenerateId());
                         }
 
                         sessionCallback.OnProcessing(data, false, false);

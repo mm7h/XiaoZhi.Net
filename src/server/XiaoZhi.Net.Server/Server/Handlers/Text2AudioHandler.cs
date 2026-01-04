@@ -1,11 +1,9 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
 using System;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
-using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Providers;
@@ -13,7 +11,7 @@ using XiaoZhi.Net.Server.Providers.TTS;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
-    internal sealed class Text2AudioHandler : BaseHandler, IInHandler<OutSegment>, IOutHandler<OutAudioSegment, OutAudioSegment, OutAudioSegment>, ITtsEventCallback
+    internal class Text2AudioHandler : BaseHandler, IInHandler<OutSegment>, IOutHandler<OutAudioSegment, OutAudioSegment, OutAudioSegment>, ITtsEventCallback
     {
         private readonly ObjectPool<OutSegment> _outSegmentPool;
         private readonly ObjectPool<OutAudioSegment> _outAudioSegmentPool;
@@ -21,18 +19,16 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ObjectPool<Workflow<OutSegment>> _outSegmentWorkflowPool;
 
         private ITts? _tts;
-
         private IAudioPlayerClient? _audioPlayerClient;
 
-        public Text2AudioHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_TTS)] ITts tts,
-            ObjectPool<OutSegment> outSegmentPool,
+        public Text2AudioHandler(ObjectPool<OutSegment> outSegmentPool,
+
             ObjectPool<OutAudioSegment> outAudioSegmentPool,
             ObjectPool<Workflow<OutAudioSegment>> outAudioSegmentWorkflowPool,
             ObjectPool<Workflow<OutSegment>> outSegmentWorkflowPool,
             XiaoZhiConfig config,
             ILogger<Text2AudioHandler> logger) : base(config, logger)
         {
-            this._tts = tts;
             this._outSegmentPool = outSegmentPool;
             this._outAudioSegmentPool = outAudioSegmentPool;
             this._outAudioSegmentWorkflowPool = outAudioSegmentWorkflowPool;
@@ -257,29 +253,26 @@ namespace XiaoZhi.Net.Server.Handlers
             this.Logger.LogDebug("TTS processing completed for device: {deviceId}.", session.DeviceId);
         }
 
-        public void OnSentenceStart(string sentence, Emotion emotion)
+        public void OnSentenceStart(string sentence, Emotion emotion, string sentenceId)
         {
             Session session = this.SendOutter.GetSession();
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
             Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
-            outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isFirstFrame: true, emotion: emotion);
+            outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isFirstFrame: true, emotion: emotion, sentenceId: sentenceId);
 
             nextWorkflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
             this.NextWriter.WriteAsync(nextWorkflow);
         }
 
-        public void OnSentenceEnd(string sentence, Emotion emotion)
+        public void OnSentenceEnd(string sentence, Emotion emotion, string sentenceId)
         {
             Session session = this.SendOutter.GetSession();
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
             Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
-            outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isLastFrame: true, emotion: emotion);
+            outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isLastFrame: true, emotion: emotion, sentenceId: sentenceId);
 
             nextWorkflow.Initialize(session.SessionId, session.DeviceId, outAudioSegment);
             this.NextWriter.WriteAsync(nextWorkflow);
-
-            // 句子结束（上游不再产出该句样本），通知字幕跟踪器封口当前句子的产出累计
-            session.PrivateProvider.AudioProcessor?.SealCurrentSubtitle(AudioType.TTS);
         }
         #endregion
     }

@@ -3,7 +3,7 @@ using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Common.ObjectPoolPolicies
 {
-    internal sealed class MixedAudioPacketPolicy : PooledObjectPolicy<MixedAudioPacket>
+    internal class MixedAudioPacketPolicy : PooledObjectPolicy<MixedAudioPacket>
     {
         public override MixedAudioPacket Create()
         {

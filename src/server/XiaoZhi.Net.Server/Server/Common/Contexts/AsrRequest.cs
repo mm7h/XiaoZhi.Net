@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {
-    internal sealed class AsrRequest
+    internal class AsrRequest
     {
         public AsrRequest(string sessionId, string deviceId, OfflineStream stream, int sampleRate, int frameSize,  CancellationToken token)
         {

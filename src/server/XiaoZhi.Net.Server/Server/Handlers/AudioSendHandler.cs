@@ -5,7 +5,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Common.Enums;
+using XiaoZhi.Net.Server.Media.Abstractions.Dtos;
 using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
@@ -45,9 +45,6 @@ namespace XiaoZhi.Net.Server.Handlers
             }
 
             this._audioProcessor = privateProvider.AudioProcessor;
-            this._audioProcessor.OnSubtitleStart += this.OnSubtitleStart;
-            this._audioProcessor.OnSubtitleEnd += this.OnSubtitleEnd;
-
             this._audioEncoder = privateProvider.AudioEncoder;
             this.RegisterCancellationToken();
             return true;
@@ -90,14 +87,23 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 MixedAudioPacket audioPacket = workflow.Data;
 
+                if (!string.IsNullOrEmpty(audioPacket.SentenceId) && this._audioProcessor.GetSubtitle(audioPacket.SentenceId, out AudioSubtitle subtitle))
+                {
+                    await this.SendOutter.SendTtsMessageAsync(subtitle.TtsStatus, subtitle.SubtitleText);
+                    await this.SendOutter.SendLlmMessageAsync(subtitle.Emotion);
+                }
+
                 if (audioPacket.IsFirstFrame)
                 {
                     await this.SendOutter.SendTtsMessageAsync(TtsStatus.Start);
                     this.Logger.LogDebug("Send the first audio frame from the device: {deviceId}.", session.DeviceId);
                 }
 
-                byte[] opusData = await this._audioEncoder.EncodeAsync(audioPacket.Data, this.HandlerToken);
-                await this.SendOutter.SendAsync(opusData);
+                if (audioPacket.Data is not null && audioPacket.Data.Length > 0)
+                {
+                    byte[] opusData = await this._audioEncoder.EncodeAsync(audioPacket.Data, this.HandlerToken);
+                    await this.SendOutter.SendAsync(opusData);
+                }
 
                 if (audioPacket.IsLastFrame)
                 {
@@ -119,15 +125,6 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        private async void OnSubtitleStart(AudioType audioType, string subtitle, Emotion emotion)
-        {
-            await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceStart, subtitle);
-            await this.SendOutter.SendLlmMessageAsync(emotion);
-        }
-
-        private async void OnSubtitleEnd(AudioType audioType, string subtitle, Emotion emotion)
-        {
-            await this.SendOutter.SendTtsMessageAsync(TtsStatus.SentenceEnd, subtitle);
-        }
     }
 }
+

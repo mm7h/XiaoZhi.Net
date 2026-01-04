@@ -11,6 +11,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
     {
         private readonly AudioType _audioType;
         private readonly ConcurrentQueue<float> _bufferQueue = new();
+        private readonly ConcurrentQueue<(int Count, string? SentenceId)> _metaQueue = new();
         private readonly object _syncLock = new();
         private readonly AudioMixerConfig _config;
         private bool _disposed;
@@ -26,6 +27,11 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         private volatile int _silentFrameCount = 0;
         private readonly int _maxSilentFrames = 10; // Consider stream ended after 10 silent frames
 
+        // Meta tracking for consumer
+        private int _currentMetaRemaining = 0;
+        private string? _currentMetaId = null;
+
+
         public AudioType AudioType => _audioType;
         public bool IsFirstFrame => _isFirstFrame;
         public bool IsLastFrame => _isLastFrame;
@@ -40,12 +46,18 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             _config = config;
         }
 
-        public void AddData(float[] audioData)
+        public void AddData(float[] audioData, string? sentenceId = null)
         {
-            if (_disposed || audioData == null || audioData.Length == 0 || _stopRequested)
+            if (_disposed || _stopRequested || audioData == null)
             {
                 return;
             }
+
+            if (audioData.Length == 0 && string.IsNullOrEmpty(sentenceId))
+            {
+                return;
+            }
+
 
             lock (_syncLock)
             {
@@ -61,6 +73,11 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     _hasReceivedData = false;
                     _streamEnded = false;
                     _silentFrameCount = 0;
+                    
+                    // Reset meta state
+                    while (_metaQueue.TryDequeue(out _)) { }
+                    _currentMetaRemaining = 0;
+                    _currentMetaId = null;
                 }
 
                 // Auto-detect first frame
@@ -75,14 +92,25 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     _silentFrameCount = 0;
                 }
 
-                bool hasSignificantAudio = HasSignificantAudio(audioData);
-                if (!hasSignificantAudio)
+                int dataLength = audioData.Length;
+                bool hasSignificantAudio = false;
+                
+                if (dataLength > 0)
                 {
-                    _silentFrameCount++;
-                }
-                else
-                {
-                    _silentFrameCount = 0;
+                    hasSignificantAudio = HasSignificantAudio(audioData);
+                    foreach (float sample in audioData)
+                    {
+                        _bufferQueue.Enqueue(sample);
+                    }
+
+                    if (!hasSignificantAudio)
+                    {
+                        _silentFrameCount++;
+                    }
+                    else
+                    {
+                        _silentFrameCount = 0;
+                    }
                 }
 
                 if (_silentFrameCount >= _maxSilentFrames && _hasReceivedData)
@@ -91,13 +119,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     _streamEnded = true;
                 }
 
-                int currentBufferSize = _bufferQueue.Count;
-                int newDataSize = audioData.Length;
-
-                foreach (float sample in audioData)
-                {
-                    _bufferQueue.Enqueue(sample);
-                }
+                _metaQueue.Enqueue((dataLength, sentenceId));
             }
         }
 
@@ -121,16 +143,25 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         public bool HasAnyData()
         {
-            return !_bufferQueue.IsEmpty;
+            return !_bufferQueue.IsEmpty || !_metaQueue.IsEmpty;
         }
 
         // New overload that reports how many real samples were consumed from the buffer
-        public float[]? GetFrameDataWithPartialSupport(int frameSampleCount, out int samplesRead)
+        public float[]? GetFrameDataWithPartialSupport(int frameSampleCount, out int samplesRead, out string? sentenceId)
         {
             samplesRead = 0;
+            sentenceId = null;
             if (_disposed || frameSampleCount <= 0)
             {
                 return null;
+            }
+
+            // Check for pending zero-length meta at the very beginning
+            if (_currentMetaRemaining <= 0 && _metaQueue.TryPeek(out var meta) && meta.Count == 0)
+            {
+                _metaQueue.TryDequeue(out _);
+                sentenceId = meta.SentenceId;
+                return Array.Empty<float>();
             }
 
             int availableData = _bufferQueue.Count;
@@ -167,10 +198,63 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             }
 
             var frameData = new float[frameSampleCount];
+            bool idSet = false;
 
-            while (samplesRead < targetSamples && _bufferQueue.TryDequeue(out float sample))
+            while (samplesRead < targetSamples)
             {
-                frameData[samplesRead++] = sample;
+                // Check meta state before dequeuing sample
+                if (_currentMetaRemaining <= 0)
+                {
+                    if (_metaQueue.TryPeek(out var nextMeta))
+                    {
+                        if (nextMeta.Count == 0)
+                        {
+                            // Zero-length meta found.
+                            if (samplesRead > 0)
+                            {
+                                // We have data in this frame already. Stop here so next call picks up the zero-length meta.
+                                break;
+                            }
+                            else
+                            {
+                                // Start of frame. Consume this meta and return empty frame.
+                                _metaQueue.TryDequeue(out _);
+                                sentenceId = nextMeta.SentenceId;
+                                return Array.Empty<float>();
+                            }
+                        }
+
+                        // Normal meta. Consume it.
+                        _metaQueue.TryDequeue(out _);
+                        _currentMetaRemaining = nextMeta.Count;
+                        _currentMetaId = nextMeta.SentenceId;
+                    }
+                    else
+                    {
+                        // No meta? Should match buffer.
+                        // If buffer has data but no meta, use null ID.
+                        _currentMetaRemaining = int.MaxValue;
+                        _currentMetaId = null;
+                    }
+                }
+
+                if (!idSet)
+                {
+                    sentenceId = _currentMetaId;
+                    idSet = true;
+                }
+
+                // Now dequeue sample
+                if (_bufferQueue.TryDequeue(out float sample))
+                {
+                    frameData[samplesRead++] = sample;
+                    _currentMetaRemaining--;
+                }
+                else
+                {
+                    // Should not happen if we checked availableData, but for safety
+                    break;
+                }
             }
 
             for (int i = samplesRead; i < frameSampleCount; i++)
@@ -189,7 +273,13 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         // Backward-compatible method
         public float[]? GetFrameDataWithPartialSupport(int frameSampleCount)
         {
-            var data = GetFrameDataWithPartialSupport(frameSampleCount, out _);
+            var data = GetFrameDataWithPartialSupport(frameSampleCount, out _, out _);
+            return data;
+        }
+        
+        public float[]? GetFrameDataWithPartialSupport(int frameSampleCount, out int samplesRead)
+        {
+            var data = GetFrameDataWithPartialSupport(frameSampleCount, out samplesRead, out _);
             return data;
         }
 
@@ -212,6 +302,10 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             lock (_syncLock)
             {
                 while (_bufferQueue.TryDequeue(out _)) { }
+                while (_metaQueue.TryDequeue(out _)) { }
+                _currentMetaRemaining = 0;
+                _currentMetaId = null;
+                
                 _isFirstFrame = false;
                 _isLastFrame = false;
                 _isComplete = false;

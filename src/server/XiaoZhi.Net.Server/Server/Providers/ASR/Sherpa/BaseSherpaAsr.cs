@@ -3,10 +3,10 @@ using SherpaOnnx;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
@@ -19,7 +19,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
         private const int MAX_WAITING_TIME_MS = 100;
         //private const int MAX_QUEUE_SIZE = 100;
 
-        private readonly ConcurrentQueue<AsrRequest> _requestQueue;
+        private readonly Channel<AsrRequest> _requestChannel;
         private readonly CancellationTokenSource _shutdownCts;
 
         private readonly ConcurrentDictionary<string, OfflineStream> _streamMapping;
@@ -29,7 +29,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 
         protected BaseSherpaAsr(ILogger<TLogger> logger) : base(logger)
         {
-            this._requestQueue = new ConcurrentQueue<AsrRequest>();
+            this._requestChannel = Channel.CreateUnbounded<AsrRequest>();
             this._streamMapping = new ConcurrentDictionary<string, OfflineStream>();
             this._shutdownCts = new CancellationTokenSource();
         }
@@ -65,7 +65,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 
                 AsrRequest asrRequest = new AsrRequest(workflow.SessionId, workflow.DeviceId, offlineStream, sampleRate, frameSize, token);
 
-                this._requestQueue.Enqueue(asrRequest);
+                await this._requestChannel.Writer.WriteAsync(asrRequest, token);
                 string result = await asrRequest.ResultTcs.Task;
                 return result;
             }
@@ -114,54 +114,101 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                 throw new ArgumentNullException("Please build asr provider first.");
             }
             CancellationToken shutDownToken = this._shutdownCts.Token;
-            TimeSpan maxWaitTime = TimeSpan.FromMilliseconds(MAX_WAITING_TIME_MS);
-            Stopwatch stopwatch = Stopwatch.StartNew();
 
             while (!shutDownToken.IsCancellationRequested)
             {
-                if (this._requestQueue.Count >= this.MaxBatchSize || stopwatch.Elapsed >= maxWaitTime)
+                try
                 {
-                    List<AsrRequest> batchRequests = new List<AsrRequest>(this._requestQueue.Count);
-                    while (batchRequests.Count < this.MaxBatchSize && this._requestQueue.TryDequeue(out AsrRequest? request))
+                    if (!await this._requestChannel.Reader.WaitToReadAsync(shutDownToken))
                     {
-                        if (request != null)
+                        break;
+                    }
+
+                    var batchRequests = new List<AsrRequest>(this.MaxBatchSize);
+
+                    if (this._requestChannel.Reader.TryRead(out var firstRequest))
+                    {
+                        batchRequests.Add(firstRequest);
+                    }
+
+                    if (this.MaxBatchSize > 1)
+                    {
+                        while (batchRequests.Count < this.MaxBatchSize && this._requestChannel.Reader.TryRead(out var req))
                         {
-                            if (request.Token.IsCancellationRequested)
+                            batchRequests.Add(req);
+                        }
+
+                        if (batchRequests.Count < this.MaxBatchSize)
+                        {
+                            using var timeoutCts = new CancellationTokenSource(MAX_WAITING_TIME_MS);
+                            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(shutDownToken, timeoutCts.Token);
+
+                            try
                             {
-                                request.ResultTcs.SetCanceled();
-                                request.Stream.Dispose();
-                                this._streamMapping.Remove(request.SessionId, out _);
-                                continue;
+                                while (batchRequests.Count < this.MaxBatchSize)
+                                {
+                                    if (await this._requestChannel.Reader.WaitToReadAsync(linkedCts.Token))
+                                    {
+                                        while (batchRequests.Count < this.MaxBatchSize && this._requestChannel.Reader.TryRead(out var req))
+                                        {
+                                            batchRequests.Add(req);
+                                        }
+                                    }
+                                }
                             }
-                            batchRequests.Add(request);
+                            catch (OperationCanceledException)
+                            {
+                                // Ignore timeout, but respect shutdown
+                                if (shutDownToken.IsCancellationRequested) break;
+                            }
                         }
                     }
+
                     if (batchRequests.Count > 0)
                     {
-                        await Task.Run(() =>
-                        {
-                            this._offlineRecognizer.Decode(batchRequests.Select(b => b.Stream));
-                        });
-
-                        // 将返回结果返回给各个请求
-                        foreach (AsrRequest request in batchRequests)
+                        // Filter cancelled requests
+                        var validRequests = new List<AsrRequest>(batchRequests.Count);
+                        foreach (var request in batchRequests)
                         {
                             if (request.Token.IsCancellationRequested)
                             {
                                 request.ResultTcs.SetCanceled();
                                 request.Stream.Dispose();
-                                this._streamMapping.Remove(request.SessionId, out _);
+                                this._streamMapping.TryRemove(request.SessionId, out _);
                                 continue;
                             }
-                            string resultText = request.Stream.Result.Text;
-                            request.ResultTcs.SetResult(resultText);
+                            validRequests.Add(request);
+                        }
+
+                        if (validRequests.Count > 0)
+                        {
+                            await Task.Run(() =>
+                            {
+                                this._offlineRecognizer.Decode(validRequests.Select(b => b.Stream));
+                            });
+
+                            foreach (AsrRequest request in validRequests)
+                            {
+                                if (request.Token.IsCancellationRequested)
+                                {
+                                    request.ResultTcs.SetCanceled();
+                                    request.Stream.Dispose();
+                                    this._streamMapping.TryRemove(request.SessionId, out _);
+                                    continue;
+                                }
+                                string resultText = request.Stream.Result.Text;
+                                request.ResultTcs.SetResult(resultText);
+                            }
                         }
                     }
-                    stopwatch.Restart();
                 }
-                else
+                catch (OperationCanceledException)
                 {
-                    await Task.Delay(10, shutDownToken);
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    this.Logger.LogError(ex, "Error in ASR processing loop.");
                 }
             }
         }

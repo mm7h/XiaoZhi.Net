@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+﻿using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server
 {

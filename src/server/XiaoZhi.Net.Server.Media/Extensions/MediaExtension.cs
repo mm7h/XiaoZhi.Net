@@ -69,7 +69,7 @@ namespace XiaoZhi.Net.Server
         {
             builder.HostBuilder.ConfigureServices((context, services) =>
             {
-                services.AddTransient<IAudioSubtitleSyncTracker, AudioSubtitleSyncTracker>();
+                services.AddTransient<IAudioSubtitleRegister, AudioSubtitleRegister>();
             });
             return builder;
         }
@@ -94,7 +94,7 @@ namespace XiaoZhi.Net.Server
                 {
                     services.AddTransient<IAudioMixer, AudioMixer>();
                 }
-                services.AddTransient<IAudioSubtitleSyncTracker, AudioSubtitleSyncTracker>();
+                services.AddTransient<IAudioSubtitleRegister, AudioSubtitleRegister>();
             });
             return builder;
         }

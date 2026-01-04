@@ -12,7 +12,7 @@ using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
-    internal sealed class AudioReceiveHandler : BaseHandler, IOutHandler<CircularBuffer>
+    internal class AudioReceiveHandler : BaseHandler, IOutHandler<CircularBuffer>
     {
         private readonly ObjectPool<Workflow<CircularBuffer>> _workflowPool;
         private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;

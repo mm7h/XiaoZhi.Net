@@ -16,7 +16,7 @@ using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
 {
-    internal sealed class GenericOpenAI : BaseProvider<GenericOpenAI, LLMBuildConfig>, ILlm
+    internal class GenericOpenAI : BaseProvider<GenericOpenAI, LLMBuildConfig>, ILlm
     {
 
         private readonly IEmotionAgent _emotionAgent;

@@ -3,7 +3,7 @@ using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Common.ObjectPoolPolicies
 {
-    internal sealed class OutAudioSegmentPolicy : PooledObjectPolicy<OutAudioSegment>
+    internal class OutAudioSegmentPolicy : PooledObjectPolicy<OutAudioSegment>
     {
         public override OutAudioSegment Create()
         {

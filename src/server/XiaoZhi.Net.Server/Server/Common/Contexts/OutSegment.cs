@@ -34,7 +34,13 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         /// </summary>
         public Emotion Emotion { get; set; }
 
+        /// <summary>
+        /// 句子Id
+        /// </summary>
+        public string? SentenceId { get; set; }
+
         public void Initialize(string content, Emotion emotion)
+
         {
             this._content = content;
             this.IsFirstSegment = false;
@@ -42,12 +48,13 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.Emotion = emotion;
         }
 
-        public void Initialize(string content, bool isFirst, bool isLast, Emotion emotion)
+        public void Initialize(string content, bool isFirst, bool isLast, Emotion emotion, string? sentenceId = null)
         {
             this._content = content;
             this.IsFirstSegment = isFirst;
             this.IsLastSegment = isLast;
             this.Emotion = emotion;
+            this.SentenceId = sentenceId;
         }
 
         public virtual void Reset()
@@ -56,6 +63,8 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.IsFirstSegment = false;
             this.IsLastSegment = false;
             this.Emotion = Emotion.Neutral;
+            this.SentenceId = null;
         }
+
     }
 }

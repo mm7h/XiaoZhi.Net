@@ -11,7 +11,7 @@ using XiaoZhi.Net.Server.Providers.MCP;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
-    internal sealed class TextHandler : BaseHandler, IOutHandler<string>
+    internal class TextHandler : BaseHandler, IOutHandler<string>
     {
         private readonly ProviderManager _providerManager;
         private readonly ObjectPool<Workflow<string>> _workflowPool;
