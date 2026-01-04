@@ -143,11 +143,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
 
             }
-            catch (OperationCanceledException)
-            {
-                this.FireAbort(session.DeviceId, session.SessionId, "audio process");
-            }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 this.Logger.LogError(ex, "Failed to process the audio segment from device: {deviceId}.", session.DeviceId);
             }

@@ -110,13 +110,9 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
                 this.HandleAudio(session);
             }
-            catch (OperationCanceledException)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                this.FireAbort(session.DeviceId, session.SessionId, "receive audio");
-            }
-            catch (Exception ex)
-            {
-                this.Logger.LogError(ex, "Failed to process the message packet from device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(ex, "Failed to process the audio packet from device: {deviceId}.", session.DeviceId);
             }
         }
 

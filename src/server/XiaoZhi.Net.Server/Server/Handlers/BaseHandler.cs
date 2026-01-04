@@ -30,7 +30,7 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             this._handlerCts = CancellationTokenSource.CreateLinkedTokenSource(session.SessionCtsToken);
             this.HandlerToken = this._handlerCts.Token;
-            this.HandlerToken.Register(this.OnHandlerTokenChanged);
+            this.HandlerToken.Register(this.OnTokenCanceled);
             session.SessionCtsTokenChanged += this.OnSessionCtsTokenChanged;
         }
 
@@ -46,11 +46,6 @@ namespace XiaoZhi.Net.Server.Handlers
             return true;
         }
 
-        protected void FireAbort(string deviceId, string sessionId, string currentHandler)
-        {
-            this.OnAbort?.Invoke(deviceId, sessionId, currentHandler);
-        }
-
         protected virtual void OnHandlerTokenChanged()
         {
         }
@@ -58,10 +53,17 @@ namespace XiaoZhi.Net.Server.Handlers
         private void OnSessionCtsTokenChanged(CancellationToken newToken)
         {
             this._handlerCts?.Cancel();
-            this.Logger.LogDebug("Handler {handlerName} detected session cancellation token changed.", this.HandlerName);
             this._handlerCts = CancellationTokenSource.CreateLinkedTokenSource(newToken);
             this.HandlerToken = this._handlerCts.Token;
-            this.HandlerToken.Register(this.OnHandlerTokenChanged);
+            this.HandlerToken.Register(this.OnTokenCanceled);
+        }
+
+        private void OnTokenCanceled()
+        {
+            this.Logger.LogDebug("Handler {handlerName} cancellation token has been canceled.", this.HandlerName);
+            this.OnHandlerTokenChanged();
+            Session session = this.SendOutter.GetSession();
+            this.OnAbort?.Invoke(session.DeviceId, session.SessionId, this.HandlerName);
         }
 
         public virtual void Dispose()

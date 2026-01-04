@@ -129,12 +129,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 this.HandlerToken.ThrowIfCancellationRequested();
                 await this._tts.SynthesisAsync(workflow, this.HandlerToken);
             }
-            catch (OperationCanceledException)
-            {
-                // The cancellation callback registered in OnHandlerTokenRecreated will handle stopping the players.
-                this.FireAbort(session.DeviceId, session.SessionId, "text to audio");
-            }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 this.Logger.LogError(ex, "Error occurred during text to audio processing for device: {deviceId}.", session.DeviceId);
             }

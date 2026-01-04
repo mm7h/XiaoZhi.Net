@@ -102,13 +102,9 @@ namespace XiaoZhi.Net.Server.Handlers
                 nextWorkflow.Initialize(session, speechText);
                 await this.NextWriter.WriteAsync(nextWorkflow);
             }
-            catch (OperationCanceledException)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                this.FireAbort(session.DeviceId, session.SessionId, "audio to text");
-            }
-            catch (Exception ex)
-            {
-                this.Logger.LogError(ex, "Failed to process the message packet from device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(ex, "Failed to process the audio to text packet from device: {deviceId}.", session.DeviceId);
             }
         }
 

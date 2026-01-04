@@ -129,9 +129,9 @@ namespace XiaoZhi.Net.Server.Handlers
                     }
                 }
             }
-            catch (OperationCanceledException)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                this.FireAbort(session.DeviceId, session.SessionId, "llm request");
+                this.Logger.LogError(ex, "Failed to process the llm dialogue from device: {deviceId}.", session.DeviceId);
             }
         }
 
