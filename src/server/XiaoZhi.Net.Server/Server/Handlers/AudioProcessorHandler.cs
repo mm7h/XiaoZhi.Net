@@ -49,6 +49,11 @@ namespace XiaoZhi.Net.Server.Handlers
             return true;
         }
 
+        protected override void OnHandlerTokenChanged()
+        {
+            this._audioProcessor?.ClearAllBuffers();
+        }
+
         public async Task Handle()
         {
             await foreach (var workflow in this.PreviousReader.ReadAllAsync())
@@ -103,6 +108,11 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
+            if (!this.CheckWorkflowValid(workflow))
+            {
+                return;
+            }
+
             if (this._audioProcessor is null)
             {
                 this.Logger.LogError("Audio processor is not built for device {deviceId}.", session.DeviceId);
@@ -135,7 +145,6 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             catch (OperationCanceledException)
             {
-                this._audioProcessor.ClearAllBuffers();
                 this.FireAbort(session.DeviceId, session.SessionId, "audio process");
             }
             catch (Exception ex)
@@ -146,11 +155,15 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private void OnMixedAudioDataAvailable(float[] mixedPcmData, bool isFirst, bool isLast, string? sentenceId)
         {
+            if (this.HandlerToken.IsCancellationRequested)
+            {
+                return;
+            }
             var mixedAudioPacket = this._mixedAudioPacketPool.Get();
             var workflow = this._mixedAudioPacketWorkflowPool.Get();
             mixedAudioPacket.Initialize(mixedPcmData, isFirst, isLast, sentenceId);
             workflow.Initialize(this.SendOutter.GetSession(), mixedAudioPacket);
-            _ = this.NextWriter.WriteAsync(workflow);
+            this.NextWriter.WriteAsync(workflow);
         }
 
 

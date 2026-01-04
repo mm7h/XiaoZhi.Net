@@ -30,24 +30,45 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             this._handlerCts = CancellationTokenSource.CreateLinkedTokenSource(session.SessionCtsToken);
             this.HandlerToken = this._handlerCts.Token;
+            this.HandlerToken.Register(this.OnHandlerTokenChanged);
             session.SessionCtsTokenChanged += this.OnSessionCtsTokenChanged;
         }
+
+        protected bool CheckWorkflowValid<T>(Workflow<T> workflow)
+        {
+            // 为避免在触发Abort后，Channel中残留的旧Workflow被继续处理
+            long sessionTurnId = this.SendOutter.GetSession().TurnId;
+            if (workflow.TurnId != sessionTurnId)
+            {
+                this.Logger.LogDebug("Stale workflow detected in handler {handlerName}. Workflow turn ID: {workflowTurnId}, Session turn ID: {sessionTurnId}.", this.HandlerName, workflow.TurnId, sessionTurnId);
+                return false;
+            }
+            return true;
+        }
+
         protected void FireAbort(string deviceId, string sessionId, string currentHandler)
         {
             this.OnAbort?.Invoke(deviceId, sessionId, currentHandler);
         }
-        public virtual void Dispose()
+
+        protected virtual void OnHandlerTokenChanged()
         {
-            Session session = this.SendOutter.GetSession();
-            session.SessionCtsTokenChanged -= this.OnSessionCtsTokenChanged;
-            this._handlerCts?.Dispose();
         }
 
         private void OnSessionCtsTokenChanged(CancellationToken newToken)
         {
             this._handlerCts?.Cancel();
+            this.Logger.LogDebug("Handler {handlerName} detected session cancellation token changed.", this.HandlerName);
             this._handlerCts = CancellationTokenSource.CreateLinkedTokenSource(newToken);
             this.HandlerToken = this._handlerCts.Token;
+            this.HandlerToken.Register(this.OnHandlerTokenChanged);
+        }
+
+        public virtual void Dispose()
+        {
+            Session session = this.SendOutter.GetSession();
+            session.SessionCtsTokenChanged -= this.OnSessionCtsTokenChanged;
+            this._handlerCts?.Dispose();
         }
     }
 }

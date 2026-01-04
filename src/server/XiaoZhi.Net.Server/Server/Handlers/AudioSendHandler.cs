@@ -73,6 +73,12 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 return;
             }
+
+            if (!this.CheckWorkflowValid(workflow))
+            {
+                return;
+            }
+
             if (this._audioProcessor is null)
             {
                 this.Logger.LogError("Audio processor is not configured for the device: {deviceId}.", session.DeviceId);

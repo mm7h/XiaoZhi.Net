@@ -92,6 +92,12 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 return;
             }
+
+            if (!this.CheckWorkflowValid(workflow))
+            {
+                return;
+            }
+
             if (this._llm is null)
             {
                 this.Logger.LogError("LLM provider is not configured for the device: {deviceId}.", session.DeviceId);
@@ -104,7 +110,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 var notBindWorkflow = this._outSegmentWorkflowPool.Get();
 
                 outSegment.Initialize("NOT_BIND", true, true, Emotion.Neutral);
-                notBindWorkflow.Initialize(workflow.SessionId, workflow.DeviceId, outSegment);
+                notBindWorkflow.Initialize(session, outSegment);
                 await this.NextWriter.WriteAsync(notBindWorkflow);
                 return;
             }
@@ -136,6 +142,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public async Task SendCustomMessage(string sessionId, string deviceId, IEnumerable<OutSegment> segments)
         {
+            Session session = this.SendOutter.GetSession();
             foreach (OutSegment segment in segments)
             {
                 if (this.HandlerToken.IsCancellationRequested)
@@ -144,7 +151,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
                 var workflow = this._outSegmentWorkflowPool.Get();
 
-                workflow.Initialize(sessionId, deviceId, segment);
+                workflow.Initialize(session, segment);
                 await this.NextWriter.WriteAsync(workflow);
             }
         }
@@ -157,17 +164,25 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private async void OnTokenGenerating(OutSegment outSegment)
         {
+            if (this.HandlerToken.IsCancellationRequested)
+            {
+                return;
+            }
             var clonedSegment = this._outSegmentPool.Get();
             clonedSegment.Initialize(outSegment.Content, outSegment.IsFirstSegment, outSegment.IsLastSegment, outSegment.Emotion);
 
             var workflow = this._outSegmentWorkflowPool.Get();
             Session session = this.SendOutter.GetSession();
-            workflow.Initialize(session.SessionId, session.DeviceId, clonedSegment);
+            workflow.Initialize(session, clonedSegment);
             await this.NextWriter.WriteAsync(workflow);
         }
 
         private async void OnTokenGenerated(IEnumerable<OutSegment> outSegments)
         {
+            if (this.HandlerToken.IsCancellationRequested)
+            {
+                return;
+            }
             if (this._llm is null)
             {
                 this.Logger.LogError("The LLM model is not initialized.");

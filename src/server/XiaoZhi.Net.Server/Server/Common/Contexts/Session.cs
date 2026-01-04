@@ -1,11 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
-using SherpaOnnx;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Protocol;
 
@@ -18,6 +14,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         private readonly object _lock = new object();
         private volatile bool _isReseting = false;
+        private long _turnId = 0;
 
         public Session(string sessionId, string deviceId, string authToken, IPEndPoint userEndPoint, IBizSendOutter sendOutter)
         {
@@ -51,6 +48,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public string? BindCode { get; set; }
         public DateTime LastActivityTime { get; private set; }
         public bool CloseAfterChat { get; set; }
+        public long TurnId => Interlocked.Read(ref _turnId);
 
         public bool IsIdle => Interlocked.Read(ref _isAudioProcessing) == 1;
 
@@ -97,6 +95,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         public void Reset()
         {
+            Interlocked.Increment(ref _turnId);
             this.AcceptIncomingAudio();
             this.VadStatusContext.Reset();
             this.AudioPacketContext.Reset();

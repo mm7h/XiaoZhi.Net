@@ -916,7 +916,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
             _mixingThread = new Thread(MixingThreadProc)
             {
-                Name = "FFmpegAudioMixer",
+                Name = $"FFmpegAudioMixer-{GetHashCode()}",
                 IsBackground = true
             };
             _mixingThread.Start();
@@ -1410,13 +1410,14 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         {
             lock (_streamLock)
             {
-                // FIFO reset removed
-
-                // Clear stream processor buffers
+                // Dispose and clear all streams to ensure mixer stops
                 foreach (var streamProcessor in _audioStreams.Values)
                 {
                     streamProcessor.ClearBuffer();
                 }
+                _audioStreams.Clear();
+                _sourceClosedStates.Clear();
+                _volumeStates.Clear();
 
                 // clear output buffer
                 lock (_bufferLock)
@@ -1426,10 +1427,19 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     _bufferPreFilled = false;
                 }
 
-                // clear all pending subtitle tracking
-                
-                _logger.LogDebug("Cleared all audio buffers");
+                // Force filter graph recreation to flush internal buffers
+                _filterGraphDirty = true;
 
+                // Reset state flags
+                _pendingFinalLastFrame = false;
+                _draining = false;
+                _lastFrameEmitted = true; // Allow thread to exit
+                _firstFrameAfterStart = true;
+
+                // Wake up the thread so it can check the stop condition
+                _dataAvailableEvent.Set();
+                
+                _logger.LogDebug("Cleared all audio buffers and streams");
             }
         }
 

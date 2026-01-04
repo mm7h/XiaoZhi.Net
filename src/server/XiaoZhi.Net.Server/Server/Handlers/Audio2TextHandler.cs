@@ -65,6 +65,12 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 return;
             }
+
+            if (!this.CheckWorkflowValid(workflow))
+            {
+                return;
+            }
+
             if (this._asr is null)
             {
                 this.Logger.LogError("ASR provider is not configured for the device: {deviceId}.", session.DeviceId);
@@ -75,7 +81,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 if (!session.IsDeviceBinded)
                 {
                     var notBindWorkflow = this._stringWorkflowPool.Get();
-                    notBindWorkflow.Initialize(workflow.SessionId, workflow.DeviceId, "NOT_BIND");
+                    notBindWorkflow.Initialize(session, "NOT_BIND");
                     await this.NextWriter.WriteAsync(notBindWorkflow);
                     return;
                 }
@@ -93,7 +99,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 this.Logger.LogDebug("Device {deviceId} speak the text: {speechText}", session.DeviceId, speechText);
 
                 var nextWorkflow = this._stringWorkflowPool.Get();
-                nextWorkflow.Initialize(workflow.SessionId, workflow.DeviceId, speechText);
+                nextWorkflow.Initialize(session, speechText);
                 await this.NextWriter.WriteAsync(nextWorkflow);
             }
             catch (OperationCanceledException)

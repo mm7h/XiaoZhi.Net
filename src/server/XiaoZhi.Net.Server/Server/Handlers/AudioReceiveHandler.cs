@@ -144,7 +144,7 @@ namespace XiaoZhi.Net.Server.Handlers
             session.AudioPacketContext.VadPacket.Reset();
 
             var workflow = this._workflowPool.Get();
-            workflow.Initialize(session.SessionId, session.DeviceId, this._receivedPcmPacketFrame);
+            workflow.Initialize(session, this._receivedPcmPacketFrame);
             await this.NextWriter.WriteAsync(workflow);
         }
 
@@ -166,7 +166,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     var workflow = this._stringWorkflowPool.Get();
                     try
                     {
-                        workflow.Initialize(session.SessionId, session.DeviceId, prompt);
+                        workflow.Initialize(session, prompt);
                         this.OnNoVoiceCloseConnect?.Invoke(workflow);
                     }
                     finally
