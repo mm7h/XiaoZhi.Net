@@ -2,6 +2,8 @@
 using Microsoft.Extensions.Hosting;
 using XiaoZhi.Net.Server;
 using XiaoZhi.Net.Server.Abstractions;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 
 Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", "Development");
@@ -16,7 +18,14 @@ try
     string configJson = File.ReadAllText(Path.Combine(Environment.CurrentDirectory, "configs", "config.json"));
 
     // 快速从json文件中获取配置信息
-    XiaoZhiConfig? config = Newtonsoft.Json.JsonConvert.DeserializeObject<XiaoZhiConfig>(configJson);
+    var options = new JsonSerializerOptions
+    {
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        PropertyNameCaseInsensitive = true
+    };
+    options.Converters.Add(new LenientStringConverter());
+    XiaoZhiConfig? config = JsonSerializer.Deserialize<XiaoZhiConfig>(configJson, options);
+
     if (config is not null)
     {
 #if DEBUG
@@ -26,7 +35,7 @@ try
             Console.WriteLine("Please set the environment variable \"OPEN_AI_API_KEY\"");
             return;
         }
-        config.ConfiguredSettings["LLM"].First().Value["ApiKey"] = apiKey;
+        config.ConfiguredSettings["LLM"][config.SelectedSettings.GetValueOrDefault("ChatLLM", "ChatGlm")]["ApiKey"] = apiKey;
         if (config.SelectedSettings["TTS"] == "HuoshanBidirection")
         {
             config.ConfiguredSettings["TTS"]["HuoshanBidirection"]["AppId"] = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
@@ -66,4 +75,25 @@ finally
     Console.WriteLine("The server stopped.");
     Console.WriteLine("Press any key to exit...");
     Console.ReadKey();
+}
+
+public class LenientStringConverter : JsonConverter<string>
+{
+    public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType is JsonTokenType.Number)
+        {
+            using var doc = JsonDocument.ParseValue(ref reader);
+            return doc.RootElement.ToString();
+        }
+        if (reader.TokenType is JsonTokenType.True) return "true";
+        if (reader.TokenType is JsonTokenType.False) return "false";
+        
+        return reader.GetString()!;
+    }
+
+    public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value);
+    }
 }

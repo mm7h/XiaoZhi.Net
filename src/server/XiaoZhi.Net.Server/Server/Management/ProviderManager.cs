@@ -516,12 +516,12 @@ namespace XiaoZhi.Net.Server.Management
                     throw new ModelBuildException($"Invalid llm model setting, endPoint: {endPoint}, apiKey: {apiKey}, modelId: {modelId}.");
                 }
 
-                switch (ConvertToKebabCase(llmSettingItem.Key))
+                switch (llmSettingItem.Key.ToLower())
                 {
                     case "qwen":
                     case "doubao":
                     case "deepseek":
-                    case "chat-glm":
+                    case "chatglm":
                         services.AddOpenAIChatCompletion(modelId, new Uri(endPoint), apiKey, orgId: "Xiao Zhi", $"LLM_{llmSettingItem.Key}");
                         break;
                     default:

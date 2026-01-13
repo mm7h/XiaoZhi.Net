@@ -35,7 +35,7 @@ namespace XiaoZhi.Net.Sample.OTA.Server.Controllers
                 {
                     throw new Exception("Please set the environment variable \"OPEN_AI_API_KEY\"");
                 }
-                config.ConfiguredSettings["LLM"].First().Value["ApiKey"] = apiKey;
+                config.ConfiguredSettings["LLM"][config.SelectedSettings.GetValueOrDefault("ChatLLM", "ChatGlm")]["ApiKey"] = apiKey;
                 if (config.SelectedSettings["TTS"] == "HuoshanBidirection")
                 {
                     config.ConfiguredSettings["TTS"]["HuoshanBidirection"]["AppId"] = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
