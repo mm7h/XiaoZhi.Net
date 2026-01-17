@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Core;
+using Serilog.Events;
 
 namespace XiaoZhi.Net.Server.Management
 {
@@ -21,6 +22,9 @@ namespace XiaoZhi.Net.Server.Management
 
                 LoggerConfiguration loggerConfig = new LoggerConfiguration()
                     .MinimumLevel.ControlledBy(levelSwitch)
+#if DEBUG
+                    .MinimumLevel.Override("Microsoft.SemanticKernel", LogEventLevel.Warning)
+#endif
                     .WriteTo.Async(a => a.File
                     (
                         path: logSetting.LogFilePath,
@@ -41,18 +45,18 @@ namespace XiaoZhi.Net.Server.Management
             
         }
 
-        private static Serilog.Events.LogEventLevel ConvertLogLevel(string logLevel)
+        private static LogEventLevel ConvertLogLevel(string logLevel)
         {
 
             return logLevel.ToUpper() switch
             {
-                "VERB" => Serilog.Events.LogEventLevel.Verbose,
-                "DEBUG" => Serilog.Events.LogEventLevel.Debug,
-                "INFO" => Serilog.Events.LogEventLevel.Information,
-                "WARN" => Serilog.Events.LogEventLevel.Warning,
-                "ERROR" => Serilog.Events.LogEventLevel.Error,
-                "FATAL" => Serilog.Events.LogEventLevel.Fatal,
-                _ => Serilog.Events.LogEventLevel.Information,
+                "VERB" => LogEventLevel.Verbose,
+                "DEBUG" => LogEventLevel.Debug,
+                "INFO" => LogEventLevel.Information,
+                "WARN" => LogEventLevel.Warning,
+                "ERROR" => LogEventLevel.Error,
+                "FATAL" => LogEventLevel.Fatal,
+                _ => LogEventLevel.Information,
             };
         }
     }

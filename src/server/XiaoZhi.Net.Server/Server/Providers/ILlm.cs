@@ -15,7 +15,6 @@ namespace XiaoZhi.Net.Server.Providers
         event Action<IEnumerable<OutSegment>> OnTokenGenerated;
         bool UseStreaming { get; }
         ChatHistory LLMChatHistory { get; }
-        Task ChatAsync(string userMessage, CancellationToken token);
-        Task ChatByStreamingAsync(string userMessage, CancellationToken token);
+        Task StartDialogueAsync(string userMessage, CancellationToken token);
     }
 }

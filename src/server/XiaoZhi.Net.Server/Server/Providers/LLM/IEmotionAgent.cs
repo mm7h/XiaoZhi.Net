@@ -6,6 +6,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 {
     internal interface IEmotionAgent : IAgent
     {
-        Task<Emotion> AnalyzeEmotionAsync(string userMessage, CancellationToken token);
+        Task<Emotion> AnalyzeEmotionAsync(string userMessage, string? latestSentence, CancellationToken token);
     }
 }

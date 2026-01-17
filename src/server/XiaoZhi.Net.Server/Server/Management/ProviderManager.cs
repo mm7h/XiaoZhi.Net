@@ -260,12 +260,14 @@ namespace XiaoZhi.Net.Server.Management
                     string prompt = privateModelsConfig.ChatLlmSetting.Config.GetConfigValueOrDefault("Prompt", this._config.Prompt);
                     bool useStreaming = privateModelsConfig.ChatLlmSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
                     string summaryMemory = privateModelsConfig.ChatLlmSetting.Config.GetConfigValueOrDefault("SummaryMemory", string.Empty);
+                    bool useEmotions = privateModelsConfig.EmotionLlmSetting.Config.GetConfigValueOrDefault("UseEmotions", false);
 
                     LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
                         privateModelsConfig.EmotionLlmSetting.ModelName,
                         privateModelsConfig.ChatLlmSetting.ModelName,
                         prompt,
                         useStreaming,
+                        useEmotions,
                         summaryMemory,
                         privateKernel);
 
@@ -288,12 +290,14 @@ namespace XiaoZhi.Net.Server.Management
                     ModelSetting emotionLLMModelSetting = this.GetSelectedLLMSetting("EmotionLLM", this._config);
                     ModelSetting chatLLMModelSetting = this.GetSelectedLLMSetting("ChatLLM", this._config);
                     bool useStreaming = chatLLMModelSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
+                    bool useEmotions = emotionLLMModelSetting.Config.GetConfigValueOrDefault("UseEmotions", false);
 
                     LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
                         emotionLLMModelSetting.ModelName, 
                         chatLLMModelSetting.ModelName, 
                         this._config.Prompt, 
-                        useStreaming, 
+                        useStreaming,
+                        useEmotions,
                         summaryMemory: string.Empty, 
                         privateKernel);
 
@@ -716,12 +720,14 @@ namespace XiaoZhi.Net.Server.Management
             ModelSetting emotionLLMModelSetting = this.GetSelectedLLMSetting("EmotionLLM", this._config);
             ModelSetting chatLLMModelSetting = this.GetSelectedLLMSetting("ChatLLM", this._config);
             bool useStreaming = chatLLMModelSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
+            bool useEmotions = emotionLLMModelSetting.Config.GetConfigValueOrDefault("UseEmotions", false);
 
             LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
                 emotionLLMModelSetting.ModelName,
                 chatLLMModelSetting.ModelName,
                 this._config.Prompt,
                 useStreaming,
+                useEmotions,
                 summaryMemory: string.Empty,
                 privateKernel);
 

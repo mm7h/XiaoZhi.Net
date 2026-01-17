@@ -18,20 +18,21 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 {
     internal class GenericOpenAI : BaseProvider<GenericOpenAI, LLMBuildConfig>, ILlm
     {
-
-        private readonly IEmotionAgent _emotionAgent;
         private readonly IChatAgent _chatAgent;
+        private readonly IEmotionAgent _emotionAgent;
+
         private readonly ObjectPool<OutSegment> _outSegmentPool;
         private readonly Dictionary<string, IAgent> _subAgents = new Dictionary<string, IAgent>();
         private Kernel? _kernel;
 
-        public GenericOpenAI(IEmotionAgent emotionAgent,
-            IChatAgent chatAgent,
+        public GenericOpenAI(IChatAgent chatAgent,
+            IEmotionAgent emotionAgent,
             ObjectPool<OutSegment> outSegmentPool,
             ILogger<GenericOpenAI> logger) : base(logger)
         {
-            this._emotionAgent = emotionAgent;
             this._chatAgent = chatAgent;
+            this._emotionAgent = emotionAgent;
+
             this._outSegmentPool = outSegmentPool;
             this._subAgents = new Dictionary<string, IAgent>();
             this.LLMChatHistory = new ChatHistory();
@@ -79,7 +80,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             base.RegisterDevice(deviceId, sessionId);
         }
 
-        public async Task ChatAsync(string userMessage, CancellationToken token)
+        public async Task StartDialogueAsync(string userMessage, CancellationToken token)
         {
             if (!this.CheckDeviceRegistered())
             {
@@ -90,16 +91,45 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 this.Logger.LogError("The {providerType} model: {modelName} is not built.", this.ProviderType, this.ModelName);
                 return;
             }
+            if (this._chatAgent.UseStreaming)
+            {
+                await this.ChatByStreamingAsync(userMessage, token);
+            }
+            else
+            {
+                await this.ChatAsync(userMessage, token);
+            }
+        }
 
+        private async Task ChatAsync(string userMessage, CancellationToken token)
+        {
             try
             {
                 this.OnBeforeTokenGenerate?.Invoke();
 
-                Emotion detectedEmotion = await this._emotionAgent.AnalyzeEmotionAsync(userMessage, token);
-                this.Logger.LogDebug("Detected emotion: {detectedEmotion} with the message: \"{userMessage}\" for the device: {deviceId}", detectedEmotion, userMessage, this.DeviceId);
-                string assistantResponse = await this._chatAgent.GenerateChatResponseAsync(userMessage, detectedEmotion, token);
+                string assistantResponse = await this._chatAgent.GenerateChatResponseAsync(userMessage, token);
                 token.ThrowIfCancellationRequested();
-                IEnumerable<OutSegment> allResponse = this.ParseContentToSegments(assistantResponse, detectedEmotion);
+
+                string cleanContent = DialogueHelper.GetStringNoPunctuationOrEmoji(assistantResponse);
+                IEnumerable<string> segments = DialogueHelper.SplitContentByPunctuations(cleanContent);
+                List<OutSegment> allResponse = new List<OutSegment>();
+
+                int index = 0;
+                int count = segments.Count();
+
+                foreach (string sentence in segments)
+                {
+                    token.ThrowIfCancellationRequested();
+                    index++;
+                    Emotion detectedEmotion = await this._emotionAgent.AnalyzeEmotionAsync(userMessage, sentence, token);
+                    this.Logger.LogDebug("Detected emotion: {detectedEmotion} for segment: {segment}", detectedEmotion, sentence);
+
+                    var outSegment = this._outSegmentPool.Get();
+                    outSegment.Initialize(sentence, index == 1, index == count, detectedEmotion);
+
+                    allResponse.Add(outSegment);
+                    this.OnTokenGenerating?.Invoke(outSegment);
+                }
 
                 this.OnTokenGenerated?.Invoke(allResponse);
             }
@@ -114,32 +144,24 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
         }
 
-        public async Task ChatByStreamingAsync(string userMessage, CancellationToken token)
+        private async Task ChatByStreamingAsync(string userMessage, CancellationToken token)
         {
-            if (!this.CheckDeviceRegistered())
-            {
-                throw new SessionNotInitializedException();
-            }
-            if (!this._subAgents.Any() || this._kernel is null)
-            {
-                this.Logger.LogError("The {providerType} model: {modelName} is not built.", this.ProviderType, this.ModelName);
-                return;
-            }
-
-            List<OutSegment> allResponse = new List<OutSegment>();
             try
             {
                 this.OnBeforeTokenGenerate?.Invoke();
 
-                Emotion detectedEmotion = await this._emotionAgent.AnalyzeEmotionAsync(userMessage, token);
-                this.Logger.LogDebug("Detected emotion: {detectedEmotion} with the message: \"{userMessage}\" for the device: {deviceId}", detectedEmotion, userMessage, this.DeviceId);
-                await foreach (string sentence in this._chatAgent.GenerateChatResponseStreamingAsync(userMessage, detectedEmotion, token))
+                List<OutSegment> allResponse = new List<OutSegment>();
+                await foreach (string sentence in this._chatAgent.GenerateChatResponseStreamingAsync(userMessage, token))
                 {
                     token.ThrowIfCancellationRequested();
+
+                    Emotion detectedEmotion = await this._emotionAgent.AnalyzeEmotionAsync(userMessage, sentence, token);
+                    this.Logger.LogDebug("Detected emotion: {detectedEmotion} for segment: {segment}", detectedEmotion, sentence);
+
                     var outSegment = this._outSegmentPool.Get();
                     outSegment.Initialize(sentence, detectedEmotion);
 
-                    if (allResponse.Count == 0) 
+                    if (allResponse.Count == 0)
                     {
                         outSegment.IsFirstSegment = true;
                     }
@@ -148,7 +170,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                     {
                         this.OnTokenGenerating?.Invoke(allResponse[^2]);
                     }
-                    
+
                 }
                 if (allResponse.Any())
                 {
@@ -168,36 +190,15 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             {
                 this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
             }
-            finally
-            {
-                allResponse.Clear();
-            }
-        }
-
-        private IEnumerable<OutSegment> ParseContentToSegments(string content, Emotion emotion)
-        {
-            content = DialogueHelper.GetStringNoPunctuationOrEmoji(content);
-
-            IEnumerable<string> segments = DialogueHelper.SplitContentByPunctuations(content);
-            int segmentsCount = segments.Count();
-            int segmentIndex = 0;
-
-            foreach (string segment in segments)
-            {
-                segmentIndex++;
-                bool isFirst = segmentIndex == 1;
-                bool isLast = segmentIndex == segmentsCount;
-
-                var outSegment = this._outSegmentPool.Get();
-
-                outSegment.Initialize(segment, isFirst, isLast, emotion);
-                yield return outSegment;
-            }
         }
 
         public override void Dispose()
         {
-
+            foreach (var agent in this._subAgents.Values)
+            {
+                agent.Dispose();
+            }
+            this._subAgents.Clear();
         }
     }
 }

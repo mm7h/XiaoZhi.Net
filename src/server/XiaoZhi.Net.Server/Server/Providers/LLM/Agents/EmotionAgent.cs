@@ -1,7 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using OpenAI.Chat;
 using System;
@@ -18,17 +16,18 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
     internal class EmotionAgent : BaseAgent<EmotionAgent>, IEmotionAgent
     {
         private Kernel? _kernel;
-        private IChatCompletionService? _emotionAgentService;
+        private KernelFunction? _emotionFunction;
         private OpenAIPromptExecutionSettings? _chatExecutionSettings;
+        private bool _useEmotions = true;
 
-        private const string EMOTION_AGENT_PROMPT = @"You are an expert emotional tone analyzer for conversational AI. Your task is to analyze ONLY the most recent user message and determine which single emotion from the predefined list best matches the sentiment that the AI assistant should use when replying.
+        private const string EMOTION_PROMPT_TEMPLATE = @"<message role=""system"">You are an expert emotional tone analyzer for conversational AI. Your task is to analyze the sentiment of the provided text. If a conversation context is provided (e.g., User: ... Assistant: ...), analyze the sentiment of the Assistant's response to determine which single emotion from the predefined list matches the tone.
 
 Available emotions (choose exactly one):
 Neutral, Happy, Laughing, Funny, Sad, Angry, Crying, Loving, Embarrassed, Surprised, Shocked, Thinking, Winking, Cool, Relaxed, Delicious, Kissy, Confident, Sleepy, Silly, Confused
 
 Instructions:
-1. Focus solely on the emotional intent or feeling expressed in the user's message.
-2. Consider what emotional tone would make the AI's reply feel most empathetic, natural, and contextually appropriate.
+1. Focus solely on the emotional intent or feeling expressed in the message (or response).
+2. Consider what emotional tone matches the text.
 3. Do NOT output explanations, notes, or extra text.
 4. Output ONLY the exact emotion name as a single word on one line.
 
@@ -42,7 +41,17 @@ Output: Angry
 User: ""My puppy passed away yesterday.""
 Output: Sad
 
-Now analyze the following user message:";
+User: ""Hello""
+Assistant: ""I am so sorry to hear that.""
+Output: Sad
+
+User: ""What's up?""
+Assistant: ""Nothing much, just chilling.""
+Output: Relaxed
+
+Now analyze the following text:</message>
+<message role=""user"">User Message: ""{{$userMessage}}""
+Assistant Sentence: ""{{$latestSentence}}""</message>";
 
         public EmotionAgent(IServiceProvider serviceProvider, ILogger<EmotionAgent> logger) : base(serviceProvider, logger)
         {
@@ -55,19 +64,27 @@ Now analyze the following user message:";
         {
             try
             {
-                this._kernel = modelSetting.Kernel;
-                this._emotionAgentService = this.ServiceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{modelSetting.EmotionLLMModelName}");
+                this._useEmotions = modelSetting.UseEmotions;
+                if (!this._useEmotions)
+                {
+                    return true;
+                }
+                this._kernel = modelSetting.Kernel.Clone();
+                this._kernel.Plugins.Clear();
+
+                string serviceId = $"LLM_{modelSetting.EmotionLLMModelName}";
 
                 this._chatExecutionSettings = new OpenAIPromptExecutionSettings
                 {
+                    ServiceId = serviceId,
                     Temperature = 0.5f,
                     MaxTokens = 40,
                     ResponseFormat = ChatResponseFormat.CreateTextFormat(),
-                    FunctionChoiceBehavior = FunctionChoiceBehavior.None(),
-                    ChatSystemPrompt = EMOTION_AGENT_PROMPT
+                    FunctionChoiceBehavior = FunctionChoiceBehavior.None()
                 };
 
-                this.Prompt = EMOTION_AGENT_PROMPT;
+                this._emotionFunction = this._kernel.CreateFunctionFromPrompt(EMOTION_PROMPT_TEMPLATE, this._chatExecutionSettings);
+                this.Prompt = EMOTION_PROMPT_TEMPLATE;
 
                 return true;
             }
@@ -78,21 +95,35 @@ Now analyze the following user message:";
             }
         }
 
-        public async Task<Emotion> AnalyzeEmotionAsync(string userMessage, CancellationToken token)
+        public async Task<Emotion> AnalyzeEmotionAsync(string userMessage, string? latestSentence, CancellationToken token)
         {
+            if (!this._useEmotions)
+            {
+                return Emotion.Neutral;
+            }
             if (!this.CheckDeviceRegistered())
             {
                 throw new SessionNotInitializedException();
             }
-            if (this._emotionAgentService is null)
+            if (this._kernel is null || this._emotionFunction is null)
             {
                 throw new InvalidOperationException("Emotion agent is not builded yet.");
             }
+            if (string.IsNullOrEmpty(latestSentence))
+            { 
+                return Emotion.Neutral;
+            }
             try
             {
-                var clientResult = await this._emotionAgentService.GetChatMessageContentAsync(userMessage, this._chatExecutionSettings, this._kernel, token);
+                KernelArguments arguments = new KernelArguments(this._chatExecutionSettings)
+                {
+                    { "userMessage", userMessage },
+                    { "latestSentence", latestSentence }
+                };
 
-                string content = !string.IsNullOrEmpty(clientResult.Content) ? clientResult.Content : string.Empty;
+                var functionResult = await this._emotionFunction.InvokeAsync(this._kernel, arguments, token);
+
+                string content = functionResult.GetValue<string>() ?? string.Empty;
                 string assistantContent = MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(content), @"<think>.*?</think>", string.Empty, RegexOptions.Singleline));
 
                 return this.ParseEmotion(assistantContent);

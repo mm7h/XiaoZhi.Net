@@ -51,19 +51,22 @@
         "BaseUrl": "https://open.bigmodel.cn/api/paas/v4/",
         "ApiKey": "to your llm api key",
         "ModelName": "glm-4-flash",
-        "UseStreaming": true
+        "UseStreaming": true,
+        "UseEmotions": true
       },
       "Deepseek": {
         "BaseUrl": "https://api.deepseek.com/v1",
         "ApiKey": "to your llm api key",
         "ModelName": "deepseek-chat",
-        "UseStreaming": true
+        "UseStreaming": true,
+        "UseEmotions": true
       },
       "Doubao": {
         "BaseUrl": "https://ark.cn-beijing.volces.com/api/v3",
         "ApiKey": "to your llm api key",
         "ModelName": "doubao-1-5-pro-32k-250115",
-        "UseStreaming": true
+        "UseStreaming": true,
+        "UseEmotions": true
       }
     },
     "TTS": {

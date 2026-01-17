@@ -3,7 +3,6 @@ using Microsoft.Extensions.ObjectPool;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
@@ -119,14 +118,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 using (CodeTimer timer = CodeTimer.Create("Calling the LLM takes {elapsed:F2} ms.", this.Logger))
                 {
-                    if (this._llm.UseStreaming)
-                    {
-                        await this._llm.ChatByStreamingAsync(workflow.Data, this.HandlerToken);
-                    }
-                    else
-                    {
-                        await this._llm.ChatAsync(workflow.Data, this.HandlerToken);
-                    }
+                    await this._llm.StartDialogueAsync(workflow.Data, this.HandlerToken);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -138,22 +130,6 @@ namespace XiaoZhi.Net.Server.Handlers
         public async void NoVoiceCloseConnect(Workflow<string> workflow)
         {
             await this.Handle(workflow, false);
-        }
-
-        public async Task SendCustomMessage(string sessionId, string deviceId, IEnumerable<OutSegment> segments)
-        {
-            Session session = this.SendOutter.GetSession();
-            foreach (OutSegment segment in segments)
-            {
-                if (this.HandlerToken.IsCancellationRequested)
-                {
-                    return;
-                }
-                var workflow = this._outSegmentWorkflowPool.Get();
-
-                workflow.Initialize(session, segment);
-                await this.NextWriter.WriteAsync(workflow);
-            }
         }
 
         private void OnBeforeTokenGenerate()
@@ -177,35 +153,18 @@ namespace XiaoZhi.Net.Server.Handlers
             await this.NextWriter.WriteAsync(workflow);
         }
 
-        private async void OnTokenGenerated(IEnumerable<OutSegment> outSegments)
+        private void OnTokenGenerated(IEnumerable<OutSegment> outSegments)
         {
             if (this.HandlerToken.IsCancellationRequested)
             {
                 return;
             }
-            if (this._llm is null)
-            {
-                this.Logger.LogError("The LLM model is not initialized.");
-                return;
-            }
 
             this.Logger.LogDebug("LLM's response text: {content}", string.Join(string.Empty, outSegments.Select(o => o.Content)));
-
-            if (!this._llm.UseStreaming)
+            foreach (var seg in outSegments)
             {
-                Session session = this.SendOutter.GetSession();
-                await this.SendCustomMessage(session.SessionId, session.DeviceId, outSegments);
+                this._outSegmentPool.Return(seg);
             }
-            else
-            {
-                // In streaming mode we only log; return the original segments to the pool to avoid leaks
-                foreach (var seg in outSegments)
-                {
-                    this._outSegmentPool.Return(seg);
-                }
-            }
-
-            await this.SendOutter.SendLlmMessageAsync(Emotion.Winking);
         }
 
         public override void Dispose()
