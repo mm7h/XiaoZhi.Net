@@ -59,7 +59,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
                 if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(resourceId) || string.IsNullOrEmpty(speaker))
                 {
-                    this.Logger.LogWarning("Huoshan TTS configuration is incomplete, please check AppId, AccessToken, ResourceId and speaker.");
+                    this.Logger.LogWarning("Huoshan bidirection TTS configuration is incomplete, please check AppId, AccessToken, ResourceId and speaker.");
                     return false;
                 }
                 this.SpeakerId = speaker;
