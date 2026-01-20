@@ -26,9 +26,9 @@
   "SelectedSettings": {
     "VAD": "Silero",
     "ASR": "SenseVoice",
-    "EmotionLLM": "Doubao",
-    "ChatLLM": "Doubao",
-    "TTS": "Kokoro",
+    "EmotionLLM": "Chatglm",
+    "ChatLLM": "Chatglm",
+    "TTS": "HuoshanUnidirectional",
     "INTENT": "None",
     "MEMORY": "FlashMemory"
   },
@@ -77,6 +77,15 @@
         "UseStreaming": false
       },
       "HuoshanBidirection": {
+        "Save2File": true,
+        "AppId": "to your api id",
+        "AccessToken": "to your access token",
+        "ResourceId": "volc.service_type.10029",
+        "Speaker": "zh_female_cancan_mars_bigtts",
+        "SpeechRate": 0,
+        "LoudnessRate": 0
+      },
+      "HuoshanUnidirectional": {
         "Save2File": true,
         "AppId": "to your api id",
         "AccessToken": "to your access token",

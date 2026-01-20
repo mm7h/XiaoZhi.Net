@@ -32,6 +32,7 @@ using XiaoZhi.Net.Server.Providers.MCP.McpEndpoint;
 using XiaoZhi.Net.Server.Providers.MCP.ServerMcp;
 using XiaoZhi.Net.Server.Providers.Memory;
 using XiaoZhi.Net.Server.Providers.TTS;
+using XiaoZhi.Net.Server.Providers.TTS.Huoshan;
 using XiaoZhi.Net.Server.Providers.TTS.Sherpa;
 using XiaoZhi.Net.Server.Providers.VAD.Sherpa;
 using XiaoZhi.Net.Server.Services;
@@ -579,6 +580,10 @@ namespace XiaoZhi.Net.Server.Management
                 case "huoshan-bidirection":
                     services.AddKeyedTransient<ITts, HuoshanBidirectionTTS>(modelName);
                     services.AddKeyedTransient<ITts, HuoshanBidirectionTTS>(key);
+                    break;
+                case "huoshan-unidirectional":
+                    services.AddKeyedTransient<ITts, HuoshanUnidirectionalTTS>(modelName);
+                    services.AddKeyedTransient<ITts, HuoshanUnidirectionalTTS>(key);
                     break;
                 default:
                     throw new ModelBuildException("Invalid tts model.");
