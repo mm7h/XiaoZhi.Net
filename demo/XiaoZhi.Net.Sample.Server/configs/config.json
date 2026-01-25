@@ -28,7 +28,7 @@
     "ASR": "SenseVoice",
     "EmotionLLM": "Chatglm",
     "ChatLLM": "Chatglm",
-    "TTS": "HuoshanUnidirectional",
+    "TTS": "HuoshanBidirection",
     "INTENT": "None",
     "MEMORY": "FlashMemory"
   },

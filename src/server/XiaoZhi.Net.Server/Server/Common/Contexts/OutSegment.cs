@@ -35,25 +35,33 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public Emotion Emotion { get; set; }
 
         /// <summary>
+        /// 段落Id
+        /// </summary>
+        public string? ParagraphId { get; set; }
+
+        /// <summary>
         /// 句子Id
         /// </summary>
         public string? SentenceId { get; set; }
 
-        public void Initialize(string content, Emotion emotion)
+        public void Initialize(string content, Emotion emotion, string? paragraphId = null, string? sentenceId = null)
 
         {
             this._content = content;
             this.IsFirstSegment = false;
             this.IsLastSegment = false;
             this.Emotion = emotion;
+            this.ParagraphId = paragraphId;
+            this.SentenceId = sentenceId;
         }
 
-        public void Initialize(string content, bool isFirst, bool isLast, Emotion emotion, string? sentenceId = null)
+        public void Initialize(string content, bool isFirst, bool isLast, Emotion emotion, string? paragraphId = null, string? sentenceId = null)
         {
             this._content = content;
             this.IsFirstSegment = isFirst;
             this.IsLastSegment = isLast;
             this.Emotion = emotion;
+            this.ParagraphId = paragraphId;
             this.SentenceId = sentenceId;
         }
 

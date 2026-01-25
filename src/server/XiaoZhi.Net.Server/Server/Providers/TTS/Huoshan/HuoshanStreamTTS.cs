@@ -16,7 +16,7 @@ using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 {
-    internal abstract class HuoshanTTS<TLogger> : BaseProvider<TLogger, ModelSetting>
+    internal abstract class HuoshanStreamTTS<TLogger> : BaseProvider<TLogger, ModelSetting>
     {
         private const string LANG_ZH = "zh-CN";
         private const int SAMPLE_RATE = 24000;
@@ -27,7 +27,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         private readonly object _waitsLock = new();
         private static readonly TimeSpan DefaultWaitTimeout = TimeSpan.FromSeconds(15);
 
-        public HuoshanTTS(ILogger<TLogger> logger) : base(logger)
+        public HuoshanStreamTTS(ILogger<TLogger> logger) : base(logger)
         {
             this.ProcessingSegments = new ConcurrentDictionary<string, OutSegment>();
         }
@@ -139,6 +139,32 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             await this.WebSocketClient.SendAsync(data);
         }
 
+        protected void StartNewAudioFile(string sessionId, string fileExtension)
+        {
+            if (!this.Save2File || string.IsNullOrEmpty(this.SavePath) || string.IsNullOrEmpty(sessionId))
+            {
+                return;
+            }
+
+            lock (this._fileLock)
+            {
+                if (!this._sessionFiles.ContainsKey(sessionId))
+                {
+                    this.CreateAudioFileEntry(sessionId, fileExtension);
+                }
+            }
+        }
+
+        private TTSAudioFile CreateAudioFileEntry(string sessionId, string fileExtension)
+        {
+            var tmpPath = Path.Combine(this.SavePath, sessionId + "." + fileExtension + ".tmp");
+            var finalPath = Path.Combine(this.SavePath, sessionId + "." + fileExtension);
+            var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite, 8192, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            var entry = new TTSAudioFile(sessionId, fs, tmpPath, finalPath);
+            this._sessionFiles[sessionId] = entry;
+            return entry;
+        }
+
         protected void AppendAudioPayloadChunk(string sessionId, byte[] audioData, string fileExtension)
         {
             if (!this.Save2File || string.IsNullOrEmpty(this.SavePath) || string.IsNullOrEmpty(sessionId))
@@ -150,12 +176,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             {
                 if (!this._sessionFiles.TryGetValue(sessionId, out var entry))
                 {
-                    var fileBase = $"{sessionId}_{DateTime.UtcNow:yyyyMMdd_HHmmssfff}";
-                    var tmpPath = Path.Combine(this.SavePath, fileBase + "." + fileExtension + ".tmp");
-                    var finalPath = Path.Combine(this.SavePath, fileBase + "." + fileExtension);
-                    var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite, 8192, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                    entry = new TTSAudioFile(sessionId, fs, tmpPath, finalPath);
-                    this._sessionFiles[sessionId] = entry;
+                    entry = this.CreateAudioFileEntry(sessionId, fileExtension);
                 }
 
                 entry.Stream.Write(audioData, 0, audioData.Length);
@@ -383,6 +404,13 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             };
         }
 
+        protected virtual (string, Emotion) GetSubtitle(Message message, bool isSentenceStart)
+        {
+            string sentence = JsonObject.Parse(message.Payload)?["text"]?.GetValue<string>() ?? string.Empty;
+            Emotion segmentEmotion = this.ProcessingSegments.TryGetValue(message.SessionId ?? string.Empty, out var seg) ? seg.Emotion : Emotion.Neutral;
+            return (sentence, segmentEmotion);
+        }
+
         #region WebsocketClient
         protected void FailAllWaits(Exception ex)
         {
@@ -448,11 +476,16 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             // Sentence start marker -> push empty first frame
             if (message.MsgType == MsgType.FullServerResponse && message.EventType == EventType.TTSSentenceStart)
             {
+                if (this.Save2File && !string.IsNullOrEmpty(message.SessionId))
+                {
+                    this.CloseSessionFile(message.SessionId, true);
+                    this.StartNewAudioFile(message.SessionId, this.AudioEcoding);
+                }
+
                 if (this.StreamingActive && !string.IsNullOrEmpty(message.SessionId))
                 {
-                    string sentence = JsonObject.Parse(message.Payload)?["text"]?.GetValue<string>() ?? string.Empty;
-                    Emotion segmentEmotion = this.ProcessingSegments.TryGetValue(message.SessionId, out var seg) ? seg.Emotion : Emotion.Neutral;
-                    this.TTSEventCallback?.OnSentenceStart(sentence, segmentEmotion, this.GenerateId());
+                    (string sentence, Emotion segmentEmotion) = this.GetSubtitle(message, true);
+                    this.TTSEventCallback?.OnSentenceStart(sentence, segmentEmotion, message.SessionId);
                 }
                 return;
             }
@@ -483,11 +516,15 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             // Sentence end marker -> seal current producing subtitle so subsequent samples go to next sentence
             if (message.MsgType == MsgType.FullServerResponse && message.EventType == EventType.TTSSentenceEnd)
             {
+                if (this.Save2File && !string.IsNullOrEmpty(message.SessionId))
+                {
+                    this.CloseSessionFile(message.SessionId, true);
+                }
+
                 if (this.StreamingActive && !string.IsNullOrEmpty(message.SessionId))
                 {
-                    string sentence = JsonObject.Parse(message.Payload)?["text"]?.GetValue<string>() ?? string.Empty;
-                    Emotion segmentEmotion = this.ProcessingSegments.TryGetValue(message.SessionId, out var seg) ? seg.Emotion : Emotion.Neutral;
-                    this.TTSEventCallback?.OnSentenceEnd(sentence, segmentEmotion, this.GenerateId());
+                    (string sentence, Emotion segmentEmotion) = this.GetSubtitle(message, false);
+                    this.TTSEventCallback?.OnSentenceEnd(sentence, segmentEmotion, message.SessionId);
                 }
                 return;
             }

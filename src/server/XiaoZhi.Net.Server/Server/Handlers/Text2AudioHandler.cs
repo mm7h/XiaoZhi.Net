@@ -233,7 +233,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 nextWorkflow.Initialize(session, outAudioSegment);
                 this.NextWriter.WriteAsync(nextWorkflow);
             }
-            this.Logger.LogDebug("TTS processing started for device: {deviceId}.", session.DeviceId);
+            this.Logger.LogDebug("TTS processing started for device: {deviceId}, sentence: {sentence}.", session.DeviceId, sentence);
         }
 
         public async void OnProcessing(float[] audioData, bool isFirstFrame, bool isLastFrame)
@@ -288,7 +288,7 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
             Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
-            outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isFirstFrame: true, emotion: emotion, sentenceId: sentenceId);
+            outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isFirstFrame: true, emotion: emotion, sentenceId: "S_" + sentenceId);
 
             nextWorkflow.Initialize(session, outAudioSegment);
             this.NextWriter.WriteAsync(nextWorkflow);
@@ -303,7 +303,7 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
             Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
-            outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isLastFrame: true, emotion: emotion, sentenceId: sentenceId);
+            outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isLastFrame: true, emotion: emotion, sentenceId: "E_" + sentenceId);
 
             nextWorkflow.Initialize(session, outAudioSegment);
             this.NextWriter.WriteAsync(nextWorkflow);

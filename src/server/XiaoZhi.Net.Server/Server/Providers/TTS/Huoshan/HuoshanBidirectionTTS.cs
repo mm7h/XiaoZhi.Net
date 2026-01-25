@@ -12,19 +12,18 @@ using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Enums;
 
 namespace XiaoZhi.Net.Server.Providers.TTS
 {
-    internal class HuoshanBidirectionTTS : HuoshanTTS<HuoshanBidirectionTTS>, ITts
+    internal class HuoshanBidirectionTTS : HuoshanStreamTTS<HuoshanBidirectionTTS>, ITts
     {
         private const string SERVICE_END_POINT = "wss://openspeech.bytedance.com/api/v3/tts/bidirection";
         private const string TTS_NAMESPACE = "BidirectionalTTS";
-
-        private string? _ttsSessionId = null;
-
 
         public HuoshanBidirectionTTS(ILogger<HuoshanBidirectionTTS> logger) : base(logger)
         {
         }
 
         public override string ModelName => nameof(HuoshanBidirectionTTS);
+
+
 
         public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
         {
@@ -43,49 +42,48 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 await this.StartConnectionAsync(token);
             }
 
-            if (string.IsNullOrEmpty(this._ttsSessionId))
-            {
-                this._ttsSessionId = Guid.NewGuid().ToString();
-                this.ProcessingSegments.TryAdd(this._ttsSessionId, workflow.Data);
-            }
-
-            this.StreamingActive = true;
-
             OutSegment seg = workflow.Data;
 
-            if (seg.IsFirstSegment)
+            if (string.IsNullOrEmpty(seg.ParagraphId) || string.IsNullOrEmpty(seg.SentenceId))
             {
-                Dictionary<string, object> startReq = new Dictionary<string, object>
-                {
-                    { "User", new { Uid = workflow.DeviceId } },
-                    { "Event", (int)EventType.StartSession },
-                    { "Namespace", TTS_NAMESPACE },
-                    { "ReqParams",
-                        new {
-                            Speaker = this.SpeakerId,
-                            AudioParams = new {
-                                Format = this.AudioEcoding,
-                                SampleRate = this.GetTtsSampleRate(),
-                                EnableTimestamp = false,
-                                this.SpeechRate,
-                                this.LoudnessRate,
-                            }
-                        }
-                    },
-                    { "Additions",
-                        JsonHelper.Serialize(new {
-                            DisableMarkdownFilter = false,
-                            CacheConfig = new
-                            {
-                                TextType = 1,
-                                UseCache = true
-                            },
-                            SectionId = this._ttsSessionId
-                        })
-                    }
-                };
-                await this.StartSessionAsync(this._ttsSessionId, JsonHelper.SerializeToUtf8Bytes(startReq), token);
+                this.Logger.LogWarning("Failed to process segment due to missing paragraph id or sentence id.");
+                return;
             }
+
+            this.ProcessingSegments.TryAdd(seg.SentenceId, workflow.Data);
+
+            this.StreamingActive = true;
+            Dictionary<string, object> startReq = new Dictionary<string, object>
+            {
+                { "User", new { Uid = workflow.DeviceId } },
+                { "Event", (int)EventType.StartSession },
+                { "Namespace", TTS_NAMESPACE },
+                { "ReqParams",
+                    new {
+                        Speaker = this.SpeakerId,
+                        AudioParams = new {
+                            Format = this.AudioEcoding,
+                            SampleRate = this.GetTtsSampleRate(),
+                            EnableTimestamp = false,
+                            this.SpeechRate,
+                            this.LoudnessRate,
+                        }
+                    }
+                },
+                { "Additions",
+                    JsonHelper.Serialize(new {
+                        DisableMarkdownFilter = false,
+                        CacheConfig = new
+                        {
+                            TextType = 1,
+                            UseCache = true
+                        },
+                        SectionId = seg.ParagraphId
+                    })
+                }
+            };
+            await this.StartSessionAsync(seg.SentenceId, JsonHelper.SerializeToUtf8Bytes(startReq), token);
+
             token.ThrowIfCancellationRequested();
 
             Dictionary<string, object> ttsReq = new Dictionary<string, object>
@@ -111,50 +109,36 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
             this.TTSEventCallback?.OnBeforeProcessing(seg.Content, seg.IsFirstSegment, seg.IsLastSegment);
 
-            await this.TaskRequestAsync(this._ttsSessionId, JsonHelper.SerializeToUtf8Bytes(ttsReq));
+            await this.TaskRequestAsync(seg.SentenceId, JsonHelper.SerializeToUtf8Bytes(ttsReq));
             token.ThrowIfCancellationRequested();
 
-            // Only finish session on last segment (last sentence in paragraph)
-            if (seg.IsLastSegment)
+            try
             {
-                bool finalize = false;
-                try
-                {
-                    await this.FinishSessionAsync(this._ttsSessionId, token);
-                    finalize = true;
+                await this.FinishSessionAsync(seg.SentenceId, token);
 
-                    this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Success);
-                }
-                catch (OperationCanceledException oex)
-                {
-                    this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Aborted);
-                    this.Logger.LogWarning(oex, "TTS synthesis was canceled.");
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Failed);
-                    this.Logger.LogError(ex, "TTS synthesis failed.");
-                    throw;
-                }
-                finally
-                {
-                    if (!string.IsNullOrEmpty(this._ttsSessionId))
-                    {
-                        this.CloseSessionFile(this._ttsSessionId, finalize);
-                        this.ProcessingSegments.Remove(this._ttsSessionId);
-                    }
-                    this._ttsSessionId = null;
-                }
+                this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Success);
             }
-
-            // Cleanup per-sentence
-            this.StreamingActive = false;
+            catch (OperationCanceledException oex)
+            {
+                this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Aborted);
+                this.Logger.LogWarning(oex, "TTS synthesis was canceled.");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Failed);
+                this.Logger.LogError(ex, "TTS synthesis failed.");
+                throw;
+            }
+            finally
+            {
+                this.ProcessingSegments.Remove(seg.SentenceId);
+                this.StreamingActive = false;
+            }
         }
 
         public override void Dispose()
         {
-            this._ttsSessionId = null;
             try
             {
                 this.FinishConnectionAsync(CancellationToken.None).GetAwaiter().GetResult();

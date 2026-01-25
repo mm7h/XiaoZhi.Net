@@ -24,6 +24,8 @@ namespace XiaoZhi.Net.Server.Providers.LLM
         private readonly ObjectPool<OutSegment> _outSegmentPool;
         private readonly Dictionary<string, IAgent> _subAgents = new Dictionary<string, IAgent>();
         private Kernel? _kernel;
+        private int _seqParagraphId = 0;
+        private int _seqSentenceId = 0;
 
         public GenericOpenAI(IChatAgent chatAgent,
             IEmotionAgent emotionAgent,
@@ -100,6 +102,22 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 await this.ChatAsync(userMessage, token);
             }
         }
+        protected override string GenerateId()
+        {
+            string devicePart = this.ReplaceMacDelimiters(this.DeviceId, "_");
+            string sessionPart = this.SessionId.Replace("-", string.Empty);
+            if (sessionPart.Length > 7)
+            {
+                sessionPart = sessionPart.Substring(0, 7);
+            }
+            int sequence = Interlocked.Increment(ref this._seqParagraphId);
+            return $"{devicePart}_{sessionPart}_{sequence}";
+        }
+
+        private string GenerateSentenceId(string paragraphId) 
+        {
+            return $"{paragraphId}_{Interlocked.Increment(ref this._seqSentenceId)}";
+        }
 
         private async Task ChatAsync(string userMessage, CancellationToken token)
         {
@@ -116,7 +134,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
                 int index = 0;
                 int count = segments.Count();
-
+                string paragraphId = this.GenerateId();
                 foreach (string sentence in segments)
                 {
                     token.ThrowIfCancellationRequested();
@@ -125,7 +143,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                     this.Logger.LogDebug("Detected emotion: {detectedEmotion} for segment: {segment}", detectedEmotion, sentence);
 
                     var outSegment = this._outSegmentPool.Get();
-                    outSegment.Initialize(sentence, index == 1, index == count, detectedEmotion);
+                    outSegment.Initialize(sentence, index == 1, index == count, detectedEmotion, paragraphId, this.GenerateSentenceId(paragraphId));
 
                     allResponse.Add(outSegment);
                     this.OnTokenGenerating?.Invoke(outSegment);
@@ -151,6 +169,8 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 this.OnBeforeTokenGenerate?.Invoke();
 
                 List<OutSegment> allResponse = new List<OutSegment>();
+                string paragraphId = this.GenerateId();
+
                 await foreach (string sentence in this._chatAgent.GenerateChatResponseStreamingAsync(userMessage, token))
                 {
                     token.ThrowIfCancellationRequested();
@@ -159,7 +179,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                     this.Logger.LogDebug("Detected emotion: {detectedEmotion} for segment: {segment}", detectedEmotion, sentence);
 
                     var outSegment = this._outSegmentPool.Get();
-                    outSegment.Initialize(sentence, detectedEmotion);
+                    outSegment.Initialize(sentence, detectedEmotion, paragraphId, this.GenerateSentenceId(paragraphId));
 
                     if (allResponse.Count == 0)
                     {

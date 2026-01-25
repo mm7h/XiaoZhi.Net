@@ -27,7 +27,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             //await tts.SynthesisAsync("夜来风雨声，", false, false, CancellationToken.None);
             //await tts.SynthesisAsync("花落知多少。", false, true, CancellationToken.None);
             await Task.Delay(1000);
-            await tts.SynthesisAsync("窗前明月光,", true, false, CancellationToken.None);
+            await tts.SynthesisAsync("床前明月光,", true, false, CancellationToken.None);
             await tts.SynthesisAsync("疑是地上霜,", false, false, CancellationToken.None);
             await tts.SynthesisAsync("举头望明月,", false, false, CancellationToken.None);
             await tts.SynthesisAsync("低头思故乡.", false, true, CancellationToken.None);

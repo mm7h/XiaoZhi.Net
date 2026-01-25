@@ -145,7 +145,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
             var clonedSegment = this._outSegmentPool.Get();
-            clonedSegment.Initialize(outSegment.Content, outSegment.IsFirstSegment, outSegment.IsLastSegment, outSegment.Emotion);
+            clonedSegment.Initialize(outSegment.Content, outSegment.IsFirstSegment, outSegment.IsLastSegment, outSegment.Emotion, outSegment.ParagraphId, outSegment.SentenceId);
 
             var workflow = this._outSegmentWorkflowPool.Get();
             Session session = this.SendOutter.GetSession();

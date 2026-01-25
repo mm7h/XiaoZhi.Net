@@ -24,7 +24,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.AudioType = audioType;
             this.IsFirstFrame = isFirstFrame;
             this.IsLastFrame = isLastFrame;
-            base.Initialize(content ?? string.Empty, isFirstSegment, isLastSegment, emotion, sentenceId);
+            base.Initialize(content ?? string.Empty, isFirstSegment, isLastSegment, emotion, sentenceId: sentenceId);
         }
 
         public override void Reset()

@@ -9,7 +9,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
-using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
@@ -55,6 +54,12 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
             {
                 OutSegment segment = workflow.Data;
 
+                if (string.IsNullOrEmpty(segment.ParagraphId) || string.IsNullOrEmpty(segment.SentenceId))
+                {
+                    this.Logger.LogWarning("Failed to process segment due to missing paragraph id or sentence id.");
+                    return;
+                }
+
                 if (this._ttsEventCallbackMapping.TryGetValue(workflow.DeviceId, out ITtsEventCallback? sessionCallback) && sessionCallback is not null)
                 {
                     Stopwatch timer = Stopwatch.StartNew();
@@ -74,13 +79,13 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 
                         if (!firstFrameSent)
                         {
-                            sessionCallback.OnSentenceStart(segment.Content, segment.Emotion, this.GenerateId());
+                            sessionCallback.OnSentenceStart(segment.Content, segment.Emotion, segment.SentenceId);
                             firstFrameSent = true;
                         }
 
                         if (progress == 1.0f)
                         {
-                            sessionCallback.OnSentenceEnd(segment.Content, segment.Emotion, this.GenerateId());
+                            sessionCallback.OnSentenceEnd(segment.Content, segment.Emotion, segment.SentenceId);
                         }
 
                         sessionCallback.OnProcessing(data, false, false);
@@ -101,7 +106,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 
                     if (this.Save2File)
                     {
-                        string fileName = $"{this.ReplaceMacDelimiters(workflow.DeviceId)}_{DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString()}.wav";
+                        string fileName = $"{segment.SentenceId}.wav";
                         string filePath = Path.Combine(this.SavePath, fileName);
                         if (File.Exists(filePath))
                             File.Delete(filePath);

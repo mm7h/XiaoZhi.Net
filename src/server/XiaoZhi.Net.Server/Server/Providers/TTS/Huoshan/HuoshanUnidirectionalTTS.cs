@@ -1,8 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
@@ -11,14 +14,14 @@ using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 {
-    internal class HuoshanUnidirectionalTTS : HuoshanTTS<HuoshanUnidirectionalTTS>, ITts
+    internal class HuoshanUnidirectionalTTS : HuoshanStreamTTS<HuoshanUnidirectionalTTS>, ITts
     {
+        private readonly ConcurrentQueue<OutSegment> segmentsCache;
         private const string SERVICE_END_POINT = "wss://openspeech.bytedance.com/api/v3/tts/unidirectional/stream";
-
-        private string? _ttsSessionId = null;
 
         public HuoshanUnidirectionalTTS(ILogger<HuoshanUnidirectionalTTS> logger) : base(logger)
         {
+            this.segmentsCache = new ConcurrentQueue<OutSegment>();
         }
 
         public override string ModelName => nameof(HuoshanUnidirectionalTTS);
@@ -39,14 +42,18 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 await this.ConnectAsync(SERVICE_END_POINT, token);
             }
 
-            if (string.IsNullOrEmpty(this._ttsSessionId))
+            OutSegment seg = workflow.Data;
+
+            if (string.IsNullOrEmpty(seg.ParagraphId) || string.IsNullOrEmpty(seg.SentenceId))
             {
-                this._ttsSessionId = Guid.NewGuid().ToString();
-                this.ProcessingSegments.TryAdd(this._ttsSessionId, workflow.Data);
+                this.Logger.LogWarning("Failed to process segment due to missing paragraph id or sentence id.");
+                return;
             }
 
+            this.ProcessingSegments.TryAdd(seg.SentenceId, workflow.Data);
+
             this.StreamingActive = true;
-            OutSegment seg = workflow.Data;
+            
 
             this.TTSEventCallback?.OnBeforeProcessing(seg.Content, seg.IsFirstSegment, seg.IsLastSegment);
 
@@ -65,7 +72,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                             this.LoudnessRate,
                             Emotion = this.ConvertEmotion(seg.Emotion)
                         },
-                        Additions=
+                        Additions =
                             JsonHelper.Serialize(new {
                                 DisableMarkdownFilter = false,
                                 CacheConfig = new
@@ -73,7 +80,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                                     TextType = 1,
                                     UseCache = true
                                 },
-                                SectionId = this._ttsSessionId
+                                SectionId = seg.ParagraphId
                             })
                         }
                     }
@@ -82,12 +89,10 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             await this.TaskRequestAsync(ttsReq);
             token.ThrowIfCancellationRequested(); 
             
-            bool finalize = false;
             try
             {
                 var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.SessionFinished, token, null);
                 await waitTask.ConfigureAwait(false);
-                finalize = true;
 
                 this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Success);
             }
@@ -105,14 +110,29 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             }
             finally
             {
-                if (!string.IsNullOrEmpty(this._ttsSessionId))
-                {
-                    this.CloseSessionFile(this._ttsSessionId, finalize);
-                    this.ProcessingSegments.Remove(this._ttsSessionId);
-                }
-                this._ttsSessionId = null;
+                this.ProcessingSegments.Remove(seg.SentenceId);
                 this.StreamingActive = false;
             }
+        }
+
+        protected override (string, Emotion) GetSubtitle(Message message, bool isSentenceStart)
+        {
+            string sentence = JsonObject.Parse(message.Payload)?["text"]?.GetValue<string>() ?? string.Empty;
+            if (isSentenceStart)
+            {
+                if (this.segmentsCache.TryPeek(out OutSegment? seg) && seg is not null)
+                {
+                    return (sentence, seg.Emotion);
+                }
+            }
+            else
+            {
+                if (this.segmentsCache.TryDequeue(out OutSegment? seg) && seg is not null)
+                {
+                    return (sentence, seg.Emotion);
+                }
+            }
+            return (sentence, Emotion.Neutral);
         }
 
         public override void Dispose()
