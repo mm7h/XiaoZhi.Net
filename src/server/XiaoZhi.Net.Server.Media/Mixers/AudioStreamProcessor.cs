@@ -35,7 +35,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         public AudioType AudioType => _audioType;
         public bool IsFirstFrame => _isFirstFrame;
         public bool IsLastFrame => _isLastFrame;
-        public bool IsComplete => _isComplete;
+        public bool IsComplete => _bufferQueue.IsEmpty && _metaQueue.IsEmpty && (_isComplete || IsStopping);
         public int ProcessedFrameCount => _processedFrameCount;
         public int AvailableDataCount => _bufferQueue.Count;
         public bool IsStopping => _stopRequested || _isLastFrame || _streamEnded;
@@ -161,6 +161,13 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             {
                 _metaQueue.TryDequeue(out _);
                 sentenceId = meta.SentenceId;
+                
+                // Check if stream should be marked as complete after consuming this meta
+                if (IsStopping && _bufferQueue.IsEmpty && _metaQueue.IsEmpty)
+                {
+                    _isComplete = true;
+                }
+                
                 return Array.Empty<float>();
             }
 
@@ -262,7 +269,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 frameData[i] = 0.0f;
             }
 
-            if ((IsStopping) && _bufferQueue.IsEmpty)
+            if (IsStopping && _bufferQueue.IsEmpty && _metaQueue.IsEmpty)
             {
                 _isComplete = true;
             }
@@ -290,7 +297,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 _isFirstFrame = false;
                 _processedFrameCount++;
 
-                if ((IsStopping) && _bufferQueue.IsEmpty)
+                if (IsStopping && _bufferQueue.IsEmpty && _metaQueue.IsEmpty)
                 {
                     _isComplete = true;
                 }

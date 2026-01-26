@@ -574,11 +574,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
                 if (streamProcessor.IsStopping)
                 {
-                    var remainingSamples = streamProcessor.AvailableDataCount;
-
-                    _logger.LogTrace("Stream {AudioType} stopping, remaining samples: {Samples}", audioType, remainingSamples);
-
-                    if (remainingSamples == 0)
+                    if (!streamProcessor.HasAnyData())
                     {
                         // Close source filter
                         var isSourceClosed = _sourceClosedStates.GetValueOrDefault(audioType, false);

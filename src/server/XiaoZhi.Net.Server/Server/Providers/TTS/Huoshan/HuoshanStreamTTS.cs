@@ -16,10 +16,8 @@ using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 {
-    internal abstract class HuoshanStreamTTS<TLogger> : BaseProvider<TLogger, ModelSetting>
+    internal abstract class HuoshanStreamTTS<TLogger> : BaseHuoshanTTS<TLogger>
     {
-        private const string LANG_ZH = "zh-CN";
-        private const int SAMPLE_RATE = 24000;
 
         private readonly object _fileLock = new();
         private readonly Dictionary<string, TTSAudioFile> _sessionFiles = new();
@@ -33,17 +31,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         }
 
         protected WebSocketClient? WebSocketClient { get; set; }
-
-        public override string ProviderType => "tts";
-        public bool Save2File { get; protected set; }
-        public string SavePath { get; protected set; } = string.Empty;
-        public string SpeakerId { get; protected set; } = string.Empty;
-        public int SpeechRate { get; protected set; } = 0;
-        public int LoudnessRate { get; protected set; } = 0;
-        protected string AudioEcoding { get; set; } = "pcm";
         protected IDictionary<string, OutSegment> ProcessingSegments { get; }
         protected bool StreamingActive { get; set; } = false;
-        protected ITtsEventCallback? TTSEventCallback { get; set; }
 
         public override bool Build(ModelSetting modelSetting)
         {
@@ -91,16 +80,9 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Failed to build HuoshanBidirectionTTS.");
+                this.Logger.LogError(ex, "Failed to build {modelName}.", this.ModelName);
                 return false;
             }
-        }
-        public int GetTtsSampleRate() => SAMPLE_RATE;
-
-        public void RegisterDevice(string deviceId, string sessionId, ITtsEventCallback callback)
-        {
-            this.TTSEventCallback = callback;
-            this.RegisterDevice(deviceId, sessionId);
         }
 
         #region Huoshan TTS services API
@@ -113,7 +95,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             }
             await this.WebSocketClient.ConnectAsync(endPoint, token);
         }
-        protected async Task TaskRequestAsync(Dictionary<string, object> ttsReq)
+        protected async Task TaskRequestAsync(object ttsReq)
         {
             var message = Message.Create(MsgType.FullClientRequest, MsgTypeFlagBits.NoSeq);
             message.Payload = JsonHelper.SerializeToUtf8Bytes(ttsReq);
@@ -350,60 +332,6 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         }
         #endregion
 
-        protected string ConvertEmotion(Emotion emotion, string? lang = LANG_ZH)
-        {
-            bool isZh = !string.IsNullOrEmpty(lang) && lang == LANG_ZH;
-
-            return (isZh, emotion) switch
-            {
-                (true, Emotion.Neutral) => "neutral",
-                (true, Emotion.Happy) => "happy",
-                (true, Emotion.Laughing) => "excited",
-                (true, Emotion.Funny) => "happy",
-                (true, Emotion.Sad) => "sad",
-                (true, Emotion.Angry) => "angry",
-                (true, Emotion.Crying) => "sad",
-                (true, Emotion.Loving) => "lovey-dovey",
-                (true, Emotion.Embarrassed) => "shy",
-                (true, Emotion.Surprised) => "surprised",
-                (true, Emotion.Shocked) => "surprised",
-                (true, Emotion.Thinking) => "neutral",
-                (true, Emotion.Winking) => "happy",
-                (true, Emotion.Cool) => "coldness",
-                (true, Emotion.Relaxed) => "tender",
-                (true, Emotion.Delicious) => "happy",
-                (true, Emotion.Kissy) => "lovey-dovey",
-                (true, Emotion.Confident) => "magnetic",
-                (true, Emotion.Sleepy) => "depressed",
-                (true, Emotion.Silly) => "happy",
-                (true, Emotion.Confused) => "neutral",
-
-                (false, Emotion.Neutral) => "neutral",
-                (false, Emotion.Happy) => "happy",
-                (false, Emotion.Laughing) => "excited",
-                (false, Emotion.Funny) => "chat",
-                (false, Emotion.Sad) => "sad",
-                (false, Emotion.Angry) => "angry",
-                (false, Emotion.Crying) => "sad",
-                (false, Emotion.Loving) => "affectionate",
-                (false, Emotion.Embarrassed) => "chat",
-                (false, Emotion.Surprised) => "excited",
-                (false, Emotion.Shocked) => "excited",
-                (false, Emotion.Thinking) => "chat",
-                (false, Emotion.Winking) => "happy",
-                (false, Emotion.Cool) => "authoritative",
-                (false, Emotion.Relaxed) => "warm",
-                (false, Emotion.Delicious) => "happy",
-                (false, Emotion.Kissy) => "affectionate",
-                (false, Emotion.Confident) => "authoritative",
-                (false, Emotion.Sleepy) => "warm",
-                (false, Emotion.Silly) => "chat",
-                (false, Emotion.Confused) => "chat",
-
-                _ => "neutral"
-            };
-        }
-
         protected virtual (string, Emotion) GetSubtitle(Message message, bool isSentenceStart)
         {
             string sentence = JsonObject.Parse(message.Payload)?["text"]?.GetValue<string>() ?? string.Empty;
@@ -479,7 +407,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 if (this.Save2File && !string.IsNullOrEmpty(message.SessionId))
                 {
                     this.CloseSessionFile(message.SessionId, true);
-                    this.StartNewAudioFile(message.SessionId, this.AudioEcoding);
+                    this.StartNewAudioFile(message.SessionId, this.AudioEncoding);
                 }
 
                 if (this.StreamingActive && !string.IsNullOrEmpty(message.SessionId))
@@ -497,7 +425,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 {
                     try
                     {
-                        this.AppendAudioPayloadChunk(message.SessionId, message.Payload, this.AudioEcoding);
+                        this.AppendAudioPayloadChunk(message.SessionId, message.Payload, this.AudioEncoding);
                     }
                     catch (Exception ex)
                     {

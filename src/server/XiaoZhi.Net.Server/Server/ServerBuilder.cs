@@ -1,4 +1,5 @@
-﻿using Flurl.Http.Configuration;
+﻿using Flurl.Http;
+using Flurl.Http.Configuration;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -148,7 +149,7 @@ namespace XiaoZhi.Net.Server
                 services.AddSingleton<IFlurlClientCache>(_ => new FlurlClientCache()
                 .Add("ManageApi", manageApiUrl, builder =>
                 {
-                    builder.Headers.Add("authorization", secret);
+                    builder.WithOAuthBearerToken(secret);   
                     builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
                 }));
                 services.AddSingleton<ManageApiClient>();

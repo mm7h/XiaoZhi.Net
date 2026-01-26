@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Flurl.Http.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
@@ -294,12 +295,12 @@ namespace XiaoZhi.Net.Server.Management
                     bool useEmotions = emotionLLMModelSetting.Config.GetConfigValueOrDefault("UseEmotions", false);
 
                     LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
-                        emotionLLMModelSetting.ModelName, 
-                        chatLLMModelSetting.ModelName, 
-                        this._config.Prompt, 
+                        emotionLLMModelSetting.ModelName,
+                        chatLLMModelSetting.ModelName,
+                        this._config.Prompt,
                         useStreaming,
                         useEmotions,
-                        summaryMemory: string.Empty, 
+                        summaryMemory: string.Empty,
                         privateKernel);
 
                     privateKernel.Data.Add("session", session);
@@ -584,6 +585,24 @@ namespace XiaoZhi.Net.Server.Management
                 case "huoshan-unidirectional":
                     services.AddKeyedTransient<ITts, HuoshanUnidirectionalTTS>(modelName);
                     services.AddKeyedTransient<ITts, HuoshanUnidirectionalTTS>(key);
+                    break;
+                case "huoshan-http":
+                    services.AddSingleton(_ => new FlurlClientCache()
+                    .Add(nameof(HuoshanHttpTTS), configure: builder =>
+                    {
+                        builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
+                    }));
+                    services.AddKeyedTransient<ITts, HuoshanHttpTTS>(modelName);
+                    services.AddKeyedTransient<ITts, HuoshanHttpTTS>(key);
+                    break;
+                case "huoshan-http-v3":
+                    services.AddSingleton(_ => new FlurlClientCache()
+                    .Add(nameof(HuoshanHttpV3TTS), configure: builder =>
+                    {
+                        builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
+                    }));
+                    services.AddKeyedTransient<ITts, HuoshanHttpV3TTS>(modelName);
+                    services.AddKeyedTransient<ITts, HuoshanHttpV3TTS>(key);
                     break;
                 default:
                     throw new ModelBuildException("Invalid tts model.");

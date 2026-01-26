@@ -62,7 +62,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                     new {
                         Speaker = this.SpeakerId,
                         AudioParams = new {
-                            Format = this.AudioEcoding,
+                            Format = this.AudioEncoding,
                             SampleRate = this.GetTtsSampleRate(),
                             EnableTimestamp = false,
                             this.SpeechRate,
@@ -96,7 +96,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                         Text = seg.Content,
                         Speaker = this.SpeakerId,
                         AudioParams = new {
-                            Format = this.AudioEcoding,
+                            Format = this.AudioEncoding,
                             SampleRate = this.GetTtsSampleRate(),
                             EnableTimestamp = false,
                             this.SpeechRate,

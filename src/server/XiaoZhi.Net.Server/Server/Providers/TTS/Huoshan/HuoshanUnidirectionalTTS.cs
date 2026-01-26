@@ -14,6 +14,7 @@ using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 {
+    [Obsolete]
     internal class HuoshanUnidirectionalTTS : HuoshanStreamTTS<HuoshanUnidirectionalTTS>, ITts
     {
         private readonly ConcurrentQueue<OutSegment> segmentsCache;
@@ -28,6 +29,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
         public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
         {
+            this.Logger.LogWarning("{ModelName} is deprecated and will be removed in future versions. Please consider using the latest TTS models.", this.ModelName);
+            return;
             if (!this.CheckDeviceRegistered())
             {
                 throw new InvalidOperationException("Device/session is not registered.");
@@ -57,33 +60,34 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
             this.TTSEventCallback?.OnBeforeProcessing(seg.Content, seg.IsFirstSegment, seg.IsLastSegment);
 
-            var ttsReq = new Dictionary<string, object>
+            var ttsReq = new
             {
-               { "User", new { Uid = workflow.DeviceId } },
-               { "ReqParams",
-                    new {
-                        Text = seg.Content,
-                        Speaker = this.SpeakerId,
-                        AudioParams = new {
-                            Format = this.AudioEcoding,
-                            SampleRate = this.GetTtsSampleRate(),
-                            EnableTimestamp = false,
-                            this.SpeechRate,
-                            this.LoudnessRate,
-                            Emotion = this.ConvertEmotion(seg.Emotion)
-                        },
-                        Additions =
-                            JsonHelper.Serialize(new {
-                                DisableMarkdownFilter = false,
-                                CacheConfig = new
-                                {
-                                    TextType = 1,
-                                    UseCache = true
-                                },
-                                SectionId = seg.ParagraphId
-                            })
-                        }
-                    }
+                User = new { Uid = workflow.DeviceId },
+                ReqParams = new
+                {
+                    Text = seg.Content,
+                    Speaker = this.SpeakerId,
+                    AudioParams = new
+                    {
+                        Format = this.AudioEncoding,
+                        SampleRate = this.GetTtsSampleRate(),
+                        EnableTimestamp = false,
+                        this.SpeechRate,
+                        this.LoudnessRate,
+                        Emotion = this.ConvertEmotion(seg.Emotion)
+                    },
+                    Additions =
+                        JsonHelper.Serialize(new
+                        {
+                            DisableMarkdownFilter = false,
+                            CacheConfig = new
+                            {
+                                TextType = 1,
+                                UseCache = true
+                            },
+                            SectionId = seg.ParagraphId
+                        })
+                }
             };
 
             await this.TaskRequestAsync(ttsReq);

@@ -588,8 +588,9 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                         activeInputs.Add(input);
                     }
                 }
-                else if (input.IsStopping && input.AvailableDataCount > 0)
+                else if (input.IsStopping && input.HasAnyData())
                 {
+                    // Include stopping streams that have any data (audio or meta-only frames)
                     activeInputs.Add(input);
                 }
             }

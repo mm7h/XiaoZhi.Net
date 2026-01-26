@@ -28,7 +28,7 @@
     "ASR": "SenseVoice",
     "EmotionLLM": "Chatglm",
     "ChatLLM": "Chatglm",
-    "TTS": "HuoshanBidirection",
+    "TTS": "HuoshanHttp",
     "INTENT": "None",
     "MEMORY": "FlashMemory"
   },
@@ -86,6 +86,25 @@
         "LoudnessRate": 0
       },
       "HuoshanUnidirectional": {
+        "Save2File": true,
+        "AppId": "to your api id",
+        "AccessToken": "to your access token",
+        "ResourceId": "volc.service_type.10029",
+        "Speaker": "zh_female_cancan_mars_bigtts",
+        "SpeechRate": 0,
+        "LoudnessRate": 0
+      },
+      "HuoshanHttp": {
+        "Save2File": true,
+        "AppId": "to your api id",
+        "AccessToken": "to your access token",
+        "Cluster": "volcano_tts",
+        "Speaker": "zh_female_cancan_mars_bigtts",
+        "SpeedRatio": 1.0,
+        "VolumeRatio": 1.0,
+        "PitchRatio": 1.0
+      },
+      "HuoshanHttpV3": {
         "Save2File": true,
         "AppId": "to your api id",
         "AccessToken": "to your access token",
