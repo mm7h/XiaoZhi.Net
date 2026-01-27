@@ -23,10 +23,13 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
                 VadModelConfig vadModelConfig = new VadModelConfig();
                 vadModelConfig.SileroVad.Model = Path.Combine(this.ModelFileFoler, "model.onnx");
 
-                this.Build(vadModelConfig, modelSetting);
-
-                this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
-                return true;
+                if (this.Build(vadModelConfig, modelSetting))
+                {
+                    this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
+                    return true;
+                }
+                else
+                    return false;
             }
             catch (Exception ex)
             {

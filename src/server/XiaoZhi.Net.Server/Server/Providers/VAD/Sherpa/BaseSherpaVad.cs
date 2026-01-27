@@ -15,6 +15,8 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
         private int? _silenceThresholdMs;
 
         private const int REQUIRED_VOICE_FRAMES = 3;
+        private const int SAMPLING_RATE_8K = 8000;
+        private const int SAMPLING_RATE_16K = 16000;
 
         private readonly SemaphoreSlim _vadConvertSlim = new SemaphoreSlim(1, 1);
 
@@ -24,12 +26,22 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 
         public override string ProviderType => "vad";
         public int FrameSize { get; private set; }
-        public void Build(VadModelConfig vadModelConfig, ModelSetting modelSetting)
+        public bool Build(VadModelConfig vadModelConfig, ModelSetting modelSetting)
         {
             this._sampleRate = modelSetting.Config.GetConfigValueOrDefault("SampleRate", 16000);
+
+            if (this._sampleRate != SAMPLING_RATE_8K && this._sampleRate != SAMPLING_RATE_16K)
+            {
+                this.Logger.LogError("Unsupported sample rate: {sampleRate}. Only 8000 and 16000 are supported.", this._sampleRate);
+                return false;
+            }
+
             vadModelConfig.SampleRate = this._sampleRate.Value;
             this._silenceThresholdMs = modelSetting.Config.GetConfigValueOrDefault("SilenceThresholdMs", 700);
+            this.FrameSize = this._sampleRate == SAMPLING_RATE_16K ? 512 : 256;
             this._vad = new VoiceActivityDetector(vadModelConfig, 60);
+
+            return true;
         }
 
         public async Task<bool> AnalysisVoiceAsync(Session session, CancellationToken token)
