@@ -35,6 +35,7 @@ using XiaoZhi.Net.Server.Providers.Memory;
 using XiaoZhi.Net.Server.Providers.TTS;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan;
 using XiaoZhi.Net.Server.Providers.TTS.Sherpa;
+using XiaoZhi.Net.Server.Providers.VAD.Native;
 using XiaoZhi.Net.Server.Providers.VAD.Sherpa;
 using XiaoZhi.Net.Server.Services;
 
@@ -479,8 +480,11 @@ namespace XiaoZhi.Net.Server.Management
             switch (modelName)
             {
                 case "silero":
-                    services.AddKeyedTransient<IVad, Silero>(modelName);
                     services.AddKeyedSingleton<IVad, Silero>(key);
+                    break;
+                case "silero-native":
+                    services.AddKeyedTransient<IVad, SileroNative>(modelName);
+                    services.AddKeyedTransient<IVad, SileroNative>(key);
                     break;
                 default:
                     throw new ModelBuildException("Invalid vad model.");

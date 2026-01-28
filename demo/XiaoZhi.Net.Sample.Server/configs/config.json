@@ -37,6 +37,12 @@
       "Silero": {
         "SampleRate": 16000,
         "SilenceThresholdMs": 700
+      },
+      "SileroNative": {
+        "SampleRate": 16000,
+        "SilenceThresholdMs": 700,
+        "Threshold": 0.5,
+        "ThresholdLow": 0.2
       }
     },
     "ASR": {

@@ -10,7 +10,6 @@ namespace XiaoZhi.Net.Server.Resources
         }
         public abstract string ResourceName { get; }
         protected ILogger<TLogger> Logger { get; }
-
         public abstract bool Load(TSettings settings);
         public abstract void Dispose();
     }
