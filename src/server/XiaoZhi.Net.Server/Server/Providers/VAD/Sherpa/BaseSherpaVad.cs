@@ -79,8 +79,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
                 throw new ArgumentNullException("Please build vad provider first.");
             }
 
-            string key = GetSessionKey(deviceId, sessionId);
-            if (!this._sessionStates.TryGetValue(key, out var context))
+            if (!this._sessionStates.TryGetValue(deviceId, out var context))
             {
                 throw new InvalidOperationException($"Session state not found for device: {deviceId}, session: {sessionId}. Please register the device first.");
             }
@@ -172,11 +171,6 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
                     callback.OnLongTermSilence();
                 }
             }
-        }
-
-        private static string GetSessionKey(string deviceId, string sessionId)
-        {
-            return $"{deviceId}:{sessionId}";
         }
 
         public override void Dispose()
