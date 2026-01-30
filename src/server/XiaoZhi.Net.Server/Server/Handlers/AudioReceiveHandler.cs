@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
-using SherpaOnnx;
 using System;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -9,33 +8,32 @@ using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Providers;
+using XiaoZhi.Net.Server.Providers.VAD;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
-    internal class AudioReceiveHandler : BaseHandler, IOutHandler<CircularBuffer>
+    internal class AudioReceiveHandler : BaseHandler, IOutHandler<float[]>, IVadEventCallback
     {
-        private readonly ObjectPool<Workflow<CircularBuffer>> _workflowPool;
+        private readonly ObjectPool<Workflow<float[]>> _audioBufferWorkflowPool;
         private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;
-        private readonly CircularBuffer _receivedPcmPacketFrame;
 
         private IVad? _vad;
         private IAudioDecoder? _audioDecoder;
 
         public AudioReceiveHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_AUDIO_DECODER)] IAudioDecoder audioDecoder,
-            ObjectPool<Workflow<CircularBuffer>> workflowPool,
+            ObjectPool<Workflow<float[]>> workflowPool,
             ObjectPool<Workflow<string>> stringWorkflowPool,
             XiaoZhiConfig config,
             ILogger<AudioReceiveHandler> logger) : base(config, logger)
         {
             this._audioDecoder = audioDecoder;
-            this._workflowPool = workflowPool;
+            this._audioBufferWorkflowPool = workflowPool;
             this._stringWorkflowPool = stringWorkflowPool;
-            this._receivedPcmPacketFrame = new CircularBuffer(960 * 100);
         }
 
         public event Action<Workflow<string>>? OnNoVoiceCloseConnect;
         public override string HandlerName => nameof(AudioReceiveHandler);
-        public ChannelWriter<Workflow<CircularBuffer>> NextWriter { get; set; } = null!;
+        public ChannelWriter<Workflow<float[]>> NextWriter { get; set; } = null!;
 
         public override bool Build(PrivateProvider privateProvider)
         {
@@ -53,7 +51,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
 
             this._vad = privateProvider.Vad;
-            this._vad.RegisterDevice(session.DeviceId, session.SessionId);
+            this._vad.RegisterDevice(session.DeviceId, session.SessionId, this);
 
             this._audioDecoder = privateProvider.AudioDecoder;
             this._audioDecoder.RegisterDevice(session.DeviceId, session.SessionId);
@@ -90,25 +88,13 @@ namespace XiaoZhi.Net.Server.Handlers
                 float[] pcmData = await this._audioDecoder.DecodeAsync(opusData, this.HandlerToken);
 
                 this.HandlerToken.ThrowIfCancellationRequested();
-                if (session.ListenMode != ListenMode.Manual)
-                {
-                    session.AudioPacketContext.VadPacket.Push(pcmData);
-                }
-                this._receivedPcmPacketFrame.Push(pcmData);
-                bool haveVoice = false;
+
+                session.AudioPacket.PushAudio(pcmData);
 
                 if (session.ListenMode != ListenMode.Manual)
-                    haveVoice = await this._vad.AnalysisVoiceAsync(session, this.HandlerToken);
-                else
-                    haveVoice = session.VadStatusContext.HaveVoice;
-
-                if (!haveVoice && !session.VadStatusContext.HaveVoice)
                 {
-                    this._receivedPcmPacketFrame.Pop(Math.Max(0, this._receivedPcmPacketFrame.Size - 50));
-                    this.NoVoiceCloseConnect(session);
-                    return;
+                    await this._vad.AnalysisVoiceAsync(session.DeviceId, session.SessionId, session.AudioPacket.GetAllAudio(), this.HandlerToken);
                 }
-                this.HandleAudio(session);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -116,61 +102,91 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        public void HandleAudio(Session session)
+        public void OnVoiceDetected(float[] audioData)
         {
-            if (session.VadStatusContext.VoiceStop)
+            Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
             {
-                this.HandlerToken.ThrowIfCancellationRequested();
-                session.RejectIncomingAudio();
+                return;
+            }
+            session.RejectIncomingAudio();
+            session.AudioPacket.ResetAudioBuffer();
+            session.AudioPacket.VoiceStop = true;
+            this.HandleVoiceDetected(session, audioData);
+        }
 
-                if (this._receivedPcmPacketFrame.Size < 50)
-                {
-                    //音频太短了，无法识别
-                    this.Logger.LogDebug("The voice is too short for the session {sesssionId}.", session.SessionId);
-                    session.Reset();
-                    return;
-                }
+        public void OnVoiceSilence()
+        {
+            Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
+            {
+                return;
+            }
+            session.AudioPacket.TrimOldAudio();
+        }
 
-                this.OnVoiceDetected(session);
+        public void OnLongTermSilence()
+        {
+            Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
+            {
+                return;
+            }
+
+            // Trim old audio data to reduce memory pressure during long silence
+            session.AudioPacket.TrimOldAudio();
+
+            // Handle long term silence - close connection
+            if (session.CloseAfterChat)
+            {
+                return;
+            }
+
+            session.CloseAfterChat = true;
+            string prompt = "请你以\"时间过得真快\"为来头，用富有感情、依依不舍的话来结束这场对话吧。";
+
+            var workflow = this._stringWorkflowPool.Get();
+            try
+            {
+                workflow.Initialize(session, prompt);
+                this.OnNoVoiceCloseConnect?.Invoke(workflow);
+            }
+            finally
+            {
+                this._stringWorkflowPool.Return(workflow);
             }
         }
 
-        private async void OnVoiceDetected(Session session)
+        private void HandleVoiceDetected(Session session, float[] audioData)
         {
-            session.AudioPacketContext.VadPacket.Reset();
+            this.HandlerToken.ThrowIfCancellationRequested();
 
-            var workflow = this._workflowPool.Get();
-            workflow.Initialize(session, this._receivedPcmPacketFrame);
-            await this.NextWriter.WriteAsync(workflow);
+            if (audioData.Length < 50)
+            {
+                // Audio too short, cannot recognize
+                this.Logger.LogDebug("The voice is too short for the session {sesssionId}.", session.SessionId);
+                session.Reset();
+                return;
+            }
+
+            session.AudioPacket.ResetAudioBuffer();
+            var workflow = this._audioBufferWorkflowPool.Get();
+            workflow.Initialize(session, audioData); 
+            this.NextWriter.WriteAsync(workflow);
         }
 
-        private void NoVoiceCloseConnect(Session session)
+        /// <summary>
+        /// Handles manual stop from TextHandler.
+        /// </summary>
+        /// <param name="session">The session.</param>
+        public void HandleManualStop(Session session)
         {
-            if (session.VadStatusContext.HaveVoiceLatestTime == 0)
+            if (session is null || session.ShouldIgnore())
             {
-                session.VadStatusContext.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                return;
             }
-            else
-            {
-                long noVoiceTime = DateTimeOffset.Now.ToUnixTimeMilliseconds() - session.VadStatusContext.HaveVoiceLatestTime;
-                long closeConnectionNoVoiceTime = (this.Config.CloseConnectionNoVoiceTime ?? 40) * 1000;
-                if (!session.CloseAfterChat && noVoiceTime >= closeConnectionNoVoiceTime)
-                {
-                    session.CloseAfterChat = true;
-                    string prompt = "请你以\"时间过得真快\"为来头，用富有感情、依依不舍的话来结束这场对话吧。";
 
-                    var workflow = this._stringWorkflowPool.Get();
-                    try
-                    {
-                        workflow.Initialize(session, prompt);
-                        this.OnNoVoiceCloseConnect?.Invoke(workflow);
-                    }
-                    finally
-                    {
-                        this._stringWorkflowPool.Return(workflow);
-                    }
-                }
-            }
+            this.HandleVoiceDetected(session, session.AudioPacket.GetAllAudio());
         }
 
         public override void Dispose()

@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
-using SherpaOnnx;
 using System;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -10,23 +9,23 @@ using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
-    internal class Audio2TextHandler : BaseHandler, IInHandler<CircularBuffer>, IOutHandler<string>
+    internal class Audio2TextHandler : BaseHandler, IInHandler<float[]>, IOutHandler<string>
     {
-        private readonly ObjectPool<Workflow<CircularBuffer>> _circularBufferWorkflowPool;
+        private readonly ObjectPool<Workflow<float[]>> _audioBufferWorkflowPool;
         private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;
         private IAsr? _asr;
 
-        public Audio2TextHandler(ObjectPool<Workflow<CircularBuffer>> circularBufferWorkflowPool, 
+        public Audio2TextHandler(ObjectPool<Workflow<float[]>> circularBufferWorkflowPool, 
             ObjectPool<Workflow<string>> stringWorkflowPool,
             XiaoZhiConfig config,
             ILogger<Audio2TextHandler> logger) : base(config, logger)
         {
-            this._circularBufferWorkflowPool = circularBufferWorkflowPool;
+            this._audioBufferWorkflowPool = circularBufferWorkflowPool;
             this._stringWorkflowPool = stringWorkflowPool;
         }
 
         public override string HandlerName => nameof(Audio2TextHandler);
-        public ChannelReader<Workflow<CircularBuffer>> PreviousReader { get; set; } = null!;
+        public ChannelReader<Workflow<float[]>> PreviousReader { get; set; } = null!;
         public ChannelWriter<Workflow<string>> NextWriter { get; set; } = null!;
 
         public override bool Build(PrivateProvider privateProvider)
@@ -53,12 +52,12 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
                 finally
                 {
-                    this._circularBufferWorkflowPool.Return(workflow);
+                    this._audioBufferWorkflowPool.Return(workflow);
                 }
             }
         }
 
-        public async Task Handle(Workflow<CircularBuffer> workflow)
+        public async Task Handle(Workflow<float[]> workflow)
         {
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())

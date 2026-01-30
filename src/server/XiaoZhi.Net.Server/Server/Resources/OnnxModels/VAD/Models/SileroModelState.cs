@@ -35,10 +35,10 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels.VAD.Models
         {
             // Silero VAD v4: state size depends on sample rate
             // 16kHz: 64 units, 8kHz: 128 units (2 layers x 1 batch x units)
-            _stateSize = sampleRate == 16000 ? 64 : 128;
-            HiddenState = new float[2 * 1 * _stateSize];
-            CellState = new float[2 * 1 * _stateSize];
-            LastSampleRate = sampleRate;
+            this._stateSize = sampleRate == 16000 ? 64 : 128;
+            this.HiddenState = new float[2 * 1 * this._stateSize];
+            this.CellState = new float[2 * 1 * this._stateSize];
+            this.LastSampleRate = sampleRate;
         }
 
         /// <summary>
@@ -46,11 +46,11 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels.VAD.Models
         /// </summary>
         public void UpdateHiddenState(float[] newState)
         {
-            if (newState.Length != HiddenState.Length)
+            if (newState.Length != this.HiddenState.Length)
             {
-                throw new ArgumentException($"Hidden state size mismatch. Expected {HiddenState.Length}, got {newState.Length}");
+                throw new ArgumentException($"Hidden state size mismatch. Expected {this.HiddenState.Length}, got {newState.Length}");
             }
-            Array.Copy(newState, HiddenState, newState.Length);
+            Array.Copy(newState, this.HiddenState, newState.Length);
         }
 
         /// <summary>
@@ -58,11 +58,11 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels.VAD.Models
         /// </summary>
         public void UpdateCellState(float[] newState)
         {
-            if (newState.Length != CellState.Length)
+            if (newState.Length != this.CellState.Length)
             {
-                throw new ArgumentException($"Cell state size mismatch. Expected {CellState.Length}, got {newState.Length}");
+                throw new ArgumentException($"Cell state size mismatch. Expected {this.CellState.Length}, got {newState.Length}");
             }
-            Array.Copy(newState, CellState, newState.Length);
+            Array.Copy(newState, this.CellState, newState.Length);
         }
 
         /// <summary>
@@ -71,8 +71,8 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels.VAD.Models
         /// </summary>
         public void Reset()
         {
-            Array.Clear(HiddenState, 0, HiddenState.Length);
-            Array.Clear(CellState, 0, CellState.Length);
+            Array.Clear(this.HiddenState, 0, this.HiddenState.Length);
+            Array.Clear(this.CellState, 0, this.CellState.Length);
         }
     }
 }

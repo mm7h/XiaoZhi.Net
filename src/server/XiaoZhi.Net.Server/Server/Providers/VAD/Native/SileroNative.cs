@@ -3,34 +3,37 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Resources.OnnxModels;
 using XiaoZhi.Net.Server.Resources.OnnxModels.VAD;
 using XiaoZhi.Net.Server.Resources.OnnxModels.VAD.Models;
+using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.VAD.Native
 {
     /// <summary>
-    /// Silero VAD v4 implementation using ML.NET ONNX Runtime.
+    /// Silero VAD v4 implementation
     /// </summary>
     internal sealed class SileroNative : BaseProvider<SileroNative, ModelSetting>, IVad
     {
         private readonly IServiceProvider _serviceProvider;
 
         private IVadOnnxModel? _vadOnnxModel;
-        private SileroModelState? _modelState;
-        private int _sampleRate;
-        private int _silenceThresholdMs;
+        private int _sampleRate = 16000;
+        private int _closeConnectionNoVoiceTime = 120;
+
+        private float _silenceThresholdSecond;
         private float _threshold;
         private float _thresholdLow;
 
-        private const int REQUIRED_VOICE_FRAMES = 3;
-        private const float DEFAULT_THRESHOLD = 0.5f;
-        private const float DEFAULT_THRESHOLD_LOW = 0.2f;
-        private const int DEFAULT_SILENCE_THRESHOLD_MS = 700;
+        private const int FRAME_WINDOW_THRESHOLD = 5;
         private const int SAMPLING_RATE_8K = 8000;
         private const int SAMPLING_RATE_16K = 16000;
+
+        private SileroModelState? _sileroModelState;
+        private VadSessionState? _vadSessionState;
+
+        private IVadEventCallback? _vadEventCallback;
 
         public SileroNative(IServiceProvider serviceProvider, ILogger<SileroNative> logger) : base(logger)
         {
@@ -47,9 +50,6 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
             try
             {
                 this._sampleRate = modelSetting.Config.GetConfigValueOrDefault("SampleRate", SAMPLING_RATE_16K);
-                this._silenceThresholdMs = modelSetting.Config.GetConfigValueOrDefault("SilenceThresholdMs", DEFAULT_SILENCE_THRESHOLD_MS);
-                this._threshold = modelSetting.Config.GetConfigValueOrDefault("Threshold", DEFAULT_THRESHOLD);
-                this._thresholdLow = modelSetting.Config.GetConfigValueOrDefault("ThresholdLow", DEFAULT_THRESHOLD_LOW);
 
                 if (this._sampleRate != SAMPLING_RATE_8K && this._sampleRate != SAMPLING_RATE_16K)
                 {
@@ -57,13 +57,18 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
                     return false;
                 }
 
+                this._silenceThresholdSecond = modelSetting.Config.GetConfigValueOrDefault("SilenceThresholdSecond", 0.7f);
+                this._threshold = modelSetting.Config.GetConfigValueOrDefault("Threshold", 0.5f);
+                this._thresholdLow = modelSetting.Config.GetConfigValueOrDefault("ThresholdLow", 0.2f);
+                this._closeConnectionNoVoiceTime = modelSetting.Config.GetConfigValueOrDefault("CloseConnectionNoVoiceTime", 120);
+
                 this.FrameSize = this._sampleRate == SAMPLING_RATE_16K ? 512 : 256;
-                this._modelState = SileroOnnx.CreateModelState(this._sampleRate);
 
                 this._vadOnnxModel = this._serviceProvider.GetRequiredService<IVadOnnxModel>();
 
-                this.Logger.LogInformation("Built the {providerType} model: {modelName} with sample rate: {sampleRate}Hz, threshold: {threshold}, threshold low: {thresholdLow}, silence threshold: {silenceThresholdMs}ms",
-                    this.ProviderType, this.ModelName, this._sampleRate, this._threshold, this._thresholdLow, this._silenceThresholdMs);
+                this._sileroModelState = SileroOnnx.CreateModelState(this._sampleRate);
+
+                this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
 
                 return true;
             }
@@ -73,32 +78,37 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
                 return false;
             }
         }
-
-        public override void RegisterDevice(string deviceId, string sessionId)
+        public void RegisterDevice(string deviceId, string sessionId, IVadEventCallback callback)
         {
-            base.RegisterDevice(deviceId, sessionId);
-            this.Logger.LogDebug("Registered device for Native VAD: {deviceId}, session: {sessionId}", deviceId, sessionId);
+            this._vadEventCallback = callback;
+            this._vadSessionState = new VadSessionState();
+
+            this.RegisterDevice(deviceId, sessionId);
         }
 
-        public Task<bool> AnalysisVoiceAsync(Session session, CancellationToken token)
+        public void ResetSessionState(string deviceId, string sessionId)
         {
-            if (this._modelState is null)
-            {
-                throw new InvalidOperationException("Please build the VAD provider first by calling Build().");
-            }
+            this._sileroModelState?.Reset();
+            this._vadSessionState?.Reset();
+        }
 
+        public Task AnalysisVoiceAsync(string deviceId, string sessionId, float[] audioData, CancellationToken token)
+        {
             if (this._vadOnnxModel is null)
             {
-                throw new InvalidOperationException("VAD ONNX model is not initialized.");
+                throw new ArgumentNullException("Please build vad provider first.");
             }
 
-            var vadStatus = session.VadStatusContext;
+            if (this._sileroModelState is null || this._vadSessionState is null)
+            {
+                throw new ArgumentNullException("Please build vad provider first.");
+            }
 
             try
             {
-                bool clientHaveVoice = false;
+                int analyzedIndex = this._vadSessionState.AnalyzedIndex;
 
-                while (session.AudioPacketContext.VadPacket.GetFrames(this.FrameSize, out float[] chunk))
+                while (audioData.GetSlidingFrame(this.FrameSize, ref analyzedIndex, out float[] chunk))
                 {
                     token.ThrowIfCancellationRequested();
 
@@ -107,86 +117,98 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
                         continue;
                     }
 
-                    // Run inference using shared singleton model with per-instance state
-                    float speechProb = this._vadOnnxModel.Infer(chunk, this._sampleRate, this._modelState);
+                    float speechProb = this._vadOnnxModel.Infer(chunk, this._sampleRate, this._sileroModelState);
 
-                    // Dual-threshold hysteresis logic (matching Python silero.py implementation)
-                    bool isVoice;
+                    bool isSpeechDetected;
                     if (speechProb >= this._threshold)
                     {
-                        isVoice = true;
+                        isSpeechDetected = true;
                     }
                     else if (speechProb <= this._thresholdLow)
                     {
-                        isVoice = false;
+                        isSpeechDetected = false;
                     }
                     else
                     {
-                        // Between thresholds: maintain previous state (hysteresis)
-                        isVoice = vadStatus.LastIsVoice;
+                        isSpeechDetected = this._vadSessionState.LastIsVoice;
                     }
 
-                    // Update last voice state for next iteration (stored in Session.VadStatusContext)
-                    vadStatus.LastIsVoice = isVoice;
+                    this._vadSessionState.LastIsVoice = isSpeechDetected;
 
-                    // Update sliding window (stored in Session.VadStatusContext)
-                    vadStatus.AddVoiceFrame(isVoice);
+                    this._vadSessionState.AddToVoiceWindow(isSpeechDetected);
 
-                    // Check if enough frames in window are voice
-                    clientHaveVoice = vadStatus.CountVoiceFrames() >= REQUIRED_VOICE_FRAMES;
+                    bool clientHaveVoice = this._vadSessionState.CountVoiceInWindow() >= FRAME_WINDOW_THRESHOLD;
 
-                    // If previously had voice but now doesn't, check silence duration
-                    if (vadStatus.HaveVoice && !clientHaveVoice)
+                    if (this._vadSessionState.HaveVoice && !clientHaveVoice)
                     {
-                        long stopDuration = DateTimeOffset.Now.ToUnixTimeMilliseconds() - vadStatus.HaveVoiceLatestTime;
-                        if (stopDuration > this._silenceThresholdMs)
+                        long stopDuration = DateTimeOffset.Now.ToUnixTimeMilliseconds() - this._vadSessionState.HaveVoiceLatestTime;
+                        if (stopDuration >= this._silenceThresholdSecond * 1000)
                         {
-#if DEBUG
-                            this.Logger.LogDebug("Voice stopped for session: {sessionId}, silence duration: {stopDuration}ms", session.SessionId, stopDuration);
-#endif
-                            vadStatus.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
-                            vadStatus.VoiceStop = true;
-                            return Task.FromResult(true);
+                            this.Logger.LogDebug("Voice stopped for device: {deviceId}, silence duration: {stopDuration}ms", deviceId, stopDuration);
+                            this._vadSessionState.VoiceStop = true;
+
+                            this._vadEventCallback?.OnVoiceDetected(audioData);
+                            this._vadSessionState.Reset();
+                            return Task.CompletedTask;
                         }
                     }
 
-                    if (clientHaveVoice)
+                    if (clientHaveVoice && !this._vadSessionState.HaveVoice)
                     {
-                        vadStatus.HaveVoice = true;
-                        vadStatus.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                        this._vadSessionState.HaveVoice = true;
+                        this._vadSessionState.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
                     }
                 }
 
-                return Task.FromResult(clientHaveVoice);
+                if (!this._vadSessionState.HaveVoice && analyzedIndex > this.FrameSize * 50)
+                {
+                    this._vadEventCallback?.OnVoiceSilence();
+                }
+
+                this.CheckLongTermSilence(deviceId, sessionId, this._vadSessionState);
+
+                return Task.CompletedTask;
             }
             catch (OperationCanceledException)
             {
-                vadStatus.Reset();
-                this._modelState.Reset();
+                this._sileroModelState.Reset();
+                this._vadSessionState.Reset();
                 this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
                 throw;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Unexpected error(s) for {providerType} in session: {sessionId}", this.ProviderType, session.SessionId);
-                return Task.FromResult(false);
+                this.Logger.LogError(ex, "Unexpected error(s) for {providerType} in device: {deviceId}", this.ProviderType, deviceId);
+                return Task.CompletedTask;
+            }
+            finally
+            {
+                this._vadSessionState.AnalyzedIndex = 0;
             }
         }
 
-        /// <summary>
-        /// Resets the ONNX model state for this instance.
-        /// Detection state is managed by Session.VadStatusContext.Reset().
-        /// </summary>
-        public void ResetModelState()
+        private void CheckLongTermSilence(string deviceId, string sessionId, VadSessionState vadState)
         {
-            //todo
-            this._modelState?.Reset();
-            this.Logger.LogDebug("Reset VAD model state for session: {sessionId}", this.SessionId);
+            if (vadState.HaveVoiceLatestTime == 0)
+            {
+                vadState.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                return;
+            }
+
+            long silenceDuration = DateTimeOffset.Now.ToUnixTimeMilliseconds() - vadState.HaveVoiceLatestTime;
+            long longTermSilenceThresholdMs = this._closeConnectionNoVoiceTime * 1000;
+
+            if (silenceDuration >= longTermSilenceThresholdMs)
+            {
+                this.Logger.LogDebug("Long term silence detected for device: {deviceId}, duration: {silenceDuration}ms", deviceId, silenceDuration);
+                this._vadEventCallback?.OnLongTermSilence();
+            }
         }
 
         public override void Dispose()
         {
-            this._modelState = null;
+            this._sileroModelState?.Reset();
+            this._vadSessionState?.Reset();
         }
     }
 }

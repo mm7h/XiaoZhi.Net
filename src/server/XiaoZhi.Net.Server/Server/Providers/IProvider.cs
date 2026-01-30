@@ -9,5 +9,6 @@ namespace XiaoZhi.Net.Server.Providers
         public bool IsSherpaModel { get; }
         bool Build(TSettings settings);
         void RegisterDevice(string deviceId, string sessionId);
+        void UnregisterDevice(string deviceId, string sessionId);
     }
 }

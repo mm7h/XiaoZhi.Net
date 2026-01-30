@@ -1,7 +1,6 @@
 {
   "Protocol": "websocket",
   "Prompt": "你是一个叫小智/小志的台湾女孩，说话机车，声音好听，习惯简短表达，爱用网络梗。请注意，要像一个人一样说话，请不要回复表情符号、代码、和xml标签。当前时间是:{date_time}，现在我正在和你进行语音聊天，我们开始吧。如果用户希望结束对话，请在最后说“拜拜”或“再见”。",
-  "CloseConnectionNoVoiceTime": 120,
   "WebSocketServerOption": {
     "IP": "0.0.0.0",
     "Port": 4530,
@@ -24,7 +23,7 @@
     "BindNotFoundFilePath": "configs/assets/bind_not_found.wav"
   },
   "SelectedSettings": {
-    "VAD": "Silero",
+    "VAD": "SileroNative",
     "ASR": "SenseVoice",
     "EmotionLLM": "Chatglm",
     "ChatLLM": "Chatglm",
@@ -36,13 +35,18 @@
     "VAD": {
       "Silero": {
         "SampleRate": 16000,
-        "SilenceThresholdMs": 700
+        "Threshold": 0.5,
+        "SilenceThresholdSecond": 0.7,
+        "MinSpeechDurationSecond": 0.5,
+        "MaxSpeechDurationSecond": 60,
+        "CloseConnectionNoVoiceTime": 120
       },
       "SileroNative": {
         "SampleRate": 16000,
-        "SilenceThresholdMs": 700,
+        "SilenceThresholdSecond": 0.7,
         "Threshold": 0.5,
-        "ThresholdLow": 0.2
+        "ThresholdLow": 0.2,
+        "CloseConnectionNoVoiceTime": 120
       }
     },
     "ASR": {

@@ -2,6 +2,7 @@
 using SherpaOnnx;
 using System;
 using System.IO;
+using XiaoZhi.Net.Server.Helpers;
 
 namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 {
@@ -22,6 +23,10 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
                 }
                 VadModelConfig vadModelConfig = new VadModelConfig();
                 vadModelConfig.SileroVad.Model = Path.Combine(this.ModelFileFoler, "model.onnx");
+                vadModelConfig.SileroVad.Threshold = modelSetting.Config.GetConfigValueOrDefault("Threshold", 0.5f);
+                vadModelConfig.SileroVad.MinSilenceDuration = modelSetting.Config.GetConfigValueOrDefault("SilenceThresholdSecond", 0.7f);
+                vadModelConfig.SileroVad.MinSpeechDuration = modelSetting.Config.GetConfigValueOrDefault("MinSpeechDurationSecond", 0.5f);
+                vadModelConfig.SileroVad.MaxSpeechDuration = modelSetting.Config.GetConfigValueOrDefault("MaxSpeechDurationSecond", 60.0f);
 
                 if (this.Build(vadModelConfig, modelSetting))
                 {

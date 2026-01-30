@@ -74,7 +74,7 @@ namespace XiaoZhi.Net.Server.Management
                 [audioSendHandler.HandlerName] = audioSendHandler
             };
 
-            textHandler.OnManualStop += audioReceiveHandler.HandleAudio;
+            textHandler.OnManualStop += audioReceiveHandler.HandleManualStop;
             audioReceiveHandler.OnNoVoiceCloseConnect += dialogueHandler.NoVoiceCloseConnect;
 
             this.InitializeSendOutter(session, audioReceiveHandler);

@@ -90,11 +90,11 @@ namespace XiaoZhi.Net.Server
                     return provider.Create(policy);
                 });
 
-                // 注册 Workflow<CircularBuffer> 对象池
-                services.AddSingleton<ObjectPool<Workflow<CircularBuffer>>>(serviceProvider =>
+                // 注册 Workflow<float[]> 对象池
+                services.AddSingleton<ObjectPool<Workflow<float[]>>>(serviceProvider =>
                 {
                     var provider = serviceProvider.GetRequiredService<ObjectPoolProvider>();
-                    var policy = new WorkflowPolicy<CircularBuffer>();
+                    var policy = new WorkflowPolicy<float[]>();
                     return provider.Create(policy);
                 });
 

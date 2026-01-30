@@ -1,5 +1,4 @@
-﻿using SherpaOnnx;
-using System;
+﻿using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 
@@ -7,35 +6,40 @@ namespace XiaoZhi.Net.Server.Helpers
 {
     internal static class AudioPacketHelper
     {
-
-        public static bool GetFrames(this CircularBuffer opusPacketFrame, int size, out float[] data)
+        /// <summary>
+        /// 滑动取样器：根据当前分析索引获取指定大小的帧数据。
+        /// 每次调用会从 analyzedIndex 位置开始取 frameSize 个样本，并更新 analyzedIndex。
+        /// </summary>
+        /// <param name="audioData">音频数据数组</param>
+        /// <param name="frameSize">每帧的样本数</param>
+        /// <param name="analyzedIndex">当前已分析的索引位置（会被更新）</param>
+        /// <param name="data">输出的帧数据</param>
+        /// <returns>如果成功获取到足够的数据返回 true，否则返回 false</returns>
+        public static bool GetSlidingFrame(this float[] audioData, int frameSize, ref int analyzedIndex, out float[] data)
         {
             try
             {
-                if (opusPacketFrame.Size == 0)
+                if (audioData == null || audioData.Length == 0)
                 {
                     data = Array.Empty<float>();
                     return false;
                 }
 
-                // 始终尝试获取完整的size大小帧，如果不足则返回实际可用数据
-                int framesToGet = Math.Min(opusPacketFrame.Size, size);
-                data = opusPacketFrame.Get(opusPacketFrame.Head, framesToGet);
-
-                // 如果获取的帧数小于请求的size，需要进行填充以保持帧大小一致
-                if (framesToGet < size)
+                // 检查是否有足够的新数据可供分析
+                int availableSamples = audioData.Length - analyzedIndex;
+                if (availableSamples < frameSize)
                 {
-                    float[] paddedData = new float[size];
-                    Array.Copy(data, paddedData, framesToGet);
-                    // 剩余部分用0填充
-                    for (int i = framesToGet; i < size; i++)
-                    {
-                        paddedData[i] = 0.0f;
-                    }
-                    data = paddedData;
+                    data = Array.Empty<float>();
+                    return false;
                 }
 
-                opusPacketFrame.Pop(framesToGet);
+                // 从 analyzedIndex 位置开始提取 frameSize 个样本
+                data = new float[frameSize];
+                Array.Copy(audioData, analyzedIndex, data, 0, frameSize);
+
+                // 更新已分析的索引位置
+                analyzedIndex += frameSize;
+
                 return true;
             }
             catch
@@ -43,25 +47,6 @@ namespace XiaoZhi.Net.Server.Helpers
                 data = Array.Empty<float>();
                 return false;
             }
-        }
-
-        public static bool GetFrames(this CircularBuffer opusPacketFrame, int size, float[] destination)
-        {
-            if (destination is null)
-                throw new ArgumentNullException(nameof(destination));
-            if (destination.Length < size)
-                throw new ArgumentException("Destination array is smaller than the requested size.", nameof(destination));
-            if (opusPacketFrame.Size == 0)
-                return false;
-            int framesToGet = Math.Min(opusPacketFrame.Size, size);
-            float[] src = opusPacketFrame.Get(opusPacketFrame.Head, framesToGet);
-            Array.Copy(src, 0, destination, 0, framesToGet);
-            if (framesToGet < size)
-            {
-                Array.Clear(destination, framesToGet, size - framesToGet);
-            }
-            opusPacketFrame.Pop(framesToGet);
-            return true;
         }
 
         /// <summary>

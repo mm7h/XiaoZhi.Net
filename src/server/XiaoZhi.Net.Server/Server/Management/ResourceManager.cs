@@ -23,7 +23,7 @@ namespace XiaoZhi.Net.Server.Management
             {
                 services.AddSingleton<IDeviceBinding, DefaultDeviceBinding>();
                 services.AddSingleton<IMusics, MusicProvider>();
-                services.AddSingleton<IOnnxModel, SileroOnnx>();
+                services.AddSingleton<IVadOnnxModel, SileroOnnx>();
 
                 services.AddSingleton<ResourceManager>();
             });

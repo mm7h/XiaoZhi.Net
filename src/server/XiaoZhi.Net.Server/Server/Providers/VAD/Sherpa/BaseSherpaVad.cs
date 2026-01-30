@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using SherpaOnnx;
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -11,14 +12,14 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
     internal abstract class BaseSherpaVad<TLogger> : BaseProvider<TLogger, ModelSetting>
     {
         private VoiceActivityDetector? _vad;
-        private int? _sampleRate;
-        private int? _silenceThresholdMs;
+        private int _sampleRate = 16000;
+        private int _closeConnectionNoVoiceTime = 120;
 
-        private const int REQUIRED_VOICE_FRAMES = 3;
         private const int SAMPLING_RATE_8K = 8000;
         private const int SAMPLING_RATE_16K = 16000;
 
         private readonly SemaphoreSlim _vadConvertSlim = new SemaphoreSlim(1, 1);
+        private readonly ConcurrentDictionary<string, (VadSessionState, IVadEventCallback)> _sessionStates = new();
 
         protected BaseSherpaVad(ILogger<TLogger> logger) : base(logger)
         {
@@ -26,6 +27,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 
         public override string ProviderType => "vad";
         public int FrameSize { get; private set; }
+
         public bool Build(VadModelConfig vadModelConfig, ModelSetting modelSetting)
         {
             this._sampleRate = modelSetting.Config.GetConfigValueOrDefault("SampleRate", 16000);
@@ -36,95 +38,150 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
                 return false;
             }
 
-            vadModelConfig.SampleRate = this._sampleRate.Value;
-            this._silenceThresholdMs = modelSetting.Config.GetConfigValueOrDefault("SilenceThresholdMs", 700);
+            this._closeConnectionNoVoiceTime = modelSetting.Config.GetConfigValueOrDefault("CloseConnectionNoVoiceTime", 120);
+
+            vadModelConfig.SampleRate = this._sampleRate;
             this.FrameSize = this._sampleRate == SAMPLING_RATE_16K ? 512 : 256;
             this._vad = new VoiceActivityDetector(vadModelConfig, 60);
 
             return true;
         }
 
-        public async Task<bool> AnalysisVoiceAsync(Session session, CancellationToken token)
+        public void RegisterDevice(string deviceId, string sessionId, IVadEventCallback callback)
         {
-            if (this._vad == null || !this._sampleRate.HasValue || !this._silenceThresholdMs.HasValue)
+            VadSessionState vadState = new VadSessionState();
+            this._sessionStates.AddOrUpdate(deviceId, (vadState, callback), (_, _) => (vadState, callback));
+            this.Logger.LogDebug("Registered VAD session state for device: {deviceId}, session: {sessionId}", deviceId, sessionId);
+        }
+
+        public override void UnregisterDevice(string deviceId, string sessionId)
+        {
+            if (this._sessionStates.TryRemove(deviceId, out _))
+            {
+                this.Logger.LogDebug("Unregistered VAD session state for device: {deviceId}, session: {sessionId}", deviceId, sessionId);
+            }
+        }
+
+        public void ResetSessionState(string deviceId, string sessionId)
+        {
+            if (this._sessionStates.TryGetValue(deviceId, out var context))
+            {
+                var (state, _) = context;
+                state.Reset();
+                this.Logger.LogDebug("Reset VAD session state for device: {deviceId}, session: {sessionId}", deviceId, sessionId);
+            }
+        }
+
+        public async Task AnalysisVoiceAsync(string deviceId, string sessionId, float[] audioData, CancellationToken token)
+        {
+            if (this._vad is null)
             {
                 throw new ArgumentNullException("Please build vad provider first.");
             }
+
+            string key = GetSessionKey(deviceId, sessionId);
+            if (!this._sessionStates.TryGetValue(key, out var context))
+            {
+                throw new InvalidOperationException($"Session state not found for device: {deviceId}, session: {sessionId}. Please register the device first.");
+            }
+            var (vadState, callback) = context;
             try
             {
-                //todo: 暂无法满足多session情况下并行使用同一模型
                 await this._vadConvertSlim.WaitAsync(token);
 
                 this._vad.Reset();
 
-                bool clientHaveVoice = false;
-                int voiceFrameCount = 0;
+                int analyzedIndex = vadState.AnalyzedIndex;
 
-                while (session.AudioPacketContext.VadPacket.GetFrames(this.FrameSize, out float[] chunk))
+                while (audioData.GetSlidingFrame(this.FrameSize, ref analyzedIndex, out float[] chunk))
                 {
                     token.ThrowIfCancellationRequested();
+
                     if (chunk.Length == 0)
                     {
                         continue;
                     }
+
                     this._vad.AcceptWaveform(chunk);
-                    bool is_voice = this._vad.IsSpeechDetected();
-                    if (is_voice)
+
+                    bool isSpeaking = this._vad.IsSpeechDetected();
+
+                    if (isSpeaking)
                     {
-                        voiceFrameCount++;
+                        vadState.HaveVoice = true;
+                        vadState.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                        continue;
                     }
                     else
                     {
-                        voiceFrameCount = 0;
-                    }
-
-                    clientHaveVoice = voiceFrameCount >= REQUIRED_VOICE_FRAMES;
-
-                    if (session.VadStatusContext.HaveVoice && !clientHaveVoice)
-                    {
-                        long stopDuration = DateTimeOffset.Now.ToUnixTimeMilliseconds() - session.VadStatusContext.HaveVoiceLatestTime;
-                        if (stopDuration > this._silenceThresholdMs)
+                        if (!this._vad.IsEmpty())
                         {
-#if DEBUG
-                            this.Logger.LogDebug("The voice is stopped.");
-#endif
-                            session.VadStatusContext.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
-                            session.VadStatusContext.VoiceStop = true;
-                            return true;
-                        }
-                    }
+                            SpeechSegment speechSegment = this._vad.Front();
+                            this.Logger.LogDebug("The voice is stopped for device: {deviceId}.", deviceId);
 
-                    if (clientHaveVoice)
-                    {
-                        session.VadStatusContext.HaveVoice = true;
-                        session.VadStatusContext.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                            callback.OnVoiceDetected(speechSegment.Samples);
+                            vadState.Reset();
+
+                            return;
+                        }
                     }
                 }
 
-                this._vad.Flush();
+                if (!this._vad.IsSpeechDetected() && analyzedIndex > this.FrameSize * 50)
+                {
+                    callback.OnVoiceSilence();
+                }
 
-                return clientHaveVoice;
+                this.CheckLongTermSilence(deviceId, sessionId, vadState);
             }
             catch (OperationCanceledException)
             {
-                session.VadStatusContext.Reset();
+                vadState.Reset();
                 this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
                 throw;
             }
             catch (Exception ex)
             {
                 this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
-                return false;
             }
             finally
             {
+                vadState.AnalyzedIndex = 0;
                 this._vad.Reset();
                 this._vadConvertSlim.Release();
             }
         }
 
+        private void CheckLongTermSilence(string deviceId, string sessionId, VadSessionState vadState)
+        {
+            if (this._sessionStates.TryGetValue(deviceId, out var context))
+            {
+                var (_, callback) = context;
+                if (vadState.HaveVoiceLatestTime == 0)
+                {
+                    vadState.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                    return;
+                }
+
+                long silenceDuration = DateTimeOffset.Now.ToUnixTimeMilliseconds() - vadState.HaveVoiceLatestTime;
+                long longTermSilenceThresholdMs = this._closeConnectionNoVoiceTime * 1000;
+
+                if (silenceDuration >= longTermSilenceThresholdMs)
+                {
+                    this.Logger.LogDebug("Long term silence detected for device: {deviceId}, duration: {silenceDuration}ms", deviceId, silenceDuration);
+                    callback.OnLongTermSilence();
+                }
+            }
+        }
+
+        private static string GetSessionKey(string deviceId, string sessionId)
+        {
+            return $"{deviceId}:{sessionId}";
+        }
+
         public override void Dispose()
         {
+            this._sessionStates.Clear();
             this._vadConvertSlim.Dispose();
             this._vad?.Clear();
             this._vad?.Dispose();

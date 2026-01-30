@@ -1,12 +1,18 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Providers.VAD;
 
 namespace XiaoZhi.Net.Server.Providers
 {
     internal interface IVad : IProvider<ModelSetting>
     {
         int FrameSize { get; }
-        Task<bool> AnalysisVoiceAsync( Session sessionContext, CancellationToken token);
+
+        void RegisterDevice(string deviceId, string sessionId, IVadEventCallback callback);
+
+        Task AnalysisVoiceAsync(string deviceId, string sessionId, float[] audioData, CancellationToken token);
+
+        void ResetSessionState(string deviceId, string sessionId);
     }
 }

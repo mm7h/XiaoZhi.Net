@@ -24,8 +24,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.EndPoint = userEndPoint;
             this.SendOutter = sendOutter;
             this.AudioSetting = new AudioSetting();
-            this.AudioPacketContext = new AudioPacket();
-            this.VadStatusContext = new VadStatus();
+            this.AudioPacket = new AudioPacket();
             this.HandlerPipeline = new HandlerPipeline();
             this.PrivateProvider = new PrivateProvider();
             this.CreateCancellationTokenSource();
@@ -38,8 +37,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public AudioSetting AudioSetting { get; }
         public IPEndPoint EndPoint { get; }
         public ListenMode ListenMode { get; set; }
-        public AudioPacket AudioPacketContext { get; }
-        public VadStatus VadStatusContext { get; }
+        public AudioPacket AudioPacket { get; set; }
         public CancellationToken SessionCtsToken => this._sessionCts.Token;
         public HandlerPipeline HandlerPipeline { get; }
         public IBizSendOutter SendOutter { get; }
@@ -74,14 +72,14 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public void ManualStart()
         {
             this.Reset();
-            this.VadStatusContext.HaveVoice = true;
-            this.VadStatusContext.VoiceStop = false;
+            this.AudioPacket.HaveVoice = true;
+            this.AudioPacket.VoiceStop = false;
         }
 
         public void ManualStop()
         {
-            this.VadStatusContext.HaveVoice = true;
-            this.VadStatusContext.VoiceStop = true;
+            this.AudioPacket.HaveVoice = true;
+            this.AudioPacket.VoiceStop = true;
         }
 
         public void RejectIncomingAudio()
@@ -97,8 +95,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         {
             Interlocked.Increment(ref _turnId);
             this.AcceptIncomingAudio();
-            this.VadStatusContext.Reset();
-            this.AudioPacketContext.Reset();
+            this.AudioPacket.Reset();
         }
         public void Abort()
         {
@@ -121,7 +118,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public void Release()
         {
             this.Reset();
-            this.AudioPacketContext.Release();
+            this.AudioPacket.Release();
             this._sessionCts.Cancel();
             this.HandlerPipeline.Release();
             this.PrivateProvider.Release();

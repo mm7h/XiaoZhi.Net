@@ -33,6 +33,13 @@ namespace XiaoZhi.Net.Server.Providers
             this.Logger.LogInformation("Registered device [{deviceId}] with session id: {sessionId} to the provider {providerType}.", this.DeviceId, this.SessionId, this.ProviderType);
         }
 
+        public virtual void UnregisterDevice(string deviceId, string sessionId)
+        {
+            this.DeviceId = string.Empty;
+            this.SessionId = string.Empty;
+            this.Logger.LogInformation("Unregistered device [{deviceId}] with session id: {sessionId} from the provider {providerType}.", this.DeviceId, this.SessionId, this.ProviderType);
+        }
+
         protected bool CheckDeviceRegistered()
         {
             if (string.IsNullOrEmpty(this.DeviceId) || string.IsNullOrEmpty(this.SessionId))

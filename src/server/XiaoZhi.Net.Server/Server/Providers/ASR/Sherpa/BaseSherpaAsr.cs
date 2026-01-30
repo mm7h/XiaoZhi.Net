@@ -22,23 +22,22 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
         private readonly Channel<AsrRequest> _requestChannel;
         private readonly CancellationTokenSource _shutdownCts;
 
-        private readonly ConcurrentDictionary<string, OfflineStream> _streamMapping;
-
         private OfflineRecognizer? _offlineRecognizer;
+
         private Task? _backgroudProcessingTask;
 
         protected BaseSherpaAsr(ILogger<TLogger> logger) : base(logger)
         {
             this._requestChannel = Channel.CreateUnbounded<AsrRequest>();
-            this._streamMapping = new ConcurrentDictionary<string, OfflineStream>();
             this._shutdownCts = new CancellationTokenSource();
         }
+
 
         public int MaxBatchSize { get; protected set; } = 50;
 
         public override string ProviderType => "asr";
 
-        public async Task<string> ConvertSpeechTextAsync(Workflow<CircularBuffer> workflow, int sampleRate, int frameSize, CancellationToken token)
+        public async Task<string> ConvertSpeechTextAsync(Workflow<float[]> workflow, int sampleRate, int frameSize, CancellationToken token)
         {
             if (!this.CheckDeviceRegistered())
             {
@@ -48,20 +47,13 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
             {
                 throw new ArgumentNullException("Please build asr provider first.");
             }
-            if (workflow.Data.Size <= 50)
-            {
-                this.Logger.LogWarning("The audio data for the device {deviceId} is too short.", workflow.DeviceId);
-                workflow.Data.Reset();
-                return string.Empty;
-            }
+
             try
             {
-                OfflineStream offlineStream = this._streamMapping.GetOrAdd(workflow.SessionId, (key) => this._offlineRecognizer.CreateStream());
+                OfflineStream offlineStream = this._offlineRecognizer.CreateStream();
 
-                while (workflow.Data.GetFrames(frameSize, out float[] chunk))
-                {
-                    offlineStream.AcceptWaveform(sampleRate, chunk);
-                }
+                offlineStream.AcceptWaveform(sampleRate, workflow.Data);
+
 
                 AsrRequest asrRequest = new AsrRequest(workflow.SessionId, workflow.DeviceId, offlineStream, sampleRate, frameSize, token);
 
@@ -71,13 +63,11 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
             }
             catch (OperationCanceledException)
             {
-                workflow.Data.Reset();
                 this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
                 throw;
             }
             catch (Exception ex)
             {
-                workflow.Data.Reset();
                 this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
                 return string.Empty;
             }
@@ -174,11 +164,11 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                             {
                                 request.ResultTcs.SetCanceled();
                                 request.Stream.Dispose();
-                                this._streamMapping.TryRemove(request.SessionId, out _);
                                 continue;
                             }
                             validRequests.Add(request);
                         }
+
 
                         if (validRequests.Count > 0)
                         {
@@ -193,12 +183,14 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                                 {
                                     request.ResultTcs.SetCanceled();
                                     request.Stream.Dispose();
-                                    this._streamMapping.TryRemove(request.SessionId, out _);
                                     continue;
                                 }
                                 string resultText = request.Stream.Result.Text;
+
+                                request.Stream.Dispose();
                                 request.ResultTcs.SetResult(resultText);
                             }
+
                         }
                     }
                 }
@@ -228,7 +220,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 
             this._offlineRecognizer?.Dispose();
             this._shutdownCts.Dispose();
-            this._streamMapping.Clear();
         }
+
     }
 }
