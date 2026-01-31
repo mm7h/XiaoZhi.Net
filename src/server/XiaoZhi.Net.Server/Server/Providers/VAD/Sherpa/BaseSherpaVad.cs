@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 {
@@ -18,11 +19,13 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
         private const int SAMPLING_RATE_8K = 8000;
         private const int SAMPLING_RATE_16K = 16000;
 
-        private readonly SemaphoreSlim _vadConvertSlim = new SemaphoreSlim(1, 1);
-        private readonly ConcurrentDictionary<string, (VadSessionState, IVadEventCallback)> _sessionStates = new();
+        private readonly SemaphoreSlim _vadConvertSlim;
+        private readonly ConcurrentDictionary<string, (VadSessionState, IVadEventCallback)> _vadSessions;
 
         protected BaseSherpaVad(ILogger<TLogger> logger) : base(logger)
         {
+            this._vadConvertSlim = new SemaphoreSlim(1, 1);
+            this._vadSessions = new ConcurrentDictionary<string, (VadSessionState, IVadEventCallback)>();
         }
 
         public override string ProviderType => "vad";
@@ -34,7 +37,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 
             if (this._sampleRate != SAMPLING_RATE_8K && this._sampleRate != SAMPLING_RATE_16K)
             {
-                this.Logger.LogError("Unsupported sample rate: {sampleRate}. Only 8000 and 16000 are supported.", this._sampleRate);
+                this.Logger.LogError(Lang.BaseSherpaVad_Build_UnsupportedSampleRate, this._sampleRate);
                 return false;
             }
 
@@ -50,25 +53,25 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
         public void RegisterDevice(string deviceId, string sessionId, IVadEventCallback callback)
         {
             VadSessionState vadState = new VadSessionState();
-            this._sessionStates.AddOrUpdate(deviceId, (vadState, callback), (_, _) => (vadState, callback));
-            this.Logger.LogDebug("Registered VAD session state for device: {deviceId}, session: {sessionId}", deviceId, sessionId);
+            this._vadSessions.AddOrUpdate(deviceId, (vadState, callback), (_, _) => (vadState, callback));
+            this.Logger.LogDebug(Lang.BaseSherpaVad_RegisterDevice_Registered, deviceId, sessionId);
         }
 
         public override void UnregisterDevice(string deviceId, string sessionId)
         {
-            if (this._sessionStates.TryRemove(deviceId, out _))
+            if (this._vadSessions.TryRemove(deviceId, out _))
             {
-                this.Logger.LogDebug("Unregistered VAD session state for device: {deviceId}, session: {sessionId}", deviceId, sessionId);
+                this.Logger.LogDebug(Lang.BaseSherpaVad_UnregisterDevice_Unregistered, deviceId, sessionId);
             }
         }
 
         public void ResetSessionState(string deviceId, string sessionId)
         {
-            if (this._sessionStates.TryGetValue(deviceId, out var context))
+            if (this._vadSessions.TryGetValue(deviceId, out var context))
             {
                 var (state, _) = context;
                 state.Reset();
-                this.Logger.LogDebug("Reset VAD session state for device: {deviceId}, session: {sessionId}", deviceId, sessionId);
+                this.Logger.LogDebug(Lang.BaseSherpaVad_ResetSessionState_Reset, deviceId, sessionId);
             }
         }
 
@@ -76,12 +79,12 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
         {
             if (this._vad is null)
             {
-                throw new ArgumentNullException("Please build vad provider first.");
+                throw new ArgumentNullException(Lang.BaseSherpaVad_AnalysisVoiceAsync_VadNotBuilt);
             }
 
-            if (!this._sessionStates.TryGetValue(deviceId, out var context))
+            if (!this._vadSessions.TryGetValue(deviceId, out var context))
             {
-                throw new InvalidOperationException($"Session state not found for device: {deviceId}, session: {sessionId}. Please register the device first.");
+                throw new InvalidOperationException(string.Format(Lang.BaseSherpaVad_AnalysisVoiceAsync_SessionStateNotFound, deviceId, sessionId));
             }
             var (vadState, callback) = context;
             try
@@ -116,7 +119,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
                         if (!this._vad.IsEmpty())
                         {
                             SpeechSegment speechSegment = this._vad.Front();
-                            this.Logger.LogDebug("The voice is stopped for device: {deviceId}.", deviceId);
+                            this.Logger.LogDebug(Lang.BaseSherpaVad_AnalysisVoiceAsync_VoiceStopped, deviceId);
 
                             callback.OnVoiceDetected(speechSegment.Samples);
                             vadState.Reset();
@@ -136,12 +139,12 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
             catch (OperationCanceledException)
             {
                 vadState.Reset();
-                this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
+                this.Logger.LogWarning(Lang.BaseSherpaVad_AnalysisVoiceAsync_UserCanceled, this.ProviderType);
                 throw;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
+                this.Logger.LogError(ex, Lang.BaseSherpaVad_AnalysisVoiceAsync_UnexpectedError, this.ProviderType);
             }
             finally
             {
@@ -153,7 +156,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 
         private void CheckLongTermSilence(string deviceId, string sessionId, VadSessionState vadState)
         {
-            if (this._sessionStates.TryGetValue(deviceId, out var context))
+            if (this._vadSessions.TryGetValue(deviceId, out var context))
             {
                 var (_, callback) = context;
                 if (vadState.HaveVoiceLatestTime == 0)
@@ -167,7 +170,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 
                 if (silenceDuration >= longTermSilenceThresholdMs)
                 {
-                    this.Logger.LogDebug("Long term silence detected for device: {deviceId}, duration: {silenceDuration}ms", deviceId, silenceDuration);
+                    this.Logger.LogDebug(Lang.BaseSherpaVad_CheckLongTermSilence_Detected, deviceId, silenceDuration);
                     callback.OnLongTermSilence();
                 }
             }
@@ -175,7 +178,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 
         public override void Dispose()
         {
-            this._sessionStates.Clear();
+            this._vadSessions.Clear();
             this._vadConvertSlim.Dispose();
             this._vad?.Clear();
             this._vad?.Dispose();

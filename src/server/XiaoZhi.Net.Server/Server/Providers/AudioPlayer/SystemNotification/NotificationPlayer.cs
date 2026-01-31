@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Media.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Resources;
@@ -34,7 +35,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification
         {
             if (!this._streamAudioPlayer.CheckFFmpegInstalled())
             {
-                this.Logger.LogError("Failed to initialize FFmpeg, please check your the ffmpeg path configuration.");
+                this.Logger.LogError(Lang.NotificationPlayer_Build_FFmpegInitFailed);
                 return false;
             }
             this._audioSetting = audioSetting;
@@ -47,13 +48,13 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification
         {
             if (this._audioSetting is null)
             {
-                this.Logger.LogError("The audio player is not built yet.");
+                this.Logger.LogError(Lang.NotificationPlayer_PlayBindCodeAsync_NotBuilt);
                 return;
             }
             Stream? bindCodeAudioStream = this._deviceBindingResources.GetDeviceBindCodeAudioStream(bindCode);
             if (bindCodeAudioStream is null)
             {
-                this.Logger.LogError("Failed to get the bind code audio stream.");
+                this.Logger.LogError(Lang.NotificationPlayer_PlayBindCodeAsync_StreamNull);
                 return;
             }
 
@@ -68,13 +69,13 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification
         {
             if (this._audioSetting is null)
             {
-                this.Logger.LogError("The audio player is not built yet.");
+                this.Logger.LogError(Lang.NotificationPlayer_PlayNotFoundAsync_NotBuilt);
                 return;
             }
             Stream? notFoundAudioStream = this._deviceBindingResources.GetDeviceNotFoundAudioStream();
             if (notFoundAudioStream is null)
             {
-                this.Logger.LogError("Failed to get the not found audio stream.");
+                this.Logger.LogError(Lang.NotificationPlayer_PlayNotFoundAsync_StreamNull);
                 return;
             }
             using (notFoundAudioStream)
@@ -88,7 +89,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification
         {
             if (this.PlaybackState == PlaybackState.Idle)
             {
-                this.Logger.LogInformation("The audio player status is {status}, skip the stopping.", PlaybackState);
+                this.Logger.LogInformation(Lang.NotificationPlayer_StopAsync_Skip, PlaybackState);
                 return Task.CompletedTask;
             }
             this._streamAudioPlayer.Stop();

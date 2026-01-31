@@ -12,7 +12,6 @@ namespace XiaoZhi.Net.Server.Common.ObjectPoolPolicies
 
         public override bool Return(OutAudioSegment obj)
         {
-            // 清理对象状态，为下次使用做准备
             obj.Reset();
             return true;
         }

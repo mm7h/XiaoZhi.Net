@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
 {
@@ -71,7 +72,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
                 Id = new RequestId(1),
                 Params = @params.ToNode()
             };
-            this.Logger.LogInformation("Session {sessionId} sending MCP Initialize request.", this.CurrentSession.SessionId);
+            this.Logger.LogInformation(Lang.DeviceMcpClient_SendMcpInitializeAsync_SendingInit, this.CurrentSession.SessionId);
             await this.SendMCPMessageAsync(request);
         }
 

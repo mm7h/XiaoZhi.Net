@@ -3,6 +3,7 @@ using SherpaOnnx;
 using System;
 using System.IO;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 {
@@ -30,7 +31,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 
                 if (this.Build(vadModelConfig, modelSetting))
                 {
-                    this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
+                    this.Logger.LogInformation(Lang.Silero_Build_Built, this.ProviderType, this.ModelName);
                     return true;
                 }
                 else
@@ -38,7 +39,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogError(ex, Lang.Silero_Build_InvalidSettings, this.ProviderType, this.ModelName);
                 return false;
             }
 

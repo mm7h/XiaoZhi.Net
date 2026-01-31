@@ -14,6 +14,7 @@ using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media;
 using XiaoZhi.Net.Server.Providers;
 using XiaoZhi.Net.Server.Providers.ASR.Sherpa;
@@ -87,7 +88,7 @@ namespace XiaoZhi.Net.Server.Management
             IAudioDecoder audioDecoder = serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER);
             if (!audioDecoder.Build(this._config.AudioSetting))
             {
-                this._logger.LogError("Failed to build {modelName} provider.", audioDecoder.ModelName);
+                this._logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, audioDecoder.ModelName);
                 return false;
             }
             #endregion
@@ -98,7 +99,7 @@ namespace XiaoZhi.Net.Server.Management
                 IVad vad = serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
                 if (vad.IsSherpaModel && !vad.Build(this.GetSelectedSetting("VAD", this._config)))
                 {
-                    this._logger.LogError("Failed to build {modelName} provider.", vad.ModelName);
+                    this._logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, vad.ModelName);
                     return false;
                 }
                 #endregion
@@ -107,7 +108,7 @@ namespace XiaoZhi.Net.Server.Management
                 IAsr asr = serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
                 if (asr.IsSherpaModel && !asr.Build(this.GetSelectedSetting("ASR", this._config)))
                 {
-                    this._logger.LogError("Failed to build {modelName} provider.", asr.ModelName);
+                    this._logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, asr.ModelName);
                     return false;
                 }
                 #endregion
@@ -116,7 +117,7 @@ namespace XiaoZhi.Net.Server.Management
                 IMemory memory = serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY);
                 if (!memory.Build(this.GetSelectedSetting("MEMORY", this._config)))
                 {
-                    this._logger.LogError("Failed to build {modelName} provider.", memory.ModelName);
+                    this._logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, memory.ModelName);
                     return false;
                 }
                 #endregion
@@ -125,7 +126,7 @@ namespace XiaoZhi.Net.Server.Management
                 ITts tts = serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
                 if (tts.IsSherpaModel && !tts.Build(this.GetSelectedSetting("TTS", this._config)))
                 {
-                    this._logger.LogError("Failed to build {modelName} provider.", tts.ModelName);
+                    this._logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, tts.ModelName);
                     return false;
                 }
                 #endregion
@@ -133,11 +134,11 @@ namespace XiaoZhi.Net.Server.Management
                 #region FFmpeg
                 if (MediaFactory.CheckFFmpegInstalled(out string ffmpegVersion))
                 {
-                    this._logger.LogInformation("FFmpeg is installed successfully, version: {ffmpegVersion}.", ffmpegVersion);
+                    this._logger.LogInformation(Lang.ProviderManager_BuildComponent_FFmpegInstalled, ffmpegVersion);
                 }
                 else
                 {
-                    this._logger.LogWarning("FFmpeg is not installed or not found, please check your ffmpeg path configuration.");
+                    this._logger.LogWarning(Lang.ProviderManager_BuildComponent_FFmpegNotFound);
                     return false;
                 }
                 #endregion
@@ -146,7 +147,7 @@ namespace XiaoZhi.Net.Server.Management
             }
             catch (Exception ex)
             {
-                this._logger.LogError(ex, "Failed to build provider components.");
+                this._logger.LogError(ex, Lang.ProviderManager_BuildComponent_BuildComponentsFailed);
                 return false;
             }
         }
@@ -187,7 +188,7 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (manageApiClient is null)
                 {
-                    this._logger.LogInformation("Remote service is unavailable or not configured, skipping private models config loading for device: {deviceId}.", session.DeviceId);
+                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_RemoteServiceUnavailable, session.DeviceId);
 
                     return this.RegisterGlobalProviders(session);
                 }
@@ -196,7 +197,7 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig is null)
                 {
-                    this._logger.LogInformation("The device: {deviceId} has not been configured with privatization settings and will use global providers.", session.DeviceId);
+                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_NoPrivateConfig, session.DeviceId);
 
                     return this.RegisterGlobalProviders(session);
                 }
@@ -209,24 +210,24 @@ namespace XiaoZhi.Net.Server.Management
                     IVad privateVad = this._serviceProvider.GetRequiredKeyedService<IVad>(privateModelsConfig.VadSetting.ModelName);
                     if (!privateVad.Build(privateModelsConfig.VadSetting))
                     {
-                        this._logger.LogError("Failed to build private VAD model for device: {deviceId}.", session.DeviceId);
+                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateVadBuildFailed, session.DeviceId);
                         return false;
                     }
                     session.PrivateProvider.SetVad(privateVad);
 
-                    this._logger.LogInformation("Private VAD {modeName} model initialized for device: {deviceId}.", privateModelsConfig.VadSetting.ModelName, session.DeviceId);
+                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateVadInitialized, privateModelsConfig.VadSetting.ModelName, session.DeviceId);
                 }
                 else
                 {
                     IVad genericVad = this._serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
                     if (!genericVad.IsSherpaModel && !genericVad.Build(this.GetSelectedSetting("VAD", this._config)))
                     {
-                        this._logger.LogError("Failed to build {modelName} provider.", genericVad.ModelName);
+                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericVadBuildFailed, genericVad.ModelName);
                         return false;
                     }
                     session.PrivateProvider.SetVad(genericVad);
 
-                    this._logger.LogInformation("Generic VAD {modeName} model initialized for device: {deviceId}.", genericVad.ModelName, session.DeviceId);
+                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericVadInitialized, genericVad.ModelName, session.DeviceId);
                 }
 
                 if (privateModelsConfig.AsrSetting is not null)
@@ -234,24 +235,24 @@ namespace XiaoZhi.Net.Server.Management
                     IAsr privateAsr = this._serviceProvider.GetRequiredKeyedService<IAsr>(privateModelsConfig.AsrSetting.ModelName);
                     if (!privateAsr.Build(privateModelsConfig.AsrSetting))
                     {
-                        this._logger.LogError("Failed to build private ASR model for device: {deviceId}.", session.DeviceId);
+                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateAsrBuildFailed, session.DeviceId);
                         return false;
                     }
                     session.PrivateProvider.SetAsr(privateAsr);
 
-                    this._logger.LogInformation("Private ASR {modeName} model initialized for device: {deviceId}.", privateModelsConfig.AsrSetting.ModelName, session.DeviceId);
+                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateAsrInitialized, privateModelsConfig.AsrSetting.ModelName, session.DeviceId);
                 }
                 else
                 {
                     IAsr genericAsr = this._serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
                     if (!genericAsr.IsSherpaModel && !genericAsr.Build(this.GetSelectedSetting("ASR", this._config)))
                     {
-                        this._logger.LogError("Failed to build {modelName} provider.", genericAsr.ModelName);
+                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericAsrBuildFailed, genericAsr.ModelName);
                         return false;
                     }
                     session.PrivateProvider.SetAsr(genericAsr);
 
-                    this._logger.LogInformation("Generic ASR {modeName} model initialized for device: {deviceId}.", genericAsr.ModelName, session.DeviceId);
+                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericAsrInitialized, genericAsr.ModelName, session.DeviceId);
                 }
 
                 if (privateModelsConfig.EmotionLlmSetting is not null && privateModelsConfig.ChatLlmSetting is not null)
@@ -277,13 +278,13 @@ namespace XiaoZhi.Net.Server.Management
                     privateKernel.Data.Add("session", session);
                     if (!privateLlm.Build(llmBuildConfig))
                     {
-                        this._logger.LogError("Failed to build private LLM model for device: {deviceId}.", session.DeviceId);
+                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateLlmBuildFailed, session.DeviceId);
                         return false;
                     }
                     session.PrivateProvider.SetKernel(privateKernel);
                     session.PrivateProvider.SetLlm(privateLlm);
 
-                    this._logger.LogInformation("Private emotion LLM {emotionLLMName} and chat LLM {chatLLMName} model initialized for device: {deviceId}.", privateModelsConfig.EmotionLlmSetting.ModelName, privateModelsConfig.ChatLlmSetting.ModelName, session.DeviceId);
+                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateLlmInitialized, privateModelsConfig.EmotionLlmSetting.ModelName, privateModelsConfig.ChatLlmSetting.ModelName, session.DeviceId);
                 }
                 else
                 {
@@ -307,13 +308,13 @@ namespace XiaoZhi.Net.Server.Management
                     privateKernel.Data.Add("session", session);
                     if (!genericLlm.Build(llmBuildConfig))
                     {
-                        this._logger.LogError("Failed to build generic LLM model for device: {deviceId}.", session.DeviceId);
+                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericLlmBuildFailed, session.DeviceId);
                         return false;
                     }
                     session.PrivateProvider.SetKernel(privateKernel);
                     session.PrivateProvider.SetLlm(genericLlm);
 
-                    this._logger.LogInformation("Generic emotion LLM {emotionLLMName} and chat LLM {chatLLMName} model initialized for device: {deviceId}.", emotionLLMModelSetting.ModelName, chatLLMModelSetting.ModelName, session.DeviceId);
+                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericLlmInitialized, emotionLLMModelSetting.ModelName, chatLLMModelSetting.ModelName, session.DeviceId);
                 }
 
                 if (privateModelsConfig.TtsSetting is not null)
@@ -321,24 +322,24 @@ namespace XiaoZhi.Net.Server.Management
                     ITts privateTts = this._serviceProvider.GetRequiredKeyedService<ITts>(privateModelsConfig.TtsSetting.ModelName);
                     if (!privateTts.Build(privateModelsConfig.TtsSetting))
                     {
-                        this._logger.LogError("Failed to build private TTS model for device: {deviceId}.", session.DeviceId);
+                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateTtsBuildFailed, session.DeviceId);
                         return false;
                     }
                     session.PrivateProvider.SetTts(privateTts);
 
-                    this._logger.LogInformation("Private TTS {modeName} model initialized for device: {deviceId}.", privateModelsConfig.TtsSetting.ModelName, session.DeviceId);
+                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateTtsInitialized, privateModelsConfig.TtsSetting.ModelName, session.DeviceId);
                 }
                 else
                 {
                     ITts genericTts = this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
                     if (!genericTts.IsSherpaModel && !genericTts.Build(this.GetSelectedSetting("TTS", this._config)))
                     {
-                        this._logger.LogError("Failed to build {modelName} provider.", genericTts.ModelName);
+                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericTtsBuildFailed, genericTts.ModelName);
                         return false;
                     }
                     session.PrivateProvider.SetTts(genericTts);
 
-                    this._logger.LogInformation("Generic TTS {modeName} model initialized for device: {deviceId}.", genericTts.ModelName, session.DeviceId);
+                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericTtsInitialized, genericTts.ModelName, session.DeviceId);
                 }
 
                 return true;
@@ -346,20 +347,20 @@ namespace XiaoZhi.Net.Server.Management
             catch (DeviceNotFoundException)
             {
                 session.IsDeviceBinded = false;
-                this._logger.LogWarning("The device: {deviceId} is not found, it may not be registered.", session.DeviceId);
+                this._logger.LogWarning(Lang.ProviderManager_InitializePrivateConfig_DeviceNotFound, session.DeviceId);
                 return true;
             }
             catch (DeviceBindException deviceBindException)
             {
                 session.IsDeviceBinded = false;
                 session.BindCode = deviceBindException.BindCode;
-                this._logger.LogWarning("The device: {deviceId} is not binded, bind code: {bindCode}.", session.DeviceId, session.BindCode);
+                this._logger.LogWarning(Lang.ProviderManager_InitializePrivateConfig_DeviceNotBinded, session.DeviceId, session.BindCode);
                 return true;
             }
             catch (Exception ex)
             {
                 session.IsDeviceBinded = false;
-                this._logger.LogError(ex, "Failed to load private models config for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
+                this._logger.LogError(ex, Lang.ProviderManager_InitializePrivateConfig_LoadPrivateConfigFailed, session.DeviceId, session.SessionId);
                 return false;
             }
             finally
@@ -375,7 +376,7 @@ namespace XiaoZhi.Net.Server.Management
         {
             if (session.PrivateProvider.Llm is null)
             {
-                this._logger.LogWarning("LLM provider is not initialized, cannot save memory for device: {deviceId}.", session.DeviceId);
+                this._logger.LogWarning(Lang.ProviderManager_SaveMemory_LlmNotInitialized, session.DeviceId);
                 return;
             }
 
@@ -387,16 +388,16 @@ namespace XiaoZhi.Net.Server.Management
                     try
                     {
                         await manageApiClient.SaveMemoryAsync(session.DeviceId, session.SessionId, session.PrivateProvider.Llm.LLMChatHistory);
-                        this._logger.LogInformation("Memory saved successfully for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
+                        this._logger.LogInformation(Lang.ProviderManager_SaveMemory_MemorySaved, session.DeviceId, session.SessionId);
                     }
                     catch (Exception ex)
                     {
-                        this._logger.LogError(ex, "Failed to save memory for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
+                        this._logger.LogError(ex, Lang.ProviderManager_SaveMemory_SaveMemoryFailed, session.DeviceId, session.SessionId);
                     }
                 }
                 else
                 {
-                    this._logger.LogWarning("ManageApiClient is not available, cannot save memory for device: {deviceId} with session: {sessionId}.", session.DeviceId, session.SessionId);
+                    this._logger.LogWarning(Lang.ProviderManager_SaveMemory_ApiClientNotAvailable, session.DeviceId, session.SessionId);
                 }
             }
         }
@@ -441,13 +442,13 @@ namespace XiaoZhi.Net.Server.Management
                 return;
             }
 
-            this._logger.LogInformation("Device {deviceId} requires audio resampling from {ttsSampleRate} to {deviceSampleRate}.", session.DeviceId, ttsSampleRate, session.AudioSetting.SampleRate);
+            this._logger.LogInformation(Lang.ProviderManager_BuildAudioResampler_ResamplingRequired, session.DeviceId, ttsSampleRate, session.AudioSetting.SampleRate);
 
             ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, ttsSampleRate, session.AudioSetting.SampleRate);
             IAudioResampler audioResampler = this._serviceProvider.GetRequiredService<IAudioResampler>();
             if (!audioResampler.Build(resamplerBuildConfig))
             {
-                this._logger.LogWarning("Session {sessionId} failed to build audio resampler.", session.SessionId);
+                this._logger.LogWarning(Lang.ProviderManager_BuildAudioResampler_BuildFailed, session.SessionId);
             }
             else
             {
@@ -467,7 +468,7 @@ namespace XiaoZhi.Net.Server.Management
             IAudioEncoder audioEncoder = this._serviceProvider.GetRequiredService<IAudioEncoder>();
             if (!audioEncoder.Build(session.AudioSetting))
             {
-                this._logger.LogWarning("Session {sessionId} failed to build audio encoder.", session.SessionId);
+                this._logger.LogWarning(Lang.ProviderManager_BuildAudioEncoder_BuildFailed, session.SessionId);
             }
             session.PrivateProvider.SetAudioEncoder(audioEncoder);
         }
@@ -624,7 +625,7 @@ namespace XiaoZhi.Net.Server.Management
             IIoTClient iotClient = this._serviceProvider.GetRequiredService<IIoTClient>();
             if (!iotClient.Build(session))
             {
-                this._logger.LogWarning("Session {sessionId} failed to build IoT client.", session.SessionId);
+                this._logger.LogWarning(Lang.ProviderManager_BuildIoT_BuildFailed, session.SessionId);
             }
             else
             {
@@ -659,7 +660,7 @@ namespace XiaoZhi.Net.Server.Management
             }
             if (!mcpClient.Build(mcpBuildConfigs))
             {
-                this._logger.LogWarning("Session {sessionId} failed to build MCP client.", session.SessionId);
+                this._logger.LogWarning(Lang.ProviderManager_BuildMCP_BuildFailed, session.SessionId);
             }
             else
             {
@@ -681,7 +682,7 @@ namespace XiaoZhi.Net.Server.Management
             IAudioPlayerClient audioPlayerClient = this._serviceProvider.GetRequiredService<IAudioPlayerClient>();
             if (!audioPlayerClient.Build(session.AudioSetting))
             {
-                this._logger.LogWarning("Session {sessionId} failed to build audio player.", session.SessionId);
+                this._logger.LogWarning(Lang.ProviderManager_BuildAudioPlayer_BuildFailed, session.SessionId);
             }
             else
             {
@@ -701,7 +702,7 @@ namespace XiaoZhi.Net.Server.Management
             IAudioProcessor audioProcessor = this._serviceProvider.GetRequiredService<IAudioProcessor>();
             if (!audioProcessor.Build(session.AudioSetting))
             {
-                this._logger.LogWarning("Session {sessionId} failed to build audio mixer.", session.SessionId);
+                this._logger.LogWarning(Lang.ProviderManager_BuildAudioProcessor_BuildFailed, session.SessionId);
             }
             else
             {
@@ -716,29 +717,29 @@ namespace XiaoZhi.Net.Server.Management
             #region AudioDecoder
             IAudioDecoder genericAudioDecoder = this._serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER);
             session.PrivateProvider.SetAudioDecoder(genericAudioDecoder);
-            this._logger.LogInformation("Generic AudioDecoder {modeName} model initialized for device: {deviceId}.", genericAudioDecoder.ModelName, session.DeviceId);
+            this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_AudioDecoderInitialized, genericAudioDecoder.ModelName, session.DeviceId);
             #endregion
 
             #region Vad
             IVad genericVad = this._serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
             if (!genericVad.IsSherpaModel && !genericVad.Build(this.GetSelectedSetting("VAD", this._config)))
             {
-                this._logger.LogError("Failed to build {modelName} provider.", genericVad.ModelName);
+                this._logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_VadBuildFailed, genericVad.ModelName);
                 return false;
             }
             session.PrivateProvider.SetVad(genericVad);
-            this._logger.LogInformation("Generic VAD {modeName} model initialized for device: {deviceId}.", genericVad.ModelName, session.DeviceId);
+            this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_VadInitialized, genericVad.ModelName, session.DeviceId);
             #endregion
 
             #region Asr
             IAsr genericAsr = this._serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
             if (!genericAsr.IsSherpaModel && !genericAsr.Build(this.GetSelectedSetting("ASR", this._config)))
             {
-                this._logger.LogError("Failed to build {modelName} provider.", genericAsr.ModelName);
+                this._logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_AsrBuildFailed, genericAsr.ModelName);
                 return false;
             }
             session.PrivateProvider.SetAsr(genericAsr);
-            this._logger.LogInformation("Generic ASR {modeName} model initialized for device: {deviceId}.", genericAsr.ModelName, session.DeviceId);
+            this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_AsrInitialized, genericAsr.ModelName, session.DeviceId);
             #endregion
 
             #region LLM
@@ -767,18 +768,18 @@ namespace XiaoZhi.Net.Server.Management
             session.PrivateProvider.SetKernel(privateKernel);
             session.PrivateProvider.SetLlm(genericLlm);
 
-            this._logger.LogInformation("Generic emotion LLM {emotionLLMName} and chat LLM {chatLLMName} model initialized for device: {deviceId}.", emotionLLMModelSetting.ModelName, chatLLMModelSetting.ModelName, session.DeviceId);
+            this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_LlmInitialized, emotionLLMModelSetting.ModelName, chatLLMModelSetting.ModelName, session.DeviceId);
             #endregion
 
             #region Tts
             ITts genericTts = this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
             if (!genericTts.IsSherpaModel && !genericTts.Build(this.GetSelectedSetting("TTS", this._config)))
             {
-                this._logger.LogError("Failed to build {modelName} provider.", genericTts.ModelName);
+                this._logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_TtsBuildFailed, genericTts.ModelName);
                 return false;
             }
             session.PrivateProvider.SetTts(genericTts);
-            this._logger.LogInformation("Generic TTS {modeName} model initialized for device: {deviceId}.", genericTts.ModelName, session.DeviceId);
+            this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_TtsInitialized, genericTts.ModelName, session.DeviceId);
             #endregion
 
             return true;

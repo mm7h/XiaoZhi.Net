@@ -7,9 +7,9 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Management;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
@@ -42,7 +42,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         }
         public Task SendAsync(string json)
         {
-            this.Logger.LogDebug("Sending json to device {deviceId}: {json}", this.XiaoZhiSession?.DeviceId, Regex.Unescape(!string.IsNullOrEmpty(json) ? json : string.Empty));
+            this.Logger.LogDebug(Lang.SocketSession_SendAsync_SendingJson, this.XiaoZhiSession?.DeviceId, Regex.Unescape(!string.IsNullOrEmpty(json) ? json : string.Empty));
             return base.SendAsync(json).AsTask();
         }
         public Task SendAsync(byte[] opusPacket)
@@ -53,7 +53,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         {
             if (this.XiaoZhiSession is null)
             {
-                this.Logger.LogError("Cannot send TTS message, current session has not been initialized yet.");
+                this.Logger.LogError(Lang.SocketSession_SendTtsMessageAsync_SessionNotInitialized);
                 return Task.FromException(new SessionNotInitializedException());
             }
             var msg = new Dictionary<string, string>
@@ -80,7 +80,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         {
             if (this.XiaoZhiSession is null)
             {
-                this.Logger.LogError("Cannot send STT message, current session has not been initialized yet.");
+                this.Logger.LogError(Lang.SocketSession_SendSttMessageAsync_SessionNotInitialized);
                 return Task.FromException(new SessionNotInitializedException());
             }
             var msg = new
@@ -95,7 +95,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         {
             if (this.XiaoZhiSession is null)
             {
-                this.Logger.LogError("Cannot send LLM message, current session has not been initialized yet.");
+                this.Logger.LogError(Lang.SocketSession_SendLlmMessageAsync_SessionNotInitialized);
                 return Task.FromException(new SessionNotInitializedException());
             }
             var emo = new
@@ -111,7 +111,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         {
             if (this.XiaoZhiSession is null)
             {
-                this.Logger.LogError("Cannot send LLM message, current session has not been initialized yet.");
+                this.Logger.LogError(Lang.SocketSession_SendAbortMessageAsync_SessionNotInitialized);
                 return Task.FromException(new SessionNotInitializedException());
             }
             var abortMessage = new
@@ -154,7 +154,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
 
                 this.XiaoZhiSession.Release();
 
-                this.Logger.LogDebug("Client offline, device id: {deviceId} and session id: {sessionId}, reason: {reason}.", this.XiaoZhiSession.DeviceId, this.XiaoZhiSession.SessionId, e.Reason);
+                this.Logger.LogDebug(Lang.SocketSession_OnSessionClosedAsync_ClientOffline, this.XiaoZhiSession.DeviceId, this.XiaoZhiSession.SessionId, e.Reason);
             }
         }
     }

@@ -2,6 +2,7 @@
 using System;
 using System.Threading;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Protocol;
 
 namespace XiaoZhi.Net.Server.Handlers
@@ -40,7 +41,7 @@ namespace XiaoZhi.Net.Server.Handlers
             long sessionTurnId = this.SendOutter.GetSession().TurnId;
             if (workflow.TurnId != sessionTurnId)
             {
-                this.Logger.LogDebug("Stale workflow detected in handler {handlerName}. Workflow turn ID: {workflowTurnId}, Session turn ID: {sessionTurnId}.", this.HandlerName, workflow.TurnId, sessionTurnId);
+                this.Logger.LogDebug(Lang.BaseHandler_CheckWorkflowValid_StaleWorkflow, this.HandlerName, workflow.TurnId, sessionTurnId);
                 return false;
             }
             return true;
@@ -60,7 +61,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private void OnTokenCanceled()
         {
-            this.Logger.LogDebug("Handler {handlerName} cancellation token has been canceled.", this.HandlerName);
+            this.Logger.LogDebug(Lang.BaseHandler_OnTokenCanceled_TokenCanceled, this.HandlerName);
             this.OnHandlerTokenChanged();
             Session session = this.SendOutter.GetSession();
             this.OnAbort?.Invoke(session.DeviceId, session.SessionId, this.HandlerName);

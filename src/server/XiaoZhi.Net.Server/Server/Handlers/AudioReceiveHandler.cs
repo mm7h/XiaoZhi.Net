@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers;
 using XiaoZhi.Net.Server.Providers.VAD;
 
@@ -40,13 +41,13 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             if (privateProvider.Vad is null)
             {
-                this.Logger.LogError("VAD provider is not configured for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.AudioReceiveHandler_Build_VadNotConfigured, session.DeviceId);
                 return false;
             }
 
             if (privateProvider.AudioDecoder is null)
             {
-                this.Logger.LogError("Audio decoder is not configured for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.AudioReceiveHandler_Build_AudioDecoderNotConfigured, session.DeviceId);
                 return false;
             }
 
@@ -68,18 +69,18 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             if (this._vad is null)
             {
-                this.Logger.LogError("VAD provider is not configured for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.AudioReceiveHandler_Handle_VadNotConfigured, session.DeviceId);
                 return;
             }
             if (this._audioDecoder is null)
             { 
-                this.Logger.LogError("Audio decoder is not configured for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.AudioReceiveHandler_Handle_AudioDecoderNotConfigured, session.DeviceId);
                 return;
             }
             if (!session.IsIdle)
             {
 #if DEBUG
-                this.Logger.LogDebug("The previous audio packet is processing, this packet would be ignored.");
+                this.Logger.LogDebug(Lang.AudioReceiveHandler_Handle_PacketIgnored);
 #endif
                 return;
             }
@@ -98,7 +99,8 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                this.Logger.LogError(ex, "Failed to process the audio packet from device: {deviceId}.", session.DeviceId);
+                session.AudioPacket.Reset();
+                this.Logger.LogError(ex, Lang.AudioReceiveHandler_Handle_ProcessFailed, session.DeviceId);
             }
         }
 
@@ -133,10 +135,8 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
-            // Trim old audio data to reduce memory pressure during long silence
-            session.AudioPacket.TrimOldAudio();
+            session.AudioPacket.Reset();
 
-            // Handle long term silence - close connection
             if (session.CloseAfterChat)
             {
                 return;
@@ -164,7 +164,7 @@ namespace XiaoZhi.Net.Server.Handlers
             if (audioData.Length < 50)
             {
                 // Audio too short, cannot recognize
-                this.Logger.LogDebug("The voice is too short for the session {sesssionId}.", session.SessionId);
+                this.Logger.LogDebug(Lang.AudioReceiveHandler_HandleVoiceDetected_VoiceTooShort, session.SessionId);
                 session.Reset();
                 return;
             }
@@ -175,10 +175,6 @@ namespace XiaoZhi.Net.Server.Handlers
             this.NextWriter.WriteAsync(workflow);
         }
 
-        /// <summary>
-        /// Handles manual stop from TextHandler.
-        /// </summary>
-        /// <param name="session">The session.</param>
         public void HandleManualStop(Session session)
         {
             if (session is null || session.ShouldIgnore())
@@ -191,8 +187,15 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override void Dispose()
         {
+            Session session = this.SendOutter.GetSession();
+            if (session is null)
+            {
+                return;
+            }
+            this._vad?.UnregisterDevice(session.DeviceId, session.SessionId);
             this.NextWriter.Complete();
             base.Dispose();
         }
     }
 }
+

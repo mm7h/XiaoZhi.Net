@@ -10,6 +10,7 @@ using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Protocol.WebSocket;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Enums;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models;
@@ -45,7 +46,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
                 if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(resourceId) || string.IsNullOrEmpty(speaker))
                 {
-                    this.Logger.LogWarning("Huoshan bidirection TTS configuration is incomplete, please check AppId, AccessToken, ResourceId and speaker.");
+                    this.Logger.LogWarning(Lang.HuoshanStreamTTS_Build_ConfigIncomplete);
                     return false;
                 }
                 this.SpeakerId = speaker;
@@ -74,13 +75,13 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 this.WebSocketClient.OnClose += this.WebSocketClient_OnClose;
                 this.WebSocketClient.OnError += this.WebSocketClient_OnError;
 
-                this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogInformation(Lang.HuoshanStreamTTS_Build_Built, this.ProviderType, this.ModelName);
 
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Failed to build {modelName}.", this.ModelName);
+                this.Logger.LogError(ex, Lang.HuoshanStreamTTS_Build_Failed, this.ModelName);
                 return false;
             }
         }
@@ -90,8 +91,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         {
             if (this.WebSocketClient is null)
             {
-                this.Logger.LogError("WebSocket client is not initialized for Huoshan TTS.");
-                throw new InvalidOperationException("WebSocket client is not initialized.");
+                this.Logger.LogError(Lang.HuoshanStreamTTS_ConnectAsync_ClientNotInitLog);
+                throw new InvalidOperationException(Lang.HuoshanStreamTTS_ConnectAsync_ClientNotInitEx);
             }
             await this.WebSocketClient.ConnectAsync(endPoint, token);
         }
@@ -318,7 +319,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 }
                 if (removed)
                 {
-                    tcs.TrySetException(new TimeoutException($"Wait for {eventType} timed out."));
+                    tcs.TrySetException(new TimeoutException(string.Format(Lang.HuoshanStreamTTS_WaitForEventAsync_Timeout, eventType)));
                 }
             }, TaskScheduler.Default);
 
@@ -358,14 +359,14 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             {
                 return;
             }
-            this.Logger.LogDebug("Huoshan WebSocket connected for the device: {deviceId}.", this.DeviceId);
+            this.Logger.LogDebug(Lang.HuoshanStreamTTS_OnOpen_Connected, this.DeviceId);
         }
 
         private void WebSocketClient_OnClose(System.Net.WebSockets.WebSocketCloseStatus? status, string? desc)
         {
-            this.Logger.LogDebug("Huoshan WebSocket closed: {Status} {Description}", status, desc);
+            this.Logger.LogDebug(Lang.HuoshanStreamTTS_OnClose_Closed, status, desc);
             this.CloseAllSessionFiles(finalize: false);
-            this.FailAllWaits(new OperationCanceledException($"WebSocket closed: {status} {desc}"));
+            this.FailAllWaits(new OperationCanceledException(string.Format(Lang.HuoshanStreamTTS_OnClose_ClosedEx, status, desc)));
             if (this.StreamingActive)
             {
                 this.TTSEventCallback?.OnProcessed(string.Empty, false, false, TtsGenerateResult.Failed);
@@ -374,9 +375,9 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
         private void WebSocketClient_OnError(System.Net.WebSockets.WebSocketError error, string message)
         {
-            this.Logger.LogError("Huoshan WebSocket error: {Error} {Message}", error, message);
+            this.Logger.LogError(Lang.HuoshanStreamTTS_OnError_Error, error, message);
             this.CloseAllSessionFiles(finalize: false);
-            this.FailAllWaits(new Exception($"WebSocket error: {error} {message}"));
+            this.FailAllWaits(new Exception(string.Format(Lang.HuoshanStreamTTS_OnError_ErrorEx, error, message)));
             if (this.StreamingActive)
             {
                 this.TTSEventCallback?.OnProcessed(string.Empty, false, false, TtsGenerateResult.Failed);
@@ -397,7 +398,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Failed to parse websocket binary message.");
+                this.Logger.LogError(ex, Lang.HuoshanStreamTTS_OnBinaryMessage_ParseFailed);
                 return;
             }
 
@@ -429,7 +430,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                     }
                     catch (Exception ex)
                     {
-                        this.Logger.LogError(ex, "Failed to append audio data for TTS session {ttsSessionId}", message.SessionId);
+                        this.Logger.LogError(ex, Lang.HuoshanStreamTTS_OnBinaryMessage_AppendFailed, message.SessionId);
                     }
                 }
 
@@ -485,7 +486,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 {
                     if (message.EventType == EventType.ConnectionFailed || message.EventType == EventType.SessionFailed)
                     {
-                        var ex = new Exception($"Server reported failure: {message}");
+                        var ex = new Exception(string.Format(Lang.HuoshanStreamTTS_OnBinaryMessage_ServerFailure, message));
                         this.FailScopedWaits(message, ex);
                         if (this.StreamingActive)
                         {
@@ -495,7 +496,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 }
                 else if (message.MsgType == MsgType.Error)
                 {
-                    var ex = new Exception($"Server error: {message}");
+                    var ex = new Exception(string.Format(Lang.HuoshanStreamTTS_OnBinaryMessage_ServerError, message));
                     this.FailScopedWaits(message, ex);
                     if (this.StreamingActive)
                     {

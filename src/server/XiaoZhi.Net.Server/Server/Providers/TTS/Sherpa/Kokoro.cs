@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Linq;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 {
@@ -39,14 +40,15 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
                     config.Model.Kokoro.Lexicon = lexiconPath;
                 }
 
+
                 this.Build(config, modelSetting);
 
-                this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogInformation(Lang.Kokoro_Build_Built, this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogError(ex, Lang.Kokoro_Build_InvalidSettings, this.ProviderType, this.ModelName);
                 return false;
             }
         }

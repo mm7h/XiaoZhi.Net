@@ -7,10 +7,12 @@ using Microsoft.SemanticKernel;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.Linq;
 using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Abstractions.Store;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Management;
 using XiaoZhi.Net.Server.Services;
 using XiaoZhi.Net.Server.Store;
@@ -36,29 +38,16 @@ namespace XiaoZhi.Net.Server
 
         public IHostBuilder HostBuilder { get; private set; }
 
-        /// <summary>
-        /// 初始化服务
-        /// </summary>
-        /// <param name="config">配置信息</param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
         public IServerBuilder Initialize(XiaoZhiConfig config)
         {
             return this.Initialize(config, DefaultMemoryStore.Default);
         }
 
-        /// <summary>
-        /// 初始化服务
-        /// </summary>
-        /// <param name="config">配置信息</param>
-        /// <param name="connectionStore">自定义的连接信息存储管理器</param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
         public IServerBuilder Initialize(XiaoZhiConfig config, IStore connectionStore)
         {
             if (config == null)
             {
-                throw new ArgumentNullException(nameof(config), "Config cannot be null.");
+                throw new ArgumentNullException(nameof(config), Lang.ServerBuilder_Initialize_ConfigNull);
             }
             this.HostBuilder = this.HostBuilder.ConfigureServices((context, services) =>
             {
@@ -85,49 +74,34 @@ namespace XiaoZhi.Net.Server
             return this;
         }
 
-        /// <summary>
-        /// 添加插件
-        /// </summary>
-        /// <typeparam name="TPlugin">插件类对应的Type</typeparam>
-        /// <param name="pluginName">插件名称</param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
         public IServerBuilder WithPlugin<TPlugin>(string pluginName)
         {
             if (string.IsNullOrWhiteSpace(pluginName))
             {
-                throw new ArgumentNullException(nameof(pluginName), "Plugin name cannot be null or empty.");
+                throw new ArgumentNullException(nameof(pluginName), Lang.ServerBuilder_WithPlugin_PluginNameNull);
             }
             this.HostBuilder.ConfigureServices((context, services) =>
             {
-                services.AddSingleton<KernelPlugin>(sp => KernelPluginFactory.CreateFromType<TPlugin>(pluginName, sp));
+                services.AddSingleton(sp => KernelPluginFactory.CreateFromType<TPlugin>(pluginName, sp));
             });
             return this;
         }
 
-        /// <summary>
-        /// 添加插件
-        /// </summary>
-        /// <typeparam name="TPlugin">插件类对应的Type</typeparam>
-        /// <param name="pluginName">插件名称</param>
-        /// <param name="functions">支撑该插件的functions</param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
         public IServerBuilder WithPlugin<TPlugin>(string pluginName, IEnumerable<IFunction> functions)
         {
             if (string.IsNullOrWhiteSpace(pluginName))
             {
-                throw new ArgumentNullException(nameof(pluginName), "Plugin name cannot be null or empty.");
+                throw new ArgumentNullException(nameof(pluginName), Lang.ServerBuilder_WithPlugin_PluginNameNull);
             }
             if (functions == null || !functions.Any())
             {
-                throw new ArgumentNullException(nameof(functions), "Functions cannot be null or empty.");
+                throw new ArgumentNullException(nameof(functions), Lang.ServerBuilder_WithPlugin_FunctionsNull);
             }
 
             IEnumerable<KernelFunction> kernelFunctions = functions.Select(f => KernelFunctionFactory.CreateFromMethod(f.Method, f.FunctionName, f.Description));
             this.HostBuilder.ConfigureServices((context, services) =>
             {
-                services.AddSingleton<KernelPlugin>(sp => KernelPluginFactory.CreateFromFunctions(pluginName, kernelFunctions));
+                services.AddSingleton(sp => KernelPluginFactory.CreateFromFunctions(pluginName, kernelFunctions));
             });
             return this;
         }
@@ -157,10 +131,34 @@ namespace XiaoZhi.Net.Server
             return this;
         }
 
-        /// <summary>
-        /// 构建服务引擎
-        /// </summary>
-        /// <returns></returns>
+        public IServerBuilder WithCulture(string culture = "zh-CN")
+        {
+            if (!string.IsNullOrEmpty(culture))
+            {
+                CultureInfo cultureInfo = new CultureInfo(culture);
+                Lang.Culture = cultureInfo;
+            }
+            else
+            {
+                Lang.Culture = CultureInfo.CurrentCulture;
+            }
+           
+            return this;
+        }
+
+        public IServerBuilder WithCulture(CultureInfo culture)
+        {
+            if (culture is not null)
+            {
+                Lang.Culture = culture;
+            }
+            else
+            {
+                Lang.Culture = CultureInfo.CurrentCulture;
+            }
+
+            return this;
+        }
         public IHost Build()
         {
             IHost host = this.HostBuilder.Build();
@@ -178,13 +176,13 @@ namespace XiaoZhi.Net.Server
             if (!loaded)
             {
                 Serilog.Log.CloseAndFlush();
-                throw new ApplicationException("Failed to load resource components. Please check the configuration and resource implementations.");
+                throw new ApplicationException(Lang.ServerBuilder_BuildComponents_ResourceLoadFailed);
             }
             bool builded = providerManager.BuildComponent(serviceProvider);
             if (!builded)
             {
                 Serilog.Log.CloseAndFlush();
-                throw new ApplicationException("Failed to build provider components. Please check the configuration and provider implementations.");
+                throw new ApplicationException(Lang.ServerBuilder_BuildComponents_ProviderBuildFailed);
             }
         }
     }

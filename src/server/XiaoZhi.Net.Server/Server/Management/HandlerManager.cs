@@ -8,6 +8,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Handlers;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Management
 {
@@ -100,7 +101,7 @@ namespace XiaoZhi.Net.Server.Management
 
             if (!buildResults)
             {
-                this._logger.LogError("Failed to build the handler pipeline for device: {deviceId}.", session.DeviceId);
+                this._logger.LogError(Lang.HandlerManager_InitializePrivateConfig_BuildPipelineFailed, session.DeviceId);
                 return false;
             }
 
@@ -133,7 +134,7 @@ namespace XiaoZhi.Net.Server.Management
             next.PreviousReader = channel.Reader;
 
             Task.Run(next.Handle);
-            this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
+            this._logger?.LogDebug(Lang.HandlerManager_BuildHandlersWorkflow_BuiltWorkflow, previous.GetType().Name, next.GetType().Name);
         }
 
         private void BuildHandlersWorkflow<T1, T2, T3>(int channelCapacity, IOutHandler<T1, T2, T3> previous, IInHandler<T1, T2, T3> next)
@@ -159,7 +160,7 @@ namespace XiaoZhi.Net.Server.Management
             next.PreviousReader3 = channel3.Reader;
             Task.Run(next.Handle3);
 
-            this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous.GetType().Name, next.GetType().Name);
+            this._logger?.LogDebug(Lang.HandlerManager_BuildHandlersWorkflow_BuiltWorkflow, previous.GetType().Name, next.GetType().Name);
         }
 
         private void BuildHandlersWorkflow<T>(int channelCapacity, IOutHandler<T> previous1, IOutHandler<T> previous2, IInHandler<T, T> next)
@@ -180,15 +181,15 @@ namespace XiaoZhi.Net.Server.Management
             next.PreviousReader2 = channel2.Reader;
             Task.Run(next.Handle2);
 
-            this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous1.GetType().Name, next.GetType().Name);
-            this._logger?.LogDebug("Builded the workflow of handlers, previous: {previous} -> next: {next}", previous2.GetType().Name, next.GetType().Name);
+            this._logger?.LogDebug(Lang.HandlerManager_BuildHandlersWorkflow_BuiltWorkflow, previous1.GetType().Name, next.GetType().Name);
+            this._logger?.LogDebug(Lang.HandlerManager_BuildHandlersWorkflow_BuiltWorkflow, previous2.GetType().Name, next.GetType().Name);
         }
 
         private void ScheduleOnAbort(BaseHandler handler)
         {
             handler.OnAbort += (deviceId, sessionId, message) =>
             {
-                this._logger?.LogDebug("Device: {deviceId}, session: {sessionId} abort the tasks, message: {message}.", deviceId, sessionId, message);
+                this._logger?.LogDebug(Lang.HandlerManager_ScheduleOnAbort_Aborted, deviceId, sessionId, message);
             };
         }
     }

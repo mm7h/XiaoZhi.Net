@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Helpers
 {
@@ -27,9 +28,9 @@ namespace XiaoZhi.Net.Server.Helpers
         public void Dispose()
         {
             if (!string.IsNullOrEmpty(this._template))
-                this._logger.LogInformation(this._template, this.ElapsedMilliseconds);
+                this._logger.LogDebug(this._template, this.ElapsedMilliseconds);
             else
-                this._logger.LogInformation("The job finished and took {elapsed:F2} ms.", this.ElapsedMilliseconds);
+                this._logger.LogDebug(Lang.CodeTimer_Dispose_JobFinished, this.ElapsedMilliseconds);
             this._stopwatch.Stop();
         }
     }

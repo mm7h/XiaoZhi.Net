@@ -5,6 +5,7 @@ using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Dtos;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Providers.AudioCodec
 {
@@ -34,12 +35,12 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
 
                 this._resampler = ResamplerFactory.CreateResampler(config.Channels, config.InSampleRate, config.OutSampleRate, 6);
 
-                this.Logger.LogInformation("Builed the default {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogInformation(Lang.DefaultResampler_Build_Built, this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogError(ex, Lang.DefaultResampler_Build_InvalidSettings, this.ProviderType, this.ModelName);
                 return false;
             }
         }
@@ -48,7 +49,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
         {
             if (this._resampler == null)
             {
-                throw new ArgumentNullException("Please build resampler provider first.");
+                throw new ArgumentNullException(Lang.DefaultResampler_ResampleAsync_NotBuilt);
             }
 
             // 计算输出缓冲区大小：输出采样率/输入采样率 * 输入长度，向上取整以确保足够空间

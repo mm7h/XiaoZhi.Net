@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Helpers
 {
@@ -115,11 +116,11 @@ namespace XiaoZhi.Net.Server.Helpers
             {
                 // 只有一行
                 string onlyLineStr = string.Join(", ", parsedTable[0]);
-                linesForTts.Add($"单行表格：{onlyLineStr}");
+                linesForTts.Add(string.Format(Lang.MarkdownCleaner_ReplaceTableBlock_SingleLineTable, onlyLineStr));
             }
             else
             {
-                linesForTts.Add($"表头是：{string.Join(", ", headers)}");
+                linesForTts.Add(string.Format(Lang.MarkdownCleaner_ReplaceTableBlock_TableHeader, string.Join(", ", headers)));
                 
                 for (int i = 0; i < dataRows.Count; i++)
                 {
@@ -138,11 +139,11 @@ namespace XiaoZhi.Net.Server.Helpers
                         }
                     }
                     
-                    linesForTts.Add($"第 {i + 1} 行：{string.Join(", ", rowStrList)}");
+                    linesForTts.Add(string.Format(Lang.MarkdownCleaner_ReplaceTableBlock_RowContent, i + 1, string.Join(", ", rowStrList)));
                 }
             }
 
             return string.Join("。", linesForTts);
         }
     }
-} 
+}

@@ -10,6 +10,7 @@ using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
@@ -90,7 +91,7 @@ Assistant Sentence: ""{{$latestSentence}}""</message>";
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Failed to build EmotionAgent.");
+                this.Logger.LogError(ex, Lang.EmotionAgent_Build_BuildFailed);
                 return false;
             }
         }
@@ -107,7 +108,7 @@ Assistant Sentence: ""{{$latestSentence}}""</message>";
             }
             if (this._kernel is null || this._emotionFunction is null)
             {
-                throw new InvalidOperationException("Emotion agent is not builded yet.");
+                throw new InvalidOperationException(Lang.EmotionAgent_AnalyzeEmotionAsync_AgentNotBuilt);
             }
             if (string.IsNullOrEmpty(latestSentence))
             { 
@@ -130,12 +131,12 @@ Assistant Sentence: ""{{$latestSentence}}""</message>";
             }
             catch (OperationCanceledException)
             {
-                this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
+                this.Logger.LogWarning(Lang.EmotionAgent_AnalyzeEmotionAsync_UserCanceled, this.ProviderType);
                 throw;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
+                this.Logger.LogError(ex, Lang.EmotionAgent_AnalyzeEmotionAsync_UnexpectedError, this.ProviderType);
                 throw;
             }
         }

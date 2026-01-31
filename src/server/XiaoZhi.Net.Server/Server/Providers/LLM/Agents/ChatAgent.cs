@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.LLM.Plugins;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
@@ -57,18 +58,18 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
                 if (pluginsBuildResult)
                 {
-                    this.Logger.LogInformation("Builded the {providerType} model {modelName}.", this.ProviderType, this.ModelName);
+                    this.Logger.LogInformation(Lang.ChatAgent_Build_Built, this.ProviderType, this.ModelName);
                     return true;
                 }
                 else
                 {
-                    this.Logger.LogError("Failed to build the plugins for {providerType} model {modelName}.", this.ProviderType, this.ModelName);
+                    this.Logger.LogError(Lang.ChatAgent_Build_BuildPluginsFailed, this.ProviderType, this.ModelName);
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Failed to build ChatAgent.");
+                this.Logger.LogError(ex, Lang.ChatAgent_Build_BuildFailed);
                 return false;
             }
         }
@@ -82,7 +83,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                     if (item is ILLMPlugin llmPlugin)
                     {
                         llmPlugin.RegisterDevice(deviceId, sessionId);
-                        this.Logger.LogInformation("LLM plugin {pluginName} registered for device: {deviceId}.", llmPlugin.ModelName, deviceId);
+                        this.Logger.LogInformation(Lang.ChatAgent_RegisterDevice_PluginRegistered, llmPlugin.ModelName, deviceId);
                     }
                 }
             }
@@ -97,7 +98,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             }
             if (this._chatAgentService is null)
             {
-                throw new InvalidOperationException("Chat agent is not builded yet.");
+                throw new InvalidOperationException(Lang.ChatAgent_GenerateChatResponseAsync_AgentNotBuilt);
             }
             this.ChatHistory.AddUserMessage(userMessage);
 
@@ -118,7 +119,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             }
             if (this._chatAgentService is null)
             {
-                throw new InvalidOperationException("Chat agent is not builded yet.");
+                throw new InvalidOperationException(Lang.ChatAgent_GenerateChatResponseAsync_AgentNotBuilt);
             }
             this.ChatHistory.AddUserMessage(userMessage);
 

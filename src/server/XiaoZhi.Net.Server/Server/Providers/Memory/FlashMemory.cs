@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Store;
 using XiaoZhi.Net.Server.Common.Dtos;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Store;
 
 namespace XiaoZhi.Net.Server.Providers.Memory
@@ -19,7 +20,7 @@ namespace XiaoZhi.Net.Server.Providers.Memory
         public override string ProviderType => "memory";
         public override bool Build(ModelSetting modelSetting)
         {
-            this.Logger.LogInformation("Builded the default {providerType}: {flashMemory}", this.ProviderType, "flash memory");
+            this.Logger.LogInformation(Lang.FlashMemory_Build_Built, this.ProviderType, this.ModelName);
             return true;
         }
 

@@ -5,6 +5,7 @@ using System.Buffers;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Protocol.WebSocket.Contexts;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
@@ -15,7 +16,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
         {
             if (appSession is null || package is null)
             {
-                throw new ArgumentNullException("Session or package cannot be null.");
+                throw new ArgumentNullException(Lang.MessageDispatch_DispatchAsync_ArgumentNull);
             }
             if (appSession is SocketSession session && session.XiaoZhiSession is not null)
             {

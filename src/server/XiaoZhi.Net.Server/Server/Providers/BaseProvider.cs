@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using XiaoZhi.Net.Server.Common.Constants;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Providers
 {
@@ -30,21 +31,21 @@ namespace XiaoZhi.Net.Server.Providers
         {
             this.DeviceId = deviceId;
             this.SessionId = sessionId;
-            this.Logger.LogInformation("Registered device [{deviceId}] with session id: {sessionId} to the provider {providerType}.", this.DeviceId, this.SessionId, this.ProviderType);
+            this.Logger.LogInformation(Lang.BaseProvider_RegisterDevice_Registered, this.DeviceId, this.SessionId, this.ProviderType);
         }
 
         public virtual void UnregisterDevice(string deviceId, string sessionId)
         {
             this.DeviceId = string.Empty;
             this.SessionId = string.Empty;
-            this.Logger.LogInformation("Unregistered device [{deviceId}] with session id: {sessionId} from the provider {providerType}.", this.DeviceId, this.SessionId, this.ProviderType);
+            this.Logger.LogInformation(Lang.BaseProvider_UnregisterDevice_Unregistered, this.DeviceId, this.SessionId, this.ProviderType);
         }
 
         protected bool CheckDeviceRegistered()
         {
             if (string.IsNullOrEmpty(this.DeviceId) || string.IsNullOrEmpty(this.SessionId))
             {
-                this.Logger.LogError("The device [{deviceId}] with session id: {sessionId} is not registered to the provider {providerType}.", string.IsNullOrEmpty(this.DeviceId) ? "unkonwn" : this.DeviceId, string.IsNullOrEmpty(this.SessionId) ? "unkonwn" : this.SessionId, this.ProviderType);
+                this.Logger.LogError(Lang.BaseProvider_CheckDeviceRegistered_NotRegistered, string.IsNullOrEmpty(this.DeviceId) ? "unkonwn" : this.DeviceId, string.IsNullOrEmpty(this.SessionId) ? "unkonwn" : this.SessionId, this.ProviderType);
                 return false;
             }
             return true;
@@ -56,7 +57,7 @@ namespace XiaoZhi.Net.Server.Providers
             bool exist = File.Exists(modelFilePath);
             if (!exist)
             {
-                this.Logger.LogError("Cannot found the model file in path: {modelFilePath}.", modelFilePath);
+                this.Logger.LogError(Lang.BaseProvider_CheckModelExist_NotFound, modelFilePath);
             }
             return exist;
         }
@@ -70,7 +71,7 @@ namespace XiaoZhi.Net.Server.Providers
         {
             if (string.IsNullOrWhiteSpace(deviceId))
             {
-                throw new ArgumentException("Device id cannot be null or empty.", nameof(deviceId));
+                throw new ArgumentException(Lang.BaseProvider_ReplaceMacDelimiters_DeviceIdNull, nameof(deviceId));
             }
 
             return Regex.Replace(deviceId, @"[^a-fA-F0-9]", newDelimiter);

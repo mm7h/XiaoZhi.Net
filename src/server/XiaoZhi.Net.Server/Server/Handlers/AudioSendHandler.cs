@@ -5,6 +5,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media.Abstractions.Dtos;
 using XiaoZhi.Net.Server.Providers;
 
@@ -34,13 +35,13 @@ namespace XiaoZhi.Net.Server.Handlers
 
             if (privateProvider.AudioProcessor is null)
             {
-                this.Logger.LogError("Audio processor is not configured for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.AudioSendHandler_Build_AudioProcessorNotConfigured, session.DeviceId);
                 return false;
             }
 
             if (privateProvider.AudioEncoder is null)
             {
-                this.Logger.LogError("Audio encoder is not configured for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.AudioSendHandler_Build_AudioEncoderNotConfigured, session.DeviceId);
                 return false;
             }
 
@@ -81,12 +82,12 @@ namespace XiaoZhi.Net.Server.Handlers
 
             if (this._audioProcessor is null)
             {
-                this.Logger.LogError("Audio processor is not configured for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.AudioSendHandler_Handle_AudioProcessorNotConfigured, session.DeviceId);
                 return;
             }
             if (this._audioEncoder is null)
             {
-                this.Logger.LogError("Audio encoder is not configured for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.AudioSendHandler_Handle_AudioEncoderNotConfigured, session.DeviceId);
                 return;
             }
             try
@@ -102,7 +103,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 if (audioPacket.IsFirstFrame)
                 {
                     await this.SendOutter.SendTtsMessageAsync(TtsStatus.Start);
-                    this.Logger.LogDebug("Send the first audio frame from the device: {deviceId}.", session.DeviceId);
+                    this.Logger.LogDebug(Lang.AudioSendHandler_Handle_FirstFrame, session.DeviceId);
                 }
 
                 if (audioPacket.Data is not null && audioPacket.Data.Length > 0)
@@ -114,7 +115,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 if (audioPacket.IsLastFrame)
                 {
                     await this.SendOutter.SendTtsMessageAsync(TtsStatus.Stop);
-                    this.Logger.LogDebug("Send the last audio frame from the device: {deviceId}.", session.DeviceId);
+                    this.Logger.LogDebug(Lang.AudioSendHandler_Handle_LastFrame, session.DeviceId);
                     if (session.CloseAfterChat)
                     {
                         await this.SendOutter.CloseSessionAsync("Close Chat");
@@ -123,7 +124,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                this.Logger.LogError(ex, "Failed to process the audio sending packet from device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(ex, Lang.AudioSendHandler_Handle_ProcessFailed, session.DeviceId);
             }
         }
 

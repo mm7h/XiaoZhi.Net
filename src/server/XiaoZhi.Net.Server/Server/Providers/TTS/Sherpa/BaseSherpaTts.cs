@@ -10,19 +10,20 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 {
     internal abstract class BaseSherpaTts<TLogger> : BaseProvider<TLogger, ModelSetting>, ITts
     {
-        private readonly ConcurrentDictionary<string, ITtsEventCallback> _ttsEventCallbackMapping;
+        private readonly ConcurrentDictionary<string, ITtsEventCallback> _ttsSessions;
         private OfflineTts? _offlineTts;
 
 
 
         protected BaseSherpaTts(ILogger<TLogger> logger) : base(logger)
         {
-            this._ttsEventCallbackMapping = new ConcurrentDictionary<string, ITtsEventCallback>();
+            this._ttsSessions = new ConcurrentDictionary<string, ITtsEventCallback>();
         }
         public override string ProviderType => "tts";
 
@@ -37,17 +38,42 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
             return this._offlineTts?.SampleRate ?? 24000;
         }
 
+        protected void Build(OfflineTtsConfig offlineTtsConfig, ModelSetting modelSetting)
+        {
+            offlineTtsConfig.Model.NumThreads = 2;
+            offlineTtsConfig.Model.Provider = "cpu";
+
+            this.Save2File = modelSetting.Config.GetConfigValueOrDefault("Save2File", false);
+            this.SpeechRate = modelSetting.Config.GetConfigValueOrDefault("SpeechRate", 1.0f);
+            this.SpeakerId = modelSetting.Config.GetConfigValueOrDefault("SpeakerId", 50);
+
+            if (this.Save2File)
+            {
+                this.SavePath = modelSetting.Config.GetConfigValueOrDefault("SavePath", Path.Combine(Environment.CurrentDirectory, "data", "tts-cache"));
+                if (!Directory.Exists(this.SavePath))
+                    Directory.CreateDirectory(this.SavePath);
+            }
+            this._offlineTts = new OfflineTts(offlineTtsConfig);
+        }
 
         public void RegisterDevice(string deviceId, string sessionId, ITtsEventCallback callback)
         {
-            this._ttsEventCallbackMapping.TryAdd(deviceId, callback);
+            this._ttsSessions.TryAdd(deviceId, callback);
+        }
+
+        public override void UnregisterDevice(string deviceId, string sessionId)
+        {
+            if (this._ttsSessions.TryRemove(deviceId, out _))
+            {
+                this.Logger.LogDebug(Lang.BaseSherpaTts_UnregisterDevice_Unregistered, deviceId, sessionId);
+            }
         }
 
         public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
         {
             if (this._offlineTts == null)
             {
-                throw new ArgumentNullException("Please build tts provider first.");
+                throw new ArgumentNullException(Lang.BaseSherpaTts_SynthesisAsync_ProviderNotBuilt);
             }
 
             try
@@ -56,11 +82,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 
                 if (string.IsNullOrEmpty(segment.ParagraphId) || string.IsNullOrEmpty(segment.SentenceId))
                 {
-                    this.Logger.LogWarning("Failed to process segment due to missing paragraph id or sentence id.");
+                    this.Logger.LogWarning(Lang.BaseSherpaTts_SynthesisAsync_MissingIds);
                     return;
                 }
 
-                if (this._ttsEventCallbackMapping.TryGetValue(workflow.DeviceId, out ITtsEventCallback? sessionCallback) && sessionCallback is not null)
+                if (this._ttsSessions.TryGetValue(workflow.DeviceId, out ITtsEventCallback? sessionCallback) && sessionCallback is not null)
                 {
                     Stopwatch timer = Stopwatch.StartNew();
 
@@ -113,54 +139,36 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
                         bool saved = audio.SaveToWaveFile(filePath);
                         if (saved)
                         {
-                            this.Logger.LogDebug("Saved tts wave file {fileName} successed, the duration of file is: {duration}s.", fileName, this.FormatDuration(duration));
+                            this.Logger.LogDebug(Lang.BaseSherpaTts_SynthesisAsync_FileSaved, fileName, this.FormatDuration(duration));
                         }
                         else
                         {
-                            this.Logger.LogDebug("Failed to save tts wave file {fileName}.", fileName);
+                            this.Logger.LogDebug(Lang.BaseSherpaTts_SynthesisAsync_SaveFailed, fileName);
                         }
                     }
                     else
                     {
-                        this.Logger.LogDebug("TTS generated success, the duration of the voice is: {duration}.", this.FormatDuration(duration));
+                        this.Logger.LogDebug(Lang.BaseSherpaTts_SynthesisAsync_Generated, this.FormatDuration(duration));
                     }
                     audio.Dispose();
                     timer.Stop();
                 }
                 else
                 {
-                    this.Logger.LogError("TTS event callback is not registered for device {deviceId}.", workflow.DeviceId);
+                    this.Logger.LogError(Lang.BaseSherpaTts_SynthesisAsync_CallbackNotRegistered, workflow.DeviceId);
                 }
                 await Task.CompletedTask;
 
             }
             catch (OperationCanceledException)
             {
-                this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
+                this.Logger.LogWarning(Lang.BaseSherpaTts_SynthesisAsync_UserCanceled, this.ProviderType);
                 throw;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
+                this.Logger.LogError(ex, Lang.BaseSherpaTts_SynthesisAsync_UnexpectedError, this.ProviderType);
             }
-        }
-
-        protected void Build(OfflineTtsConfig offlineTtsConfig, ModelSetting modelSetting)
-        {
-            offlineTtsConfig.Model.NumThreads = 2;
-            offlineTtsConfig.Model.Provider = "cpu";
-
-            this.Save2File = modelSetting.Config.GetConfigValueOrDefault("Save2File", false);
-            this.SpeechRate = modelSetting.Config.GetConfigValueOrDefault("SpeechRate", 1.0f);
-            this.SpeakerId = modelSetting.Config.GetConfigValueOrDefault("SpeakerId", 50);
-
-            if (this.Save2File)
-            {
-                this.SavePath = modelSetting.Config.GetConfigValueOrDefault("SavePath", Path.Combine(Environment.CurrentDirectory, "data", "tts-cache"));
-                if (!Directory.Exists(this.SavePath))
-                    Directory.CreateDirectory(this.SavePath);
-            }
-            this._offlineTts = new OfflineTts(offlineTtsConfig);
         }
 
         private double CalculateDuration(int sampleRate, int numSamples)

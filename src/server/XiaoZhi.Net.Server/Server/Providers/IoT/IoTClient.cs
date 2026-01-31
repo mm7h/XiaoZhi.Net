@@ -11,6 +11,7 @@ using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Providers.IoT
 {
@@ -135,7 +136,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                         KernelFunctionFromMethodOptions propertyFunctionOption = new KernelFunctionFromMethodOptions
                         {
                             FunctionName = $"get_{iotDeviceComponentName.ToLower()}_{propName.ToLower()}",
-                            Description = $"获取或者查询 `{propDescription}` 的状态或者值的方法",
+                            Description = string.Format(Lang.IoTClient_RegisterIoTTools_FunctionDescription, propDescription),
                             AdditionalMetadata = new ReadOnlyDictionary<string, object?>(propertyDic),
                             ReturnParameter = new KernelReturnParameterMetadata { ParameterType = IoTTypeMappingHelper.GetIoTType(propType), Schema = KernelJsonSchema.Parse(propObj.ToJsonString()) }
                         };
@@ -195,7 +196,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                     }
                 }
 
-                this.CurrentSession.PrivateProvider.Kernel.ImportPluginFromFunctions(pluginName, $"用于管理或者操控 `{(!string.IsNullOrEmpty(iotDeviceComponentName) ? iotDeviceComponentName : deviceDescription)}` 设备状态或者功能的插件。后面的数字序号只是用于编号，没有其他意义。", deviceFunctions);
+                this.CurrentSession.PrivateProvider.Kernel.ImportPluginFromFunctions(pluginName, string.Format(Lang.IoTClient_RegisterIoTTools_PluginDescription, !string.IsNullOrEmpty(iotDeviceComponentName) ? iotDeviceComponentName : deviceDescription), deviceFunctions);
             }
         }
 
@@ -263,7 +264,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
             if (item is not null)
             {
                 item.StatusValue = itemValue;
-                this.Logger.LogInformation("Session {sessionId} set the iot status / value, key: {key}, value: {value}", this.CurrentSession.SessionId, propName, itemValue);
+                this.Logger.LogInformation(Lang.IoTClient_SetIoTPropertyStatusValue_SetStatus, this.CurrentSession.SessionId, propName, itemValue);
             }
         }
 
@@ -271,7 +272,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
         {
             if (message == null)
             {
-                throw new ArgumentNullException(nameof(message), "Message cannot be null.");
+                throw new ArgumentNullException(nameof(message), Lang.IoTClient_SendIoTMessageAsync_MessageNull);
             }
             var mcpMessage = new
             {

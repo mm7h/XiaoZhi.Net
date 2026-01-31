@@ -5,6 +5,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
@@ -39,7 +40,7 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             if (privateProvider.AudioProcessor is null)
             {
-                this.Logger.LogError("Audio processor is not configured for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.AudioProcessorHandler_Build_AudioProcessorNotConfigured, session.DeviceId);
                 return false;
             }
             this._audioProcessor = privateProvider.AudioProcessor;
@@ -115,7 +116,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             if (this._audioProcessor is null)
             {
-                this.Logger.LogError("Audio processor is not built for device {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.AudioProcessorHandler_Handle_AudioProcessorNotBuilt, session.DeviceId);
                 return;
             }
 
@@ -145,7 +146,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                this.Logger.LogError(ex, "Failed to process the audio segment from device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(ex, Lang.AudioProcessorHandler_Handle_ProcessFailed, session.DeviceId);
             }
         }
 

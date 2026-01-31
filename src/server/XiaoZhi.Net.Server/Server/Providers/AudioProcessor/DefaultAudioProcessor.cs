@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Media.Abstractions.Dtos;
 
@@ -30,7 +31,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
             {
                 if (this._audioMixer.IsInitialized)
                 {
-                    this.Logger.LogWarning("The audio mixer has been initialized, no need to initialize again.");
+                    this.Logger.LogWarning(Lang.DefaultAudioProcessor_Build_Initialized);
                     return true;
                 }
                 this._audioMixer.Initialize(settings.SampleRate, settings.Channels, settings.FrameDuration, null);
@@ -40,7 +41,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogError(ex, Lang.DefaultAudioProcessor_Build_InvalidSettings, this.ProviderType, this.ModelName);
                 return false;
             }
         }

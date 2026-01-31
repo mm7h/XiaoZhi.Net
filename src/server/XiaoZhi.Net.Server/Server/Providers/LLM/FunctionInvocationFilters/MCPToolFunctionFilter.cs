@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.MCP;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
@@ -31,7 +32,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
                     {
                         if (session.PrivateProvider.McpClient is null)
                         {
-                            this._logger.LogWarning("MCP Client is not initialized for device: {deviceId}.", session.DeviceId);
+                            this._logger.LogWarning(Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_McpClientNotInit, session.DeviceId);
                             await next(context);
                             return;
                         }
@@ -39,7 +40,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
 
                         if (subMcpClient is null)
                         {
-                            throw new InvalidOperationException($"SubMcpClient with type name '{context.Function.PluginName}' not found.");
+                            throw new InvalidOperationException(string.Format(Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_SubMcpClientNotFound, context.Function.PluginName));
                         }
 
                         string callResult = await subMcpClient.CallMcpToolAsync(context.Function.Name, context.Arguments);
@@ -47,8 +48,8 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Failed to invoke the MCP tool function: {FunctionName} in plugin: {PluginName}.", context.Function.Name, context.Function.PluginName);
-                        string failedMessage = $"Failed to invoke the MCP tool function: {context.Function.Name} in plugin: {context.Function.PluginName}, and the error message is: {ex.Message}.";
+                        _logger.LogError(ex, Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeMcpFailed, context.Function.Name, context.Function.PluginName);
+                        string failedMessage = string.Format(Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeMcpFailedDetail, context.Function.Name, context.Function.PluginName, ex.Message);
                         context.Result = new FunctionResult(context.Result, failedMessage);
                     }
                 }
@@ -58,7 +59,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
                     {
                         if (session.PrivateProvider.IoTClient is null)
                         {
-                            this._logger.LogWarning("IoT Client is not initialized for device: {deviceId}.", session.DeviceId);
+                            this._logger.LogWarning(Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_IoTClientNotInit, session.DeviceId);
                             await next(context);
                             return;
                         }
@@ -69,7 +70,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
                             Type? returnValueType = context.Function.Metadata.ReturnParameter.ParameterType;
                             if (returnValueType is null)
                             {
-                                throw new InvalidOperationException($"Return type for function '{context.Function.Name}' in plugin '{context.Function.PluginName}' is not specified.");
+                                throw new InvalidOperationException(string.Format(Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_ReturnTypeNotSpecified, context.Function.Name, context.Function.PluginName));
                             }
                             else
                             {
@@ -87,18 +88,18 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
                                 string iotDeviceComponentName = match.Groups[1].Value;
                                 await session.PrivateProvider.IoTClient.ExecuteIoTCommand(iotDeviceComponentName, context.Function.Name, context.Function.Metadata.Parameters, context.Arguments);
 
-                                context.Result = new FunctionResult(context.Result, "Invoke the iot command successfully.");
+                                context.Result = new FunctionResult(context.Result, Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTSuccess);
                             }
                             else
                             {
-                                throw new InvalidOperationException($"Invalid IoT component name format in plugin '{context.Function.PluginName}'.");
+                                throw new InvalidOperationException(string.Format(Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_InvalidIoTName, context.Function.PluginName));
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Failed to invoke the IoT tool function: {FunctionName} in plugin: {PluginName}.", context.Function.Name, context.Function.PluginName);
-                        string failedMessage = $"Failed to invoke the IoT tool function: {context.Function.Name} in plugin: {context.Function.PluginName}, and the error message is: {ex.Message}.";
+                        _logger.LogError(ex, Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailed, context.Function.Name, context.Function.PluginName);
+                        string failedMessage = string.Format(Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailedDetail, context.Function.Name, context.Function.PluginName, ex.Message);
                         context.Result = new FunctionResult(context.Result, failedMessage);
                     }
                 }

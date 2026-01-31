@@ -5,17 +5,19 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers;
+using XiaoZhi.Net.Server.Providers.ASR;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
-    internal class Audio2TextHandler : BaseHandler, IInHandler<float[]>, IOutHandler<string>
+    internal class Audio2TextHandler : BaseHandler, IInHandler<float[]>, IOutHandler<string>, IAsrEventCallback
     {
         private readonly ObjectPool<Workflow<float[]>> _audioBufferWorkflowPool;
         private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;
         private IAsr? _asr;
 
-        public Audio2TextHandler(ObjectPool<Workflow<float[]>> circularBufferWorkflowPool, 
+        public Audio2TextHandler(ObjectPool<Workflow<float[]>> circularBufferWorkflowPool,
             ObjectPool<Workflow<string>> stringWorkflowPool,
             XiaoZhiConfig config,
             ILogger<Audio2TextHandler> logger) : base(config, logger)
@@ -33,11 +35,11 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             if (privateProvider.Asr is null)
             {
-                this.Logger.LogError("ASR provider is not configured for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.Audio2TextHandler_Build_AsrNotConfigured, session.DeviceId);
                 return false;
             }
             this._asr = privateProvider.Asr;
-            this._asr.RegisterDevice(session.DeviceId, session.SessionId);
+            this._asr.RegisterDevice(session.DeviceId, session.SessionId, this);
             this.RegisterCancellationToken();
             return true;
         }
@@ -72,7 +74,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             if (this._asr is null)
             {
-                this.Logger.LogError("ASR provider is not configured for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.Audio2TextHandler_Build_AsrNotConfigured, session.DeviceId);
                 return;
             }
             try
@@ -85,30 +87,49 @@ namespace XiaoZhi.Net.Server.Handlers
                     return;
                 }
 
-                string speechText = await this._asr.ConvertSpeechTextAsync(workflow, this.Config.AudioSetting.SampleRate, this.Config.AudioSetting.FrameSize, this.HandlerToken);
-
-                if (string.IsNullOrEmpty(speechText) || string.IsNullOrEmpty(DialogueHelper.GetStringNoPunctuationOrEmoji(speechText)))
-                {
-                    session.Reset();
-                    this.Logger.LogDebug("Device {deviceId} no speak.", session.DeviceId);
-                    return;
-                }
-
-                await this.SendOutter.SendSttMessageAsync(speechText);
-                this.Logger.LogDebug("Device {deviceId} speak the text: {speechText}", session.DeviceId, speechText);
-
-                var nextWorkflow = this._stringWorkflowPool.Get();
-                nextWorkflow.Initialize(session, speechText);
-                await this.NextWriter.WriteAsync(nextWorkflow);
+                await this._asr.ConvertSpeechTextAsync(workflow, this.Config.AudioSetting.SampleRate, this.Config.AudioSetting.FrameSize, this.HandlerToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                this.Logger.LogError(ex, "Failed to process the audio to text packet from device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(ex, Lang.Audio2TextHandler_Handle_ProcessFailed, session.DeviceId);
             }
+        }
+
+        public void OnSpeechTextConverted(bool success, string speechText)
+        {
+            Session session = this.SendOutter.GetSession();
+            if (session is null)
+            {
+                return;
+            }
+            if (!success)
+            {
+                this.Logger.LogError(Lang.Audio2TextHandler_OnSpeechTextConverted_ConvertFailed);
+                return;
+            }
+            if (string.IsNullOrEmpty(speechText) || string.IsNullOrEmpty(DialogueHelper.GetStringNoPunctuationOrEmoji(speechText)))
+            {
+                session.Reset();
+                this.Logger.LogDebug(Lang.Audio2TextHandler_OnSpeechTextConverted_NoSpeak, session.DeviceId);
+                return;
+            }
+
+            this.SendOutter.SendSttMessageAsync(speechText);
+            this.Logger.LogDebug(Lang.Audio2TextHandler_OnSpeechTextConverted_SpeakText, session.DeviceId, speechText);
+
+            var nextWorkflow = this._stringWorkflowPool.Get();
+            nextWorkflow.Initialize(session, speechText);
+            this.NextWriter.WriteAsync(nextWorkflow);
         }
 
         public override void Dispose()
         {
+            Session session = this.SendOutter.GetSession();
+            if (session is null)
+            {
+                return;
+            }
+            this._asr?.UnregisterDevice(session.DeviceId, session.SessionId);
             this.NextWriter.Complete();
             base.Dispose();
         }

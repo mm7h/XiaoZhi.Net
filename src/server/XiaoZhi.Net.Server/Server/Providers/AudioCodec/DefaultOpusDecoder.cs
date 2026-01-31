@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Providers.AudioCodec
 {
@@ -32,12 +33,12 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
                 this.FrameSize = audioSetting.FrameSize;
 
                 this._decoder = OpusCodecFactory.CreateDecoder(audioSetting.SampleRate, audioSetting.Channels);
-                this.Logger.LogInformation("Builded the default {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogInformation(Lang.DefaultOpusDecoder_Build_Built, this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogError(ex, Lang.DefaultOpusDecoder_Build_InvalidSettings, this.ProviderType, this.ModelName);
                 return false;
             }
         }
@@ -51,7 +52,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
         {
             if (this._decoder == null)
             {
-                throw new ArgumentNullException("Please build opus provider first.");
+                throw new ArgumentNullException(Lang.DefaultOpusDecoder_DecodeAsync_NotBuilt);
             }
             try
             {

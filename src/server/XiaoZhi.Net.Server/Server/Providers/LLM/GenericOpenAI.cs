@@ -13,6 +13,7 @@ using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
 {
@@ -68,7 +69,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogError(ex, Lang.GenericOpenAI_Build_InvalidSettings, this.ProviderType, this.ModelName);
                 return false;
             }
         }
@@ -90,7 +91,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
             if (!this._subAgents.Any() || this._kernel is null)
             {
-                this.Logger.LogError("The {providerType} model: {modelName} is not built.", this.ProviderType, this.ModelName);
+                this.Logger.LogError(Lang.GenericOpenAI_StartDialogueAsync_NotBuilt, this.ProviderType, this.ModelName);
                 return;
             }
             if (this._chatAgent.UseStreaming)
@@ -140,7 +141,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                     token.ThrowIfCancellationRequested();
                     index++;
                     Emotion detectedEmotion = await this._emotionAgent.AnalyzeEmotionAsync(userMessage, sentence, token);
-                    this.Logger.LogDebug("Detected emotion: {detectedEmotion} for segment: {segment}", detectedEmotion, sentence);
+                    this.Logger.LogDebug(Lang.GenericOpenAI_ChatAsync_EmotionDetected, detectedEmotion, sentence);
 
                     var outSegment = this._outSegmentPool.Get();
                     outSegment.Initialize(sentence, index == 1, index == count, detectedEmotion, paragraphId, this.GenerateSentenceId(paragraphId));
@@ -153,12 +154,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
             catch (OperationCanceledException)
             {
-                this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
+                this.Logger.LogWarning(Lang.GenericOpenAI_ChatAsync_UserCanceled, this.ProviderType);
                 throw;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
+                this.Logger.LogError(ex, Lang.GenericOpenAI_ChatAsync_UnexpectedError, this.ProviderType);
             }
         }
 
@@ -176,7 +177,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                     token.ThrowIfCancellationRequested();
 
                     Emotion detectedEmotion = await this._emotionAgent.AnalyzeEmotionAsync(userMessage, sentence, token);
-                    this.Logger.LogDebug("Detected emotion: {detectedEmotion} for segment: {segment}", detectedEmotion, sentence);
+                    this.Logger.LogDebug(Lang.GenericOpenAI_ChatAsync_EmotionDetected, detectedEmotion, sentence);
 
                     var outSegment = this._outSegmentPool.Get();
                     outSegment.Initialize(sentence, detectedEmotion, paragraphId, this.GenerateSentenceId(paragraphId));
@@ -203,12 +204,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
             catch (OperationCanceledException)
             {
-                this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
+                this.Logger.LogWarning(Lang.GenericOpenAI_ChatAsync_UserCanceled, this.ProviderType);
                 throw;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
+                this.Logger.LogError(ex, Lang.GenericOpenAI_ChatAsync_UnexpectedError, this.ProviderType);
             }
         }
 

@@ -6,6 +6,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Management;
 using XiaoZhi.Net.Server.Providers.MCP;
 
@@ -47,7 +48,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
 
 #if DEBUG
-            this.Logger.LogDebug("Received text from client: {jsonText}", jsonObject?.ToJsonString());
+            this.Logger.LogDebug(Lang.TextHandler_Handle_ReceivedText, jsonObject?.ToJsonString());
 #endif
 
             if (jsonObject is JsonObject jsonObj)
@@ -55,7 +56,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 string? type = jsonObj["type"]?.GetValue<string>()?.ToLower();
                 if (string.IsNullOrEmpty(type))
                 {
-                    this.Logger.LogError("Invalid type for text message handle.");
+                    this.Logger.LogError(Lang.TextHandler_Handle_InvalidType);
                     return;
                 }
 
@@ -84,10 +85,10 @@ namespace XiaoZhi.Net.Server.Handlers
         private async Task HandleAbortMessage()
         {
             Session session = this.SendOutter.GetSession();
-            this.Logger.LogInformation("Abort message received");
+            this.Logger.LogInformation(Lang.TextHandler_HandleAbortMessage_Received);
             await this.SendOutter.SendAbortMessageAsync();
             session.Abort();
-            this.Logger.LogInformation("Abort message received-end, cancelled the tasks.");
+            this.Logger.LogInformation(Lang.TextHandler_HandleAbortMessage_Cancelled);
         }
 
         private async void HandleListen(JsonObject jsonObject)
@@ -97,7 +98,7 @@ namespace XiaoZhi.Net.Server.Handlers
             if (!string.IsNullOrEmpty(mode))
             {
                 session.SetListenMode(mode);
-                this.Logger.LogInformation("Client voice listening mode setting is: {mode}", mode);
+                this.Logger.LogInformation(Lang.TextHandler_HandleListen_ModeSetting, mode);
             }
 
             string? state = jsonObject["state"]?.GetValue<string>()?.ToLower();
@@ -135,7 +136,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             if (session.PrivateProvider.IoTClient is null)
             {
-                this.Logger.LogError("IoT Client is not initialized for device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.TextHandler_HandleIotDescriptors_ClientNotInit, session.DeviceId);
                 return;
             }
             session.PrivateProvider.IoTClient.HandleIoTMessage(jsonObject);
@@ -153,7 +154,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
                 else
                 {
-                    this.Logger.LogError("DeviceMcpClient not found in session {sessionId}.", session.SessionId);
+                    this.Logger.LogError(Lang.TextHandler_HandleMcp_ClientNotFound, session.SessionId);
                 }
             }
 

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Management;
 
 namespace XiaoZhi.Net.Server.Handlers
@@ -74,7 +75,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             else
             {
-                this.Logger.LogError("Failed to initialize providers or handlers for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.HelloMessageHandler_Handle_InitFailed, session.DeviceId);
             }
         }
     }

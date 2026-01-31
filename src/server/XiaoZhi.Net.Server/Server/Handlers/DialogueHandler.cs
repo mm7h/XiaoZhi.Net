@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Handlers
@@ -41,7 +42,7 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             if (privateProvider.Llm is null)
             {
-                this.Logger.LogError("LLM provider is not configured for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.DialogueHandler_Build_LlmNotConfigured, session.DeviceId);
                 return false;
             }
 
@@ -99,7 +100,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             if (this._llm is null)
             {
-                this.Logger.LogError("LLM provider is not configured for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.DialogueHandler_Handle_LlmNotConfigured, session.DeviceId);
                 return;
             }
 
@@ -116,14 +117,14 @@ namespace XiaoZhi.Net.Server.Handlers
 
             try
             {
-                using (CodeTimer timer = CodeTimer.Create("Calling the LLM takes {elapsed:F2} ms.", this.Logger))
+                using (CodeTimer timer = CodeTimer.Create(Lang.DialogueHandler_Handle_LlmCallTime, this.Logger))
                 {
                     await this._llm.StartDialogueAsync(workflow.Data, this.HandlerToken);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                this.Logger.LogError(ex, "Failed to process the llm dialogue from device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(ex, Lang.DialogueHandler_Handle_ProcessFailed, session.DeviceId);
             }
         }
 
@@ -135,7 +136,7 @@ namespace XiaoZhi.Net.Server.Handlers
         private void OnBeforeTokenGenerate()
         {
             this.SendOutter.SendLlmMessageAsync(Emotion.Thinking);
-            this.SendOutter.SendSttMessageAsync("思考中...");
+            this.SendOutter.SendSttMessageAsync(Lang.DialogueHandler_OnBeforeTokenGenerate_Thinking);
         }
 
         private async void OnTokenGenerating(OutSegment outSegment)
@@ -160,7 +161,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
-            this.Logger.LogDebug("LLM's response text: {content}", string.Join(string.Empty, outSegments.Select(o => o.Content)));
+            this.Logger.LogDebug(Lang.DialogueHandler_OnTokenGenerated_ResponseText, string.Join(string.Empty, outSegments.Select(o => o.Content)));
             foreach (var seg in outSegments)
             {
                 this._outSegmentPool.Return(seg);

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Protocol.WebSocket;
 
 namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
@@ -34,7 +35,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
 
                 if (string.IsNullOrEmpty(this._endpointUrl))
                 {
-                    this.Logger.LogWarning("Endpoint URL is empty, skip this mcp tpye.");
+                    this.Logger.LogWarning(Lang.McpEndpointClient_Build_UrlEmpty);
                     return true;
                 }
 
@@ -48,7 +49,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogError(ex, Lang.McpEndpointClient_Build_InvalidSettings, this.ProviderType, this.ModelName);
                 return false;
             }
         }
@@ -84,7 +85,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
             await this.SendMcpNotificationAsync(NotificationMethods.InitializedNotification);
             await this.RequestToolsListAsync();
 
-            this.Logger.LogInformation("MCP Endpoint Client connected and initialized successfully.");
+            this.Logger.LogInformation(Lang.McpEndpointClient_OnOpen_Connected);
         }
 
         private async void WebSocketClient_OnMessage(string data)

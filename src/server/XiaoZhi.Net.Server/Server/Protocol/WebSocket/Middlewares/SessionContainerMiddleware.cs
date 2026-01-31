@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Store;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Protocol.WebSocket.Contexts;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket.Middlewares
@@ -33,7 +34,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Middlewares
 
                 if (!addResult)
                 {
-                    socketSession.Logger.LogWarning("The session {sessionId} failed to loggin the server.", socketSession.SessionID);
+                    socketSession.Logger.LogWarning(Lang.SessionContainerMiddleware_RegisterSession_LoginFailed, socketSession.SessionID);
                     socketSession.CloseAsync(CloseReason.UnexpectedCondition, "Loggin failed");
                 }
             }

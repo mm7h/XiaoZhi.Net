@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Helpers
 {
@@ -78,7 +79,7 @@ namespace XiaoZhi.Net.Server.Helpers
                 16 => pcmBytes.Pcm16BytesToFloat(),
                 24 => Convert24BitPcm(pcmBytes),
                 32 => Convert32BitPcm(pcmBytes),
-                _ => throw new NotSupportedException($"Unsupported PCM bit depth: {bitDepth}")
+                _ => throw new NotSupportedException(string.Format(Lang.AudioPacketHelper_PcmBytesToFloat_UnsupportedBitDepth, bitDepth))
             };
 
             static float[] Convert24BitPcm(byte[] bytes)
@@ -115,7 +116,7 @@ namespace XiaoZhi.Net.Server.Helpers
             if (audioData == null || audioData.Length == 0)
                 throw new ArgumentException(nameof(audioData));
             if (bitDepth is not (16 or 24 or 32))
-                throw new ArgumentException("Only support 16-bit, 24-bit and 32-bit PCM format.");
+                throw new ArgumentException(Lang.AudioPacketHelper_Float2PcmBytes_UnsupportedFormat);
 
             int sampleCount = audioData.Length / channels;
             int bytesPerSample = bitDepth / 8;
@@ -149,7 +150,7 @@ namespace XiaoZhi.Net.Server.Helpers
                     pcmData.AddRange(BitConverter.GetBytes(pcm32));
                     break;
                 default:
-                    throw new ArgumentException("Unsupported bit depth: " + bitDepth);
+                    throw new ArgumentException(string.Format(Lang.AudioPacketHelper_WriteSample_UnsupportedBitDepth, bitDepth));
             }
         }
     }

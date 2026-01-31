@@ -2,10 +2,9 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
-using System.Drawing;
 using System.Threading;
 using System.Threading.Tasks;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Providers.AudioCodec
 {
@@ -34,12 +33,12 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
                 this.FrameSize = audioSetting.FrameSize;
 
                 this._encoder = OpusCodecFactory.CreateEncoder(this.SampleRate, this.Channels, Concentus.Enums.OpusApplication.OPUS_APPLICATION_AUDIO);
-                this.Logger.LogInformation("Builded the default {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogInformation(Lang.DefaultOpusEncoder_Build_Built, this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogError(ex, Lang.DefaultOpusEncoder_Build_InvalidSettings, this.ProviderType, this.ModelName);
                 return false;
             }
         }
@@ -48,7 +47,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
         {
             if (this._encoder == null)
             {
-                throw new ArgumentNullException("Please build opus provider first.");
+                throw new ArgumentNullException(Lang.DefaultOpusEncoder_EncodeAsync_NotBuilt);
             }
             byte[] byteData = ArrayPool<byte>.Shared.Rent(4000);
             try

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Media.Abstractions.Common.Enums;
 
@@ -49,7 +50,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
         {
             if (!this._urlAudioPlayer.CheckFFmpegInstalled())
             {
-                this.Logger.LogError("Failed to initialize FFmpeg, please check your the ffmpeg path configuration.");
+                this.Logger.LogError(Lang.FileMusicPlayer_Build_FFmpegInitFailed);
                 return false;
             }
             this._audioSetting = audioSetting;
@@ -72,12 +73,12 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
         {
             if (this._processingChannel is null)
             {
-                this.Logger.LogError("The audio player is not built yet.");
+                this.Logger.LogError(Lang.FileMusicPlayer_PlayAsync_NotBuilt);
                 return;
             }
             if (files is null || files.Length == 0)
             {
-                this.Logger.LogWarning("No audio files to play.");
+                this.Logger.LogWarning(Lang.FileMusicPlayer_PlayAsync_NoFiles);
                 return;
             }
             try
@@ -105,7 +106,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
         {
             if (this.PlaybackState == PlaybackState.Idle)
             {
-                this.Logger.LogInformation("The audio player status is {status}, skip the pausing.", this.PlaybackState);
+                this.Logger.LogInformation(Lang.FileMusicPlayer_PauseAsync_Skip, this.PlaybackState);
                 return;
             }
             try
@@ -123,7 +124,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
         {
             if (this.PlaybackState == PlaybackState.Idle)
             {
-                this.Logger.LogInformation("The audio player status is {status}, skip the resuming.", PlaybackState);
+                this.Logger.LogInformation(Lang.FileMusicPlayer_ResumeAsync_Skip, PlaybackState);
                 return;
             }
             try
@@ -141,7 +142,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
         {
             if (this.PlaybackState == PlaybackState.Idle)
             {
-                this.Logger.LogInformation("The audio player status is {status}, skip the stopping.", PlaybackState);
+                this.Logger.LogInformation(Lang.FileMusicPlayer_StopAsync_Skip, PlaybackState);
                 return;
             }
             try
@@ -189,7 +190,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             }
             catch (OperationCanceledException)
             {
-                this.Logger.LogDebug("Audio file processing canceled.");
+                this.Logger.LogDebug(Lang.FileMusicPlayer_AudioFileProcessingAsync_Canceled);
             }
             finally
             {
@@ -205,13 +206,13 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
         {
             if (this._audioSetting is null)
             {
-                this.Logger.LogError("The audio player is not built yet.");
+                this.Logger.LogError(Lang.FileMusicPlayer_PlayAsync_NotBuilt);
                 return;
             }
 
             string fileName = Path.GetFileName(file);
 
-            this.Logger.LogDebug("Start processing audio file: {file}.", fileName);
+            this.Logger.LogDebug(Lang.FileMusicPlayer_AudioFileProcessingAsync_Start, fileName);
 
             try
             {
@@ -219,18 +220,18 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                 cancellationToken.ThrowIfCancellationRequested();
                 await this._urlAudioPlayer.LoadAsync(file, this._audioSetting.SampleRate, this._audioSetting.Channels, this._audioSetting.FrameDuration);
 
-                this.Logger.LogDebug("Loaded audio file: {file}, start playing.", fileName);
+                this.Logger.LogDebug(Lang.FileMusicPlayer_AudioFileProcessingAsync_Playing, fileName);
                 this._urlAudioPlayer.Play(true);
 
-                this.Logger.LogDebug("Completed processing audio file: {file}.", fileName);
+                this.Logger.LogDebug(Lang.FileMusicPlayer_AudioFileProcessingAsync_Completed, fileName);
             }
             catch (OperationCanceledException)
             {
-                this.Logger.LogDebug("Canceled playing audio file: {file}.", fileName);
+                this.Logger.LogDebug(Lang.FileMusicPlayer_AudioFileProcessingAsync_PlaybackCanceled, fileName);
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Error processing audio file: {file}.", fileName);
+                this.Logger.LogError(ex, Lang.FileMusicPlayer_AudioFileProcessingAsync_Error, fileName);
             }
             finally
             {
@@ -258,7 +259,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                 {
                     if (!task.Wait(TimeSpan.FromSeconds(3)))
                     {
-                        this.Logger.LogWarning("Processing task did not complete within timeout, forcing disposal.");
+                        this.Logger.LogWarning(Lang.FileMusicPlayer_Dispose_Timeout);
                         // 任务超时未完成，手动释放
                         processingCts?.Dispose();
                     }
@@ -269,7 +270,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                 }
                 catch (Exception ex)
                 {
-                    this.Logger.LogError(ex, "Error waiting for processing task to complete.");
+                    this.Logger.LogError(ex, Lang.FileMusicPlayer_Dispose_Error);
                     processingCts?.Dispose();
                 }
             }

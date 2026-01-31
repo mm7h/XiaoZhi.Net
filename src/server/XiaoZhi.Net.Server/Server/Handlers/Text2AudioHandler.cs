@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers;
 using XiaoZhi.Net.Server.Providers.TTS;
 
@@ -40,13 +41,13 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             if (privateProvider.Tts is null)
             {
-                this.Logger.LogError("TTS provider is not configured for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.Text2AudioHandler_Build_TtsNotConfigured, session.DeviceId);
                 return false;
             }
 
             if (privateProvider.AudioPlayerClient is null)
             {
-                this.Logger.LogError("AudioPlayerClient is not configured for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.Text2AudioHandler_Build_PlayerNotConfigured, session.DeviceId);
                 return false;
             }
 
@@ -108,7 +109,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             if (this._tts is null)
             {
-                this.Logger.LogError("TTS provider is not configured for the device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(Lang.Text2AudioHandler_Handle_TtsNotConfigured, session.DeviceId);
                 return;
             }
 
@@ -123,7 +124,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 if (string.IsNullOrEmpty(workflow.Data.Content))
                 {
-                    this.Logger.LogInformation("No tts required, the query text is empty.");
+                    this.Logger.LogInformation(Lang.Text2AudioHandler_Handle_NoTtsRequired);
                     return;
                 }
                 this.HandlerToken.ThrowIfCancellationRequested();
@@ -131,7 +132,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                this.Logger.LogError(ex, "Error occurred during text to audio processing for device: {deviceId}.", session.DeviceId);
+                this.Logger.LogError(ex, Lang.Text2AudioHandler_Handle_ProcessFailed, session.DeviceId);
             }
         }
 
@@ -139,7 +140,7 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             if (this._audioPlayerClient is null)
             {
-                this.Logger.LogError("AudioPlayerClient is not built for the device {deviceId} yet", session.DeviceId);
+                this.Logger.LogError(Lang.Text2AudioHandler_CheckBindDevice_PlayerNotBuilt, session.DeviceId);
                 return;
             }
 
@@ -147,21 +148,21 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 if (session.BindCode.Length != 6)
                 {
-                    this.Logger.LogError("Invalid bind code {code} for the device: {deviceId}", session.BindCode, session.DeviceId);
-                    string bindErrorMsg = "绑定码格式错误，请检查配置。";
+                    this.Logger.LogError(Lang.Text2AudioHandler_CheckBindDevice_InvalidBindCode, session.BindCode, session.DeviceId);
+                    string bindErrorMsg = Lang.Text2AudioHandler_CheckBindDevice_BindCodeFormatError;
                     await session.SendOutter.SendSttMessageAsync(bindErrorMsg);
                     return;
                 }
 
-                string text = $"请登录控制面板，输入{session.BindCode}，绑定设备。";
+                string text = string.Format(Lang.Text2AudioHandler_CheckBindDevice_BindDevicePrompt, session.BindCode);
                 await session.SendOutter.SendSttMessageAsync(text);
 
                 await this._audioPlayerClient.SystemNotification.PlayBindCodeAsync(session.BindCode);
             }
             else
             {
-                this.Logger.LogError("Invalid bind code {code} for the device: {deviceId}", session.BindCode, session.DeviceId);
-                string text = "没有找到该设备的版本信息，请正确配置 OTA地址，然后重新编译固件。";
+                this.Logger.LogError(Lang.Text2AudioHandler_CheckBindDevice_InvalidBindCode, session.BindCode, session.DeviceId);
+                string text = Lang.Text2AudioHandler_CheckBindDevice_VersionNotFound;
                 await session.SendOutter.SendSttMessageAsync(text);
 
                 await this._audioPlayerClient.SystemNotification.PlayNotFoundAsync();
@@ -202,20 +203,6 @@ namespace XiaoZhi.Net.Server.Handlers
             await this.NextWriter2.WriteAsync(workflow);
         }
 
-        public override void Dispose()
-        {
-            Session session = this.SendOutter.GetSession();
-            if (this._audioPlayerClient is not null)
-            {
-                this._audioPlayerClient.SystemNotification.OnAudioData -= this.OnNotificationAudioDataAsync;
-                this._audioPlayerClient.MusicPlayer.OnAudioData -= this.OnMusicAudioDataAsync;
-            }
-            this.NextWriter.Complete();
-            this.NextWriter2.Complete();
-            this.NextWriter3.Complete();
-            base.Dispose();
-        }
-
         #region ITtsEventCallback
         public void OnBeforeProcessing(string sentence, bool isFirstSegment, bool isLastSegment)
         {
@@ -233,7 +220,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 nextWorkflow.Initialize(session, outAudioSegment);
                 this.NextWriter.WriteAsync(nextWorkflow);
             }
-            this.Logger.LogDebug("TTS processing started for device: {deviceId}, sentence: {sentence}.", session.DeviceId, sentence);
+            this.Logger.LogDebug(Lang.Text2AudioHandler_OnBeforeProcessing_Started, session.DeviceId, sentence);
         }
 
         public async void OnProcessing(float[] audioData, bool isFirstFrame, bool isLastFrame)
@@ -276,7 +263,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 nextWorkflow.Initialize(session, outAudioSegment);
                 this.NextWriter.WriteAsync(nextWorkflow);
             }
-            this.Logger.LogDebug("TTS processing completed for device: {deviceId}.", session.DeviceId);
+            this.Logger.LogDebug(Lang.Text2AudioHandler_OnProcessed_Completed, session.DeviceId);
         }
 
         public void OnSentenceStart(string sentence, Emotion emotion, string sentenceId)
@@ -309,5 +296,24 @@ namespace XiaoZhi.Net.Server.Handlers
             this.NextWriter.WriteAsync(nextWorkflow);
         }
         #endregion
+
+        public override void Dispose()
+        {
+            Session session = this.SendOutter.GetSession();
+            if (session is null)
+            {
+                return;
+            }
+            this._tts?.UnregisterDevice(session.DeviceId, session.SessionId);
+            if (this._audioPlayerClient is not null)
+            {
+                this._audioPlayerClient.SystemNotification.OnAudioData -= this.OnNotificationAudioDataAsync;
+                this._audioPlayerClient.MusicPlayer.OnAudioData -= this.OnMusicAudioDataAsync;
+            }
+            this.NextWriter.Complete();
+            this.NextWriter2.Complete();
+            this.NextWriter3.Complete();
+            base.Dispose();
+        }
     }
 }

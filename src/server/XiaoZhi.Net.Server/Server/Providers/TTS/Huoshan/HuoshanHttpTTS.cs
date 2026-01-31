@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
@@ -43,7 +44,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
                 if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(cluster) || string.IsNullOrEmpty(speaker))
                 {
-                    this.Logger.LogWarning("Huoshan bidirection TTS configuration is incomplete, please check AppId, AccessToken, Cluster and speaker.");
+                    this.Logger.LogWarning(Lang.HuoshanHttpTTS_Build_ConfigIncomplete);
                     return false;
                 }
 
@@ -65,12 +66,12 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                         Directory.CreateDirectory(this.SavePath);
                 }
 
-                this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogInformation(Lang.HuoshanHttpTTS_Build_Built, this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Failed to build {modelName}.", this.ModelName);
+                this.Logger.LogError(ex, Lang.HuoshanHttpTTS_Build_Failed, this.ModelName);
                 return false;
             }
         }
@@ -79,18 +80,18 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         {
             if (string.IsNullOrEmpty(this._appId) || string.IsNullOrEmpty(this._accessToken) || string.IsNullOrEmpty(this._cluster))
             {
-                throw new InvalidOperationException("TTS model not built.");
+                throw new InvalidOperationException(Lang.HuoshanHttpTTS_SynthesisAsync_ModelNotBuilt);
             }
 
             if (!this.CheckDeviceRegistered())
             {
-                throw new InvalidOperationException("Device/session not registered.");
+                throw new InvalidOperationException(Lang.HuoshanHttpTTS_SynthesisAsync_DevNotReg);
             }
 
             OutSegment seg = workflow.Data;
             if (string.IsNullOrEmpty(seg.SentenceId))
             {
-                this.Logger.LogWarning("Failed to process segment due to missing sentence id.");
+                this.Logger.LogWarning(Lang.HuoshanHttpTTS_SynthesisAsync_MissingSentenceId);
                 return;
             }
 
@@ -152,7 +153,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 if (!response.ResponseMessage.IsSuccessStatusCode)
                 {
                     string err = await response.GetStringAsync().ConfigureAwait(false);
-                    this.Logger.LogError("Huoshan HTTP TTS failed: status={status} body={body}", response.StatusCode, err);
+                    this.Logger.LogError(Lang.HuoshanHttpTTS_SynthesisAsync_RequestFailed, response.StatusCode, err);
                     this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Failed);
                     return;
                 }
@@ -170,11 +171,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                         {
                             string audioPath = Path.Combine(this.SavePath, $"{seg.SentenceId}.{this.AudioEncoding}");
                             await File.WriteAllBytesAsync(audioPath, bytes, token).ConfigureAwait(false);
-                            this.Logger.LogInformation("Saved TTS audio file to {audioPath} for the device {deviceId}.", audioPath, this.DeviceId);
+                            this.Logger.LogInformation(Lang.HuoshanHttpTTS_SynthesisAsync_FileSaved, audioPath, this.DeviceId);
                         }
                         catch (Exception ex)
                         {
-                            this.Logger.LogWarning(ex, "Failed to save audio file for the device {deviceId}.", this.DeviceId);
+                            this.Logger.LogWarning(ex, Lang.HuoshanHttpTTS_SynthesisAsync_SaveFailed, this.DeviceId);
                         }
                     }
 
@@ -188,7 +189,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 }
                 else
                 {
-                    this.Logger.LogError("Huoshan HTTP TTS error: code={code} message={message}", ttsHttpResponse.Code, ttsHttpResponse.Message);
+                    this.Logger.LogError(Lang.HuoshanHttpTTS_SynthesisAsync_ApiError, ttsHttpResponse.Code, ttsHttpResponse.Message);
                     this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Failed);
                 }
             }
@@ -199,7 +200,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Huoshan HTTP TTS synthesis failed.");
+                this.Logger.LogError(ex, Lang.HuoshanHttpTTS_SynthesisAsync_GeneralFailed);
                 this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Failed);
                 throw;
             }

@@ -5,6 +5,7 @@ using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Websocket.Client;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket
 {
@@ -134,7 +135,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
             }
             catch (Exception)
             {
-                this.OnError?.Invoke(WebSocketError.ConnectionClosedPrematurely, "Failed to close WebSocket connection gracefully.");
+                this.OnError?.Invoke(WebSocketError.ConnectionClosedPrematurely, Lang.WebSocketClient_CloseAsync_CloseFailed);
             }
         }
 

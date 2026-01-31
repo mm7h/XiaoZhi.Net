@@ -3,11 +3,12 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Resources.OnnxModels;
 using XiaoZhi.Net.Server.Resources.OnnxModels.VAD;
 using XiaoZhi.Net.Server.Resources.OnnxModels.VAD.Models;
-using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.VAD.Native
 {
@@ -53,7 +54,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
 
                 if (this._sampleRate != SAMPLING_RATE_8K && this._sampleRate != SAMPLING_RATE_16K)
                 {
-                    this.Logger.LogError("Unsupported sample rate: {sampleRate}. Only 8000 and 16000 are supported.", this._sampleRate);
+                    this.Logger.LogError(Lang.SileroNative_Build_UnsupportedSampleRate, this._sampleRate);
                     return false;
                 }
 
@@ -68,13 +69,13 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
 
                 this._sileroModelState = SileroOnnx.CreateModelState(this._sampleRate);
 
-                this.Logger.LogInformation("Builded the {providerType} model: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogInformation(Lang.SileroNative_Build_Built, this.ProviderType, this.ModelName);
 
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Invalid model settings for {providerType}: {modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogError(ex, Lang.SileroNative_Build_InvalidSettings, this.ProviderType, this.ModelName);
                 return false;
             }
         }
@@ -96,12 +97,12 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
         {
             if (this._vadOnnxModel is null)
             {
-                throw new ArgumentNullException("Please build vad provider first.");
+                throw new ArgumentNullException(Lang.SileroNative_AnalysisVoiceAsync_ProviderNotBuilt);
             }
 
             if (this._sileroModelState is null || this._vadSessionState is null)
             {
-                throw new ArgumentNullException("Please build vad provider first.");
+                throw new ArgumentNullException(Lang.SileroNative_AnalysisVoiceAsync_ProviderNotBuilt);
             }
 
             try
@@ -144,7 +145,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
                         long stopDuration = DateTimeOffset.Now.ToUnixTimeMilliseconds() - this._vadSessionState.HaveVoiceLatestTime;
                         if (stopDuration >= this._silenceThresholdSecond * 1000)
                         {
-                            this.Logger.LogDebug("Voice stopped for device: {deviceId}, silence duration: {stopDuration}ms", deviceId, stopDuration);
+                            this.Logger.LogDebug(Lang.SileroNative_AnalysisVoiceAsync_VoiceStopped, deviceId, stopDuration);
                             this._vadSessionState.VoiceStop = true;
 
                             this._vadEventCallback?.OnVoiceDetected(audioData);
@@ -173,12 +174,12 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
             {
                 this._sileroModelState.Reset();
                 this._vadSessionState.Reset();
-                this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
+                this.Logger.LogWarning(Lang.SileroNative_AnalysisVoiceAsync_UserCanceled, this.ProviderType);
                 throw;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Unexpected error(s) for {providerType} in device: {deviceId}", this.ProviderType, deviceId);
+                this.Logger.LogError(ex, Lang.SileroNative_AnalysisVoiceAsync_UnexpectedError, this.ProviderType, deviceId);
                 return Task.CompletedTask;
             }
             finally
@@ -200,7 +201,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
 
             if (silenceDuration >= longTermSilenceThresholdMs)
             {
-                this.Logger.LogDebug("Long term silence detected for device: {deviceId}, duration: {silenceDuration}ms", deviceId, silenceDuration);
+                this.Logger.LogDebug(Lang.SileroNative_CheckLongTermSilence_Detected, deviceId, silenceDuration);
                 this._vadEventCallback?.OnLongTermSilence();
             }
         }

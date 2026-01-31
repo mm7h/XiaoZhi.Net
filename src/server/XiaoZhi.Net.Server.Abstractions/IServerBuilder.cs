@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Hosting;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using XiaoZhi.Net.Server.Abstractions.Store;
 
 namespace XiaoZhi.Net.Server.Abstractions
@@ -53,6 +55,22 @@ namespace XiaoZhi.Net.Server.Abstractions
         /// <param name="secret">密钥</param>
         /// <returns></returns>
         IServerBuilder WithManageApi(string manageApiUrl, string secret);
+        /// <summary>
+        /// 设置默认语言信息
+        /// 这会涉及到日志输出、错误信息等的本地化
+        /// 语言/区域（culture）的简写遵循 RFC 4646标准
+        /// </summary>
+        /// <param name="culture">语言/区域名称</param>
+        /// <returns></returns>
+        IServerBuilder WithCulture(string culture = "zh-CN");
+        /// <summary>
+        /// 设置默认语言信息
+        /// 这会涉及到日志输出、错误信息等的本地化
+        /// 语言/区域（culture）的简写遵循 RFC 4646标准
+        /// </summary>
+        /// <param name="culture">语言/区域</param>
+        /// <returns></returns>
+        IServerBuilder WithCulture(CultureInfo culture);
         /// <summary>
         /// 构建服务引擎
         /// </summary>

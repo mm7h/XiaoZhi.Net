@@ -5,6 +5,7 @@ using SuperSocket.Server.Abstractions.Middleware;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Management;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket.Middlewares
@@ -23,11 +24,11 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Middlewares
             if (listenOption is not null)
             {
                 string listeningUrl = $"{(listenOption.AuthenticationOptions is not null ? "wss://" : "ws://")}{this.GetLocalIP()}:{listenOption.Port}{listenOption.Path}";
-                this._logger.LogInformation("Server started and listing on: {listeningUrl}", listeningUrl);
+                this._logger.LogInformation(Lang.ServerStatusMiddleware_Start_ServerStarted, listeningUrl);
             }
             else
             {
-                this._logger.LogWarning("No listening options found for the server. Unable to determine listening URL.");
+                this._logger.LogWarning(Lang.ServerStatusMiddleware_Start_NoListeningOptions);
             }
         }
 
@@ -39,7 +40,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Middlewares
             ProviderManager providerManager = server.ServiceProvider.GetRequiredService<ProviderManager>();
             providerManager.Dispose(server.ServiceProvider);
 
-            this._logger.LogInformation("Server is shutting down.");
+            this._logger.LogInformation(Lang.ServerStatusMiddleware_Shutdown_ShuttingDown);
             Serilog.Log.CloseAndFlush();
         }
 

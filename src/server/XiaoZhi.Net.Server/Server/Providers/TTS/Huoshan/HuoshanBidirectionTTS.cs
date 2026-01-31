@@ -7,6 +7,7 @@ using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Enums;
 
@@ -33,7 +34,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             }
             if (this.WebSocketClient is null)
             {
-                throw new InvalidOperationException("WebSocket client is not initialized.");
+                throw new InvalidOperationException(Lang.HuoshanBidirectionTTS_SynthesisAsync_ClientNotInit);
             }
 
             if (!this.WebSocketClient.IsConnected)
@@ -46,7 +47,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
             if (string.IsNullOrEmpty(seg.ParagraphId) || string.IsNullOrEmpty(seg.SentenceId))
             {
-                this.Logger.LogWarning("Failed to process segment due to missing paragraph id or sentence id.");
+                this.Logger.LogWarning(Lang.HuoshanBidirectionTTS_SynthesisAsync_MissingIds);
                 return;
             }
 
@@ -121,13 +122,13 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             catch (OperationCanceledException oex)
             {
                 this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Aborted);
-                this.Logger.LogWarning(oex, "TTS synthesis was canceled.");
+                this.Logger.LogWarning(oex, Lang.HuoshanBidirectionTTS_SynthesisAsync_Canceled);
                 throw;
             }
             catch (Exception ex)
             {
                 this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Failed);
-                this.Logger.LogError(ex, "TTS synthesis failed.");
+                this.Logger.LogError(ex, Lang.HuoshanBidirectionTTS_SynthesisAsync_Failed);
                 throw;
             }
             finally
@@ -145,11 +146,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             }
             catch (Exception ex)
             {
-                this.Logger.LogDebug(ex, "FinishConnection during dispose raised an exception.");
+                this.Logger.LogDebug(ex, Lang.HuoshanBidirectionTTS_Dispose_FinishError);
             }
             finally
             {
-                this.FailAllWaits(new OperationCanceledException("TTS provider disposed"));
+                this.FailAllWaits(new OperationCanceledException(Lang.HuoshanBidirectionTTS_Dispose_Disposed));
                 this.CloseAllSessionFiles(finalize: false);
                 this.TTSEventCallback?.OnProcessed(string.Empty, false, false, TtsGenerateResult.Aborted);
             }

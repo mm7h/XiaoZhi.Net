@@ -5,6 +5,7 @@ using SuperSocket.WebSocket.Server;
 using System.Net;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
 {
@@ -22,7 +23,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
 
                 if (string.IsNullOrEmpty(deviceId))
                 {
-                    session.Logger.LogError("Cannot get the device id from ip: {ip} authentication failed.", ip);
+                    session.Logger.LogError(Lang.AuthenticationVerification_VerifyAsync_DeviceIdNotFound, ip);
                     return ValueTask.FromResult(false);
                 }
 
@@ -41,18 +42,18 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
 
                 if (verifyResult)
                 {
-                    session.Logger.LogInformation("New device: {deviceId} with ip {ip} connected", deviceId, ip);
+                    session.Logger.LogInformation(Lang.AuthenticationVerification_VerifyAsync_NewDeviceConnected, deviceId, ip);
                     return ValueTask.FromResult(true);
                 }
                 else
                 {
-                    session.Logger.LogError("The device {deviceId} from ip: {ip} authentication failed.", deviceId, ip);
+                    session.Logger.LogError(Lang.AuthenticationVerification_VerifyAsync_AuthFailed, deviceId, ip);
                     return ValueTask.FromResult(false);
                 }
             }
             else
             {
-                session.Logger.LogError("Cannot get the ip info from the session: {sessionId}.", session.SessionID);
+                session.Logger.LogError(Lang.AuthenticationVerification_VerifyAsync_IpNotFound, session.SessionID);
                 return ValueTask.FromResult(false);
             }
         }

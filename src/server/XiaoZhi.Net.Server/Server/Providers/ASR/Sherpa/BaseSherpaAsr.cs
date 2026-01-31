@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 {
@@ -19,6 +20,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
         private const int MAX_WAITING_TIME_MS = 100;
         //private const int MAX_QUEUE_SIZE = 100;
 
+        private readonly ConcurrentDictionary<string, IAsrEventCallback> _asrSessions;
         private readonly Channel<AsrRequest> _requestChannel;
         private readonly CancellationTokenSource _shutdownCts;
 
@@ -28,6 +30,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 
         protected BaseSherpaAsr(ILogger<TLogger> logger) : base(logger)
         {
+            this._asrSessions = new ConcurrentDictionary<string, IAsrEventCallback>();
             this._requestChannel = Channel.CreateUnbounded<AsrRequest>();
             this._shutdownCts = new CancellationTokenSource();
         }
@@ -36,42 +39,6 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
         public int MaxBatchSize { get; protected set; } = 50;
 
         public override string ProviderType => "asr";
-
-        public async Task<string> ConvertSpeechTextAsync(Workflow<float[]> workflow, int sampleRate, int frameSize, CancellationToken token)
-        {
-            if (!this.CheckDeviceRegistered())
-            {
-                throw new SessionNotInitializedException();
-            }
-            if (this._offlineRecognizer == null)
-            {
-                throw new ArgumentNullException("Please build asr provider first.");
-            }
-
-            try
-            {
-                OfflineStream offlineStream = this._offlineRecognizer.CreateStream();
-
-                offlineStream.AcceptWaveform(sampleRate, workflow.Data);
-
-
-                AsrRequest asrRequest = new AsrRequest(workflow.SessionId, workflow.DeviceId, offlineStream, sampleRate, frameSize, token);
-
-                await this._requestChannel.Writer.WriteAsync(asrRequest, token);
-                string result = await asrRequest.ResultTcs.Task;
-                return result;
-            }
-            catch (OperationCanceledException)
-            {
-                this.Logger.LogWarning("User canceled the job for {providerType}.", this.ProviderType);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                this.Logger.LogError(ex, "Unexpected error(s) for {providerType}.", this.ProviderType);
-                return string.Empty;
-            }
-        }
 
         protected void Build(OfflineRecognizerConfig offlineRecognizerConfig, ModelSetting modelSetting)
         {
@@ -97,11 +64,61 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
             this._backgroudProcessingTask = Task.Run(this.Processing);
         }
 
+        public void RegisterDevice(string deviceId, string sessionId, IAsrEventCallback callback)
+        {
+            this._asrSessions.AddOrUpdate(deviceId, callback, (_, _) => callback);
+            this.Logger.LogDebug(Lang.BaseSherpaAsr_RegisterDevice_Registered, deviceId, sessionId);
+        }
+
+        public override void UnregisterDevice(string deviceId, string sessionId)
+        {
+            if (this._asrSessions.TryRemove(deviceId, out _))
+            {
+                this.Logger.LogDebug(Lang.BaseSherpaAsr_UnregisterDevice_Unregistered, deviceId, sessionId);
+            }
+        }
+
+        public async Task ConvertSpeechTextAsync(Workflow<float[]> workflow, int sampleRate, int frameSize, CancellationToken token)
+        {
+            if (!this.CheckDeviceRegistered())
+            {
+                throw new SessionNotInitializedException();
+            }
+            if (this._offlineRecognizer == null)
+            {
+                throw new ArgumentNullException(Lang.BaseSherpaAsr_ConvertSpeechTextAsync_ProviderNotBuilt);
+            }
+
+            if (this._asrSessions.TryGetValue(workflow.DeviceId, out var callback))
+            {
+                try
+                {
+                    OfflineStream offlineStream = this._offlineRecognizer.CreateStream();
+
+                    offlineStream.AcceptWaveform(sampleRate, workflow.Data);
+
+
+                    AsrRequest asrRequest = new AsrRequest(workflow.SessionId, workflow.DeviceId, offlineStream, sampleRate, frameSize, callback, token);
+
+                    await this._requestChannel.Writer.WriteAsync(asrRequest, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    this.Logger.LogWarning(Lang.BaseSherpaAsr_ConvertSpeechTextAsync_UserCanceled, this.ProviderType);
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    this.Logger.LogError(ex, Lang.BaseSherpaAsr_ConvertSpeechTextAsync_UnexpectedError, this.ProviderType);
+                }
+            }
+        }
+
         private async Task Processing()
         {
             if (this._offlineRecognizer == null)
             {
-                throw new ArgumentNullException("Please build asr provider first.");
+                throw new ArgumentNullException(Lang.BaseSherpaAsr_Processing_ProviderNotBuilt);
             }
             CancellationToken shutDownToken = this._shutdownCts.Token;
 
@@ -162,7 +179,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                         {
                             if (request.Token.IsCancellationRequested)
                             {
-                                request.ResultTcs.SetCanceled();
+                                request.Callback.OnSpeechTextConverted(false, string.Empty);
                                 request.Stream.Dispose();
                                 continue;
                             }
@@ -181,14 +198,14 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                             {
                                 if (request.Token.IsCancellationRequested)
                                 {
-                                    request.ResultTcs.SetCanceled();
+                                    request.Callback.OnSpeechTextConverted(false, string.Empty);
                                     request.Stream.Dispose();
                                     continue;
                                 }
                                 string resultText = request.Stream.Result.Text;
 
                                 request.Stream.Dispose();
-                                request.ResultTcs.SetResult(resultText);
+                                request.Callback.OnSpeechTextConverted(true, resultText);
                             }
 
                         }
@@ -200,7 +217,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                 }
                 catch (Exception ex)
                 {
-                    this.Logger.LogError(ex, "Error in ASR processing loop.");
+                    this.Logger.LogError(ex, Lang.BaseSherpaAsr_Processing_ErrorLoop);
                 }
             }
         }
@@ -215,7 +232,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
             }
             catch (Exception)
             {
-                this.Logger.LogError("Failed to waiting for background task to complete.");
+                this.Logger.LogError(Lang.BaseSherpaAsr_Dispose_WaitFailed);
             }
 
             this._offlineRecognizer?.Dispose();
