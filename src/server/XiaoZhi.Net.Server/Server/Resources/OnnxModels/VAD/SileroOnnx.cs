@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.VAD.Native;
 using XiaoZhi.Net.Server.Resources.OnnxModels.VAD.Models;
 
@@ -55,12 +56,12 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels.VAD
                 };
                 string modelPath = Path.Combine(this.ModelFileFoler, "model.onnx");
                 this._session = new InferenceSession(modelPath, sessionOptions);
-                this.Logger.LogInformation("Loaded the onnx model: {modelName}.", this.ModelName);
+                this.Logger.LogInformation(Lang.SileroOnnx_Load_Loaded, this.ModelName);
                 return true;
             }
             else
             {
-                this.Logger.LogError("Invalid onnx model: {modelName}.", this.ModelName);
+                this.Logger.LogError(Lang.SileroOnnx_Load_InvalidModel, this.ModelName);
                 return false;
             }
         }
@@ -87,12 +88,12 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels.VAD
         {
             if (this._disposed)
             {
-                throw new ObjectDisposedException(nameof(SileroOnnx), $"Cannot use disposed {nameof(SileroOnnx)} instance.");
+                throw new ObjectDisposedException(nameof(SileroOnnx), string.Format(Lang.SileroOnnx_Infer_Disposed, nameof(SileroOnnx)));
             }
 
             if (this._session is null)
             {
-                throw new InvalidOperationException("ONNX InferenceSession is not initialized. Call Load() before Infer().");
+                throw new InvalidOperationException(Lang.SileroOnnx_Infer_SessionNotInitialized);
             }
 
             this.ValidateInput(audioSamples, sampleRate, modelState);
@@ -100,7 +101,7 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels.VAD
             int expectedSamples = sampleRate == 16000 ? 512 : 256;
             if (audioSamples.Length != expectedSamples)
             {
-                throw new ArgumentException($"Expected {expectedSamples} samples for {sampleRate}Hz, got {audioSamples.Length}");
+                throw new ArgumentException(string.Format(Lang.SileroOnnx_Infer_SampleCountMismatch, expectedSamples, sampleRate, audioSamples.Length));
             }
 
             int stateSize = sampleRate == 16000 ? 64 : 128;
@@ -171,17 +172,17 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels.VAD
         {
             if (audioSamples == null || audioSamples.Length == 0)
             {
-                throw new ArgumentException("Audio samples cannot be null or empty.");
+                throw new ArgumentException(Lang.SileroOnnx_ValidateInput_SamplesEmpty);
             }
 
             if (!SUPPORTED_SAMPLE_RATES.Contains(sampleRate))
             {
-                throw new ArgumentException($"Unsupported sample rate: {sampleRate}. Only 8000 and 16000 are supported.");
+                throw new ArgumentException(string.Format(Lang.SileroOnnx_ValidateInput_UnsupportedSampleRate, sampleRate));
             }
 
             if (modelState.LastSampleRate != sampleRate)
             {
-                this.Logger.LogDebug("Sample rate changed from {lastSr} to {newSr}, resetting model state.", modelState.LastSampleRate, sampleRate);
+                this.Logger.LogDebug(Lang.SileroOnnx_ValidateInput_SampleRateChanged, modelState.LastSampleRate, sampleRate);
                 modelState.Reset();
                 modelState.LastSampleRate = sampleRate;
             }
@@ -193,7 +194,7 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels.VAD
             {
                 this._session?.Dispose();
                 this._disposed = true;
-                this.Logger.LogInformation("Silero VAD v4 ONNX model disposed.");
+                this.Logger.LogInformation(Lang.SileroOnnx_Dispose_Disposed);
             }
             GC.SuppressFinalize(this);
         }

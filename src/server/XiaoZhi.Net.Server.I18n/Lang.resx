@@ -1004,4 +1004,94 @@
   <data name="BaseSherpaVad_AnalysisVoiceAsync_SessionStateNotFound" xml:space="preserve">
     <value>Session state not found for device: {0}, session: {1}. Please register the device first.</value>
   </data>
+  <data name="SileroModelState_UpdateHiddenState_SizeMismatch" xml:space="preserve">
+    <value>Hidden state size mismatch. Expected {0}, got {1}</value>
+  </data>
+  <data name="SileroModelState_UpdateCellState_SizeMismatch" xml:space="preserve">
+    <value>Cell state size mismatch. Expected {0}, got {1}</value>
+  </data>
+  <data name="SileroOnnx_Load_Loaded" xml:space="preserve">
+    <value>Loaded the onnx model: {modelName}.</value>
+  </data>
+  <data name="SileroOnnx_Load_InvalidModel" xml:space="preserve">
+    <value>Invalid onnx model: {modelName}.</value>
+  </data>
+  <data name="SileroOnnx_Infer_Disposed" xml:space="preserve">
+    <value>Cannot use disposed {0} instance.</value>
+  </data>
+  <data name="SileroOnnx_Infer_SessionNotInitialized" xml:space="preserve">
+    <value>ONNX InferenceSession is not initialized. Call Load() before Infer().</value>
+  </data>
+  <data name="SileroOnnx_Infer_SampleCountMismatch" xml:space="preserve">
+    <value>Expected {0} samples for {1}Hz, got {2}</value>
+  </data>
+  <data name="SileroOnnx_ValidateInput_SamplesEmpty" xml:space="preserve">
+    <value>Audio samples cannot be null or empty.</value>
+  </data>
+  <data name="SileroOnnx_ValidateInput_UnsupportedSampleRate" xml:space="preserve">
+    <value>Unsupported sample rate: {sampleRate}. Only 8000 and 16000 are supported.</value>
+  </data>
+  <data name="SileroOnnx_ValidateInput_SampleRateChanged" xml:space="preserve">
+    <value>Sample rate changed from {lastSr} to {newSr}, resetting model state.</value>
+  </data>
+  <data name="SileroOnnx_Dispose_Disposed" xml:space="preserve">
+    <value>Silero VAD v4 ONNX model disposed.</value>
+  </data>
+  <data name="MusicProvider_Load_PathNotSet" xml:space="preserve">
+    <value>Music folder path is not set in the settings.</value>
+  </data>
+  <data name="MusicProvider_Load_PathNotExist" xml:space="preserve">
+    <value>Music folder path '{MusicFolderPath}' does not exist.</value>
+  </data>
+  <data name="MusicProvider_UpdateMusicFiles_SettingsNotInitialized" xml:space="preserve">
+    <value>Cannot update music files because the settings are not initialized.</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_BindCodePromptNotExist" xml:space="preserve">
+    <value>The bind code prompt file does not exist: {filePath}</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_BindNotFoundNotExist" xml:space="preserve">
+    <value>The bind not found file does not exist: {filePath}</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_DigitFilesCountError" xml:space="preserve">
+    <value>The digit files folder must contain exactly 10 files for digits 0-9.</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_InvalidDigitFile" xml:space="preserve">
+    <value>Invalid digit file: {fileName}</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_InvalidResourceLoading" xml:space="preserve">
+    <value>Invalid resource loadings for {resourceName}</value>
+  </data>
+  <data name="DefaultDeviceBinding_GetDeviceNotFoundAudioStream_NotLoaded" xml:space="preserve">
+    <value>The bind not found audio file is not loaded.</value>
+  </data>
+  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_InvalidBindCode" xml:space="preserve">
+    <value>Invalid bind code: {bindCode}, it must be a 6-digit numeric string.</value>
+  </data>
+  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_PromptNotLoaded" xml:space="preserve">
+    <value>The bind code prompt audio file is not loaded.</value>
+  </data>
+  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_DigitNotLoaded" xml:space="preserve">
+    <value>The audio file for digit '{digit}' is not loaded.</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_ListEmpty" xml:space="preserve">
+    <value>WAV files list cannot be null or empty</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_FirstFileInvalid" xml:space="preserve">
+    <value>First file is not a valid WAV file</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_FileInvalid" xml:space="preserve">
+    <value>One of the files is not a valid WAV file</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_BufferOverflow" xml:space="preserve">
+    <value>The sum of offset and count is larger than the buffer length.</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_InvalidOrigin" xml:space="preserve">
+    <value>Invalid seek origin</value>
+  </data>
+  <data name="BaseOnnxModel_CheckModelExist_NotFound" xml:space="preserve">
+    <value>Cannot found the onnx model file in path: {modelFilePath}.</value>
+  </data>
+  <data name="ManageApiClient_LoadConfigFromApi_UnknownException" xml:space="preserve">
+    <value>Unknown exception occurred while loading config from api: {0}</value>
+  </data>
 </root>

@@ -1,4 +1,5 @@
 using System;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Resources.OnnxModels.VAD.Models
 {
@@ -48,7 +49,7 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels.VAD.Models
         {
             if (newState.Length != this.HiddenState.Length)
             {
-                throw new ArgumentException($"Hidden state size mismatch. Expected {this.HiddenState.Length}, got {newState.Length}");
+                throw new ArgumentException(string.Format(Lang.SileroModelState_UpdateHiddenState_SizeMismatch, this.HiddenState.Length, newState.Length));
             }
             Array.Copy(newState, this.HiddenState, newState.Length);
         }
@@ -60,7 +61,7 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels.VAD.Models
         {
             if (newState.Length != this.CellState.Length)
             {
-                throw new ArgumentException($"Cell state size mismatch. Expected {this.CellState.Length}, got {newState.Length}");
+                throw new ArgumentException(string.Format(Lang.SileroModelState_UpdateCellState_SizeMismatch, this.CellState.Length, newState.Length));
             }
             Array.Copy(newState, this.CellState, newState.Length);
         }

@@ -1002,4 +1002,94 @@
   <data name="BaseSherpaVad_AnalysisVoiceAsync_SessionStateNotFound" xml:space="preserve">
     <value>未找到设备 {0} 的会话状态，会话：{1}。请先注册设备。</value>
   </data>
+  <data name="SileroModelState_UpdateHiddenState_SizeMismatch" xml:space="preserve">
+    <value>隐藏状态大小不匹配。预期 {0}，实际 {1}</value>
+  </data>
+  <data name="SileroModelState_UpdateCellState_SizeMismatch" xml:space="preserve">
+    <value>单元状态大小不匹配。预期 {0}，实际 {1}</value>
+  </data>
+  <data name="SileroOnnx_Load_Loaded" xml:space="preserve">
+    <value>已加载 ONNX 模型：{modelName}。</value>
+  </data>
+  <data name="SileroOnnx_Load_InvalidModel" xml:space="preserve">
+    <value>无效的 ONNX 模型：{modelName}。</value>
+  </data>
+  <data name="SileroOnnx_Infer_Disposed" xml:space="preserve">
+    <value>无法使用已释放的 {0} 实例。</value>
+  </data>
+  <data name="SileroOnnx_Infer_SessionNotInitialized" xml:space="preserve">
+    <value>ONNX InferenceSession 未初始化。请在 Infer() 之前调用 Load()。</value>
+  </data>
+  <data name="SileroOnnx_Infer_SampleCountMismatch" xml:space="preserve">
+    <value>预期 {1}Hz 为 {0} 个样本，实际为 {2}</value>
+  </data>
+  <data name="SileroOnnx_ValidateInput_SamplesEmpty" xml:space="preserve">
+    <value>音频样本不能为空。</value>
+  </data>
+  <data name="SileroOnnx_ValidateInput_UnsupportedSampleRate" xml:space="preserve">
+    <value>不支持的采样率：{sampleRate}。仅支持 8000 和 16000。</value>
+  </data>
+  <data name="SileroOnnx_ValidateInput_SampleRateChanged" xml:space="preserve">
+    <value>采样率从 {lastSr} 更改为 {newSr}，重置模型状态。</value>
+  </data>
+  <data name="SileroOnnx_Dispose_Disposed" xml:space="preserve">
+    <value>Silero VAD v4 ONNX 模型已释放。</value>
+  </data>
+  <data name="MusicProvider_Load_PathNotSet" xml:space="preserve">
+    <value>未在设置中设置音乐文件夹路径。</value>
+  </data>
+  <data name="MusicProvider_Load_PathNotExist" xml:space="preserve">
+    <value>音乐文件夹路径 '{MusicFolderPath}' 不存在。</value>
+  </data>
+  <data name="MusicProvider_UpdateMusicFiles_SettingsNotInitialized" xml:space="preserve">
+    <value>无法更新音乐文件，因为设置未初始化。</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_BindCodePromptNotExist" xml:space="preserve">
+    <value>绑定码提示文件不存在：{filePath}</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_BindNotFoundNotExist" xml:space="preserve">
+    <value>绑定未找到文件不存在：{filePath}</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_DigitFilesCountError" xml:space="preserve">
+    <value>数字文件文件夹必须正好包含 10 个数字 0-9 的文件。</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_InvalidDigitFile" xml:space="preserve">
+    <value>无效的数字文件：{fileName}</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_InvalidResourceLoading" xml:space="preserve">
+    <value>资源加载无效：{resourceName}</value>
+  </data>
+  <data name="DefaultDeviceBinding_GetDeviceNotFoundAudioStream_NotLoaded" xml:space="preserve">
+    <value>未加载绑定未找到音频文件。</value>
+  </data>
+  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_InvalidBindCode" xml:space="preserve">
+    <value>无效的绑定码：{bindCode}，必须是 6 位数字字符串。</value>
+  </data>
+  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_PromptNotLoaded" xml:space="preserve">
+    <value>未加载绑定码提示音频文件。</value>
+  </data>
+  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_DigitNotLoaded" xml:space="preserve">
+    <value>未加载数字 '{digit}' 的音频文件。</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_ListEmpty" xml:space="preserve">
+    <value>WAV 文件列表不能为空</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_FirstFileInvalid" xml:space="preserve">
+    <value>第一个文件不是有效的 WAV 文件</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_FileInvalid" xml:space="preserve">
+    <value>其中一个文件不是有效的 WAV 文件</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_BufferOverflow" xml:space="preserve">
+    <value>偏移量和计数之和大于缓冲区长度。</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_InvalidOrigin" xml:space="preserve">
+    <value>无效的搜索原点</value>
+  </data>
+  <data name="BaseOnnxModel_CheckModelExist_NotFound" xml:space="preserve">
+    <value>在路径：{modelFilePath} 中未找到 onnx 模型文件。</value>
+  </data>
+  <data name="ManageApiClient_LoadConfigFromApi_UnknownException" xml:space="preserve">
+    <value>从 API 加载配置时发生未知异常：{0}</value>
+  </data>
 </root>

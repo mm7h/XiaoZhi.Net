@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Text.RegularExpressions;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Resources.OnnxModels
 {
@@ -22,7 +23,7 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels
             bool exist = File.Exists(modelFilePath);
             if (!exist)
             {
-                this.Logger.LogError("Cannot found the onnx model file in path: {modelFilePath}.", modelFilePath);
+                this.Logger.LogError(Lang.BaseOnnxModel_CheckModelExist_NotFound, modelFilePath);
             }
             return exist;
         }

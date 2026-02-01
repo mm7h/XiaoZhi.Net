@@ -469,6 +469,54 @@ namespace XiaoZhi.Net.Server.I18n
         public static string BaseSherpaVad_AnalysisVoiceAsync_SessionStateNotFound => ResourceManager.GetString("BaseSherpaVad_AnalysisVoiceAsync_SessionStateNotFound", resourceCulture) ?? "";
         #endregion
 
+        #region SileroModelState
+        public static string SileroModelState_UpdateHiddenState_SizeMismatch => ResourceManager.GetString("SileroModelState_UpdateHiddenState_SizeMismatch", resourceCulture) ?? "";
+        public static string SileroModelState_UpdateCellState_SizeMismatch => ResourceManager.GetString("SileroModelState_UpdateCellState_SizeMismatch", resourceCulture) ?? "";
+        #endregion
+
+        #region SileroOnnx
+        public static string SileroOnnx_Load_Loaded => ResourceManager.GetString("SileroOnnx_Load_Loaded", resourceCulture) ?? "";
+        public static string SileroOnnx_Load_InvalidModel => ResourceManager.GetString("SileroOnnx_Load_InvalidModel", resourceCulture) ?? "";
+        public static string SileroOnnx_Infer_Disposed => ResourceManager.GetString("SileroOnnx_Infer_Disposed", resourceCulture) ?? "";
+        public static string SileroOnnx_Infer_SessionNotInitialized => ResourceManager.GetString("SileroOnnx_Infer_SessionNotInitialized", resourceCulture) ?? "";
+        public static string SileroOnnx_Infer_SampleCountMismatch => ResourceManager.GetString("SileroOnnx_Infer_SampleCountMismatch", resourceCulture) ?? "";
+        public static string SileroOnnx_ValidateInput_SamplesEmpty => ResourceManager.GetString("SileroOnnx_ValidateInput_SamplesEmpty", resourceCulture) ?? "";
+        public static string SileroOnnx_ValidateInput_UnsupportedSampleRate => ResourceManager.GetString("SileroOnnx_ValidateInput_UnsupportedSampleRate", resourceCulture) ?? "";
+        public static string SileroOnnx_ValidateInput_SampleRateChanged => ResourceManager.GetString("SileroOnnx_ValidateInput_SampleRateChanged", resourceCulture) ?? "";
+        public static string SileroOnnx_Dispose_Disposed => ResourceManager.GetString("SileroOnnx_Dispose_Disposed", resourceCulture) ?? "";
+        #endregion
+
+        #region MusicProvider
+        public static string MusicProvider_Load_PathNotSet => ResourceManager.GetString("MusicProvider_Load_PathNotSet", resourceCulture) ?? "";
+        public static string MusicProvider_Load_PathNotExist => ResourceManager.GetString("MusicProvider_Load_PathNotExist", resourceCulture) ?? "";
+        public static string MusicProvider_UpdateMusicFiles_SettingsNotInitialized => ResourceManager.GetString("MusicProvider_UpdateMusicFiles_SettingsNotInitialized", resourceCulture) ?? "";
+        #endregion
+
+        #region DefaultDeviceBinding
+        public static string DefaultDeviceBinding_Load_BindCodePromptNotExist => ResourceManager.GetString("DefaultDeviceBinding_Load_BindCodePromptNotExist", resourceCulture) ?? "";
+        public static string DefaultDeviceBinding_Load_BindNotFoundNotExist => ResourceManager.GetString("DefaultDeviceBinding_Load_BindNotFoundNotExist", resourceCulture) ?? "";
+        public static string DefaultDeviceBinding_Load_DigitFilesCountError => ResourceManager.GetString("DefaultDeviceBinding_Load_DigitFilesCountError", resourceCulture) ?? "";
+        public static string DefaultDeviceBinding_Load_InvalidDigitFile => ResourceManager.GetString("DefaultDeviceBinding_Load_InvalidDigitFile", resourceCulture) ?? "";
+        public static string DefaultDeviceBinding_Load_InvalidResourceLoading => ResourceManager.GetString("DefaultDeviceBinding_Load_InvalidResourceLoading", resourceCulture) ?? "";
+        public static string DefaultDeviceBinding_GetDeviceNotFoundAudioStream_NotLoaded => ResourceManager.GetString("DefaultDeviceBinding_GetDeviceNotFoundAudioStream_NotLoaded", resourceCulture) ?? "";
+        public static string DefaultDeviceBinding_GetDeviceBindCodeAudioStream_InvalidBindCode => ResourceManager.GetString("DefaultDeviceBinding_GetDeviceBindCodeAudioStream_InvalidBindCode", resourceCulture) ?? "";
+        public static string DefaultDeviceBinding_GetDeviceBindCodeAudioStream_PromptNotLoaded => ResourceManager.GetString("DefaultDeviceBinding_GetDeviceBindCodeAudioStream_PromptNotLoaded", resourceCulture) ?? "";
+        public static string DefaultDeviceBinding_GetDeviceBindCodeAudioStream_DigitNotLoaded => ResourceManager.GetString("DefaultDeviceBinding_GetDeviceBindCodeAudioStream_DigitNotLoaded", resourceCulture) ?? "";
+        public static string DefaultDeviceBinding_CombinedStream_ListEmpty => ResourceManager.GetString("DefaultDeviceBinding_CombinedStream_ListEmpty", resourceCulture) ?? "";
+        public static string DefaultDeviceBinding_CombinedStream_FirstFileInvalid => ResourceManager.GetString("DefaultDeviceBinding_CombinedStream_FirstFileInvalid", resourceCulture) ?? "";
+        public static string DefaultDeviceBinding_CombinedStream_FileInvalid => ResourceManager.GetString("DefaultDeviceBinding_CombinedStream_FileInvalid", resourceCulture) ?? "";
+        public static string DefaultDeviceBinding_CombinedStream_BufferOverflow => ResourceManager.GetString("DefaultDeviceBinding_CombinedStream_BufferOverflow", resourceCulture) ?? "";
+        public static string DefaultDeviceBinding_CombinedStream_InvalidOrigin => ResourceManager.GetString("DefaultDeviceBinding_CombinedStream_InvalidOrigin", resourceCulture) ?? "";
+        #endregion
+
+        #region BaseOnnxModel
+        public static string BaseOnnxModel_CheckModelExist_NotFound => ResourceManager.GetString("BaseOnnxModel_CheckModelExist_NotFound", resourceCulture) ?? "";
+        #endregion
+
+        #region ManageApiClient
+        public static string ManageApiClient_LoadConfigFromApi_UnknownException => ResourceManager.GetString("ManageApiClient_LoadConfigFromApi_UnknownException", resourceCulture) ?? "";
+        #endregion
+
         #endregion
     }
 }

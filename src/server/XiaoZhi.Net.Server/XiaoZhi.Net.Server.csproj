@@ -11,7 +11,7 @@
 		<LangVersion>latest</LangVersion>
         <Nullable>enable</Nullable>
         <ApplicationIcon>robot.ico</ApplicationIcon>
-        <Version>0.0.1</Version>
+        <Version>0.1.0</Version>
         <Authors>mm7h</Authors>
         <Title>XiaoZhi.Net.Server</Title>
         <PackageIcon />
@@ -20,9 +20,6 @@ Dotnet backend service for xiaozhi-esp32, helps you quickly build an ESP32 devic
         <RepositoryUrl>https://github.com/mm7h/XiaoZhi.Net</RepositoryUrl>
         <PackageProjectUrl>https://github.com/mm7h/XiaoZhi.Net</PackageProjectUrl>
     </PropertyGroup>
-    <ItemGroup>
-      <None Remove="Server\Providers\TTS\Huoshan\tts_log.txt" />
-    </ItemGroup>
     <ItemGroup>
       <Content Include="robot.ico" />
     </ItemGroup>

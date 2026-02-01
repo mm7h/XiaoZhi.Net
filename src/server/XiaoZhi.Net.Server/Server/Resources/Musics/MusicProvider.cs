@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Resources.Musics
 {
@@ -24,13 +25,13 @@ namespace XiaoZhi.Net.Server.Resources.Musics
         {
             if (string.IsNullOrEmpty(settings.MusicFolderPath))
             {
-                this.Logger.LogError("Music folder path is not set in the settings.");
+                this.Logger.LogError(Lang.MusicProvider_Load_PathNotSet);
                 return false;
             }
 
             if (!Directory.Exists(settings.MusicFolderPath))
             {
-                this.Logger.LogWarning("Music folder path '{MusicFolderPath}' does not exist.", settings.MusicFolderPath);
+                this.Logger.LogWarning(Lang.MusicProvider_Load_PathNotExist, settings.MusicFolderPath);
                 return true;
             }
 
@@ -56,7 +57,7 @@ namespace XiaoZhi.Net.Server.Resources.Musics
         {
             if (this._setting is null)
             {
-                this.Logger.LogWarning("Cannot update music files because the settings are not initialized.");
+                this.Logger.LogWarning(Lang.MusicProvider_UpdateMusicFiles_SettingsNotInitialized);
                 return false;
             }
             this._musicFiles.Clear();

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Resources.DeviceBinding
 {
@@ -33,7 +34,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
                 }
                 else
                 {
-                    this.Logger.LogError("The bind code prompt file does not exist: {filePath}", bindCodePromptFilePath);
+                    this.Logger.LogError(Lang.DefaultDeviceBinding_Load_BindCodePromptNotExist, bindCodePromptFilePath);
                     return false;
                 }
 
@@ -45,14 +46,14 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
                 }
                 else
                 {
-                    this.Logger.LogError("The bind not found file does not exist: {filePath}", bindNotFoundFilePath);
+                    this.Logger.LogError(Lang.DefaultDeviceBinding_Load_BindNotFoundNotExist, bindNotFoundFilePath);
                     return false;
                 }
 
                 string[] digitFiles = Directory.GetFiles(Path.Combine(Environment.CurrentDirectory, settings.BindCodeDigitFolderPath));
                 if (digitFiles.Length != 10)
                 {
-                    this.Logger.LogError("The digit files folder must contain exactly 10 files for digits 0-9.");
+                    this.Logger.LogError(Lang.DefaultDeviceBinding_Load_DigitFilesCountError);
                     return false;
                 }
                 foreach (string digitFile in digitFiles)
@@ -68,7 +69,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
                     }
                     else
                     {
-                        this.Logger.LogWarning("Invalid digit file: {fileName}", fileName);
+                        this.Logger.LogWarning(Lang.DefaultDeviceBinding_Load_InvalidDigitFile, fileName);
                         return false;
                     }
                 }
@@ -76,7 +77,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "Invalid resource loadings for {resourceName}", this.ResourceName);
+                this.Logger.LogError(ex, Lang.DefaultDeviceBinding_Load_InvalidResourceLoading, this.ResourceName);
                 return false;
             }
         }
@@ -89,7 +90,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
             }
             else
             {
-                this.Logger.LogError("The bind not found audio file is not loaded.");
+                this.Logger.LogError(Lang.DefaultDeviceBinding_GetDeviceNotFoundAudioStream_NotLoaded);
                 return null;
             }
         }
@@ -98,7 +99,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
         {
             if (string.IsNullOrWhiteSpace(bindCode) || bindCode.Length != 6 || !bindCode.All(char.IsDigit))
             {
-                this.Logger.LogError("Invalid bind code: {bindCode}, it must be a 6-digit numeric string.", bindCode);
+                this.Logger.LogError(Lang.DefaultDeviceBinding_GetDeviceBindCodeAudioStream_InvalidBindCode, bindCode);
                 return null;
             }
             List<byte[]> audioDataList = new();
@@ -108,7 +109,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
             }
             else
             {
-                this.Logger.LogError("The bind code prompt audio file is not loaded.");
+                this.Logger.LogError(Lang.DefaultDeviceBinding_GetDeviceBindCodeAudioStream_PromptNotLoaded);
                 return null;
             }
             foreach (char digit in bindCode)
@@ -119,7 +120,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
                 }
                 else
                 {
-                    this.Logger.LogError("The audio file for digit '{digit}' is not loaded.", digit);
+                    this.Logger.LogError(Lang.DefaultDeviceBinding_GetDeviceBindCodeAudioStream_DigitNotLoaded, digit);
                     return null;
                 }
             }
@@ -150,7 +151,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
         public CombinedWavStream(List<byte[]> wavFiles)
         {
             if (wavFiles == null || wavFiles.Count == 0)
-                throw new ArgumentException("WAV files list cannot be null or empty");
+                throw new ArgumentException(Lang.DefaultDeviceBinding_CombinedStream_ListEmpty);
 
             _combinedWavData = CombineWavFiles(wavFiles);
             _position = 0;
@@ -168,7 +169,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
             if (firstFile.Length < 44 ||
                 !firstFile.Take(4).SequenceEqual(new byte[] { 0x52, 0x49, 0x46, 0x46 })) // "RIFF"
             {
-                throw new ArgumentException("First file is not a valid WAV file");
+                throw new ArgumentException(Lang.DefaultDeviceBinding_CombinedStream_FirstFileInvalid);
             }
 
             // 提取第一个文件的头部信息（前44字节）
@@ -185,7 +186,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
                 if (wavFile.Length < 44 ||
                     !wavFile.Take(4).SequenceEqual(new byte[] { 0x52, 0x49, 0x46, 0x46 }))
                 {
-                    throw new ArgumentException("One of the files is not a valid WAV file");
+                    throw new ArgumentException(Lang.DefaultDeviceBinding_CombinedStream_FileInvalid);
                 }
 
                 // 提取PCM数据（跳过44字节头部）
@@ -243,7 +244,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
             if (count < 0)
                 throw new ArgumentOutOfRangeException(nameof(count));
             if (offset + count > buffer.Length)
-                throw new ArgumentException("The sum of offset and count is larger than the buffer length.");
+                throw new ArgumentException(Lang.DefaultDeviceBinding_CombinedStream_BufferOverflow);
 
             if (_position >= _combinedWavData.Length)
                 return 0;
@@ -262,7 +263,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
                 SeekOrigin.Begin => offset,
                 SeekOrigin.Current => _position + offset,
                 SeekOrigin.End => _combinedWavData.Length + offset,
-                _ => throw new ArgumentException("Invalid seek origin", nameof(origin))
+                _ => throw new ArgumentException(Lang.DefaultDeviceBinding_CombinedStream_InvalidOrigin, nameof(origin))
             };
 
             if (newPosition < 0)
@@ -328,7 +329,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
             if (count < 0)
                 throw new ArgumentOutOfRangeException(nameof(count));
             if (offset + count > buffer.Length)
-                throw new ArgumentException("The sum of offset and count is larger than the buffer length.");
+                throw new ArgumentException(Lang.DefaultDeviceBinding_CombinedStream_BufferOverflow);
 
             int totalBytesRead = 0;
             int remainingBytes = count;
@@ -367,7 +368,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
                 SeekOrigin.Begin => offset,
                 SeekOrigin.Current => _currentPosition + offset,
                 SeekOrigin.End => _totalLength + offset,
-                _ => throw new ArgumentException("Invalid seek origin", nameof(origin))
+                _ => throw new ArgumentException(Lang.DefaultDeviceBinding_CombinedStream_InvalidOrigin, nameof(origin))
             };
 
             if (newPosition < 0)

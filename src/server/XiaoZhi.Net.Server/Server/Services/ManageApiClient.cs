@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Exceptions;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Services
 {
@@ -40,7 +41,7 @@ namespace XiaoZhi.Net.Server.Services
                 case 10042:
                     throw new DeviceBindException(response.Msg);
                 default:
-                    throw new Exception($"Unknown exception occurred while loading config from api: {response.Msg}");
+                    throw new Exception(string.Format(Lang.ManageApiClient_LoadConfigFromApi_UnknownException, response.Msg));
             }
         }
 
