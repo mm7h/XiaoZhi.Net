@@ -8,18 +8,20 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Media.Abstractions;
 
 namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 {
     internal abstract class BaseSherpaAsr<TLogger> : BaseProvider<TLogger, ModelSetting>
     {
         private const int MAX_WAITING_TIME_MS = 100;
-        //private const int MAX_QUEUE_SIZE = 100;
 
+        private readonly IAudioEditor _audioEditor;
         private readonly ConcurrentDictionary<string, IAsrEventCallback> _asrSessions;
         private readonly Channel<AsrRequest> _requestChannel;
         private readonly CancellationTokenSource _shutdownCts;
@@ -28,8 +30,9 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 
         private Task? _backgroudProcessingTask;
 
-        protected BaseSherpaAsr(ILogger<TLogger> logger) : base(logger)
+        protected BaseSherpaAsr(IAudioEditor audioEditor, ILogger<TLogger> logger) : base(logger)
         {
+            this._audioEditor = audioEditor;
             this._asrSessions = new ConcurrentDictionary<string, IAsrEventCallback>();
             this._requestChannel = Channel.CreateUnbounded<AsrRequest>();
             this._shutdownCts = new CancellationTokenSource();
@@ -37,17 +40,17 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 
 
         public int MaxBatchSize { get; protected set; } = 50;
-
+        public AudioSavingConfig? AudioSavingConfig { get; protected set; }
         public override string ProviderType => "asr";
 
         protected void Build(OfflineRecognizerConfig offlineRecognizerConfig, ModelSetting modelSetting)
         {
-            offlineRecognizerConfig.ModelConfig.Tokens = Path.Combine(ModelFileFoler, "tokens.txt");
+            offlineRecognizerConfig.ModelConfig.Tokens = Path.Combine(this.ModelFileFoler, "tokens.txt");
 
             string? hotwordsFile = modelSetting.Config.GetConfigValueOrDefault("HotwordsFile");
             if (!string.IsNullOrEmpty(hotwordsFile))
             {
-                offlineRecognizerConfig.HotwordsFile = Path.Combine(ModelFileFoler, hotwordsFile);
+                offlineRecognizerConfig.HotwordsFile = Path.Combine(this.ModelFileFoler, hotwordsFile);
                 offlineRecognizerConfig.HotwordsScore = modelSetting.Config.GetConfigValueOrDefault("HotwordsScore", 1.5F);
                 offlineRecognizerConfig.DecodingMethod = "modified_beam_search";
                 offlineRecognizerConfig.MaxActivePaths = modelSetting.Config.GetConfigValueOrDefault("MaxActivePaths", 4);
@@ -59,7 +62,11 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
             //this._config.RuleFsts = this.ModelSetting.Config.RuleFsts;
 
             this.MaxBatchSize = modelSetting.Config.GetConfigValueOrDefault("MaxBatchSize", 50);
-
+            this.AudioSavingConfig = modelSetting.Config.GetConfigValueOrDefault("FileSavingOption", new AudioSavingConfig(false));
+            if (this.AudioSavingConfig.SaveFile && !Directory.Exists(this.AudioSavingConfig.SavePath))
+            {
+                Directory.CreateDirectory(this.AudioSavingConfig.SavePath);
+            }
             this._offlineRecognizer = new OfflineRecognizer(offlineRecognizerConfig);
             this._backgroudProcessingTask = Task.Run(this.Processing);
         }
@@ -93,6 +100,22 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
             {
                 try
                 {
+                    if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile)
+                    {
+                        string fileName = this.GenerateAudioFileName(workflow);
+                        string filePath = Path.Combine(this.AudioSavingConfig.SavePath, $"{fileName}.{this.AudioSavingConfig.Format}");
+                        
+                        bool userSpeechFileSavingResult = await this._audioEditor.SaveAudioFileAsync(filePath, workflow.Data);
+                        if (userSpeechFileSavingResult)
+                        {
+                            this.Logger.LogDebug(Lang.BaseSherpaAsr_ConvertSpeechTextAsync_AudioSaved, fileName);
+                        }
+                        else
+                        {
+                            this.Logger.LogWarning(Lang.BaseSherpaAsr_ConvertSpeechTextAsync_AudioNotSaved, fileName);
+                        }
+                    }
+
                     OfflineStream offlineStream = this._offlineRecognizer.CreateStream();
 
                     offlineStream.AcceptWaveform(sampleRate, workflow.Data);
@@ -112,6 +135,17 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                     this.Logger.LogError(ex, Lang.BaseSherpaAsr_ConvertSpeechTextAsync_UnexpectedError, this.ProviderType);
                 }
             }
+        }
+
+        private string GenerateAudioFileName<T>(Workflow<T> workflow)
+        {
+            string devicePart = this.ReplaceMacDelimiters(workflow.DeviceId, "_");
+            string sessionPart = workflow.SessionId.Replace("-", string.Empty);
+            if (sessionPart.Length > 7)
+            {
+                sessionPart = sessionPart.Substring(0, 7);
+            }
+            return $"{devicePart}_{sessionPart}_{workflow.TurnId}";
         }
 
         private async Task Processing()

@@ -4,13 +4,14 @@ using System;
 using System.IO;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Media.Abstractions;
 
 namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 {
     internal class SenseVoice : BaseSherpaAsr<SenseVoice>, IAsr
     {
 
-        public SenseVoice(XiaoZhiConfig config, ILogger<SenseVoice> logger) : base(logger)
+        public SenseVoice(IAudioEditor audioEditor, ILogger<SenseVoice> logger) : base(audioEditor, logger)
         {
         }
         public override string ModelName => nameof(SenseVoice);

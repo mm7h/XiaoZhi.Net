@@ -3,6 +3,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +12,7 @@ using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Protocol.WebSocket;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Enums;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models;
@@ -20,13 +22,13 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
     internal abstract class HuoshanStreamTTS<TLogger> : BaseHuoshanTTS<TLogger>
     {
 
-        private readonly object _fileLock = new();
-        private readonly Dictionary<string, TTSAudioFile> _sessionFiles = new();
+        private readonly object _audioBufferLock = new();
+        private readonly Dictionary<string, List<float>> _sessionAudioBuffers = new();
         private readonly List<PendingWait> _waits = new();
         private readonly object _waitsLock = new();
         private static readonly TimeSpan DefaultWaitTimeout = TimeSpan.FromSeconds(15);
 
-        public HuoshanStreamTTS(ILogger<TLogger> logger) : base(logger)
+        public HuoshanStreamTTS(IAudioEditor audioEditor, ILogger<TLogger> logger) : base(audioEditor, logger)
         {
             this.ProcessingSegments = new ConcurrentDictionary<string, OutSegment>();
         }
@@ -52,15 +54,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 this.SpeakerId = speaker;
                 this.SpeechRate = modelSetting.Config.GetConfigValueOrDefault("SpeechRate", 0);
                 this.LoudnessRate = modelSetting.Config.GetConfigValueOrDefault("LoudnessRate", 0);
-
-                this.Save2File = modelSetting.Config.GetConfigValueOrDefault("Save2File", false);
-
-                if (this.Save2File)
-                {
-                    this.SavePath = modelSetting.Config.GetConfigValueOrDefault("SavePath", Path.Combine(Environment.CurrentDirectory, "data", "tts-cache"));
-                    if (!Directory.Exists(this.SavePath))
-                        Directory.CreateDirectory(this.SavePath);
-                }
+                this.BuildAudioSavingConfig(modelSetting);
 
                 IDictionary<string, string> headers = new Dictionary<string, string>
                 {
@@ -122,47 +116,44 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             await this.WebSocketClient.SendAsync(data);
         }
 
-        protected void StartNewAudioFile(string sessionId, string fileExtension)
+        protected void StartNewAudioBuffer(string sessionId)
         {
-            if (!this.Save2File || string.IsNullOrEmpty(this.SavePath) || string.IsNullOrEmpty(sessionId))
+            if (this.AudioSavingConfig is null || !this.AudioSavingConfig.SaveFile || string.IsNullOrEmpty(sessionId))
             {
                 return;
             }
 
-            lock (this._fileLock)
+            lock (this._audioBufferLock)
             {
-                if (!this._sessionFiles.ContainsKey(sessionId))
+                if (!this._sessionAudioBuffers.ContainsKey(sessionId))
                 {
-                    this.CreateAudioFileEntry(sessionId, fileExtension);
+                    this._sessionAudioBuffers[sessionId] = new List<float>();
                 }
             }
         }
 
-        private TTSAudioFile CreateAudioFileEntry(string sessionId, string fileExtension)
+        protected void AppendAudioPayloadChunk(string sessionId, byte[] audioData)
         {
-            var tmpPath = Path.Combine(this.SavePath, sessionId + "." + fileExtension + ".tmp");
-            var finalPath = Path.Combine(this.SavePath, sessionId + "." + fileExtension);
-            var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite, 8192, FileOptions.Asynchronous | FileOptions.SequentialScan);
-            var entry = new TTSAudioFile(sessionId, fs, tmpPath, finalPath);
-            this._sessionFiles[sessionId] = entry;
-            return entry;
-        }
-
-        protected void AppendAudioPayloadChunk(string sessionId, byte[] audioData, string fileExtension)
-        {
-            if (!this.Save2File || string.IsNullOrEmpty(this.SavePath) || string.IsNullOrEmpty(sessionId))
+            if (this.AudioSavingConfig is null || !this.AudioSavingConfig.SaveFile || string.IsNullOrEmpty(sessionId))
             {
                 return;
             }
 
-            lock (this._fileLock)
+            float[] pcmData = audioData.PcmBytesToFloat(16);
+            if (pcmData.Length == 0)
             {
-                if (!this._sessionFiles.TryGetValue(sessionId, out var entry))
+                return;
+            }
+
+            lock (this._audioBufferLock)
+            {
+                if (!this._sessionAudioBuffers.TryGetValue(sessionId, out var buffer))
                 {
-                    entry = this.CreateAudioFileEntry(sessionId, fileExtension);
+                    buffer = new List<float>();
+                    this._sessionAudioBuffers[sessionId] = buffer;
                 }
 
-                entry.Stream.Write(audioData, 0, audioData.Length);
+                buffer.AddRange(pcmData);
             }
         }
         protected async Task<Message> StartConnectionAsync(CancellationToken cancellationToken)
@@ -213,53 +204,37 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             return await waitTask.ConfigureAwait(false);
         }
 
-        protected void CloseSessionFile(string sessionId, bool finalize)
+        protected async Task FinalizeSessionAudioAsync(string sessionId, string deviceId)
         {
-            lock (this._fileLock)
+            List<float>? audioBuffer = null;
+            lock (this._audioBufferLock)
             {
-                if (this._sessionFiles.TryGetValue(sessionId, out var entry))
+                if (this._sessionAudioBuffers.TryGetValue(sessionId, out var buffer))
                 {
-                    try
-                    {
-                        entry.Stream.Flush();
-                    }
-                    finally
-                    {
-                        entry.Stream.Dispose();
-                    }
-
-                    if (finalize)
-                    {
-                        try
-                        {
-                            if (File.Exists(entry.FinalPath))
-                            {
-                                File.Delete(entry.FinalPath);
-                            }
-                            File.Move(entry.TmpPath, entry.FinalPath);
-                        }
-                        catch
-                        {
-                        }
-                    }
-
-                    this._sessionFiles.Remove(sessionId);
+                    audioBuffer = new List<float>(buffer);
+                    this._sessionAudioBuffers.Remove(sessionId);
                 }
+            }
+
+            if (audioBuffer is not null && audioBuffer.Any())
+            {
+                await this.SaveAudioFileAsync(deviceId, sessionId, audioBuffer.ToArray()).ConfigureAwait(false);
             }
         }
 
-        protected void CloseAllSessionFiles(bool finalize)
+        protected void ClearSessionAudioBuffer(string sessionId)
         {
-            string[] keys;
-            lock (this._fileLock)
+            lock (this._audioBufferLock)
             {
-                keys = new string[this._sessionFiles.Keys.Count];
-                this._sessionFiles.Keys.CopyTo(keys, 0);
+                this._sessionAudioBuffers.Remove(sessionId);
             }
+        }
 
-            foreach (var sid in keys)
+        protected void ClearAllSessionAudioBuffers()
+        {
+            lock (this._audioBufferLock)
             {
-                this.CloseSessionFile(sid, finalize);
+                this._sessionAudioBuffers.Clear();
             }
         }
 
@@ -365,7 +340,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         private void WebSocketClient_OnClose(System.Net.WebSockets.WebSocketCloseStatus? status, string? desc)
         {
             this.Logger.LogDebug(Lang.HuoshanStreamTTS_OnClose_Closed, status, desc);
-            this.CloseAllSessionFiles(finalize: false);
+            this.ClearAllSessionAudioBuffers();
             this.FailAllWaits(new OperationCanceledException(string.Format(Lang.HuoshanStreamTTS_OnClose_ClosedEx, status, desc)));
             if (this.StreamingActive)
             {
@@ -376,7 +351,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         private void WebSocketClient_OnError(System.Net.WebSockets.WebSocketError error, string message)
         {
             this.Logger.LogError(Lang.HuoshanStreamTTS_OnError_Error, error, message);
-            this.CloseAllSessionFiles(finalize: false);
+            this.ClearAllSessionAudioBuffers();
             this.FailAllWaits(new Exception(string.Format(Lang.HuoshanStreamTTS_OnError_ErrorEx, error, message)));
             if (this.StreamingActive)
             {
@@ -405,10 +380,9 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             // Sentence start marker -> push empty first frame
             if (message.MsgType == MsgType.FullServerResponse && message.EventType == EventType.TTSSentenceStart)
             {
-                if (this.Save2File && !string.IsNullOrEmpty(message.SessionId))
+                if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile && !string.IsNullOrEmpty(message.SessionId))
                 {
-                    this.CloseSessionFile(message.SessionId, true);
-                    this.StartNewAudioFile(message.SessionId, this.AudioEncoding);
+                    this.StartNewAudioBuffer(message.SessionId);
                 }
 
                 if (this.StreamingActive && !string.IsNullOrEmpty(message.SessionId))
@@ -422,11 +396,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             // Audio frame streaming
             if (message.MsgType == MsgType.AudioOnlyServer && message.Payload != null && message.Payload.Length > 0)
             {
-                if (this.Save2File && !string.IsNullOrEmpty(this.SavePath) && !string.IsNullOrEmpty(message.SessionId))
+                if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile && !string.IsNullOrEmpty(message.SessionId))
                 {
                     try
                     {
-                        this.AppendAudioPayloadChunk(message.SessionId, message.Payload, this.AudioEncoding);
+                        this.AppendAudioPayloadChunk(message.SessionId, message.Payload);
                     }
                     catch (Exception ex)
                     {
@@ -445,9 +419,9 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             // Sentence end marker -> seal current producing subtitle so subsequent samples go to next sentence
             if (message.MsgType == MsgType.FullServerResponse && message.EventType == EventType.TTSSentenceEnd)
             {
-                if (this.Save2File && !string.IsNullOrEmpty(message.SessionId))
+                if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile && !string.IsNullOrEmpty(message.SessionId))
                 {
-                    this.CloseSessionFile(message.SessionId, true);
+                    this.FinalizeSessionAudioAsync(message.SessionId, this.DeviceId).ConfigureAwait(false);
                 }
 
                 if (this.StreamingActive && !string.IsNullOrEmpty(message.SessionId))

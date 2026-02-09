@@ -1,9 +1,86 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
     <xsd:element name="root" msdata:IsDataSet="true">
       <xsd:complexType>
         <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
           <xsd:element name="data">
             <xsd:complexType>
               <xsd:sequence>
@@ -13,6 +90,7 @@
               <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
               <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
               <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
             </xsd:complexType>
           </xsd:element>
           <xsd:element name="resheader">
@@ -39,36 +117,35 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-
   <data name="Audio2TextHandler_Build_AsrNotConfigured" xml:space="preserve">
-    <value>&#x8BBE;&#x5907; {deviceId} &#x672A;&#x914D;&#x7F6E; ASR &#x63D0;&#x4F9B;&#x7A0B;&#x5E8F;&#x3002;</value>
+    <value>设备 {deviceId} 未配置 ASR 提供程序。</value>
   </data>
   <data name="Audio2TextHandler_Handle_ProcessFailed" xml:space="preserve">
-    <value>&#x5904;&#x7406;&#x6765;&#x81EA;&#x8BBE;&#x5907; {deviceId} &#x7684;&#x8BED;&#x97F3;&#x8F6C;&#x6587;&#x672C;&#x6570;&#x636E;&#x5305;&#x5931;&#x8D25;&#x3002;</value>
+    <value>处理来自设备 {deviceId} 的语音转文本数据包失败。</value>
   </data>
   <data name="Audio2TextHandler_OnSpeechTextConverted_ConvertFailed" xml:space="preserve">
-    <value>ASR &#x8F6C;&#x6362;&#x8BED;&#x97F3;&#x6587;&#x672C;&#x5931;&#x8D25;&#x3002;</value>
+    <value>ASR 转换语音文本失败。</value>
   </data>
   <data name="Audio2TextHandler_OnSpeechTextConverted_NoSpeak" xml:space="preserve">
-    <value>&#x8BBE;&#x5907; {deviceId} &#x672A;&#x68C0;&#x6D4B;&#x5230;&#x8BED;&#x97F3;&#x3002;</value>
+    <value>设备 {deviceId} 未检测到语音。</value>
   </data>
   <data name="Audio2TextHandler_OnSpeechTextConverted_SpeakText" xml:space="preserve">
-    <value>&#x8BBE;&#x5907; {deviceId} &#x8BF4;&#x4E86;: {speechText}</value>
+    <value>设备 {deviceId} 说了: {speechText}</value>
   </data>
   <data name="ServerBuilder_Initialize_ConfigNull" xml:space="preserve">
-    <value>&#x914D;&#x7F6E;&#x4E0D;&#x80FD;&#x4E3A;&#x7A7A;&#x3002;</value>
+    <value>配置不能为空。</value>
   </data>
   <data name="ServerBuilder_WithPlugin_PluginNameNull" xml:space="preserve">
-    <value>&#x63D2;&#x4EF6;&#x540D;&#x79F0;&#x4E0D;&#x80FD;&#x4E3A;&#x7A7A;&#x3002;</value>
+    <value>插件名称不能为空。</value>
   </data>
   <data name="ServerBuilder_WithPlugin_FunctionsNull" xml:space="preserve">
-    <value>&#x529F;&#x80FD;&#x5217;&#x8868;&#x4E0D;&#x80FD;&#x4E3A;&#x7A7A;&#x3002;</value>
+    <value>功能列表不能为空。</value>
   </data>
   <data name="ServerBuilder_BuildComponents_ResourceLoadFailed" xml:space="preserve">
-    <value>&#x52A0;&#x8F7D;&#x8D44;&#x6E90;&#x7EC4;&#x4EF6;&#x5931;&#x8D25;&#x3002;&#x8BF7;&#x68C0;&#x67E5;&#x914D;&#x7F6E;&#x548C;&#x8D44;&#x6E90;&#x5B9E;&#x73B0;&#x3002;</value>
+    <value>加载资源组件失败。请检查配置和资源实现。</value>
   </data>
   <data name="ServerBuilder_BuildComponents_ProviderBuildFailed" xml:space="preserve">
-    <value>&#x6784;&#x5EFA;&#x63D0;&#x4F9B;&#x7A0B;&#x5E8F;&#x7EC4;&#x4EF6;&#x5931;&#x8D25;&#x3002;&#x8BF7;&#x68C0;&#x67E5;&#x914D;&#x7F6E;&#x548C;&#x63D0;&#x4F9B;&#x7A0B;&#x5E8F;&#x5B9E;&#x73B0;&#x3002;</value>
+    <value>构建提供程序组件失败。请检查配置和提供程序实现。</value>
   </data>
   <data name="AudioProcessorHandler_Build_AudioProcessorNotConfigured" xml:space="preserve">
     <value>音频处理器未为设备配置: {deviceId}。</value>
@@ -230,7 +307,7 @@
     <value>无法为设备 {deviceId} 构建处理程序管道。</value>
   </data>
   <data name="HandlerManager_BuildHandlersWorkflow_BuiltWorkflow" xml:space="preserve">
-    <value>已构建处理程序工作流，上一步：{previous} -> 下一步：{next}</value>
+    <value>已构建处理程序工作流，上一步：{previous} -&gt; 下一步：{next}</value>
   </data>
   <data name="HandlerManager_ScheduleOnAbort_Aborted" xml:space="preserve">
     <value>设备：{deviceId}，会话：{sessionId} 中止任务，消息：{message}。</value>
@@ -436,6 +513,12 @@
   <data name="BaseSherpaAsr_Dispose_WaitFailed" xml:space="preserve">
     <value>等待后台任务完成失败。</value>
   </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_AudioSaved" xml:space="preserve">
+    <value>用户语音音频文件 {fileName} 保存成功。</value>
+  </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_AudioNotSaved" xml:space="preserve">
+    <value>保存用户语音音频文件 {fileName} 失败。</value>
+  </data>  
   <data name="Paraformer_Build_Built" xml:space="preserve">
     <value>已构建 {providerType} 模型: {modelName}</value>
   </data>
@@ -557,109 +640,109 @@
     <value>音频播放器状态为 {status}，跳过停止。</value>
   </data>
   <data name="ChatAgent_Build_Built" xml:space="preserve">
-    <value>&#x5DF2;&#x6784;&#x5EFA; {providerType} &#x6A21;&#x578B; {modelName}。</value>
+    <value>已构建 {providerType} - {modelName}，模型名称：{chatLLMName}</value>
+  </data>
+  <data name="ChatAgent_Build_BuildPluginsBuilt" xml:space="preserve">
+    <value>已构建 {providerType} - {modelName}的插件。</value>
   </data>
   <data name="ChatAgent_Build_BuildPluginsFailed" xml:space="preserve">
-    <value>&#x6784;&#x5EFA; {providerType} &#x6A21;&#x578B; {modelName} &#x7684;&#x63D2;&#x4EF6;&#x5931;&#x8D25;。</value>
-  </data>
-  <data name="ChatAgent_Build_BuildFailed" xml:space="preserve">
-    <value>&#x6784;&#x5EFA; ChatAgent &#x5931;&#x8D25;。</value>
+    <value>构建 {providerType} 模型 {modelName} 的插件失败。</value>
   </data>
   <data name="ChatAgent_RegisterDevice_PluginRegistered" xml:space="preserve">
-    <value>LLM &#x63D2;&#x4EF6; {pluginName} &#x5DF2;&#x4E3A;&#x8BBE;&#x5907; {deviceId} &#x6CE8;&#x518C;。</value>
+    <value>LLM 插件 {pluginName} 已为设备 {deviceId} 注册。</value>
   </data>
   <data name="ChatAgent_GenerateChatResponseAsync_AgentNotBuilt" xml:space="preserve">
-    <value>&#x804A;&#x5929;&#x4EE3;&#x7406;&#x5C1A;&#x672A;&#x6784;&#x5EFA;。</value>
+    <value>聊天代理尚未构建。</value>
   </data>
   <data name="EmotionAgent_Build_BuildFailed" xml:space="preserve">
-    <value>&#x6784;&#x5EFA; EmotionAgent &#x5931;&#x8D25;。</value>
+    <value>构建 EmotionAgent 失败。</value>
   </data>
   <data name="EmotionAgent_AnalyzeEmotionAsync_AgentNotBuilt" xml:space="preserve">
-    <value>&#x60C5;&#x7EEA;&#x4EE3;&#x7406;&#x5C1A;&#x672A;&#x6784;&#x5EFA;。</value>
+    <value>情绪代理尚未构建。</value>
   </data>
   <data name="EmotionAgent_AnalyzeEmotionAsync_UserCanceled" xml:space="preserve">
-    <value>&#x7528;&#x6237;&#x53D6;&#x6D88;&#x4E86; {providerType} &#x7684;&#x4EFB;&#x52A1;。</value>
+    <value>用户取消了 {providerType} 的任务。</value>
   </data>
   <data name="EmotionAgent_AnalyzeEmotionAsync_UnexpectedError" xml:space="preserve">
-    <value>{providerType} &#x53D1;&#x751F;&#x610F;&#x5916;&#x9519;&#x8BEF;。</value>
+    <value>{providerType} 发生意外错误。</value>
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_McpClientNotInit" xml:space="preserve">
-    <value>MCP &#x5BA2;&#x6237;&#x7AEF;&#x672A;&#x4E3A;&#x8BBE;&#x5907; {deviceId} &#x521D;&#x59CB;&#x5316;。</value>
+    <value>MCP 客户端未为设备 {deviceId} 初始化。</value>
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_SubMcpClientNotFound" xml:space="preserve">
-    <value>&#x672A;&#x627E;&#x5230;&#x7C7B;&#x578B;&#x540D;&#x4E3A; &#x2018;{0}&#x2019; &#x7684; SubMcpClient。</value>
+    <value>未找到类型名为 ‘{0}’ 的 SubMcpClient。</value>
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeMcpFailed" xml:space="preserve">
-    <value>&#x8C03;&#x7528;&#x63D2;&#x4EF6; {PluginName} &#x4E2D;&#x7684; MCP &#x5DE5;&#x5177;&#x51FD;&#x6570; {FunctionName} &#x5931;&#x8D25;。</value>
+    <value>调用插件 {PluginName} 中的 MCP 工具函数 {FunctionName} 失败。</value>
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeMcpFailedDetail" xml:space="preserve">
-    <value>&#x8C03;&#x7528;&#x63D2;&#x4EF6; {1} &#x4E2D;&#x7684; MCP &#x5DE5;&#x5177;&#x51FD;&#x6570; {0} &#x5931;&#x8D25;&#xFF0C;&#x9519;&#x8BEF;&#x4FE1;&#x606F;&#x4E3A;&#xFF1A;{2}。</value>
+    <value>调用插件 {1} 中的 MCP 工具函数 {0} 失败，错误信息为：{2}。</value>
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_IoTClientNotInit" xml:space="preserve">
-    <value>IoT &#x5BA2;&#x6237;&#x7AEF;&#x672A;&#x4E3A;&#x8BBE;&#x5907; {deviceId} &#x521D;&#x59CB;&#x5316;。</value>
+    <value>IoT 客户端未为设备 {deviceId} 初始化。</value>
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_ReturnTypeNotSpecified" xml:space="preserve">
-    <value>&#x63D2;&#x4EF6;&#x2018;{1}&#x2019;&#x4E2D;&#x51FD;&#x6570;&#x2018;{0}&#x2019;&#x7684;&#x8FD4;&#x56DE;&#x7C7B;&#x578B;&#x672A;&#x6307;&#x5B9A;。</value>
+    <value>插件‘{1}’中函数‘{0}’的返回类型未指定。</value>
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTSuccess" xml:space="preserve">
-    <value>&#x6210;&#x529F;&#x8C03;&#x7528; IoT &#x547D;&#x4EE4;。</value>
+    <value>成功调用 IoT 命令。</value>
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvalidIoTName" xml:space="preserve">
-    <value>&#x63D2;&#x4EF6;&#x2018;{0}&#x2019;&#x4E2D;&#x7684; IoT &#x7EC4;&#x4EF6;&#x540D;&#x79F0;&#x683C;&#x5F0F;&#x65E0;&#x6548;。</value>
+    <value>插件‘{0}’中的 IoT 组件名称格式无效。</value>
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailed" xml:space="preserve">
-    <value>&#x8C03;&#x7528;&#x63D2;&#x4EF6; {PluginName} &#x4E2D;&#x7684; IoT &#x5DE5;&#x5177;&#x51FD;&#x6570; {FunctionName} &#x5931;&#x8D25;。</value>
+    <value>调用插件 {PluginName} 中的 IoT 工具函数 {FunctionName} 失败。</value>
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailedDetail" xml:space="preserve">
-    <value>&#x8C03;&#x7528;&#x63D2;&#x4EF6; {1} &#x4E2D;&#x7684; IoT &#x5DE5;&#x5177;&#x51FD;&#x6570; {0} &#x5931;&#x8D25;&#xFF0C;&#x9519;&#x8BEF;&#x4FE1;&#x606F;&#x4E3A;&#xFF1A;{2}。</value>
+    <value>调用插件 {1} 中的 IoT 工具函数 {0} 失败，错误信息为：{2}。</value>
   </data>
   <data name="MusicPlayer_GetMusicFilesAsync_SessionNotInit" xml:space="preserve">
-    <value>&#x83B7;&#x53D6;&#x97F3;&#x4E50;&#x6587;&#x4EF6;&#x5931;&#x8D25;&#xFF0C;&#x5F53;&#x524D;&#x4F1A;&#x8BDD;&#x5C1A;&#x672A;&#x521D;&#x59CB;&#x5316;。</value>
+    <value>获取音乐文件失败，当前会话尚未初始化。</value>
   </data>
   <data name="MusicPlayer_GetMusicFilesAsync_NoFilesLog" xml:space="preserve">
-    <value>{ProviderType} - {ModelName}&#xFF0C;&#x83B7;&#x53D6;&#x97F3;&#x4E50;&#x6587;&#x4EF6;&#x5931;&#x8D25;&#xFF0C;&#x8BBE;&#x5907; {deviceId} &#x4E0D;&#x5B58;&#x5728;&#x6587;&#x4EF6;。</value>
+    <value>{ProviderType} - {ModelName}，获取音乐文件失败，设备 {deviceId} 不存在文件。</value>
   </data>
   <data name="MusicPlayer_GetMusicFilesAsync_NoFilesMsg" xml:space="preserve">
-    <value>&#x83B7;&#x53D6;&#x97F3;&#x4E50;&#x6587;&#x4EF6;&#x5931;&#x8D25;&#xFF0C;&#x4E0D;&#x5B58;&#x5728;&#x6587;&#x4EF6;。</value>
+    <value>获取音乐文件失败，不存在文件。</value>
   </data>
   <data name="MusicPlayer_GetMusicFilesAsync_SuccessLog" xml:space="preserve">
-    <value>{ProviderType} - {ModelName}&#xFF0C;&#x6210;&#x529F;&#x4E3A;&#x8BBE;&#x5907; {deviceId} &#x83B7;&#x53D6;&#x4E86; {fileCount} &#x4E2A;&#x97F3;&#x4E50;&#x6587;&#x4EF6;。</value>
+    <value>{ProviderType} - {ModelName}，成功为设备 {deviceId} 获取了 {fileCount} 个音乐文件。</value>
   </data>
   <data name="MusicPlayer_GetMusicFilesAsync_SuccessMsg" xml:space="preserve">
-    <value>&#x83B7;&#x53D6;&#x97F3;&#x4E50;&#x6587;&#x4EF6;&#x6210;&#x529F;&#x3002;&#x53EF;&#x7528;&#x97F3;&#x4E50;&#x6587;&#x4EF6;&#xFF1A;{0}</value>
+    <value>获取音乐文件成功。可用音乐文件：{0}</value>
   </data>
   <data name="MusicPlayer_GetMusicFilesAsync_ProviderNotInit" xml:space="preserve">
-    <value>&#x83B7;&#x53D6;&#x97F3;&#x4E50;&#x6587;&#x4EF6;&#x5931;&#x8D25;&#xFF0C;&#x97F3;&#x4E50;&#x63D0;&#x4F9B;&#x7A0B;&#x5E8F;&#x5C1A;&#x672A;&#x521D;&#x59CB;&#x5316;。</value>
+    <value>获取音乐文件失败，音乐提供程序尚未初始化。</value>
   </data>
   <data name="MusicPlayer_PlayMusic_SessionNotInit" xml:space="preserve">
-    <value>&#x64AD;&#x653E;&#x97F3;&#x4E50;&#x5931;&#x8D25;&#xFF0C;&#x5F53;&#x524D;&#x4F1A;&#x8BDD;&#x5C1A;&#x672A;&#x521D;&#x59CB;&#x5316;。</value>
+    <value>播放音乐失败，当前会话尚未初始化。</value>
   </data>
   <data name="MusicPlayer_PlayMusic_PlayerNotInit" xml:space="preserve">
-    <value>&#x64AD;&#x653E;&#x97F3;&#x4E50;&#x5931;&#x8D25;&#xFF0C;&#x64AD;&#x653E;&#x5668;&#x5C1A;&#x672A;&#x521D;&#x59CB;&#x5316;。</value>
+    <value>播放音乐失败，播放器尚未初始化。</value>
   </data>
   <data name="MusicPlayer_PlayMusic_NoFiles" xml:space="preserve">
-    <value>&#x64AD;&#x653E;&#x97F3;&#x4E50;&#x5931;&#x8D25;&#xFF0C;&#x670D;&#x52A1;&#x5668;&#x4E2D;&#x6CA1;&#x6709;&#x97F3;&#x4E50;&#x6587;&#x4EF6;。</value>
+    <value>播放音乐失败，服务器中没有音乐文件。</value>
   </data>
   <data name="MusicPlayer_PlayMusic_MusicNameEmpty" xml:space="preserve">
-    <value>&#x64AD;&#x653E;&#x97F3;&#x4E50;&#x5931;&#x8D25;&#xFF0C;&#x5B57;&#x6BB5; musicName &#x4E3A;&#x7A7A;。</value>
+    <value>播放音乐失败，字段 musicName 为空。</value>
   </data>
   <data name="MusicPlayer_PlayMusic_FileNotFound" xml:space="preserve">
-    <value>&#x64AD;&#x653E;&#x97F3;&#x4E50;&#x5931;&#x8D25;&#xFF0C;&#x672A;&#x627E;&#x5230;&#x6307;&#x5B9A;&#x7684;&#x97F3;&#x4E50;&#x6587;&#x4EF6;。</value>
+    <value>播放音乐失败，未找到指定的音乐文件。</value>
   </data>
   <data name="MusicPlayer_PlayMusic_PlayingLog" xml:space="preserve">
-    <value>{ProviderType} - {ModelName}&#xFF0C;&#x6B63;&#x5728;&#x4E3A;&#x8BBE;&#x5907; {deviceId} &#x64AD;&#x653E;&#x97F3;&#x4E50;&#x6587;&#x4EF6; {musicFilePath}。</value>
+    <value>{ProviderType} - {ModelName}，正在为设备 {deviceId} 播放音乐文件 {musicFilePath}。</value>
   </data>
   <data name="MusicPlayer_PlayMusic_SuccessMsg" xml:space="preserve">
-    <value>&#x6210;&#x529F;&#x5F00;&#x59CB;&#x64AD;&#x653E;&#x97F3;&#x4E50;&#xFF1A;{0}</value>
+    <value>成功开始播放音乐：{0}</value>
   </data>
   <data name="MusicPlayer_PlayMusic_FailedLog" xml:space="preserve">
-    <value>&#x4E3A;&#x8BBE;&#x5907; {deviceId} &#x64AD;&#x653E;&#x97F3;&#x4E50;&#x6587;&#x4EF6; {musicFilePath} &#x5931;&#x8D25;。</value>
+    <value>为设备 {deviceId} 播放音乐文件 {musicFilePath} 失败。</value>
   </data>
   <data name="MusicPlayer_PlayMusic_FailedMsg" xml:space="preserve">
-    <value>&#x64AD;&#x653E;&#x97F3;&#x4E50;&#x5931;&#x8D25;&#xFF1A;{0}&#x3002;&#x9519;&#x8BEF;&#xFF1A;{1}</value>
+    <value>播放音乐失败：{0}。错误：{1}</value>
   </data>
   <data name="MusicPlayer_PlayMusic_ProviderNotInit" xml:space="preserve">
-    <value>&#x64AD;&#x653E;&#x97F3;&#x4E50;&#x5931;&#x8D25;&#xFF0C;&#x97F3;&#x4E50;&#x63D0;&#x4F9B;&#x7A0B;&#x5E8F;&#x5C1A;&#x672A;&#x521D;&#x59CB;&#x5316;。</value>
+    <value>播放音乐失败，音乐提供程序尚未初始化。</value>
   </data>
   <data name="BaseMcpClient_HandleMcpMessageAsync_CallResult" xml:space="preserve">
     <value>收到 MCP 调用结果：{result}，消息 ID {msgId}，来自设备 {deviceId}。</value>
@@ -700,6 +783,12 @@
   <data name="BaseMcpClient_HandleMcpMessageAsync_ErrorResponse_Exception" xml:space="preserve">
     <value>收到 MCP 错误响应：{0}</value>
   </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_ToolError" xml:space="preserve">
+    <value>工具调用错误：{0}</value>
+  </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_TimeoutEx" xml:space="preserve">
+    <value>{0} 秒后响应超时</value>
+  </data>
   <data name="BaseMcpClient_SendMcpInitializeAsync_SendingInit" xml:space="preserve">
     <value>设备 {deviceId} 发送 MCP 初始化请求。</value>
   </data>
@@ -718,9 +807,6 @@
   <data name="BaseMcpClient_CallMcpToolAsync_Timeout" xml:space="preserve">
     <value>调用工具 {toolName} 响应超时，{timeout} 秒。</value>
   </data>
-  <data name="BaseMcpClient_CallMcpToolAsync_TimeoutEx" xml:space="preserve">
-    <value>{0} 秒后响应超时</value>
-  </data>
   <data name="BaseMcpClient_CallMcpToolAsync_CallSuccess" xml:space="preserve">
     <value>成功获取设备 {deviceId} 的 MCP 工具调用结果，结果：{result}</value>
   </data>
@@ -729,9 +815,6 @@
   </data>
   <data name="BaseMcpClient_CallMcpToolAsync_CallFailed" xml:space="preserve">
     <value>调用 MCP 工具失败：{toolName}，参数：{args}</value>
-  </data>
-  <data name="BaseMcpClient_CallMcpToolAsync_ToolError" xml:space="preserve">
-    <value>工具调用错误：{0}</value>
   </data>
   <data name="BaseMcpClient_AddTool_ToolExists" xml:space="preserve">
     <value>工具 {ToolName} 已存在，跳过。</value>
@@ -817,10 +900,10 @@
   <data name="HuoshanHttpTTS_SynthesisAsync_RequestFailed" xml:space="preserve">
     <value>火山 HTTP TTS 失败：状态={status} 正文={body}</value>
   </data>
-  <data name="HuoshanHttpTTS_SynthesisAsync_FileSaved" xml:space="preserve">
+  <data name="BaseHuoshanTTS_SaveAudioFile_FileSaved" xml:space="preserve">
     <value>已将 TTS 音频文件保存到 {audioPath}，设备 {deviceId}。</value>
   </data>
-  <data name="HuoshanHttpTTS_SynthesisAsync_SaveFailed" xml:space="preserve">
+  <data name="BaseHuoshanTTS_SaveAudioFile_SaveFailed" xml:space="preserve">
     <value>保存设备 {deviceId} 的音频文件失败。</value>
   </data>
   <data name="HuoshanHttpTTS_SynthesisAsync_ApiError" xml:space="preserve">
@@ -949,8 +1032,6 @@
   <data name="HuoshanStreamTTS_OnBinaryMessage_ServerError" xml:space="preserve">
     <value>服务器错误：{message}</value>
   </data>
-
-
   <data name="BaseProvider_RegisterDevice_Registered" xml:space="preserve">
     <value>设备 [{deviceId}] 已注册到提供者 {providerType}，会话 ID：{sessionId}。</value>
   </data>
@@ -1091,5 +1172,11 @@
   </data>
   <data name="ManageApiClient_LoadConfigFromApi_UnknownException" xml:space="preserve">
     <value>从 API 加载配置时发生未知异常：{0}</value>
+  </data>
+  <data name="EmotionAgent_Build_Built" xml:space="preserve">
+    <value>已构建 {providerType} - {modelName}，模型名称：{emotionLLMName}</value>
+  </data>
+  <data name="ChatAgent_Build_BuiltFailed" xml:space="preserve">
+    <value>构建{providerType} - {modelName}失败，模型名称：{chatLLMName}</value>
   </data>
 </root>

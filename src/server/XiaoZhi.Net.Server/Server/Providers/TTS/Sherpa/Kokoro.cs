@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Media.Abstractions;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 {
@@ -12,7 +13,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
     {
        
 
-        public Kokoro(ILogger<Kokoro> logger) : base(logger)
+        public Kokoro(IAudioEditor audioEditor, ILogger<Kokoro> logger) : base(audioEditor, logger)
         {
         }
 

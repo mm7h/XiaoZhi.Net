@@ -9,6 +9,7 @@ using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Enums;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models;
 
@@ -20,17 +21,18 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         private readonly ConcurrentQueue<OutSegment> segmentsCache;
         private const string SERVICE_END_POINT = "wss://openspeech.bytedance.com/api/v3/tts/unidirectional/stream";
 
-        public HuoshanUnidirectionalTTS(ILogger<HuoshanUnidirectionalTTS> logger) : base(logger)
+        public HuoshanUnidirectionalTTS(IAudioEditor audioEditor, ILogger<HuoshanUnidirectionalTTS> logger) : base(audioEditor, logger)
         {
             this.segmentsCache = new ConcurrentQueue<OutSegment>();
         }
 
         public override string ModelName => nameof(HuoshanUnidirectionalTTS);
 
-        public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
+        public Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
         {
             this.Logger.LogWarning("{ModelName} is deprecated and will be removed in future versions. Please consider using the latest TTS models.", this.ModelName);
-            return;
+            return Task.CompletedTask;
+            /*
             if (!this.CheckDeviceRegistered())
             {
                 throw new InvalidOperationException("Device/session is not registered.");
@@ -117,6 +119,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 this.ProcessingSegments.Remove(seg.SentenceId);
                 this.StreamingActive = false;
             }
+            */
         }
 
         protected override (string, Emotion) GetSubtitle(Message message, bool isSentenceStart)
@@ -153,7 +156,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             }
             finally
             {
-                this.CloseAllSessionFiles(finalize: false);
+                this.ClearAllSessionAudioBuffers();
                 this.WebSocketClient?.Dispose();
             }
         }

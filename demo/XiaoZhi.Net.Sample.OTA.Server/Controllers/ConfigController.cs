@@ -64,7 +64,7 @@ namespace XiaoZhi.Net.Sample.OTA.Server.Controllers
                 //    ModelName = "huoshan-bidirection",
                 //    Config = new Dictionary<string, string>
                 //    {
-                //        ["Save2File"] = "true",
+                //        ["SaveFile"] = "true",
                 //        ["AppId"] = appId,
                 //        ["AccessToken"] = accessToken,
                 //        ["ResourceId"] = "volc.service_type.10029",

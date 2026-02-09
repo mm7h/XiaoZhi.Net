@@ -11,6 +11,7 @@ using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
@@ -23,7 +24,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         private readonly IFlurlClientCache _flurlClientCache;
         private readonly IDictionary<string, string> _headers;
 
-        public HuoshanHttpV3TTS(IFlurlClientCache flurlClientCache, ILogger<HuoshanHttpV3TTS> logger) : base(logger)
+        public HuoshanHttpV3TTS(IAudioEditor audioEditor, IFlurlClientCache flurlClientCache, ILogger<HuoshanHttpV3TTS> logger) : base(audioEditor, logger)
         {
             this._headers = new Dictionary<string, string>();
             this._flurlClientCache = flurlClientCache;
@@ -49,14 +50,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
                 this.SpeechRate = modelSetting.Config.GetConfigValueOrDefault("SpeechRate", 0);
                 this.LoudnessRate = modelSetting.Config.GetConfigValueOrDefault("LoudnessRate", 0);
-                this.Save2File = modelSetting.Config.GetConfigValueOrDefault("Save2File", false);
-
-                if (this.Save2File)
-                {
-                    this.SavePath = modelSetting.Config.GetConfigValueOrDefault("SavePath", Path.Combine(Environment.CurrentDirectory, "data", "tts-cache"));
-                    if (!Directory.Exists(this.SavePath))
-                        Directory.CreateDirectory(this.SavePath);
-                }
+                this.BuildAudioSavingConfig(modelSetting);
                 this._headers.Add("X-Api-App-Key", appId);
                 this._headers.Add("X-Api-Access-Key", accessToken);
                 this._headers.Add("X-Api-Resource-Id", resourceId);
@@ -120,14 +114,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
             this.TTSEventCallback?.OnBeforeProcessing(seg.Content, seg.IsFirstSegment, seg.IsLastSegment);
 
-            FileStream? audioFs = null;
-            string? audioPath = null;
-
-            if (this.Save2File && !string.IsNullOrEmpty(this.SavePath))
-            {
-                audioPath = Path.Combine(this.SavePath, $"{seg.SentenceId}.{this.AudioEncoding}");
-                audioFs = new FileStream(audioPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite, 8192, FileOptions.Asynchronous | FileOptions.SequentialScan);
-            }
+            List<byte> audioBuffer = new List<byte>();
+            List<float> pcmBuffer = new List<float>();
 
             try
             {
@@ -176,15 +164,12 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                         if (!string.IsNullOrEmpty(message.Data))
                         {
                             byte[] bytes = Convert.FromBase64String(message.Data);
-
-                            if (audioFs is not null)
-                            {
-                                await audioFs.WriteAsync(bytes, token).ConfigureAwait(false);
-                            }
+                            audioBuffer.AddRange(bytes);
 
                             float[] pcm = bytes.PcmBytesToFloat(16);
                             if (pcm.Length > 0)
                             {
+                                pcmBuffer.AddRange(pcm);
                                 this.TTSEventCallback?.OnProcessing(pcm, false, false);
                             }
                             continue;
@@ -193,6 +178,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
                     if (message.Code == 20000000)
                     {
+                        if (pcmBuffer.Count > 0)
+                        {
+                            await this.SaveAudioFileAsync(workflow.DeviceId, seg.SentenceId, pcmBuffer.ToArray()).ConfigureAwait(false);
+                        }
+
                         this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Success);
                         break;
                     }
@@ -216,22 +206,6 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 this.Logger.LogError(ex, Lang.HuoshanHttpV3TTS_SynthesisAsync_GeneralFailed);
                 this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Failed);
                 throw;
-            }
-            finally
-            {
-                if (audioFs is not null)
-                {
-                    try
-                    {
-                        await audioFs.FlushAsync(token).ConfigureAwait(false);
-                        this.Logger.LogInformation(Lang.HuoshanHttpV3TTS_SynthesisAsync_FileSaved, audioFs.Name ?? audioPath, this.DeviceId);
-                    }
-                    catch (Exception ex)
-                    {
-                        this.Logger.LogWarning(ex, Lang.HuoshanHttpV3TTS_SynthesisAsync_FlushFailed, this.DeviceId);
-                    }
-                    audioFs.Dispose();
-                }
             }
         }
 

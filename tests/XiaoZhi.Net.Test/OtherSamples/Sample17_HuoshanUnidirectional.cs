@@ -40,7 +40,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
         private readonly List<byte> _audio = new();
         private readonly object _audioLock = new();
 
-        private bool _save2File = false;
+        private bool _saveFile = false;
         private string? _savePath;
         private string? _speaker;
         private string _audioFormat = "wav";
@@ -58,9 +58,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 this._speaker = "zh_female_cancan_mars_bigtts";
                 this._connectId = Guid.NewGuid().ToString();
 
-                this._save2File = true;
+                this._saveFile = true;
 
-                if (this._save2File)
+                if (this._saveFile)
                 {
                     this._savePath = Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
                     if (!Directory.Exists(this._savePath))
@@ -155,7 +155,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 audioBytes = this._audio.ToArray();
             }
 
-            if (this._save2File && !string.IsNullOrEmpty(this._savePath))
+            if (this._saveFile && !string.IsNullOrEmpty(this._savePath))
             {
                 var fileBase = $"unidirectional_{DateTime.UtcNow:yyyyMMdd_HHmmssfff}";
                 var path = Path.Combine(this._savePath, $"{fileBase}.{this._audioFormat}");

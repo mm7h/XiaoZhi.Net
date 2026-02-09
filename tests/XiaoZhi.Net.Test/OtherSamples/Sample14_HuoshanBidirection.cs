@@ -46,7 +46,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
         private readonly List<PendingWait> _waits = new();
         private readonly object _waitsLock = new();
 
-        private bool _save2File = false;
+        private bool _saveFile = false;
         private string? _savePath;
         private string? _speaker;
         private int _speechRate = 0;
@@ -74,9 +74,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 this._speechRate = 0;
                 this._loudnessRate = 0;
 
-                this._save2File = true;
+                this._saveFile = true;
 
-                if (this._save2File)
+                if (this._saveFile)
                 {
                     this._savePath = Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
                     if (!Directory.Exists(this._savePath))
@@ -194,7 +194,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     try
                     {
                         var sid = this._tssSessionId!;
-                        if (this._save2File && !string.IsNullOrEmpty(this._savePath))
+                        if (this._saveFile && !string.IsNullOrEmpty(this._savePath))
                         {
                             TTSAudioFile? entry = null;
                             lock (this._fileLock)
@@ -347,7 +347,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             if (message.MsgType == MsgType.AudioOnlyServer && message.Payload != null && message.Payload.Length > 0)
             {
                 // Save raw PCM chunk if configured
-                if (this._save2File && !string.IsNullOrEmpty(this._savePath))
+                if (this._saveFile && !string.IsNullOrEmpty(this._savePath))
                 {
                     var sid = this._tssSessionId ?? "unknown";
                     try

@@ -11,11 +11,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.LLM.Plugins;
+using XiaoZhi.Net.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
@@ -40,6 +40,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                 this._kernel = modelSetting.Kernel;
                 this.UseStreaming = modelSetting.UseStreaming;
                 this._chatAgentService = this.ServiceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{modelSetting.ChatLLMModelName}");
+                this.Prompt = modelSetting.Prompt;
 
                 this._chatExecutionSettings = new OpenAIPromptExecutionSettings
                 {
@@ -47,29 +48,30 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                     MaxTokens = 40,
                     ResponseFormat = ChatResponseFormat.CreateTextFormat(),
                     FunctionChoiceBehavior = FunctionChoiceBehavior.None(),
-                    ChatSystemPrompt = modelSetting.Prompt
+                    ChatSystemPrompt = this.Prompt
                 };
                 if (!string.IsNullOrEmpty(modelSetting.SummaryMemory))
                 {
                     this.ChatHistory.AddSystemMessage(modelSetting.SummaryMemory);
                 }
-                this.Prompt = modelSetting.Prompt;
                 bool pluginsBuildResult = this.BuildPlugins(modelSetting.Kernel);
 
                 if (pluginsBuildResult)
                 {
-                    this.Logger.LogInformation(Lang.ChatAgent_Build_Built, this.ProviderType, this.ModelName);
+                    this.Logger.LogInformation(Lang.ChatAgent_Build_BuildPluginsBuilt, this.ProviderType, this.ModelName);
+                    this.Logger.LogInformation(Lang.ChatAgent_Build_Built, this.ProviderType, this.ModelName, modelSetting.ChatLLMModelName);
                     return true;
                 }
                 else
                 {
-                    this.Logger.LogError(Lang.ChatAgent_Build_BuildPluginsFailed, this.ProviderType, this.ModelName);
+                    this.Logger.LogError(Lang.ChatAgent_Build_BuiltFailed, this.ProviderType, this.ModelName, modelSetting.ChatLLMModelName);
+                    this.Logger.LogError(Lang.ChatAgent_Build_BuildPluginsFailed, this.ProviderType, this.ModelName, modelSetting.ChatLLMModelName);
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, Lang.ChatAgent_Build_BuildFailed);
+                this.Logger.LogError(ex, Lang.ChatAgent_Build_BuiltFailed, this.ProviderType, this.ModelName, modelSetting.ChatLLMModelName);
                 return false;
             }
         }

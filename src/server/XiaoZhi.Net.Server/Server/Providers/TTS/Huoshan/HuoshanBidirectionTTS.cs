@@ -8,6 +8,7 @@ using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Enums;
 
@@ -18,7 +19,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         private const string SERVICE_END_POINT = "wss://openspeech.bytedance.com/api/v3/tts/bidirection";
         private const string TTS_NAMESPACE = "BidirectionalTTS";
 
-        public HuoshanBidirectionTTS(ILogger<HuoshanBidirectionTTS> logger) : base(logger)
+        public HuoshanBidirectionTTS(IAudioEditor audioEditor, ILogger<HuoshanBidirectionTTS> logger) : base(audioEditor, logger)
         {
         }
 
@@ -151,7 +152,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             finally
             {
                 this.FailAllWaits(new OperationCanceledException(Lang.HuoshanBidirectionTTS_Dispose_Disposed));
-                this.CloseAllSessionFiles(finalize: false);
+                this.ClearAllSessionAudioBuffers();
                 this.TTSEventCallback?.OnProcessed(string.Empty, false, false, TtsGenerateResult.Aborted);
             }
         }

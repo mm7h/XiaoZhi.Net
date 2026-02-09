@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Store;
-using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Common.Models;
 using XiaoZhi.Net.Server.Store;
 
 namespace XiaoZhi.Net.Server.Providers.Memory

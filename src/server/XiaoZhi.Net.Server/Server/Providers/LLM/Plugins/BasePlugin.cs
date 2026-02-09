@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Common.Dtos;
+using XiaoZhi.Net.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
 {

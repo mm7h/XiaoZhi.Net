@@ -23,7 +23,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
 
         public override string ProviderType => "AudioProcessor";
 
-        public override string ModelName => "default audio processor";
+        public override string ModelName => nameof(DefaultAudioProcessor);
 
         public override bool Build(AudioSetting settings)
         {

@@ -17,7 +17,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{B1EC5935-2
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "api", "api", "{083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.WebApi", "src\api\XiaoZhi.Net.WebApi\XiaoZhi.Net.WebApi.csproj", "{1F6453B8-5445-4D12-B4A9-D7722C9B522F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Domain.Share", "src\api\XiaoZhi.Net.Domain.Share\XiaoZhi.Net.Domain.Share.csproj", "{4F9C0C6E-3037-47B0-8F49-50107E5C800C}"

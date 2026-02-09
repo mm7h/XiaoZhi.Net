@@ -7,28 +7,28 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Media.Abstractions;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 {
     internal abstract class BaseSherpaTts<TLogger> : BaseProvider<TLogger, ModelSetting>, ITts
     {
+        private readonly IAudioEditor _audioEditor;
         private readonly ConcurrentDictionary<string, ITtsEventCallback> _ttsSessions;
         private OfflineTts? _offlineTts;
 
-
-
-        protected BaseSherpaTts(ILogger<TLogger> logger) : base(logger)
+        protected BaseSherpaTts(IAudioEditor audioEditor, ILogger<TLogger> logger) : base(logger)
         {
+            this._audioEditor = audioEditor;
             this._ttsSessions = new ConcurrentDictionary<string, ITtsEventCallback>();
         }
         public override string ProviderType => "tts";
-
-        public bool Save2File { get; private set; }
-        public string SavePath { get; private set; } = string.Empty;
+        public AudioSavingConfig? AudioSavingConfig { get; protected set; }
         //https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html#map-between-speaker-id-and-speaker-name
         public int SpeakerId { get; private set; } = 50;
         public float SpeechRate { get; private set; } = 1.0f;
@@ -43,15 +43,12 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
             offlineTtsConfig.Model.NumThreads = 2;
             offlineTtsConfig.Model.Provider = "cpu";
 
-            this.Save2File = modelSetting.Config.GetConfigValueOrDefault("Save2File", false);
             this.SpeechRate = modelSetting.Config.GetConfigValueOrDefault("SpeechRate", 1.0f);
             this.SpeakerId = modelSetting.Config.GetConfigValueOrDefault("SpeakerId", 50);
-
-            if (this.Save2File)
+            this.AudioSavingConfig = modelSetting.Config.GetConfigValueOrDefault("FileSavingOption", new AudioSavingConfig(false));
+            if (this.AudioSavingConfig.SaveFile && !Directory.Exists(this.AudioSavingConfig.SavePath))
             {
-                this.SavePath = modelSetting.Config.GetConfigValueOrDefault("SavePath", Path.Combine(Environment.CurrentDirectory, "data", "tts-cache"));
-                if (!Directory.Exists(this.SavePath))
-                    Directory.CreateDirectory(this.SavePath);
+                Directory.CreateDirectory(this.AudioSavingConfig.SavePath);
             }
             this._offlineTts = new OfflineTts(offlineTtsConfig);
         }
@@ -130,13 +127,13 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
                     double duration = Math.Max((this.CalculateDuration(audio.SampleRate, audio.NumSamples) * 1000 - (workflow.Data.IsFirstSegment ? 300 + timer.ElapsedMilliseconds : 0)), 0);
 
 
-                    if (this.Save2File)
+                    if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile)
                     {
-                        string fileName = $"{segment.SentenceId}.wav";
-                        string filePath = Path.Combine(this.SavePath, fileName);
+                        string fileName = $"{segment.SentenceId}.{this.AudioSavingConfig.Format}";
+                        string filePath = Path.Combine(this.AudioSavingConfig.SavePath, fileName);
                         if (File.Exists(filePath))
                             File.Delete(filePath);
-                        bool saved = audio.SaveToWaveFile(filePath);
+                        bool saved = await this._audioEditor.SaveAudioFileAsync(filePath, audio.Samples, this.GetTtsSampleRate(), 1, 128000);
                         if (saved)
                         {
                             this.Logger.LogDebug(Lang.BaseSherpaTts_SynthesisAsync_FileSaved, fileName, this.FormatDuration(duration));

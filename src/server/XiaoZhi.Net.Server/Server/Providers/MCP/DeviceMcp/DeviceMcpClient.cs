@@ -3,9 +3,9 @@ using ModelContextProtocol.Protocol;
 using System;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
-using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
 {

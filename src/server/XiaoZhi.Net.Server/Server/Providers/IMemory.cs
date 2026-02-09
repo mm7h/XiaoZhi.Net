@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Dtos;
+using XiaoZhi.Net.Server.Common.Models;
 
 namespace XiaoZhi.Net.Server.Providers
 {

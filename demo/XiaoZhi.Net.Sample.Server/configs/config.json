@@ -25,9 +25,9 @@
   "SelectedSettings": {
     "VAD": "SileroNative",
     "ASR": "SenseVoice",
-    "EmotionLLM": "Chatglm",
-    "ChatLLM": "Chatglm",
-    "TTS": "HuoshanHttp",
+    "EmotionLLM": "Qwen",
+    "ChatLLM": "Qwen",
+    "TTS": "HuoshanBidirection",
     "INTENT": "None",
     "MEMORY": "FlashMemory"
   },
@@ -52,9 +52,26 @@
     "ASR": {
       "SenseVoice": {
         "UseInverseTextNormalization": 1,
-        "DecodingMethod": "greedy_search"
+        "DecodingMethod": "greedy_search",
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/asr-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
       },
-      "Paraformer": {}
+      "Paraformer": {
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/asr-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      }
     },
     "LLM": {
       "Chatglm": {
@@ -77,51 +94,77 @@
         "ModelName": "doubao-1-5-pro-32k-250115",
         "UseStreaming": true,
         "UseEmotions": true
+      },
+      "Qwen": {
+        "BaseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "ApiKey": "to your llm api key",
+        "ModelName": "qwen-max",
+        "UseStreaming": true,
+        "UseEmotions": true
       }
     },
     "TTS": {
       "Kokoro": {
         "Lexicons": "./lexicon/lexicon-zh.txt,./lexicon/lexicon-us-en.txt",
-        "Save2File": false,
-        "SavePath": "./data/tts-cache",
-        "UseStreaming": false
+        "UseStreaming": false,
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/tts-cache",
+          "Format": "mp3"
+        }
       },
       "HuoshanBidirection": {
-        "Save2File": true,
         "AppId": "to your api id",
         "AccessToken": "to your access token",
         "ResourceId": "volc.service_type.10029",
         "Speaker": "zh_female_cancan_mars_bigtts",
         "SpeechRate": 0,
-        "LoudnessRate": 0
+        "LoudnessRate": 0,
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/tts-cache",
+          "Format": "mp3"
+        }
       },
       "HuoshanUnidirectional": {
-        "Save2File": true,
         "AppId": "to your api id",
         "AccessToken": "to your access token",
         "ResourceId": "volc.service_type.10029",
         "Speaker": "zh_female_cancan_mars_bigtts",
         "SpeechRate": 0,
-        "LoudnessRate": 0
+        "LoudnessRate": 0,
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/tts-cache",
+          "Format": "mp3"
+        }
       },
       "HuoshanHttp": {
-        "Save2File": true,
         "AppId": "to your api id",
         "AccessToken": "to your access token",
         "Cluster": "volcano_tts",
         "Speaker": "zh_female_cancan_mars_bigtts",
         "SpeedRatio": 1.0,
         "VolumeRatio": 1.0,
-        "PitchRatio": 1.0
+        "PitchRatio": 1.0,
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/tts-cache",
+          "Format": "mp3"
+        }
       },
       "HuoshanHttpV3": {
-        "Save2File": true,
         "AppId": "to your api id",
         "AccessToken": "to your access token",
         "ResourceId": "volc.service_type.10029",
         "Speaker": "zh_female_cancan_mars_bigtts",
         "SpeechRate": 0,
-        "LoudnessRate": 0
+        "LoudnessRate": 0,
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/tts-cache",
+          "Format": "mp3"
+        }
       }
     },
     "INTENT": {},

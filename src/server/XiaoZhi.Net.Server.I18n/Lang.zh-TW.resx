@@ -1,9 +1,86 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
     <xsd:element name="root" msdata:IsDataSet="true">
       <xsd:complexType>
         <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
           <xsd:element name="data">
             <xsd:complexType>
               <xsd:sequence>
@@ -13,6 +90,7 @@
               <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
               <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
               <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
             </xsd:complexType>
           </xsd:element>
           <xsd:element name="resheader">
@@ -39,36 +117,35 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-
   <data name="Audio2TextHandler_Build_AsrNotConfigured" xml:space="preserve">
-    <value>&#x88DD;&#x7F6E; {deviceId} &#x672A;&#x914D;&#x7F6E; ASR &#x63D0;&#x4F9B;&#x7A0B;&#x5F0F;&#x3002;</value>
+    <value>裝置 {deviceId} 未配置 ASR 提供程式。</value>
   </data>
   <data name="Audio2TextHandler_Handle_ProcessFailed" xml:space="preserve">
-    <value>&#x8655;&#x7406;&#x4F86;&#x81EA;&#x88DD;&#x7F6E; {deviceId} &#x7684;&#x8A9E;&#x97F3;&#x8F49;&#x6587;&#x5B57;&#x5C01;&#x5305;&#x5931;&#x6557;&#x3002;</value>
+    <value>處理來自裝置 {deviceId} 的語音轉文字封包失敗。</value>
   </data>
   <data name="Audio2TextHandler_OnSpeechTextConverted_ConvertFailed" xml:space="preserve">
-    <value>ASR &#x8F49;&#x63DB;&#x8A9E;&#x97F3;&#x6587;&#x5B57;&#x5931;&#x6557;&#x3002;</value>
+    <value>ASR 轉換語音文字失敗。</value>
   </data>
   <data name="Audio2TextHandler_OnSpeechTextConverted_NoSpeak" xml:space="preserve">
-    <value>&#x88DD;&#x7F6E; {deviceId} &#x672A;&#x5075;&#x6E2C;&#x5230;&#x8A9E;&#x97F3;&#x3002;</value>
+    <value>裝置 {deviceId} 未偵測到語音。</value>
   </data>
   <data name="Audio2TextHandler_OnSpeechTextConverted_SpeakText" xml:space="preserve">
-    <value>&#x88DD;&#x7F6E; {deviceId} &#x8AAA;&#x4E86;: {speechText}</value>
+    <value>裝置 {deviceId} 說了: {speechText}</value>
   </data>
   <data name="ServerBuilder_Initialize_ConfigNull" xml:space="preserve">
-    <value>&#x914D;&#x7F6E;&#x4E0D;&#x80FD;&#x70BA;&#x7A7A;&#x3002;</value>
+    <value>配置不能為空。</value>
   </data>
   <data name="ServerBuilder_WithPlugin_PluginNameNull" xml:space="preserve">
-    <value>&#x63D2;&#x4EF6;&#x540D;&#x7A31;&#x4E0D;&#x80FD;&#x70BA;&#x7A7A;&#x3002;</value>
+    <value>插件名稱不能為空。</value>
   </data>
   <data name="ServerBuilder_WithPlugin_FunctionsNull" xml:space="preserve">
-    <value>&#x529F;&#x80FD;&#x5217;&#x8868;&#x4E0D;&#x80FD;&#x70BA;&#x7A7A;&#x3002;</value>
+    <value>功能列表不能為空。</value>
   </data>
   <data name="ServerBuilder_BuildComponents_ResourceLoadFailed" xml:space="preserve">
-    <value>&#x8F09;&#x5165;&#x8CC7;&#x6E90;&#x5143;&#x4EF6;&#x5931;&#x6557;&#x3002;&#x8ACB;&#x6AA2;&#x67E5;&#x914D;&#x7F6E;&#x548C;&#x8CC7;&#x6E90;&#x5BE6;&#x4F5C;&#x3002;</value>
+    <value>載入資源元件失敗。請檢查配置和資源實作。</value>
   </data>
   <data name="ServerBuilder_BuildComponents_ProviderBuildFailed" xml:space="preserve">
-    <value>&#x5EFA;&#x7F6E;&#x63D0;&#x4F9B;&#x7A0B;&#x5F0F;&#x5143;&#x4EF6;&#x5931;&#x6557;&#x3002;&#x8ACB;&#x6AA2;&#x67E5;&#x914D;&#x7F6E;&#x548C;&#x63D0;&#x4F9B;&#x7A0B;&#x5F0F;&#x5BE6;&#x4F5C;&#x3002;</value>
+    <value>建置提供程式元件失敗。請檢查配置和提供程式實作。</value>
   </data>
   <data name="AudioProcessorHandler_Build_AudioProcessorNotConfigured" xml:space="preserve">
     <value>音訊處理器未為裝置配置: {deviceId}。</value>
@@ -230,7 +307,7 @@
     <value>無法為裝置 {deviceId} 建置處理常式管線。</value>
   </data>
   <data name="HandlerManager_BuildHandlersWorkflow_BuiltWorkflow" xml:space="preserve">
-    <value>已建置處理常式工作流程，上一步：{previous} -> 下一步：{next}</value>
+    <value>已建置處理常式工作流程，上一步：{previous} -&gt; 下一步：{next}</value>
   </data>
   <data name="HandlerManager_ScheduleOnAbort_Aborted" xml:space="preserve">
     <value>裝置：{deviceId}，工作階段：{sessionId} 中止任務，訊息：{message}。</value>
@@ -436,6 +513,12 @@
   <data name="BaseSherpaAsr_Dispose_WaitFailed" xml:space="preserve">
     <value>等待背景任務完成失敗。</value>
   </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_AudioSaved" xml:space="preserve">
+    <value>使用者語音音訊檔案 {fileName} 儲存成功。</value>
+  </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_AudioNotSaved" xml:space="preserve">
+    <value>儲存使用者語音音訊檔案 {fileName} 失敗。</value>
+  </data>  
   <data name="Paraformer_Build_Built" xml:space="preserve">
     <value>已建置 {providerType} 模型: {modelName}</value>
   </data>
@@ -557,13 +640,13 @@
     <value>音訊播放器狀態為 {status}，跳過停止。</value>
   </data>
   <data name="ChatAgent_Build_Built" xml:space="preserve">
-    <value>已建置 {providerType} 模型 {modelName}。</value>
+    <value>已建置 {providerType} - {modelName}，模型名稱：{chatLLMName}</value>
+  </data>
+  <data name="ChatAgent_Build_BuildPluginsBuilt" xml:space="preserve">
+    <value>已建置 {providerType} - {modelName}的外掛程式。</value>
   </data>
   <data name="ChatAgent_Build_BuildPluginsFailed" xml:space="preserve">
     <value>建置 {providerType} 模型 {modelName} 的外掛程式失敗。</value>
-  </data>
-  <data name="ChatAgent_Build_BuildFailed" xml:space="preserve">
-    <value>建置 ChatAgent 失敗。</value>
   </data>
   <data name="ChatAgent_RegisterDevice_PluginRegistered" xml:space="preserve">
     <value>LLM 外掛程式 {pluginName} 已為裝置 {deviceId} 註冊。</value>
@@ -700,6 +783,12 @@
   <data name="BaseMcpClient_HandleMcpMessageAsync_ErrorResponse_Exception" xml:space="preserve">
     <value>收到 MCP 錯誤回應：{0}</value>
   </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_ToolError" xml:space="preserve">
+    <value>工具呼叫錯誤：{0}</value>
+  </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_TimeoutEx" xml:space="preserve">
+    <value>{0} 秒後回應超時</value>
+  </data>
   <data name="BaseMcpClient_SendMcpInitializeAsync_SendingInit" xml:space="preserve">
     <value>裝置 {deviceId} 發送 MCP 初始化請求。</value>
   </data>
@@ -718,9 +807,6 @@
   <data name="BaseMcpClient_CallMcpToolAsync_Timeout" xml:space="preserve">
     <value>呼叫工具 {toolName} 回應超時，{timeout} 秒。</value>
   </data>
-  <data name="BaseMcpClient_CallMcpToolAsync_TimeoutEx" xml:space="preserve">
-    <value>{0} 秒後回應超時</value>
-  </data>
   <data name="BaseMcpClient_CallMcpToolAsync_CallSuccess" xml:space="preserve">
     <value>成功取得裝置 {deviceId} 的 MCP 工具呼叫結果，結果：{result}</value>
   </data>
@@ -729,9 +815,6 @@
   </data>
   <data name="BaseMcpClient_CallMcpToolAsync_CallFailed" xml:space="preserve">
     <value>呼叫 MCP 工具失敗：{toolName}，參數：{args}</value>
-  </data>
-  <data name="BaseMcpClient_CallMcpToolAsync_ToolError" xml:space="preserve">
-    <value>工具呼叫錯誤：{0}</value>
   </data>
   <data name="BaseMcpClient_AddTool_ToolExists" xml:space="preserve">
     <value>工具 {ToolName} 已存在，跳過。</value>
@@ -817,10 +900,10 @@
   <data name="HuoshanHttpTTS_SynthesisAsync_RequestFailed" xml:space="preserve">
     <value>火山 HTTP TTS 失敗：狀態={status} 本文={body}</value>
   </data>
-  <data name="HuoshanHttpTTS_SynthesisAsync_FileSaved" xml:space="preserve">
+  <data name="BaseHuoshanTTS_SaveAudioFile_FileSaved" xml:space="preserve">
     <value>已將 TTS 音訊檔案儲存到 {audioPath}，裝置 {deviceId}。</value>
   </data>
-  <data name="HuoshanHttpTTS_SynthesisAsync_SaveFailed" xml:space="preserve">
+  <data name="BaseHuoshanTTS_SaveAudioFile_SaveFailed" xml:space="preserve">
     <value>儲存裝置 {deviceId} 的音訊檔案失敗。</value>
   </data>
   <data name="HuoshanHttpTTS_SynthesisAsync_ApiError" xml:space="preserve">
@@ -949,8 +1032,6 @@
   <data name="HuoshanStreamTTS_OnBinaryMessage_ServerError" xml:space="preserve">
     <value>伺服器錯誤：{message}</value>
   </data>
-
-
   <data name="BaseProvider_RegisterDevice_Registered" xml:space="preserve">
     <value>裝置 [{deviceId}] 已註冊到提供者 {providerType}，工作階段 ID：{sessionId}。</value>
   </data>
@@ -1091,5 +1172,11 @@
   </data>
   <data name="ManageApiClient_LoadConfigFromApi_UnknownException" xml:space="preserve">
     <value>從 API 載入設定時發生未知異常：{0}</value>
+  </data>
+  <data name="EmotionAgent_Build_Built" xml:space="preserve">
+    <value>已建置 {providerType} - {modelName}，模型名稱：{emotionLLMName}</value>
+  </data>
+  <data name="ChatAgent_Build_BuiltFailed" xml:space="preserve">
+    <value>構建{providerType} - {modelName}失敗，模型名稱：{chatLLMName}</value>
   </data>
 </root>

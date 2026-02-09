@@ -29,7 +29,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
         private const string SERVICE_END_POINT = "https://openspeech.bytedance.com/api/v1/tts";
         private const int SAMPLE_RATE = 24000;
 
-        private bool _save2File = false;
+        private bool _saveFile = false;
         private string? _savePath;
         private string? _speaker;
         private string _audioFormat = "wav";
@@ -46,9 +46,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 this._appId = appId;
                 this._accessToken = accessToken;
                 this._cluster = "volcano_tts";
-                this._save2File = true;
+                this._saveFile = true;
 
-                if (this._save2File)
+                if (this._saveFile)
                 {
                     this._savePath = Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
                     if (!Directory.Exists(this._savePath))
@@ -159,7 +159,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
         private const string SERVICE_END_POINT = "https://openspeech.bytedance.com/api/v3/tts/unidirectional";
         private const int SAMPLE_RATE = 24000;
 
-        private bool _save2File = false;
+        private bool _saveFile = false;
         private string? _savePath;
         private string? _speaker;
         private string _audioFormat = "wav";
@@ -175,9 +175,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
             {
                 this._speaker = "zh_female_wanwanxiaohe_moon_bigtts";
 
-                this._save2File = true;
+                this._saveFile = true;
 
-                if (this._save2File)
+                if (this._saveFile)
                 {
                     this._savePath = Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
                     if (!Directory.Exists(this._savePath))

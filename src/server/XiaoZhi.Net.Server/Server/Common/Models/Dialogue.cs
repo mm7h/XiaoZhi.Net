@@ -1,7 +1,7 @@
 ﻿using Microsoft.SemanticKernel.ChatCompletion;
 using System;
 
-namespace XiaoZhi.Net.Server.Common.Dtos
+namespace XiaoZhi.Net.Server.Common.Models
 {
     internal class Dialogue
     {

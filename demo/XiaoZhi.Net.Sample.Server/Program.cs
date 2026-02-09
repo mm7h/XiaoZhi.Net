@@ -35,7 +35,7 @@ try
             Console.WriteLine("Please set the environment variable \"OPEN_AI_API_KEY\"");
             return;
         }
-        config.ConfiguredSettings["LLM"][config.SelectedSettings.GetValueOrDefault("ChatLLM", "ChatGlm")]["ApiKey"] = apiKey;
+        config.ConfiguredSettings["LLM"][config.SelectedSettings.GetValueOrDefault("ChatLLM", "ChatGlm")]["ApiKey"] = "sk-2e9a2711d0524f4482b7a6fac345504c";
         if (config.SelectedSettings["TTS"].StartsWith("Huoshan"))
         {
             config.ConfiguredSettings["TTS"][config.SelectedSettings.GetValueOrDefault("TTS", "HuoshanBidirection")]["AppId"] = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
@@ -47,10 +47,8 @@ try
         serverHost = serverBuilder.Initialize(config)
             // 添加插件
             .WithPlugin<GetTime>(nameof(GetTime))
-            // ffmpeg音频支持
-            .InitializeFFmpeg()
             // 多媒体文件格式支持
-            .WithAllMedia(useFFmpeg: true)
+            .WithAllMedia(useFFmpegAudioMixer: true)
             //.WithManageApi("http://localhost:5118", "your-secret")
             // 构建服务引擎
             .Build();
@@ -88,7 +86,11 @@ public class LenientStringConverter : JsonConverter<string>
         }
         if (reader.TokenType is JsonTokenType.True) return "true";
         if (reader.TokenType is JsonTokenType.False) return "false";
-        
+        if (reader.TokenType is JsonTokenType.StartObject || reader.TokenType is JsonTokenType.StartArray)
+        {
+            using var doc = JsonDocument.ParseValue(ref reader);
+            return doc.RootElement.GetRawText();
+        }
         return reader.GetString()!;
     }
 

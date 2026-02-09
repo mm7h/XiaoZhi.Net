@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using XiaoZhi.Net.Server.Common.Dtos;
+using XiaoZhi.Net.Server.Common.Models;
 
 namespace XiaoZhi.Net.Server.Helpers
 {

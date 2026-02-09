@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using XiaoZhi.Net.Server.Common.Constants;
-using XiaoZhi.Net.Server.Common.Dtos;
+using XiaoZhi.Net.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.MCP
 {

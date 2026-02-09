@@ -191,6 +191,8 @@ namespace XiaoZhi.Net.Server.I18n
         public static string BaseSherpaAsr_Processing_ProviderNotBuilt => ResourceManager.GetString("BaseSherpaAsr_Processing_ProviderNotBuilt", resourceCulture) ?? "";
         public static string BaseSherpaAsr_Processing_ErrorLoop => ResourceManager.GetString("BaseSherpaAsr_Processing_ErrorLoop", resourceCulture) ?? "";
         public static string BaseSherpaAsr_Dispose_WaitFailed => ResourceManager.GetString("BaseSherpaAsr_Dispose_WaitFailed", resourceCulture) ?? "";
+        public static string BaseSherpaAsr_ConvertSpeechTextAsync_AudioSaved => ResourceManager.GetString("BaseSherpaAsr_ConvertSpeechTextAsync_AudioSaved", resourceCulture) ?? "";
+        public static string BaseSherpaAsr_ConvertSpeechTextAsync_AudioNotSaved => ResourceManager.GetString("BaseSherpaAsr_ConvertSpeechTextAsync_AudioNotSaved", resourceCulture) ?? "";
         #endregion
 
         #region Paraformer
@@ -265,13 +267,15 @@ namespace XiaoZhi.Net.Server.I18n
 
         #region ChatAgent
         public static string ChatAgent_Build_Built => ResourceManager.GetString("ChatAgent_Build_Built", resourceCulture) ?? "";
+        public static string ChatAgent_Build_BuiltFailed => ResourceManager.GetString("ChatAgent_Build_BuiltFailed", resourceCulture) ?? "";
+        public static string ChatAgent_Build_BuildPluginsBuilt => ResourceManager.GetString("ChatAgent_Build_BuildPluginsBuilt", resourceCulture) ?? "";
         public static string ChatAgent_Build_BuildPluginsFailed => ResourceManager.GetString("ChatAgent_Build_BuildPluginsFailed", resourceCulture) ?? "";
-        public static string ChatAgent_Build_BuildFailed => ResourceManager.GetString("ChatAgent_Build_BuildFailed", resourceCulture) ?? "";
         public static string ChatAgent_RegisterDevice_PluginRegistered => ResourceManager.GetString("ChatAgent_RegisterDevice_PluginRegistered", resourceCulture) ?? "";
         public static string ChatAgent_GenerateChatResponseAsync_AgentNotBuilt => ResourceManager.GetString("ChatAgent_GenerateChatResponseAsync_AgentNotBuilt", resourceCulture) ?? "";
         #endregion
 
         #region EmotionAgent
+        public static string EmotionAgent_Build_Built => ResourceManager.GetString("EmotionAgent_Build_Built", resourceCulture) ?? "";
         public static string EmotionAgent_Build_BuildFailed => ResourceManager.GetString("EmotionAgent_Build_BuildFailed", resourceCulture) ?? "";
         public static string EmotionAgent_AnalyzeEmotionAsync_AgentNotBuilt => ResourceManager.GetString("EmotionAgent_AnalyzeEmotionAsync_AgentNotBuilt", resourceCulture) ?? "";
         public static string EmotionAgent_AnalyzeEmotionAsync_UserCanceled => ResourceManager.GetString("EmotionAgent_AnalyzeEmotionAsync_UserCanceled", resourceCulture) ?? "";
@@ -361,6 +365,12 @@ namespace XiaoZhi.Net.Server.I18n
         public static string FlashMemory_Build_Built => ResourceManager.GetString("FlashMemory_Build_Built", resourceCulture) ?? "";
         #endregion
 
+        #region BaseHuoshanTTS
+        public static string BaseHuoshanTTS_SaveAudioFile_FileSaved => ResourceManager.GetString("BaseHuoshanTTS_SaveAudioFile_FileSaved", resourceCulture) ?? "";
+        public static string BaseHuoshanTTS_SaveAudioFile_SaveFailed => ResourceManager.GetString("BaseHuoshanTTS_SaveAudioFile_SaveFailed", resourceCulture) ?? "";
+        #endregion
+
+
         #region HuoshanHttpV3TTS
         public static string HuoshanHttpV3TTS_Build_ConfigIncomplete => ResourceManager.GetString("HuoshanHttpV3TTS_Build_ConfigIncomplete", resourceCulture) ?? "";
         public static string HuoshanHttpV3TTS_Build_Built => ResourceManager.GetString("HuoshanHttpV3TTS_Build_Built", resourceCulture) ?? "";
@@ -382,8 +392,6 @@ namespace XiaoZhi.Net.Server.I18n
         public static string HuoshanHttpTTS_SynthesisAsync_DevNotReg => ResourceManager.GetString("HuoshanHttpTTS_SynthesisAsync_DevNotReg", resourceCulture) ?? "";
         public static string HuoshanHttpTTS_SynthesisAsync_MissingSentenceId => ResourceManager.GetString("HuoshanHttpTTS_SynthesisAsync_MissingSentenceId", resourceCulture) ?? "";
         public static string HuoshanHttpTTS_SynthesisAsync_RequestFailed => ResourceManager.GetString("HuoshanHttpTTS_SynthesisAsync_RequestFailed", resourceCulture) ?? "";
-        public static string HuoshanHttpTTS_SynthesisAsync_FileSaved => ResourceManager.GetString("HuoshanHttpTTS_SynthesisAsync_FileSaved", resourceCulture) ?? "";
-        public static string HuoshanHttpTTS_SynthesisAsync_SaveFailed => ResourceManager.GetString("HuoshanHttpTTS_SynthesisAsync_SaveFailed", resourceCulture) ?? "";
         public static string HuoshanHttpTTS_SynthesisAsync_ApiError => ResourceManager.GetString("HuoshanHttpTTS_SynthesisAsync_ApiError", resourceCulture) ?? "";
         public static string HuoshanHttpTTS_SynthesisAsync_GeneralFailed => ResourceManager.GetString("HuoshanHttpTTS_SynthesisAsync_GeneralFailed", resourceCulture) ?? "";
         #endregion

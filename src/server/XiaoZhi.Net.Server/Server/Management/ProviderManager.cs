@@ -11,7 +11,6 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
@@ -38,6 +37,7 @@ using XiaoZhi.Net.Server.Providers.TTS.Huoshan;
 using XiaoZhi.Net.Server.Providers.TTS.Sherpa;
 using XiaoZhi.Net.Server.Providers.VAD.Native;
 using XiaoZhi.Net.Server.Providers.VAD.Sherpa;
+using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Services;
 
 namespace XiaoZhi.Net.Server.Management
@@ -302,7 +302,7 @@ namespace XiaoZhi.Net.Server.Management
                         this._config.Prompt,
                         useStreaming,
                         useEmotions,
-                        summaryMemory: string.Empty,
+                        SummaryMemory: string.Empty,
                         privateKernel);
 
                     privateKernel.Data.Add("session", session);
@@ -500,11 +500,9 @@ namespace XiaoZhi.Net.Server.Management
             switch (modelName)
             {
                 case "sense-voice":
-                    services.AddKeyedTransient<IAsr, SenseVoice>(modelName);
                     services.AddKeyedSingleton<IAsr, SenseVoice>(key);
                     break;
                 case "paraformer":
-                    services.AddKeyedTransient<IAsr, Paraformer>(modelName);
                     services.AddKeyedSingleton<IAsr, Paraformer>(key);
                     break;
                 default:
@@ -757,7 +755,7 @@ namespace XiaoZhi.Net.Server.Management
                 this._config.Prompt,
                 useStreaming,
                 useEmotions,
-                summaryMemory: string.Empty,
+                SummaryMemory: string.Empty,
                 privateKernel);
 
             privateKernel.Data.Add("session", session);

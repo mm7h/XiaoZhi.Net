@@ -3,12 +3,13 @@ using SherpaOnnx;
 using System;
 using System.IO;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Media.Abstractions;
 
 namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 {
     internal class Paraformer : BaseSherpaAsr<Paraformer>, IAsr
     {
-        public Paraformer(ILogger<Paraformer> logger) : base(logger)
+        public Paraformer(IAudioEditor audioEditor, ILogger<Paraformer> logger) : base(audioEditor, logger)
         {
         }
 

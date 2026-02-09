@@ -5,6 +5,7 @@ using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Media.Abstractions.Common.Dtos;
 using XiaoZhi.Net.Server.Media.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.Media.Utilities.Extensions;
 
 namespace XiaoZhi.Net.Server.Media.Mixers
 {
@@ -443,7 +444,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             var ret = ffmpeg.avfilter_graph_create_filter(&sinkCtx, sinkFilter, "out", null, null, _filterGraph);
             if (ret < 0)
             {
-                throw new InvalidOperationException($"Failed to create sink filter: {GetFFmpegErrorString(ret)}");
+                throw new InvalidOperationException($"Failed to create sink filter: {ret.FFErrorToText()}");
             }
             _sinkFilterCtx = sinkCtx;
 
@@ -479,7 +480,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             var ret = ffmpeg.avfilter_graph_create_filter(&sourceCtx, sourceFilter, filterName, args, null, _filterGraph);
             if (ret < 0)
             {
-                throw new InvalidOperationException($"Failed to create source filter for {audioType}: {GetFFmpegErrorString(ret)}");
+                throw new InvalidOperationException($"Failed to create source filter for {audioType}: {ret.FFErrorToText()}");
             }
 
             _sourceFilterCtxs[audioType] = (IntPtr)sourceCtx;
@@ -495,7 +496,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 var ret = ffmpeg.avfilter_link(sourceCtx, 0u, _sinkFilterCtx, 0u);
                 if (ret < 0)
                 {
-                    throw new InvalidOperationException($"Failed to link single source to sink: {GetFFmpegErrorString(ret)}");
+                    throw new InvalidOperationException($"Failed to link single source to sink: {ret.FFErrorToText()}");
                 }
             }
             else
@@ -508,7 +509,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             var configRet = ffmpeg.avfilter_graph_config(_filterGraph, null);
             if (configRet < 0)
             {
-                throw new InvalidOperationException($"Failed to configure filter graph: {GetFFmpegErrorString(configRet)}");
+                throw new InvalidOperationException($"Failed to configure filter graph: {configRet.FFErrorToText()}");
             }
         }
 
@@ -527,7 +528,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             var ret = ffmpeg.avfilter_graph_create_filter(&amixCtx, amixFilter, "amix", args, null, _filterGraph);
             if (ret < 0)
             {
-                throw new InvalidOperationException($"Failed to create amix filter: {GetFFmpegErrorString(ret)}");
+                throw new InvalidOperationException($"Failed to create amix filter: {ret.FFErrorToText()}");
             }
 
             // Connect all input sources to amix
@@ -538,7 +539,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 ret = ffmpeg.avfilter_link(sourceCtx, 0u, amixCtx, inputIndex++);
                 if (ret < 0)
                 {
-                    throw new InvalidOperationException($"Failed to link source to amix: {GetFFmpegErrorString(ret)}");
+                    throw new InvalidOperationException($"Failed to link source to amix: {ret.FFErrorToText()}");
                 }
             }
 
@@ -546,7 +547,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             ret = ffmpeg.avfilter_link(amixCtx, 0u, _sinkFilterCtx, 0u);
             if (ret < 0)
             {
-                throw new InvalidOperationException($"Failed to link amix to sink: {GetFFmpegErrorString(ret)}");
+                throw new InvalidOperationException($"Failed to link amix to sink: {ret.FFErrorToText()}");
             }
         }
 
@@ -592,7 +593,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                                 else
                                 {
                                     _logger.LogWarning("Failed to close source filter for {AudioType}: {Error}",
-                                        audioType, GetFFmpegErrorString(ret));
+                                        audioType, ret.FFErrorToText());
                                 }
                             }
                             catch (Exception ex)
@@ -854,14 +855,6 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         }
 
         #endregion
-
-        private string GetFFmpegErrorString(int error)
-        {
-            const int size = 1024;
-            byte* buf = stackalloc byte[size];
-            ffmpeg.av_strerror(error, buf, (ulong)size);
-            return Marshal.PtrToStringAnsi((IntPtr)buf) ?? $"FFmpeg error {error}";
-        }
 
         private float[]? ConvertFrameToFloatArrayInternal(AVFrame* frame)
         {
@@ -1231,7 +1224,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 if (ret < 0)
                 {
                     _logger.LogError("Failed to add frame to filter for {AudioType}: {Error}",
-                        audioType, GetFFmpegErrorString(ret));
+                        audioType, ret.FFErrorToText());
                     return (false, null);
                 }
 
@@ -1285,7 +1278,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
                 if (ret < 0)
                 {
-                    _logger.LogError("Failed to get frame from sink filter: {Error}", GetFFmpegErrorString(ret));
+                    _logger.LogError("Failed to get frame from sink filter: {Error}", ret.FFErrorToText());
                     ffmpeg.av_frame_free(&frame);
                     return;
                 }

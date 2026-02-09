@@ -1,9 +1,86 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
     <xsd:element name="root" msdata:IsDataSet="true">
       <xsd:complexType>
         <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
           <xsd:element name="data">
             <xsd:complexType>
               <xsd:sequence>
@@ -13,6 +90,7 @@
               <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
               <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
               <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
             </xsd:complexType>
           </xsd:element>
           <xsd:element name="resheader">
@@ -39,7 +117,6 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-
   <data name="Audio2TextHandler_Build_AsrNotConfigured" xml:space="preserve">
     <value>ASR provider is not configured for the device: {deviceId}.</value>
   </data>
@@ -230,7 +307,7 @@
     <value>Failed to build the handler pipeline for device: {deviceId}.</value>
   </data>
   <data name="HandlerManager_BuildHandlersWorkflow_BuiltWorkflow" xml:space="preserve">
-    <value>Built the workflow of handlers, previous: {previous} -> next: {next}</value>
+    <value>Built the workflow of handlers, previous: {previous} -&gt; next: {next}</value>
   </data>
   <data name="HandlerManager_ScheduleOnAbort_Aborted" xml:space="preserve">
     <value>Device: {deviceId}, session: {sessionId} abort the tasks, message: {message}.</value>
@@ -436,6 +513,12 @@
   <data name="BaseSherpaAsr_Dispose_WaitFailed" xml:space="preserve">
     <value>Failed to wait for background task to complete.</value>
   </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_AudioSaved" xml:space="preserve">
+    <value>User speech audio file {fileName} saved successfully.</value>
+  </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_AudioNotSaved" xml:space="preserve">
+    <value>Failed to save user speech audio file {fileName}.</value>
+  </data>  
   <data name="Paraformer_Build_Built" xml:space="preserve">
     <value>Built the {providerType} model: {modelName}</value>
   </data>
@@ -557,13 +640,13 @@
     <value>The audio player status is {status}, skip the stopping.</value>
   </data>
   <data name="ChatAgent_Build_Built" xml:space="preserve">
-    <value>Builded the {providerType} model {modelName}.</value>
+    <value>Built {providerType} - {modelName}, model name: {chatLLMName}</value>
+  </data>
+  <data name="ChatAgent_Build_BuildPluginsBuilt" xml:space="preserve">
+    <value>Built the plugins for {providerType} - {modelName}.</value>
   </data>
   <data name="ChatAgent_Build_BuildPluginsFailed" xml:space="preserve">
     <value>Failed to build the plugins for {providerType} model {modelName}.</value>
-  </data>
-  <data name="ChatAgent_Build_BuildFailed" xml:space="preserve">
-    <value>Failed to build ChatAgent.</value>
   </data>
   <data name="ChatAgent_RegisterDevice_PluginRegistered" xml:space="preserve">
     <value>LLM plugin {pluginName} registered for device: {deviceId}.</value>
@@ -706,7 +789,6 @@
   <data name="BaseMcpClient_CallMcpToolAsync_TimeoutEx" xml:space="preserve">
     <value>Response timeout after {0} seconds</value>
   </data>
-
   <data name="BaseMcpClient_SendMcpInitializeAsync_SendingInit" xml:space="preserve">
     <value>Device {deviceId} sending MCP Initialize request.</value>
   </data>
@@ -818,10 +900,10 @@
   <data name="HuoshanHttpTTS_SynthesisAsync_RequestFailed" xml:space="preserve">
     <value>Huoshan HTTP TTS failed: status={status} body={body}</value>
   </data>
-  <data name="HuoshanHttpTTS_SynthesisAsync_FileSaved" xml:space="preserve">
+  <data name="BaseHuoshanTTS_SaveAudioFile_FileSaved" xml:space="preserve">
     <value>Saved TTS audio file to {audioPath} for the device {deviceId}.</value>
   </data>
-  <data name="HuoshanHttpTTS_SynthesisAsync_SaveFailed" xml:space="preserve">
+  <data name="BaseHuoshanTTS_SaveAudioFile_SaveFailed" xml:space="preserve">
     <value>Failed to save audio file for the device {deviceId}.</value>
   </data>
   <data name="HuoshanHttpTTS_SynthesisAsync_ApiError" xml:space="preserve">
@@ -950,9 +1032,6 @@
   <data name="HuoshanStreamTTS_OnBinaryMessage_ServerError" xml:space="preserve">
     <value>Server error: {message}</value>
   </data>
-
-
-
   <data name="BaseProvider_RegisterDevice_Registered" xml:space="preserve">
     <value>Registered device [{deviceId}] with session id: {sessionId} to the provider {providerType}.</value>
   </data>
@@ -1093,5 +1172,11 @@
   </data>
   <data name="ManageApiClient_LoadConfigFromApi_UnknownException" xml:space="preserve">
     <value>Unknown exception occurred while loading config from api: {0}</value>
+  </data>
+  <data name="EmotionAgent_Build_Built" xml:space="preserve">
+    <value>Built {providerType} - {modelName}, model name: {emotionLLMName}</value>
+  </data>
+  <data name="ChatAgent_Build_BuiltFailed" xml:space="preserve">
+    <value>Faild to built {providerType} - {modelName}, model name: {chatLLMName}</value>
   </data>
 </root>

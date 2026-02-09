@@ -14,7 +14,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
 
         private SemaphoreSlim _decodeSemaphoreSlim = new SemaphoreSlim(1, 1);
         public override string ModelName => "OpusDecoder";
-        public override string ProviderType => "opus audio decoder";
+        public override string ProviderType => nameof(DefaultOpusDecoder);
         public int SampleRate { get; private set; }
         public int Channels { get; private set; }
         public int FrameDuration { get; private set; }

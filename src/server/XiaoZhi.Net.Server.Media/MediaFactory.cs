@@ -2,6 +2,9 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Media.Abstractions.Common.Dtos;
+using XiaoZhi.Net.Server.Media.Editors;
+using XiaoZhi.Net.Server.Media.Encoders;
+using XiaoZhi.Net.Server.Media.Encoders.FFmpeg;
 using XiaoZhi.Net.Server.Media.Mixers;
 using XiaoZhi.Net.Server.Media.Players;
 using XiaoZhi.Net.Server.Media.Subtitle;
@@ -109,6 +112,17 @@ namespace XiaoZhi.Net.Server.Media
             }
 
             return mixer;
+        }
+
+        /// <summary>
+        /// Creates a new instance of IAudioEditor using an FFmpeg-based audio encoder.
+        /// </summary>
+        /// <returns>An IAudioEditor initialized with an FFmpegEncoder.</returns>
+        public static IAudioEditor CreateAudioEditor()
+        {
+            IAudioEncoder audioEncoder = new FFmpegEncoder(NullLoggerFactory.Instance.CreateLogger<FFmpegEncoder>());
+
+            return new AudioEditor(audioEncoder);
         }
     }
 }

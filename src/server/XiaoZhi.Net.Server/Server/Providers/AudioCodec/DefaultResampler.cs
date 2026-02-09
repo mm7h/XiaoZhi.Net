@@ -4,8 +4,8 @@ using System;
 using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.AudioCodec
 {

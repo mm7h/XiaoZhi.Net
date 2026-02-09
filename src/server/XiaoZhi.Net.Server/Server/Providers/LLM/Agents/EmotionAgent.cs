@@ -7,10 +7,10 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
-using XiaoZhi.Net.Server.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
@@ -58,7 +58,7 @@ Assistant Sentence: ""{{$latestSentence}}""</message>";
         {
         }
         public override string ModelName => nameof(EmotionAgent);
-        public override int Order => 10;
+        public override int Order => 11;
         public override bool SupportsStreaming => false;
 
         public override bool Build(LLMBuildConfig modelSetting)
@@ -84,9 +84,11 @@ Assistant Sentence: ""{{$latestSentence}}""</message>";
                     FunctionChoiceBehavior = FunctionChoiceBehavior.None()
                 };
 
+
                 this._emotionFunction = this._kernel.CreateFunctionFromPrompt(EMOTION_PROMPT_TEMPLATE, this._chatExecutionSettings);
                 this.Prompt = EMOTION_PROMPT_TEMPLATE;
 
+                this.Logger.LogInformation(Lang.EmotionAgent_Build_Built, this.ProviderType, this.ModelName, modelSetting.EmotionLLMModelName);
                 return true;
             }
             catch (Exception ex)
