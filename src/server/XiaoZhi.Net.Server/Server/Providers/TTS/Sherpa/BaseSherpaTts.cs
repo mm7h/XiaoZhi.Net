@@ -139,7 +139,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 
                     if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile)
                     {
-                        string fileName = $"{segment.SentenceId}.{this.AudioSavingConfig.Format}";
+                        string fileName = $"{this.ProviderType}_{segment.SentenceId}.{this.AudioSavingConfig.Format}";
                         string filePath = Path.Combine(this.AudioSavingConfig.SavePath, fileName);
                         if (File.Exists(filePath))
                             File.Delete(filePath);

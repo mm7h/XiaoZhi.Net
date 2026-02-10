@@ -67,7 +67,7 @@
           "SaveFile": true
           // 剩下的保持如下默认值
           /*
-          "SavePath": "./data/asr-cache",
+          "SavePath": "./data/audio-cache",
           "Format": "wav",
           "SampleRate": 16000,
           "Channels": 1,

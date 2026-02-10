@@ -5,7 +5,7 @@ namespace XiaoZhi.Net.Server.Common.Configs
     [method: JsonConstructor]
     internal record AudioSavingConfig(
         [property: JsonPropertyName("SaveFile")] bool SaveFile = false,
-        [property: JsonPropertyName("SavePath")] string SavePath = "./data/asr-cache",
+        [property: JsonPropertyName("SavePath")] string SavePath = "./data/audio-cache",
         [property: JsonPropertyName("Format")] string Format = "wav",
         [property: JsonPropertyName("SampleRate")] int SampleRate = 16000,
         [property: JsonPropertyName("Channels")] int Channels = 1,

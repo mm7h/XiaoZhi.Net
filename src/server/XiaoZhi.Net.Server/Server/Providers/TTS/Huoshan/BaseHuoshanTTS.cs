@@ -50,7 +50,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         {
             if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile)
             {
-                fileName = $"{fileName}.{this.AudioSavingConfig.Format}";
+                fileName = $"{this.ProviderType}_{fileName}.{this.AudioSavingConfig.Format}";
                 string savingPath = Path.Combine(this.AudioSavingConfig.SavePath, fileName);
                 try
                 {

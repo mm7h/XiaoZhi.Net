@@ -108,7 +108,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                     if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile)
                     {
                         string fileName = this.GenerateAudioFileName(workflow);
-                        string filePath = Path.Combine(this.AudioSavingConfig.SavePath, $"{fileName}.{this.AudioSavingConfig.Format}");
+                        string filePath = Path.Combine(this.AudioSavingConfig.SavePath, $"{this.ProviderType}_{fileName}.{this.AudioSavingConfig.Format}");
                         
                         bool userSpeechFileSavingResult = await this._audioEditor.SaveAudioFileAsync(filePath, workflow.Data);
                         if (userSpeechFileSavingResult)
