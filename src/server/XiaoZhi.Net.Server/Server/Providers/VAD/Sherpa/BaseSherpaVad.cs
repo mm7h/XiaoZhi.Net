@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 
@@ -75,8 +76,17 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
             }
         }
 
+        public override bool CheckDeviceRegistered(string deviceId, string sessionId)
+        {
+            return this._vadSessions.ContainsKey(deviceId);
+        }
+
         public async Task AnalysisVoiceAsync(string deviceId, string sessionId, float[] audioData, CancellationToken token)
         {
+            if (!this.CheckDeviceRegistered(deviceId, sessionId))
+            {
+                throw new SessionNotInitializedException();
+            }
             if (this._vad is null)
             {
                 throw new ArgumentNullException(Lang.BaseSherpaVad_AnalysisVoiceAsync_VadNotBuilt);

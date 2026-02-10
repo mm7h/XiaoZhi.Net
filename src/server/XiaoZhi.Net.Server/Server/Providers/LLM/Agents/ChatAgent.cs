@@ -94,7 +94,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
         public async Task<string> GenerateChatResponseAsync(string userMessage, CancellationToken token)
         {
-            if (!this.CheckDeviceRegistered())
+            if (!this.CheckDeviceRegistered(this.DeviceId, this.SessionId))
             {
                 throw new SessionNotInitializedException();
             }
@@ -115,7 +115,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
         public async IAsyncEnumerable<string> GenerateChatResponseStreamingAsync(string userMessage, [EnumeratorCancellation] CancellationToken token)
         {
-            if (!this.CheckDeviceRegistered())
+            if (!this.CheckDeviceRegistered(this.DeviceId, this.SessionId))
             {
                 throw new SessionNotInitializedException();
             }

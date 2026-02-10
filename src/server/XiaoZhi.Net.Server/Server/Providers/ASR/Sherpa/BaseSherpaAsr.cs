@@ -85,9 +85,14 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
             }
         }
 
+        public override bool CheckDeviceRegistered(string deviceId, string sessionId)
+        {
+            return this._asrSessions.ContainsKey(deviceId);
+        }
+
         public async Task ConvertSpeechTextAsync(Workflow<float[]> workflow, int sampleRate, int frameSize, CancellationToken token)
         {
-            if (!this.CheckDeviceRegistered())
+            if (!this.CheckDeviceRegistered(workflow.DeviceId, workflow.SessionId))
             {
                 throw new SessionNotInitializedException();
             }

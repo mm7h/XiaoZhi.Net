@@ -41,11 +41,11 @@ namespace XiaoZhi.Net.Server.Providers
             this.Logger.LogInformation(Lang.BaseProvider_UnregisterDevice_Unregistered, this.DeviceId, this.SessionId, this.ProviderType);
         }
 
-        protected bool CheckDeviceRegistered()
+        public virtual bool CheckDeviceRegistered(string deviceId, string sessionId)
         {
-            if (string.IsNullOrEmpty(this.DeviceId) || string.IsNullOrEmpty(this.SessionId))
+            if (string.IsNullOrEmpty(deviceId) || string.IsNullOrEmpty(sessionId))
             {
-                this.Logger.LogError(Lang.BaseProvider_CheckDeviceRegistered_NotRegistered, string.IsNullOrEmpty(this.DeviceId) ? "unkonwn" : this.DeviceId, string.IsNullOrEmpty(this.SessionId) ? "unkonwn" : this.SessionId, this.ProviderType);
+                this.Logger.LogError(Lang.BaseProvider_CheckDeviceRegistered_NotRegistered, string.IsNullOrEmpty(deviceId) ? "unkonwn" : deviceId, string.IsNullOrEmpty(sessionId) ? "unkonwn" : sessionId, this.ProviderType);
                 return false;
             }
             return true;

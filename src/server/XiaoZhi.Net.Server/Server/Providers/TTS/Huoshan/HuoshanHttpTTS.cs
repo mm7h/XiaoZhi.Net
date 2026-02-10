@@ -77,7 +77,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 throw new InvalidOperationException(Lang.HuoshanHttpTTS_SynthesisAsync_ModelNotBuilt);
             }
 
-            if (!this.CheckDeviceRegistered())
+            if (!this.CheckDeviceRegistered(workflow.DeviceId, workflow.SessionId))
             {
                 throw new InvalidOperationException(Lang.HuoshanHttpTTS_SynthesisAsync_DevNotReg);
             }

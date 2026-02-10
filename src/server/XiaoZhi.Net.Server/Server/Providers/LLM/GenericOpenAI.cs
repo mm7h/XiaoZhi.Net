@@ -85,7 +85,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
         public async Task StartDialogueAsync(string userMessage, CancellationToken token)
         {
-            if (!this.CheckDeviceRegistered())
+            if (!this.CheckDeviceRegistered(this.DeviceId, this.SessionId))
             {
                 throw new SessionNotInitializedException();
             }

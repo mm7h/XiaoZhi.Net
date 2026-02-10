@@ -69,7 +69,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
         public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
         {
-            if (!this.CheckDeviceRegistered())
+            if (!this.CheckDeviceRegistered(workflow.DeviceId, workflow.SessionId))
             {
                 throw new InvalidOperationException(Lang.HuoshanHttpV3TTS_SynthesisAsync_DevNotReg);
             }

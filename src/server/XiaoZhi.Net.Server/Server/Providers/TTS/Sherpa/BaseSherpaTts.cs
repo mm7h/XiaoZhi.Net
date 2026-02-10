@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
+using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media.Abstractions;
@@ -66,8 +67,17 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
             }
         }
 
+        public override bool CheckDeviceRegistered(string deviceId, string sessionId)
+        {
+            return this._ttsSessions.ContainsKey(deviceId);
+        }
+
         public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
         {
+            if (!this.CheckDeviceRegistered(workflow.DeviceId, workflow.SessionId))
+            {
+                throw new SessionNotInitializedException();
+            }
             if (this._offlineTts == null)
             {
                 throw new ArgumentNullException(Lang.BaseSherpaTts_SynthesisAsync_ProviderNotBuilt);

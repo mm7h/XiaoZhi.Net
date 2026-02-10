@@ -56,7 +56,7 @@
         "FileSavingOption": {
           "SaveFile": true,
           "SavePath": "./data/asr-cache",
-          "Format": "wav",
+          "Format": "mp3",
           "SampleRate": 16000,
           "Channels": 1,
           "BitRate": 128000
@@ -64,12 +64,15 @@
       },
       "Paraformer": {
         "FileSavingOption": {
-          "SaveFile": true,
+          "SaveFile": true
+          // 剩下的保持如下默认值
+          /*
           "SavePath": "./data/asr-cache",
           "Format": "wav",
           "SampleRate": 16000,
           "Channels": 1,
           "BitRate": 128000
+          */
         }
       }
     },

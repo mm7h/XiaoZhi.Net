@@ -29,7 +29,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
         public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
         {
-            if (!this.CheckDeviceRegistered())
+            if (!this.CheckDeviceRegistered(workflow.DeviceId, workflow.SessionId))
             {
                 throw new SessionNotInitializedException();
             }

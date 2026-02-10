@@ -104,7 +104,7 @@ Assistant Sentence: ""{{$latestSentence}}""</message>";
             {
                 return Emotion.Neutral;
             }
-            if (!this.CheckDeviceRegistered())
+            if (!this.CheckDeviceRegistered(this.DeviceId, this.SessionId))
             {
                 throw new SessionNotInitializedException();
             }
