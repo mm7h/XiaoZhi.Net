@@ -12,10 +12,9 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
     {
 
         private IOpusEncoder? _encoder;
-        private SemaphoreSlim _encodeSemaphoreSlim = new SemaphoreSlim(1, 1);
 
-        public override string ModelName => "OpusEncoder";
-        public override string ProviderType => nameof(DefaultOpusEncoder);
+        public override string ModelName => nameof(DefaultOpusEncoder);
+        public override string ProviderType => "audio codec";
         public int SampleRate { get; private set; }
         public int Channels { get; private set; }
         public int FrameDuration { get; private set; }
@@ -52,8 +51,6 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
             byte[] byteData = ArrayPool<byte>.Shared.Rent(4000);
             try
             {
-                await this._encodeSemaphoreSlim.WaitAsync(token);
-
                 if (pcmData.Length < this.FrameSize)
                 {
                     float[] paddedData = new float[this.FrameSize];
@@ -65,16 +62,15 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
                     pcmData = paddedData;
                 }
 
-                int encodedLength = this._encoder!.Encode(pcmData, pcmData.Length, byteData, byteData.Length);
+                int encodedLength = this._encoder.Encode(pcmData, pcmData.Length, byteData, byteData.Length);
 
                 byte[] opusBytes = new byte[encodedLength];
                 Array.Copy(byteData, opusBytes, encodedLength);
 
-                return opusBytes;
+                return await Task.FromResult(opusBytes);
             }
             finally
             {
-                this._encodeSemaphoreSlim.Release();
                 ArrayPool<byte>.Shared.Return(byteData);
             }
         }
@@ -83,7 +79,6 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
         {
             this._encoder?.ResetState();
             this._encoder?.Dispose();
-            this._encodeSemaphoreSlim.Dispose();
         }
     }
 }

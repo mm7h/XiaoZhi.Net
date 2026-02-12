@@ -189,7 +189,15 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
             var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.SessionFinished, cancellationToken, null);
             await this.SendMessage(message);
-            return await waitTask.ConfigureAwait(false);
+            try
+            {
+                return await waitTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                this.Logger.LogDebug("FinishSession cancelled for session {SessionId}", sessionId);
+                throw;
+            }
         }
 
         protected async Task<Message> FinishConnectionAsync(CancellationToken cancellationToken)

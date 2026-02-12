@@ -132,6 +132,9 @@
   <data name="Audio2TextHandler_OnSpeechTextConverted_SpeakText" xml:space="preserve">
     <value>裝置 {deviceId} 說了: {speechText}</value>
   </data>
+  <data name="Audio2TextHandler_Handle_Cancelled" xml:space="preserve">
+    <value>ASR 處理已取消，裝置 {DeviceId}</value>
+  </data>
   <data name="ServerBuilder_Initialize_ConfigNull" xml:space="preserve">
     <value>配置不能為空。</value>
   </data>
@@ -156,6 +159,12 @@
   <data name="AudioProcessorHandler_Handle_ProcessFailed" xml:space="preserve">
     <value>處理來自裝置的音訊片段失敗: {deviceId}。</value>
   </data>
+  <data name="AudioProcessorHandler_Handle_Cancelled" xml:space="preserve">
+    <value>音訊處理已取消，裝置 {DeviceId}</value>
+  </data>
+  <data name="AudioProcessorHandler_OnMixedAudioDataAvailable_WriteFailed" xml:space="preserve">
+    <value>將混合音訊寫入裝置 {DeviceId} 的通道時出錯</value>
+  </data>
   <data name="AudioSendHandler_Build_AudioProcessorNotConfigured" xml:space="preserve">
     <value>音訊處理器未為裝置配置: {deviceId}。</value>
   </data>
@@ -176,6 +185,9 @@
   </data>
   <data name="AudioSendHandler_Handle_ProcessFailed" xml:space="preserve">
     <value>處理來自裝置的音訊發送封包失敗: {deviceId}。</value>
+  </data>
+  <data name="AudioSendHandler_Handle_Cancelled" xml:space="preserve">
+    <value>音訊發送已取消，裝置 {DeviceId}</value>
   </data>
   <data name="AudioReceiveHandler_Build_VadNotConfigured" xml:space="preserve">
     <value>VAD提供者未為裝置配置: {deviceId}。</value>
@@ -198,6 +210,9 @@
   <data name="AudioReceiveHandler_HandleVoiceDetected_VoiceTooShort" xml:space="preserve">
     <value>工作階 {sessionId} 的語音太短。</value>
   </data>
+  <data name="AudioReceiveHandler_Handle_Cancelled" xml:space="preserve">
+    <value>音訊處理已取消，裝置 {DeviceId}</value>
+  </data>
   <data name="BaseHandler_CheckWorkflowValid_StaleWorkflow" xml:space="preserve">
     <value>在處理器 {handlerName} 中檢測到過期的工作流程。工作流程輪次 ID: {workflowTurnId}, 會話輪次 ID: {sessionTurnId}。</value>
   </data>
@@ -215,6 +230,12 @@
   </data>
   <data name="DialogueHandler_Handle_ProcessFailed" xml:space="preserve">
     <value>處理來自裝置的LLM對話失敗: {deviceId}。</value>
+  </data>
+  <data name="DialogueHandler_Handle_Cancelled" xml:space="preserve">
+    <value>LLM 對話已取消，裝置 {DeviceId}</value>
+  </data>
+  <data name="DialogueHandler_OnTokenGenerating_WriteFailed" xml:space="preserve">
+    <value>將 LLM 片段寫入裝置 {DeviceId} 的通道時出錯</value>
   </data>
   <data name="DialogueHandler_OnTokenGenerated_ResponseText" xml:space="preserve">
     <value>LLM回應文字: {content}</value>
@@ -239,6 +260,9 @@
   </data>
   <data name="Text2AudioHandler_Handle_ProcessFailed" xml:space="preserve">
     <value>處理裝置文字轉語音時出錯: {deviceId}。</value>
+  </data>
+  <data name="Text2AudioHandler_Handle_Cancelled" xml:space="preserve">
+    <value>TTS 合成已取消，裝置 {DeviceId}</value>
   </data>
   <data name="Text2AudioHandler_CheckBindDevice_PlayerNotBuilt" xml:space="preserve">
     <value>AudioPlayerClient 尚未為裝置 {deviceId} 建置。</value>
@@ -420,9 +444,6 @@
   <data name="ProviderManager_BuildAudioProcessor_BuildFailed" xml:space="preserve">
     <value>工作階段 {sessionId} 建置音訊混音器失敗。</value>
   </data>
-  <data name="ProviderManager_RegisterGlobalProviders_AudioDecoderInitialized" xml:space="preserve">
-    <value>裝置 {deviceId} 的通用音訊解碼器 {modeName} 模型已初始化。</value>
-  </data>
   <data name="ProviderManager_RegisterGlobalProviders_VadBuildFailed" xml:space="preserve">
     <value>無法建置 {modelName} 提供者。</value>
   </data>
@@ -498,11 +519,20 @@
   <data name="BaseSherpaAsr_ConvertSpeechTextAsync_ProviderNotBuilt" xml:space="preserve">
     <value>請先建置 ASR 提供者。</value>
   </data>
-  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_UserCanceled" xml:space="preserve">
-    <value>使用者取消了 {providerType} 的任務。</value>
-  </data>
   <data name="BaseSherpaAsr_ConvertSpeechTextAsync_UnexpectedError" xml:space="preserve">
     <value>{providerType} 發生意外錯誤。</value>
+  </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_RequestCancelled" xml:space="preserve">
+    <value>ASR 請求已取消，裝置 {DeviceId}</value>
+  </data>
+  <data name="BaseSherpaAsr_Processing_RequestCancelledBeforeProcessing" xml:space="preserve">
+    <value>ASR 請求在處理前已取消，裝置 {DeviceId}</value>
+  </data>
+  <data name="BaseSherpaAsr_Processing_RequestCancelledAfterDecoding" xml:space="preserve">
+    <value>ASR 請求在解碼後已取消，裝置 {DeviceId}</value>
+  </data>
+  <data name="BaseSherpaAsr_Processing_ResultProcessingError" xml:space="preserve">
+    <value>處理 ASR 結果時出錯，裝置 {DeviceId}</value>
   </data>
   <data name="BaseSherpaAsr_Processing_ProviderNotBuilt" xml:space="preserve">
     <value>請先建置 ASR 提供者。</value>
@@ -518,7 +548,7 @@
   </data>
   <data name="BaseSherpaAsr_ConvertSpeechTextAsync_AudioNotSaved" xml:space="preserve">
     <value>儲存使用者語音音訊檔案 {fileName} 失敗。</value>
-  </data>  
+  </data>
   <data name="Paraformer_Build_Built" xml:space="preserve">
     <value>已建置 {providerType} 模型: {modelName}</value>
   </data>
@@ -617,6 +647,9 @@
   </data>
   <data name="DefaultAudioProcessor_Build_Initialized" xml:space="preserve">
     <value>音訊混音器已初始化，無需再次初始化。</value>
+  </data>
+  <data name="DefaultAudioProcessor_FireOnMixedAudioData_InvokeError" xml:space="preserve">
+    <value>呼叫 OnMixedAudioDataAvailable 事件時出錯</value>
   </data>
   <data name="DefaultAudioProcessor_Build_InvalidSettings" xml:space="preserve">
     <value>{providerType} 模型設定無效: {modelName}</value>
@@ -840,11 +873,14 @@
   <data name="GenericOpenAI_ChatAsync_EmotionDetected" xml:space="preserve">
     <value>偵測到情感：{detectedEmotion}，片段：{segment}</value>
   </data>
-  <data name="GenericOpenAI_ChatAsync_UserCanceled" xml:space="preserve">
-    <value>使用者取消了 {providerType} 任務。</value>
-  </data>
   <data name="GenericOpenAI_ChatAsync_UnexpectedError" xml:space="preserve">
     <value>{providerType} 發生意外錯誤。</value>
+  </data>
+  <data name="GenericOpenAI_ChatAsync_Cancelled" xml:space="preserve">
+    <value>LLM 對話已取消，清理 {Count} 個片段</value>
+  </data>
+  <data name="GenericOpenAI_ChatByStreamingAsync_Cancelled" xml:space="preserve">
+    <value>LLM 串流對話已取消，清理 {Count} 個片段</value>
   </data>
   <data name="FlashMemory_Build_Built" xml:space="preserve">
     <value>已建置 {providerType}：{flashMemory}</value>
@@ -872,12 +908,6 @@
   </data>
   <data name="HuoshanHttpV3TTS_SynthesisAsync_GeneralFailed" xml:space="preserve">
     <value>火山 HTTP TTS 合成失敗。</value>
-  </data>
-  <data name="HuoshanHttpV3TTS_SynthesisAsync_FileSaved" xml:space="preserve">
-    <value>已將 TTS 音訊檔案儲存到 {audioPath}，裝置 {deviceId}。</value>
-  </data>
-  <data name="HuoshanHttpV3TTS_SynthesisAsync_FlushFailed" xml:space="preserve">
-    <value>重新整理裝置 {deviceId} 的音訊檔案串流失敗。</value>
   </data>
   <data name="HuoshanHttpTTS_Build_ConfigIncomplete" xml:space="preserve">
     <value>火山雙向 TTS 設定不完整，請檢查 AppId、AccessToken、Cluster 和 speaker。</value>
@@ -1178,5 +1208,14 @@
   </data>
   <data name="ChatAgent_Build_BuiltFailed" xml:space="preserve">
     <value>構建{providerType} - {modelName}失敗，模型名稱：{chatLLMName}</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_FunctionCancelled" xml:space="preserve">
+    <value>函數調用已取消：{FunctionName}</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_McpCancelled" xml:space="preserve">
+    <value>MCP 工具調用已取消：{FunctionName}</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_IoTCancelled" xml:space="preserve">
+    <value>IoT 命令調用已取消：{FunctionName}</value>
   </data>
 </root>

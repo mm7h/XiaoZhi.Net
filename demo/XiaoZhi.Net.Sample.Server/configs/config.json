@@ -25,8 +25,8 @@
   "SelectedSettings": {
     "VAD": "SileroNative",
     "ASR": "SenseVoice",
-    "EmotionLLM": "Qwen",
-    "ChatLLM": "Qwen",
+    "EmotionLLM": "Chatglm",
+    "ChatLLM": "Chatglm",
     "TTS": "HuoshanBidirection",
     "INTENT": "None",
     "MEMORY": "FlashMemory"
@@ -39,14 +39,14 @@
         "SilenceThresholdSecond": 0.7,
         "MinSpeechDurationSecond": 0.5,
         "MaxSpeechDurationSecond": 60,
-        "CloseConnectionNoVoiceTime": 120
+        "CloseConnectionNoVoiceTime": 120000
       },
       "SileroNative": {
         "SampleRate": 16000,
         "SilenceThresholdSecond": 0.7,
         "Threshold": 0.5,
         "ThresholdLow": 0.2,
-        "CloseConnectionNoVoiceTime": 120
+        "CloseConnectionNoVoiceTime": 120000
       }
     },
     "ASR": {

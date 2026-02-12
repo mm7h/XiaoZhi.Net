@@ -144,23 +144,49 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
 
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (OperationCanceledException)
+            {
+                this.Logger.LogDebug(Lang.AudioProcessorHandler_Handle_Cancelled, session.DeviceId);
+            }
+            catch (Exception ex)
             {
                 this.Logger.LogError(ex, Lang.AudioProcessorHandler_Handle_ProcessFailed, session.DeviceId);
             }
         }
 
-        private void OnMixedAudioDataAvailable(float[] mixedPcmData, bool isFirst, bool isLast, string? sentenceId)
+        private async void OnMixedAudioDataAvailable(float[] mixedPcmData, bool isFirst, bool isLast, string? sentenceId)
         {
             if (this.HandlerToken.IsCancellationRequested)
             {
                 return;
             }
+            
+            Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
+            {
+                return;
+            }
+            
             var mixedAudioPacket = this._mixedAudioPacketPool.Get();
             var workflow = this._mixedAudioPacketWorkflowPool.Get();
-            mixedAudioPacket.Initialize(mixedPcmData, isFirst, isLast, sentenceId);
-            workflow.Initialize(this.SendOutter.GetSession(), mixedAudioPacket);
-            this.NextWriter.WriteAsync(workflow);
+            
+            try
+            {
+                mixedAudioPacket.Initialize(mixedPcmData, isFirst, isLast, sentenceId);
+                workflow.Initialize(session, mixedAudioPacket);
+                await this.NextWriter.WriteAsync(workflow, this.HandlerToken);
+            }
+            catch (OperationCanceledException)
+            {
+                this._mixedAudioPacketPool.Return(mixedAudioPacket);
+                this._mixedAudioPacketWorkflowPool.Return(workflow);
+            }
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, Lang.AudioProcessorHandler_OnMixedAudioDataAvailable_WriteFailed, session.DeviceId);
+                this._mixedAudioPacketPool.Return(mixedAudioPacket);
+                this._mixedAudioPacketWorkflowPool.Return(workflow);
+            }
         }
 
 

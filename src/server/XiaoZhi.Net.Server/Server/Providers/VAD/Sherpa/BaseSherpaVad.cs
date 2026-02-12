@@ -42,7 +42,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
                 return false;
             }
 
-            this._closeConnectionNoVoiceTime = modelSetting.Config.GetConfigValueOrDefault("CloseConnectionNoVoiceTime", 120);
+            this._closeConnectionNoVoiceTime = modelSetting.Config.GetConfigValueOrDefault("CloseConnectionNoVoiceTime", 120_000);
 
             vadModelConfig.SampleRate = this._sampleRate;
             this.FrameSize = this._sampleRate == SAMPLING_RATE_16K ? 512 : 256;
@@ -176,9 +176,8 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
                 }
 
                 long silenceDuration = DateTimeOffset.Now.ToUnixTimeMilliseconds() - vadState.HaveVoiceLatestTime;
-                long longTermSilenceThresholdMs = this._closeConnectionNoVoiceTime * 1000;
 
-                if (silenceDuration >= longTermSilenceThresholdMs)
+                if (silenceDuration >= this._closeConnectionNoVoiceTime)
                 {
                     this.Logger.LogDebug(Lang.BaseSherpaVad_CheckLongTermSilence_Detected, deviceId, silenceDuration);
                     callback.OnLongTermSilence();

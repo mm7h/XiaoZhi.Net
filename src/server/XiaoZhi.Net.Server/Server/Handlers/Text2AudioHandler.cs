@@ -130,7 +130,11 @@ namespace XiaoZhi.Net.Server.Handlers
                 this.HandlerToken.ThrowIfCancellationRequested();
                 await this._tts.SynthesisAsync(workflow, this.HandlerToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (OperationCanceledException)
+            {
+                this.Logger.LogDebug(Lang.Text2AudioHandler_Handle_Cancelled, session.DeviceId);
+            }
+            catch (Exception ex)
             {
                 this.Logger.LogError(ex, Lang.Text2AudioHandler_Handle_ProcessFailed, session.DeviceId);
             }
@@ -175,15 +179,28 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 return;
             }
+
+            Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
+            {
+                return;
+            }
+
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
             Workflow<OutAudioSegment> workflow = this._outAudioSegmentWorkflowPool.Get();
 
             outAudioSegment.Initialize(pcmData, AudioType.SystemNotification, isFirstFrame: isFirst, isLastFrame: isLast);
-
-            Session session = this.SendOutter.GetSession();
             workflow.Initialize(session, outAudioSegment);
 
-            await this.NextWriter3.WriteAsync(workflow);
+            try
+            {
+                await this.NextWriter3.WriteAsync(workflow, this.HandlerToken);
+            }
+            catch (OperationCanceledException)
+            {
+                this._outAudioSegmentPool.Return(outAudioSegment);
+                this._outAudioSegmentWorkflowPool.Return(workflow);
+            }
         }
 
         private async void OnMusicAudioDataAsync(float[] pcmData, bool isFirst, bool isLast)
@@ -192,25 +209,42 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 return;
             }
+
+            Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
+            {
+                return;
+            }
+
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
             Workflow<OutAudioSegment> workflow = this._outAudioSegmentWorkflowPool.Get();
 
             outAudioSegment.Initialize(pcmData, AudioType.Music, isFirstFrame: isFirst, isLastFrame: isLast);
-
-            Session session = this.SendOutter.GetSession();
             workflow.Initialize(session, outAudioSegment);
 
-            await this.NextWriter2.WriteAsync(workflow);
+            try
+            {
+                await this.NextWriter2.WriteAsync(workflow, this.HandlerToken);
+            }
+            catch (OperationCanceledException)
+            {
+                this._outAudioSegmentPool.Return(outAudioSegment);
+                this._outAudioSegmentWorkflowPool.Return(workflow);
+            }
         }
 
         #region ITtsEventCallback
-        public void OnBeforeProcessing(string sentence, bool isFirstSegment, bool isLastSegment)
+        public async void OnBeforeProcessing(string sentence, bool isFirstSegment, bool isLastSegment)
         {
             if (this.HandlerToken.IsCancellationRequested)
             {
                 return;
             }
             Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
+            {
+                return;
+            }
             if (isFirstSegment)
             {
                 OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
@@ -218,7 +252,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isFirstSegment: isFirstSegment, isLastSegment: isLastSegment);
 
                 nextWorkflow.Initialize(session, outAudioSegment);
-                this.NextWriter.WriteAsync(nextWorkflow);
+                await this.NextWriter.WriteAsync(nextWorkflow, this.HandlerToken);
             }
             this.Logger.LogDebug(Lang.Text2AudioHandler_OnBeforeProcessing_Started, session.DeviceId, sentence);
         }
@@ -230,70 +264,120 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
             Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
+            {
+                return;
+            }
+
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
             Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
-            if (session.PrivateProvider.AudioResampler is not null && audioData.Length > 0)
-            {
-                (float[] resampledAudioData, _) = await session.PrivateProvider.AudioResampler.ResampleAsync(audioData, this.HandlerToken);
-                outAudioSegment.Initialize(audioType: AudioType.TTS, audioData: resampledAudioData, isFirstFrame: isFirstFrame, isLastFrame: isLastFrame);
-            }
-            else
-            {
-                outAudioSegment.Initialize(audioType: AudioType.TTS, audioData: audioData, isFirstFrame: isFirstFrame, isLastFrame: isLastFrame);
-            }
 
+            try
+            {
+                if (session.PrivateProvider.AudioResampler is not null && audioData.Length > 0)
+                {
+                    (float[] resampledAudioData, _) = await session.PrivateProvider.AudioResampler.ResampleAsync(audioData, this.HandlerToken);
+                    outAudioSegment.Initialize(audioType: AudioType.TTS, audioData: resampledAudioData, isFirstFrame: isFirstFrame, isLastFrame: isLastFrame);
+                }
+                else
+                {
+                    outAudioSegment.Initialize(audioType: AudioType.TTS, audioData: audioData, isFirstFrame: isFirstFrame, isLastFrame: isLastFrame);
+                }
 
-            nextWorkflow.Initialize(session, outAudioSegment);
-            await this.NextWriter.WriteAsync(nextWorkflow);
+                nextWorkflow.Initialize(session, outAudioSegment);
+                await this.NextWriter.WriteAsync(nextWorkflow, this.HandlerToken);
+            }
+            catch (OperationCanceledException)
+            {
+                this._outAudioSegmentPool.Return(outAudioSegment);
+                this._outAudioSegmentWorkflowPool.Return(nextWorkflow);
+            }
         }
 
-        public void OnProcessed(string sentence, bool isFirstSegment, bool isLastSegment, TtsGenerateResult ttsGenerateResult)
+        public async void OnProcessed(string sentence, bool isFirstSegment, bool isLastSegment, TtsGenerateResult ttsGenerateResult)
         {
             if (this.HandlerToken.IsCancellationRequested)
             {
                 return;
             }
             Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
+            {
+                return;
+            }
             if (isLastSegment)
             {
                 OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
                 Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
-                outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isFirstSegment: isFirstSegment, isLastSegment: isLastSegment);
+                try
+                {
+                    outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isFirstSegment: isFirstSegment, isLastSegment: isLastSegment);
+                    nextWorkflow.Initialize(session, outAudioSegment);
 
-                nextWorkflow.Initialize(session, outAudioSegment);
-                this.NextWriter.WriteAsync(nextWorkflow);
+                    await this.NextWriter.WriteAsync(nextWorkflow, this.HandlerToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    this._outAudioSegmentPool.Return(outAudioSegment);
+                    this._outAudioSegmentWorkflowPool.Return(nextWorkflow);
+                }
             }
             this.Logger.LogDebug(Lang.Text2AudioHandler_OnProcessed_Completed, session.DeviceId);
         }
 
-        public void OnSentenceStart(string sentence, Emotion emotion, string sentenceId)
+        public async void OnSentenceStart(string sentence, Emotion emotion, string sentenceId)
         {
             if (this.HandlerToken.IsCancellationRequested)
             {
                 return;
             }
             Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
+            {
+                return;
+            }
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
             Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
-            outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isFirstFrame: true, emotion: emotion, sentenceId: "S_" + sentenceId);
+            try
+            {
+                outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isFirstFrame: true, emotion: emotion, sentenceId: "S_" + sentenceId);
 
-            nextWorkflow.Initialize(session, outAudioSegment);
-            this.NextWriter.WriteAsync(nextWorkflow);
+                nextWorkflow.Initialize(session, outAudioSegment);
+                await this.NextWriter.WriteAsync(nextWorkflow, this.HandlerToken);
+            }
+            catch (OperationCanceledException)
+            {
+                this._outAudioSegmentPool.Return(outAudioSegment);
+                this._outAudioSegmentWorkflowPool.Return(nextWorkflow);
+            }
         }
 
-        public void OnSentenceEnd(string sentence, Emotion emotion, string sentenceId)
+        public async void OnSentenceEnd(string sentence, Emotion emotion, string sentenceId)
         {
             if (this.HandlerToken.IsCancellationRequested)
             {
                 return;
             }
             Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
+            {
+                return;
+            }
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
             Workflow<OutAudioSegment> nextWorkflow = this._outAudioSegmentWorkflowPool.Get();
-            outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isLastFrame: true, emotion: emotion, sentenceId: "E_" + sentenceId);
+            try
+            {
 
-            nextWorkflow.Initialize(session, outAudioSegment);
-            this.NextWriter.WriteAsync(nextWorkflow);
+                outAudioSegment.Initialize(audioType: AudioType.TTS, content: sentence, isLastFrame: true, emotion: emotion, sentenceId: "E_" + sentenceId);
+
+                nextWorkflow.Initialize(session, outAudioSegment);
+                await this.NextWriter.WriteAsync(nextWorkflow, this.HandlerToken);
+            }
+            catch (OperationCanceledException)
+            {
+                this._outAudioSegmentPool.Return(outAudioSegment);
+                this._outAudioSegmentWorkflowPool.Return(nextWorkflow);
+            }
         }
         #endregion
 

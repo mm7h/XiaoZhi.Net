@@ -26,6 +26,13 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
         {
             if (!string.IsNullOrEmpty(context.Function.PluginName) && context.Kernel.Data.TryGetValue("session", out var data) && data is not null && data is Session session)
             {
+                // Check if session is cancelled
+                if (session.SessionCtsToken.IsCancellationRequested)
+                {
+                    this._logger.LogDebug(Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_FunctionCancelled, context.Function.Name);
+                    throw new OperationCanceledException(session.SessionCtsToken);
+                }
+                
                 if (_subMCPClientTypeNames.Contains(context.Function.PluginName))
                 {
                     try
@@ -45,6 +52,11 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
 
                         string callResult = await subMcpClient.CallMcpToolAsync(context.Function.Name, context.Arguments);
                         context.Result = new FunctionResult(context.Result, callResult);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        this._logger.LogDebug(Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_McpCancelled, context.Function.Name);
+                        throw;
                     }
                     catch (Exception ex)
                     {
@@ -95,6 +107,11 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
                                 throw new InvalidOperationException(string.Format(Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_InvalidIoTName, context.Function.PluginName));
                             }
                         }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        this._logger.LogDebug(Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_IoTCancelled, context.Function.Name);
+                        throw;
                     }
                     catch (Exception ex)
                     {

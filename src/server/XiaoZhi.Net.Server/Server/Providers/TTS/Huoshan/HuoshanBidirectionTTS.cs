@@ -120,10 +120,10 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
                 this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Success);
             }
-            catch (OperationCanceledException oex)
+            catch (OperationCanceledException)
             {
                 this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Aborted);
-                this.Logger.LogWarning(oex, Lang.HuoshanBidirectionTTS_SynthesisAsync_Canceled);
+                this.Logger.LogWarning(Lang.HuoshanBidirectionTTS_SynthesisAsync_Canceled);
                 throw;
             }
             catch (Exception ex)

@@ -23,6 +23,7 @@ namespace XiaoZhi.Net.Server.I18n
         public static string Audio2TextHandler_OnSpeechTextConverted_ConvertFailed => ResourceManager.GetString("Audio2TextHandler_OnSpeechTextConverted_ConvertFailed", resourceCulture) ?? "";
         public static string Audio2TextHandler_OnSpeechTextConverted_NoSpeak => ResourceManager.GetString("Audio2TextHandler_OnSpeechTextConverted_NoSpeak", resourceCulture) ?? "";
         public static string Audio2TextHandler_OnSpeechTextConverted_SpeakText => ResourceManager.GetString("Audio2TextHandler_OnSpeechTextConverted_SpeakText", resourceCulture) ?? "";
+        public static string Audio2TextHandler_Handle_Cancelled => ResourceManager.GetString("Audio2TextHandler_Handle_Cancelled", resourceCulture) ?? "";
         
         public static string ServerBuilder_Initialize_ConfigNull => ResourceManager.GetString("ServerBuilder_Initialize_ConfigNull", resourceCulture) ?? "";
         public static string ServerBuilder_WithPlugin_PluginNameNull => ResourceManager.GetString("ServerBuilder_WithPlugin_PluginNameNull", resourceCulture) ?? "";
@@ -33,6 +34,8 @@ namespace XiaoZhi.Net.Server.I18n
         public static string AudioProcessorHandler_Build_AudioProcessorNotConfigured => ResourceManager.GetString("AudioProcessorHandler_Build_AudioProcessorNotConfigured", resourceCulture) ?? "";
         public static string AudioProcessorHandler_Handle_AudioProcessorNotBuilt => ResourceManager.GetString("AudioProcessorHandler_Handle_AudioProcessorNotBuilt", resourceCulture) ?? "";
         public static string AudioProcessorHandler_Handle_ProcessFailed => ResourceManager.GetString("AudioProcessorHandler_Handle_ProcessFailed", resourceCulture) ?? "";
+        public static string AudioProcessorHandler_Handle_Cancelled => ResourceManager.GetString("AudioProcessorHandler_Handle_Cancelled", resourceCulture) ?? "";
+        public static string AudioProcessorHandler_OnMixedAudioDataAvailable_WriteFailed => ResourceManager.GetString("AudioProcessorHandler_OnMixedAudioDataAvailable_WriteFailed", resourceCulture) ?? "";
 
         public static string AudioSendHandler_Build_AudioProcessorNotConfigured => ResourceManager.GetString("AudioSendHandler_Build_AudioProcessorNotConfigured", resourceCulture) ?? "";
         public static string AudioSendHandler_Build_AudioEncoderNotConfigured => ResourceManager.GetString("AudioSendHandler_Build_AudioEncoderNotConfigured", resourceCulture) ?? "";
@@ -41,6 +44,7 @@ namespace XiaoZhi.Net.Server.I18n
         public static string AudioSendHandler_Handle_FirstFrame => ResourceManager.GetString("AudioSendHandler_Handle_FirstFrame", resourceCulture) ?? "";
         public static string AudioSendHandler_Handle_LastFrame => ResourceManager.GetString("AudioSendHandler_Handle_LastFrame", resourceCulture) ?? "";
         public static string AudioSendHandler_Handle_ProcessFailed => ResourceManager.GetString("AudioSendHandler_Handle_ProcessFailed", resourceCulture) ?? "";
+        public static string AudioSendHandler_Handle_Cancelled => ResourceManager.GetString("AudioSendHandler_Handle_Cancelled", resourceCulture) ?? "";
 
         public static string AudioReceiveHandler_Build_VadNotConfigured => ResourceManager.GetString("AudioReceiveHandler_Build_VadNotConfigured", resourceCulture) ?? "";
         public static string AudioReceiveHandler_Build_AudioDecoderNotConfigured => ResourceManager.GetString("AudioReceiveHandler_Build_AudioDecoderNotConfigured", resourceCulture) ?? "";
@@ -49,6 +53,7 @@ namespace XiaoZhi.Net.Server.I18n
         public static string AudioReceiveHandler_Handle_PacketIgnored => ResourceManager.GetString("AudioReceiveHandler_Handle_PacketIgnored", resourceCulture) ?? "";
         public static string AudioReceiveHandler_Handle_ProcessFailed => ResourceManager.GetString("AudioReceiveHandler_Handle_ProcessFailed", resourceCulture) ?? "";
         public static string AudioReceiveHandler_HandleVoiceDetected_VoiceTooShort => ResourceManager.GetString("AudioReceiveHandler_HandleVoiceDetected_VoiceTooShort", resourceCulture) ?? "";
+        public static string AudioReceiveHandler_Handle_Cancelled => ResourceManager.GetString("AudioReceiveHandler_Handle_Cancelled", resourceCulture) ?? "";
 
         public static string BaseHandler_CheckWorkflowValid_StaleWorkflow => ResourceManager.GetString("BaseHandler_CheckWorkflowValid_StaleWorkflow", resourceCulture) ?? "";
         public static string BaseHandler_OnTokenCanceled_TokenCanceled => ResourceManager.GetString("BaseHandler_OnTokenCanceled_TokenCanceled", resourceCulture) ?? "";
@@ -59,6 +64,8 @@ namespace XiaoZhi.Net.Server.I18n
         public static string DialogueHandler_Handle_ProcessFailed => ResourceManager.GetString("DialogueHandler_Handle_ProcessFailed", resourceCulture) ?? "";
         public static string DialogueHandler_OnTokenGenerated_ResponseText => ResourceManager.GetString("DialogueHandler_OnTokenGenerated_ResponseText", resourceCulture) ?? "";
         public static string DialogueHandler_OnBeforeTokenGenerate_Thinking => ResourceManager.GetString("DialogueHandler_OnBeforeTokenGenerate_Thinking", resourceCulture) ?? "";
+        public static string DialogueHandler_Handle_Cancelled => ResourceManager.GetString("DialogueHandler_Handle_Cancelled", resourceCulture) ?? "";
+        public static string DialogueHandler_OnTokenGenerating_WriteFailed => ResourceManager.GetString("DialogueHandler_OnTokenGenerating_WriteFailed", resourceCulture) ?? "";
 
         public static string HelloMessageHandler_Handle_InitFailed => ResourceManager.GetString("HelloMessageHandler_Handle_InitFailed", resourceCulture) ?? "";
 
@@ -75,6 +82,7 @@ namespace XiaoZhi.Net.Server.I18n
         public static string Text2AudioHandler_CheckBindDevice_BindCodeFormatError => ResourceManager.GetString("Text2AudioHandler_CheckBindDevice_BindCodeFormatError", resourceCulture) ?? "";
         public static string Text2AudioHandler_CheckBindDevice_BindDevicePrompt => ResourceManager.GetString("Text2AudioHandler_CheckBindDevice_BindDevicePrompt", resourceCulture) ?? "";
         public static string Text2AudioHandler_CheckBindDevice_VersionNotFound => ResourceManager.GetString("Text2AudioHandler_CheckBindDevice_VersionNotFound", resourceCulture) ?? "";
+        public static string Text2AudioHandler_Handle_Cancelled => ResourceManager.GetString("Text2AudioHandler_Handle_Cancelled", resourceCulture) ?? "";
 
         public static string TextHandler_Handle_ReceivedText => ResourceManager.GetString("TextHandler_Handle_ReceivedText", resourceCulture) ?? "";
         public static string TextHandler_Handle_InvalidType => ResourceManager.GetString("TextHandler_Handle_InvalidType", resourceCulture) ?? "";
@@ -142,7 +150,6 @@ namespace XiaoZhi.Net.Server.I18n
         public static string ProviderManager_BuildAudioPlayer_BuildFailed => ResourceManager.GetString("ProviderManager_BuildAudioPlayer_BuildFailed", resourceCulture) ?? "";
         public static string ProviderManager_BuildAudioProcessor_BuildFailed => ResourceManager.GetString("ProviderManager_BuildAudioProcessor_BuildFailed", resourceCulture) ?? "";
 
-        public static string ProviderManager_RegisterGlobalProviders_AudioDecoderInitialized => ResourceManager.GetString("ProviderManager_RegisterGlobalProviders_AudioDecoderInitialized", resourceCulture) ?? "";
         public static string ProviderManager_RegisterGlobalProviders_VadBuildFailed => ResourceManager.GetString("ProviderManager_RegisterGlobalProviders_VadBuildFailed", resourceCulture) ?? "";
         public static string ProviderManager_RegisterGlobalProviders_VadInitialized => ResourceManager.GetString("ProviderManager_RegisterGlobalProviders_VadInitialized", resourceCulture) ?? "";
         public static string ProviderManager_RegisterGlobalProviders_AsrBuildFailed => ResourceManager.GetString("ProviderManager_RegisterGlobalProviders_AsrBuildFailed", resourceCulture) ?? "";
@@ -186,13 +193,16 @@ namespace XiaoZhi.Net.Server.I18n
         public static string BaseSherpaAsr_RegisterDevice_Registered => ResourceManager.GetString("BaseSherpaAsr_RegisterDevice_Registered", resourceCulture) ?? "";
         public static string BaseSherpaAsr_UnregisterDevice_Unregistered => ResourceManager.GetString("BaseSherpaAsr_UnregisterDevice_Unregistered", resourceCulture) ?? "";
         public static string BaseSherpaAsr_ConvertSpeechTextAsync_ProviderNotBuilt => ResourceManager.GetString("BaseSherpaAsr_ConvertSpeechTextAsync_ProviderNotBuilt", resourceCulture) ?? "";
-        public static string BaseSherpaAsr_ConvertSpeechTextAsync_UserCanceled => ResourceManager.GetString("BaseSherpaAsr_ConvertSpeechTextAsync_UserCanceled", resourceCulture) ?? "";
         public static string BaseSherpaAsr_ConvertSpeechTextAsync_UnexpectedError => ResourceManager.GetString("BaseSherpaAsr_ConvertSpeechTextAsync_UnexpectedError", resourceCulture) ?? "";
         public static string BaseSherpaAsr_Processing_ProviderNotBuilt => ResourceManager.GetString("BaseSherpaAsr_Processing_ProviderNotBuilt", resourceCulture) ?? "";
         public static string BaseSherpaAsr_Processing_ErrorLoop => ResourceManager.GetString("BaseSherpaAsr_Processing_ErrorLoop", resourceCulture) ?? "";
         public static string BaseSherpaAsr_Dispose_WaitFailed => ResourceManager.GetString("BaseSherpaAsr_Dispose_WaitFailed", resourceCulture) ?? "";
         public static string BaseSherpaAsr_ConvertSpeechTextAsync_AudioSaved => ResourceManager.GetString("BaseSherpaAsr_ConvertSpeechTextAsync_AudioSaved", resourceCulture) ?? "";
         public static string BaseSherpaAsr_ConvertSpeechTextAsync_AudioNotSaved => ResourceManager.GetString("BaseSherpaAsr_ConvertSpeechTextAsync_AudioNotSaved", resourceCulture) ?? "";
+        public static string BaseSherpaAsr_ConvertSpeechTextAsync_RequestCancelled => ResourceManager.GetString("BaseSherpaAsr_ConvertSpeechTextAsync_RequestCancelled", resourceCulture) ?? "";
+        public static string BaseSherpaAsr_Processing_RequestCancelledBeforeProcessing => ResourceManager.GetString("BaseSherpaAsr_Processing_RequestCancelledBeforeProcessing", resourceCulture) ?? "";
+        public static string BaseSherpaAsr_Processing_RequestCancelledAfterDecoding => ResourceManager.GetString("BaseSherpaAsr_Processing_RequestCancelledAfterDecoding", resourceCulture) ?? "";
+        public static string BaseSherpaAsr_Processing_ResultProcessingError => ResourceManager.GetString("BaseSherpaAsr_Processing_ResultProcessingError", resourceCulture) ?? "";
         #endregion
 
         #region Paraformer
@@ -254,6 +264,7 @@ namespace XiaoZhi.Net.Server.I18n
         #region DefaultAudioProcessor
         public static string DefaultAudioProcessor_Build_Initialized => ResourceManager.GetString("DefaultAudioProcessor_Build_Initialized", resourceCulture) ?? "";
         public static string DefaultAudioProcessor_Build_InvalidSettings => ResourceManager.GetString("DefaultAudioProcessor_Build_InvalidSettings", resourceCulture) ?? "";
+        public static string DefaultAudioProcessor_FireOnMixedAudioData_InvokeError => ResourceManager.GetString("DefaultAudioProcessor_FireOnMixedAudioData_InvokeError", resourceCulture) ?? "";
         #endregion
 
         #region NotificationPlayer
@@ -293,6 +304,9 @@ namespace XiaoZhi.Net.Server.I18n
         public static string MCPToolFunctionFilter_OnFunctionInvocationAsync_InvalidIoTName => ResourceManager.GetString("MCPToolFunctionFilter_OnFunctionInvocationAsync_InvalidIoTName", resourceCulture) ?? "";
         public static string MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailed => ResourceManager.GetString("MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailed", resourceCulture) ?? "";
         public static string MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailedDetail => ResourceManager.GetString("MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailedDetail", resourceCulture) ?? "";
+        public static string MCPToolFunctionFilter_OnFunctionInvocationAsync_FunctionCancelled => ResourceManager.GetString("MCPToolFunctionFilter_OnFunctionInvocationAsync_FunctionCancelled", resourceCulture) ?? "";
+        public static string MCPToolFunctionFilter_OnFunctionInvocationAsync_McpCancelled => ResourceManager.GetString("MCPToolFunctionFilter_OnFunctionInvocationAsync_McpCancelled", resourceCulture) ?? "";
+        public static string MCPToolFunctionFilter_OnFunctionInvocationAsync_IoTCancelled => ResourceManager.GetString("MCPToolFunctionFilter_OnFunctionInvocationAsync_IoTCancelled", resourceCulture) ?? "";
         #endregion
 
         #region MusicPlayer
@@ -357,8 +371,9 @@ namespace XiaoZhi.Net.Server.I18n
         public static string GenericOpenAI_Build_InvalidSettings => ResourceManager.GetString("GenericOpenAI_Build_InvalidSettings", resourceCulture) ?? "";
         public static string GenericOpenAI_StartDialogueAsync_NotBuilt => ResourceManager.GetString("GenericOpenAI_StartDialogueAsync_NotBuilt", resourceCulture) ?? "";
         public static string GenericOpenAI_ChatAsync_EmotionDetected => ResourceManager.GetString("GenericOpenAI_ChatAsync_EmotionDetected", resourceCulture) ?? "";
-        public static string GenericOpenAI_ChatAsync_UserCanceled => ResourceManager.GetString("GenericOpenAI_ChatAsync_UserCanceled", resourceCulture) ?? "";
         public static string GenericOpenAI_ChatAsync_UnexpectedError => ResourceManager.GetString("GenericOpenAI_ChatAsync_UnexpectedError", resourceCulture) ?? "";
+        public static string GenericOpenAI_ChatAsync_Cancelled => ResourceManager.GetString("GenericOpenAI_ChatAsync_Cancelled", resourceCulture) ?? "";
+        public static string GenericOpenAI_ChatByStreamingAsync_Cancelled => ResourceManager.GetString("GenericOpenAI_ChatByStreamingAsync_Cancelled", resourceCulture) ?? "";
         #endregion
 
         #region FlashMemory
@@ -380,8 +395,6 @@ namespace XiaoZhi.Net.Server.I18n
         public static string HuoshanHttpV3TTS_SynthesisAsync_RequestFailed => ResourceManager.GetString("HuoshanHttpV3TTS_SynthesisAsync_RequestFailed", resourceCulture) ?? "";
         public static string HuoshanHttpV3TTS_SynthesisAsync_ApiError => ResourceManager.GetString("HuoshanHttpV3TTS_SynthesisAsync_ApiError", resourceCulture) ?? "";
         public static string HuoshanHttpV3TTS_SynthesisAsync_GeneralFailed => ResourceManager.GetString("HuoshanHttpV3TTS_SynthesisAsync_GeneralFailed", resourceCulture) ?? "";
-        public static string HuoshanHttpV3TTS_SynthesisAsync_FileSaved => ResourceManager.GetString("HuoshanHttpV3TTS_SynthesisAsync_FileSaved", resourceCulture) ?? "";
-        public static string HuoshanHttpV3TTS_SynthesisAsync_FlushFailed => ResourceManager.GetString("HuoshanHttpV3TTS_SynthesisAsync_FlushFailed", resourceCulture) ?? "";
         #endregion
 
         #region HuoshanHttpTTS

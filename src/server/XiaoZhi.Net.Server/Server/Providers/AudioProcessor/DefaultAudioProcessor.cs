@@ -74,7 +74,14 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
 
         private void FireOnMixedAudioData(float[] audioPcmData, bool isFirst, bool isLast, string? sentenceId)
         {
-            this.OnMixedAudioDataAvailable?.Invoke(audioPcmData, isFirst, isLast, sentenceId);
+            try
+            {
+                this.OnMixedAudioDataAvailable?.Invoke(audioPcmData, isFirst, isLast, sentenceId);
+            }
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, Lang.DefaultAudioProcessor_FireOnMixedAudioData_InvokeError);
+            }
         }
 
 

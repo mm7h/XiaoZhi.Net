@@ -132,6 +132,9 @@
   <data name="Audio2TextHandler_OnSpeechTextConverted_SpeakText" xml:space="preserve">
     <value>Device {deviceId} speak the text: {speechText}</value>
   </data>
+  <data name="Audio2TextHandler_Handle_Cancelled" xml:space="preserve">
+    <value>ASR processing cancelled for device {DeviceId}</value>
+  </data>
   <data name="ServerBuilder_Initialize_ConfigNull" xml:space="preserve">
     <value>Config cannot be null.</value>
   </data>
@@ -156,6 +159,12 @@
   <data name="AudioProcessorHandler_Handle_ProcessFailed" xml:space="preserve">
     <value>Failed to process the audio segment from device: {deviceId}.</value>
   </data>
+  <data name="AudioProcessorHandler_Handle_Cancelled" xml:space="preserve">
+    <value>Audio processing cancelled for device {DeviceId}</value>
+  </data>
+  <data name="AudioProcessorHandler_OnMixedAudioDataAvailable_WriteFailed" xml:space="preserve">
+    <value>Error writing mixed audio to channel for device {DeviceId}</value>
+  </data>
   <data name="AudioSendHandler_Build_AudioProcessorNotConfigured" xml:space="preserve">
     <value>Audio processor is not configured for the device: {deviceId}.</value>
   </data>
@@ -176,6 +185,9 @@
   </data>
   <data name="AudioSendHandler_Handle_ProcessFailed" xml:space="preserve">
     <value>Failed to process the audio sending packet from device: {deviceId}.</value>
+  </data>
+  <data name="AudioSendHandler_Handle_Cancelled" xml:space="preserve">
+    <value>Audio sending cancelled for device {DeviceId}</value>
   </data>
   <data name="AudioReceiveHandler_Build_VadNotConfigured" xml:space="preserve">
     <value>VAD provider is not configured for the device: {deviceId}.</value>
@@ -198,6 +210,9 @@
   <data name="AudioReceiveHandler_HandleVoiceDetected_VoiceTooShort" xml:space="preserve">
     <value>The voice is too short for the session {sessionId}.</value>
   </data>
+  <data name="AudioReceiveHandler_Handle_Cancelled" xml:space="preserve">
+    <value>Audio processing cancelled for device {DeviceId}</value>
+  </data>
   <data name="BaseHandler_CheckWorkflowValid_StaleWorkflow" xml:space="preserve">
     <value>Stale workflow detected in handler {handlerName}. Workflow turn ID: {workflowTurnId}, Session turn ID: {sessionTurnId}.</value>
   </data>
@@ -215,6 +230,12 @@
   </data>
   <data name="DialogueHandler_Handle_ProcessFailed" xml:space="preserve">
     <value>Failed to process the llm dialogue from device: {deviceId}.</value>
+  </data>
+  <data name="DialogueHandler_Handle_Cancelled" xml:space="preserve">
+    <value>LLM dialogue cancelled for device {DeviceId}</value>
+  </data>
+  <data name="DialogueHandler_OnTokenGenerating_WriteFailed" xml:space="preserve">
+    <value>Error writing LLM segment to channel for device {DeviceId}</value>
   </data>
   <data name="DialogueHandler_OnTokenGenerated_ResponseText" xml:space="preserve">
     <value>LLM's response text: {content}</value>
@@ -239,6 +260,9 @@
   </data>
   <data name="Text2AudioHandler_Handle_ProcessFailed" xml:space="preserve">
     <value>Error occurred during text to audio processing for device: {deviceId}.</value>
+  </data>
+  <data name="Text2AudioHandler_Handle_Cancelled" xml:space="preserve">
+    <value>TTS synthesis cancelled for device {DeviceId}</value>
   </data>
   <data name="Text2AudioHandler_CheckBindDevice_PlayerNotBuilt" xml:space="preserve">
     <value>AudioPlayerClient is not built for the device {deviceId} yet</value>
@@ -420,9 +444,6 @@
   <data name="ProviderManager_BuildAudioProcessor_BuildFailed" xml:space="preserve">
     <value>Session {sessionId} failed to build audio mixer.</value>
   </data>
-  <data name="ProviderManager_RegisterGlobalProviders_AudioDecoderInitialized" xml:space="preserve">
-    <value>Generic AudioDecoder {modeName} model initialized for device: {deviceId}.</value>
-  </data>
   <data name="ProviderManager_RegisterGlobalProviders_VadBuildFailed" xml:space="preserve">
     <value>Failed to build {modelName} provider.</value>
   </data>
@@ -498,11 +519,20 @@
   <data name="BaseSherpaAsr_ConvertSpeechTextAsync_ProviderNotBuilt" xml:space="preserve">
     <value>Please build asr provider first.</value>
   </data>
-  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_UserCanceled" xml:space="preserve">
-    <value>User canceled the job for {providerType}.</value>
-  </data>
   <data name="BaseSherpaAsr_ConvertSpeechTextAsync_UnexpectedError" xml:space="preserve">
     <value>Unexpected error(s) for {providerType}.</value>
+  </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_RequestCancelled" xml:space="preserve">
+    <value>ASR request cancelled for device {DeviceId}</value>
+  </data>
+  <data name="BaseSherpaAsr_Processing_RequestCancelledBeforeProcessing" xml:space="preserve">
+    <value>ASR request for device {DeviceId} cancelled before processing</value>
+  </data>
+  <data name="BaseSherpaAsr_Processing_RequestCancelledAfterDecoding" xml:space="preserve">
+    <value>ASR request for device {DeviceId} cancelled after decoding</value>
+  </data>
+  <data name="BaseSherpaAsr_Processing_ResultProcessingError" xml:space="preserve">
+    <value>Error processing ASR result for device {DeviceId}</value>
   </data>
   <data name="BaseSherpaAsr_Processing_ProviderNotBuilt" xml:space="preserve">
     <value>Please build asr provider first.</value>
@@ -518,7 +548,7 @@
   </data>
   <data name="BaseSherpaAsr_ConvertSpeechTextAsync_AudioNotSaved" xml:space="preserve">
     <value>Failed to save user speech audio file {fileName}.</value>
-  </data>  
+  </data>
   <data name="Paraformer_Build_Built" xml:space="preserve">
     <value>Built the {providerType} model: {modelName}</value>
   </data>
@@ -617,6 +647,9 @@
   </data>
   <data name="DefaultAudioProcessor_Build_Initialized" xml:space="preserve">
     <value>The audio mixer has been initialized, no need to initialize again.</value>
+  </data>
+  <data name="DefaultAudioProcessor_FireOnMixedAudioData_InvokeError" xml:space="preserve">
+    <value>Error invoking OnMixedAudioDataAvailable event</value>
   </data>
   <data name="DefaultAudioProcessor_Build_InvalidSettings" xml:space="preserve">
     <value>Invalid model settings for {providerType}: {modelName}</value>
@@ -840,11 +873,14 @@
   <data name="GenericOpenAI_ChatAsync_EmotionDetected" xml:space="preserve">
     <value>Detected emotion: {detectedEmotion} for segment: {segment}</value>
   </data>
-  <data name="GenericOpenAI_ChatAsync_UserCanceled" xml:space="preserve">
-    <value>User canceled the job for {providerType}.</value>
-  </data>
   <data name="GenericOpenAI_ChatAsync_UnexpectedError" xml:space="preserve">
     <value>Unexpected error(s) for {providerType}.</value>
+  </data>
+  <data name="GenericOpenAI_ChatAsync_Cancelled" xml:space="preserve">
+    <value>LLM chat cancelled, cleaning up {Count} segments</value>
+  </data>
+  <data name="GenericOpenAI_ChatByStreamingAsync_Cancelled" xml:space="preserve">
+    <value>LLM streaming chat cancelled, cleaning up {Count} segments</value>
   </data>
   <data name="FlashMemory_Build_Built" xml:space="preserve">
     <value>Builded the default {providerType}: {flashMemory}</value>
@@ -872,12 +908,6 @@
   </data>
   <data name="HuoshanHttpV3TTS_SynthesisAsync_GeneralFailed" xml:space="preserve">
     <value>Huoshan HTTP TTS synthesis failed.</value>
-  </data>
-  <data name="HuoshanHttpV3TTS_SynthesisAsync_FileSaved" xml:space="preserve">
-    <value>Saved TTS audio file to {audioPath} for the device {deviceId}.</value>
-  </data>
-  <data name="HuoshanHttpV3TTS_SynthesisAsync_FlushFailed" xml:space="preserve">
-    <value>Failed to flush audio file stream for the device {deviceId}.</value>
   </data>
   <data name="HuoshanHttpTTS_Build_ConfigIncomplete" xml:space="preserve">
     <value>Huoshan bidirection TTS configuration is incomplete, please check AppId, AccessToken, Cluster and speaker.</value>
@@ -1178,5 +1208,14 @@
   </data>
   <data name="ChatAgent_Build_BuiltFailed" xml:space="preserve">
     <value>Faild to built {providerType} - {modelName}, model name: {chatLLMName}</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_FunctionCancelled" xml:space="preserve">
+    <value>Function invocation cancelled for {FunctionName}</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_McpCancelled" xml:space="preserve">
+    <value>MCP tool call cancelled: {FunctionName}</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_IoTCancelled" xml:space="preserve">
+    <value>IoT command call cancelled: {FunctionName}</value>
   </data>
 </root>

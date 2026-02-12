@@ -83,25 +83,42 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     var notBindWorkflow = this._stringWorkflowPool.Get();
                     notBindWorkflow.Initialize(session, "NOT_BIND");
-                    await this.NextWriter.WriteAsync(notBindWorkflow);
+                    try
+                    {
+                        await this.NextWriter.WriteAsync(notBindWorkflow, this.HandlerToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        this._stringWorkflowPool.Return(notBindWorkflow);
+                    }
                     return;
                 }
 
                 await this._asr.ConvertSpeechTextAsync(workflow, this.Config.AudioSetting.SampleRate, this.Config.AudioSetting.FrameSize, this.HandlerToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (OperationCanceledException)
+            {
+                this.Logger.LogDebug(Lang.Audio2TextHandler_Handle_Cancelled, session.DeviceId);
+            }
+            catch (Exception ex)
             {
                 this.Logger.LogError(ex, Lang.Audio2TextHandler_Handle_ProcessFailed, session.DeviceId);
             }
         }
 
-        public void OnSpeechTextConverted(bool success, string speechText)
+        public async void OnSpeechTextConverted(bool success, string speechText)
         {
-            Session session = this.SendOutter.GetSession();
-            if (session is null)
+            if (this.HandlerToken.IsCancellationRequested)
             {
                 return;
             }
+            
+            Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
+            {
+                return;
+            }
+            
             if (!success)
             {
                 this.Logger.LogError(Lang.Audio2TextHandler_OnSpeechTextConverted_ConvertFailed);
@@ -114,12 +131,20 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
-            this.SendOutter.SendSttMessageAsync(speechText);
+            await this.SendOutter.SendSttMessageAsync(speechText);
             this.Logger.LogDebug(Lang.Audio2TextHandler_OnSpeechTextConverted_SpeakText, session.DeviceId, speechText);
 
             var nextWorkflow = this._stringWorkflowPool.Get();
             nextWorkflow.Initialize(session, speechText);
-            this.NextWriter.WriteAsync(nextWorkflow);
+            
+            try
+            {
+                await this.NextWriter.WriteAsync(nextWorkflow, this.HandlerToken);
+            }
+            catch (OperationCanceledException)
+            {
+                this._stringWorkflowPool.Return(nextWorkflow);
+            }
         }
 
         public override void Dispose()

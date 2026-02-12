@@ -62,7 +62,7 @@ namespace XiaoZhi.Net.Server.Management
         {
             return builder.ConfigureServices((context, services) =>
             {
-                RegisterAudioDecoder(services, GlobalProviderNames.GLOBAL_AUDIO_DECODER);
+                RegisterAudioDecoder(services);
                 RegisterVad(services, config, GlobalProviderNames.GLOBAL_VAD);
                 RegisterAsr(services, config, GlobalProviderNames.GLOBAL_ASR);
                 RegisterLlm(services, config);
@@ -83,16 +83,6 @@ namespace XiaoZhi.Net.Server.Management
 
         public bool BuildComponent(IServiceProvider serviceProvider)
         {
-
-            #region AudioDecoder
-            IAudioDecoder audioDecoder = serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER);
-            if (!audioDecoder.Build(this._config.AudioSetting))
-            {
-                this._logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, audioDecoder.ModelName);
-                return false;
-            }
-            #endregion
-
             try
             {
                 #region Vad
@@ -201,9 +191,6 @@ namespace XiaoZhi.Net.Server.Management
 
                     return this.RegisterGlobalProviders(session);
                 }
-
-                IAudioDecoder genericAudioDecoder = this._serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER);
-                session.PrivateProvider.SetAudioDecoder(genericAudioDecoder);
 
                 if (privateModelsConfig.VadSetting is not null)
                 {
@@ -365,6 +352,7 @@ namespace XiaoZhi.Net.Server.Management
             }
             finally
             {
+                this.BuildAudioDecoder(session);
                 this.BuildAudioPlayer(session);
                 this.BuildAudioProcessor(session);
                 this.BuildAudioResampler(session);
@@ -406,7 +394,6 @@ namespace XiaoZhi.Net.Server.Management
         {
             IList<IDisposable> providers = new List<IDisposable>
             {
-                serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER),
                 serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR),
                 serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD),
                 serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY)
@@ -421,10 +408,19 @@ namespace XiaoZhi.Net.Server.Management
 
         #region Register providers
         #region AudioDecoder
-        private static void RegisterAudioDecoder(IServiceCollection services, string key)
+        private static void RegisterAudioDecoder(IServiceCollection services)
         {
             services.AddTransient<IAudioDecoder, DefaultOpusDecoder>();
-            services.AddKeyedSingleton<IAudioDecoder, DefaultOpusDecoder>(key);
+        }
+
+        public void BuildAudioDecoder(Session session)
+        {
+            IAudioDecoder audioDecoder = this._serviceProvider.GetRequiredService<IAudioDecoder>();
+            if (!audioDecoder.Build(session.AudioSetting))
+            {
+                this._logger.LogWarning(Lang.ProviderManager_BuildAudioEncoder_BuildFailed, session.SessionId);
+            }
+            session.PrivateProvider.SetAudioDecoder(audioDecoder);
         }
         #endregion
 
@@ -712,12 +708,6 @@ namespace XiaoZhi.Net.Server.Management
 
         private bool RegisterGlobalProviders(Session session)
         {
-            #region AudioDecoder
-            IAudioDecoder genericAudioDecoder = this._serviceProvider.GetRequiredKeyedService<IAudioDecoder>(GlobalProviderNames.GLOBAL_AUDIO_DECODER);
-            session.PrivateProvider.SetAudioDecoder(genericAudioDecoder);
-            this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_AudioDecoderInitialized, genericAudioDecoder.ModelName, session.DeviceId);
-            #endregion
-
             #region Vad
             IVad genericVad = this._serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
             if (!genericVad.IsSherpaModel && !genericVad.Build(this.GetSelectedSetting("VAD", this._config)))

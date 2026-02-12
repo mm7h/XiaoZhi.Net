@@ -12,9 +12,8 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
 
         private IOpusDecoder? _decoder;
 
-        private SemaphoreSlim _decodeSemaphoreSlim = new SemaphoreSlim(1, 1);
-        public override string ModelName => "OpusDecoder";
-        public override string ProviderType => nameof(DefaultOpusDecoder);
+        public override string ModelName => nameof(DefaultOpusDecoder);
+        public override string ProviderType => "audio codec";
         public int SampleRate { get; private set; }
         public int Channels { get; private set; }
         public int FrameDuration { get; private set; }
@@ -43,36 +42,23 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
             }
         }
 
-        public override void RegisterDevice(string deviceId, string sessionId)
-        {
-            // No device-specific registration needed for the default Opus decoder.
-        }
-
         public async Task<float[]> DecodeAsync(byte[] opusData, CancellationToken token)
         {
             if (this._decoder == null)
             {
                 throw new ArgumentNullException(Lang.DefaultOpusDecoder_DecodeAsync_NotBuilt);
             }
-            try
-            {
-                await this._decodeSemaphoreSlim.WaitAsync(token);
-                var decoded = new float[this.FrameSize];
-                var decodedSamples = _decoder.Decode(opusData, decoded, this.FrameSize, false);
+            
+            var decoded = new float[this.FrameSize];
+            var decodedSamples = this._decoder.Decode(opusData, decoded, this.FrameSize, false);
 
-                return decoded;
-            }
-            finally
-            {
-                this._decodeSemaphoreSlim.Release();
-            }
+            return await Task.FromResult(decoded);
         }
 
         public override void Dispose()
         {
             this._decoder?.ResetState();
             this._decoder?.Dispose();
-            this._decodeSemaphoreSlim.Dispose();
         }
     }
 }

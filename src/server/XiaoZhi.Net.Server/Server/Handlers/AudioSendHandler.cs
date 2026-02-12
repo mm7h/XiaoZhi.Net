@@ -122,7 +122,11 @@ namespace XiaoZhi.Net.Server.Handlers
                     }
                 }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (OperationCanceledException)
+            {
+                this.Logger.LogDebug(Lang.AudioSendHandler_Handle_Cancelled, session.DeviceId);
+            }
+            catch (Exception ex)
             {
                 this.Logger.LogError(ex, Lang.AudioSendHandler_Handle_ProcessFailed, session.DeviceId);
             }

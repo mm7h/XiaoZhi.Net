@@ -22,8 +22,8 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
         public int InSampleRate { get; private set; }
         public int OutSampleRate { get; private set; }
 
-        public override string ModelName => "Resampler";
-        public override string ProviderType => "default audio resampler";
+        public override string ModelName => nameof(DefaultResampler);
+        public override string ProviderType => "audio codec";
 
         public override bool Build(ResamplerBuildConfig config)
         {

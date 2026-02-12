@@ -21,13 +21,11 @@ namespace XiaoZhi.Net.Server.Handlers
         private IVad? _vad;
         private IAudioDecoder? _audioDecoder;
 
-        public AudioReceiveHandler([FromKeyedServices(GlobalProviderNames.GLOBAL_AUDIO_DECODER)] IAudioDecoder audioDecoder,
-            ObjectPool<Workflow<float[]>> workflowPool,
+        public AudioReceiveHandler(ObjectPool<Workflow<float[]>> workflowPool,
             ObjectPool<Workflow<string>> stringWorkflowPool,
             XiaoZhiConfig config,
             ILogger<AudioReceiveHandler> logger) : base(config, logger)
         {
-            this._audioDecoder = audioDecoder;
             this._audioBufferWorkflowPool = workflowPool;
             this._stringWorkflowPool = stringWorkflowPool;
         }
@@ -97,7 +95,11 @@ namespace XiaoZhi.Net.Server.Handlers
                     await this._vad.AnalysisVoiceAsync(session.DeviceId, session.SessionId, session.AudioPacket.GetAllAudio(), this.HandlerToken);
                 }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (OperationCanceledException)
+            {
+                this.Logger.LogDebug(Lang.AudioReceiveHandler_Handle_Cancelled, session.DeviceId);
+            }
+            catch (Exception ex)
             {
                 session.AudioPacket.Reset();
                 this.Logger.LogError(ex, Lang.AudioReceiveHandler_Handle_ProcessFailed, session.DeviceId);
@@ -157,9 +159,12 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        private void HandleVoiceDetected(Session session, float[] audioData)
+        private async void HandleVoiceDetected(Session session, float[] audioData)
         {
-            this.HandlerToken.ThrowIfCancellationRequested();
+            if (this.HandlerToken.IsCancellationRequested)
+            {
+                return;
+            }
 
             if (audioData.Length < 50)
             {
@@ -171,8 +176,16 @@ namespace XiaoZhi.Net.Server.Handlers
 
             session.AudioPacket.ResetAudioBuffer();
             var workflow = this._audioBufferWorkflowPool.Get();
-            workflow.Initialize(session, audioData); 
-            this.NextWriter.WriteAsync(workflow);
+            workflow.Initialize(session, audioData);
+            
+            try
+            {
+                await this.NextWriter.WriteAsync(workflow, this.HandlerToken);
+            }
+            catch (OperationCanceledException)
+            {
+                this._audioBufferWorkflowPool.Return(workflow);
+            }
         }
 
         public void HandleManualStop(Session session)

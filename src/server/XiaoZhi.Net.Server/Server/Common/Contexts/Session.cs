@@ -107,7 +107,14 @@ namespace XiaoZhi.Net.Server.Common.Contexts
                 }
                 this._isReseting = true;
             }
-            this._sessionCts.Cancel();
+            try
+            {
+                this._sessionCts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                
+            }
         }
 
         public void RefreshLastActivityTime()
@@ -131,13 +138,27 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._sessionCts.Token.Register(async () =>
             {
                 await Task.Yield();
-                this.Reset();
-                this._isReseting = false;
+                
+                lock (_lock)
+                {
+                    this.Reset();
+                    this._isReseting = false;
 
-                this._sessionCts.Dispose();
-                this._sessionCts = new CancellationTokenSource();
-                var newToken = this._sessionCts.Token;
-                this.SessionCtsTokenChanged?.Invoke(newToken);
+                    var oldCts = this._sessionCts;
+                    this._sessionCts = new CancellationTokenSource();
+                    var newToken = this._sessionCts.Token;
+                    
+                    try
+                    {
+                        oldCts.Dispose();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        
+                    }
+                    
+                    this.SessionCtsTokenChanged?.Invoke(newToken);
+                }
             });
         }
 

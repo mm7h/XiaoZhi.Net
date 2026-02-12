@@ -103,13 +103,14 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 
             if (this._asrSessions.TryGetValue(workflow.DeviceId, out var callback))
             {
+                OfflineStream? offlineStream = null;
                 try
                 {
                     if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile)
                     {
                         string fileName = this.GenerateAudioFileName(workflow);
                         string filePath = Path.Combine(this.AudioSavingConfig.SavePath, $"{this.ProviderType}_{fileName}.{this.AudioSavingConfig.Format}");
-                        
+
                         bool userSpeechFileSavingResult = await this._audioEditor.SaveAudioFileAsync(filePath, workflow.Data);
                         if (userSpeechFileSavingResult)
                         {
@@ -121,10 +122,8 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                         }
                     }
 
-                    OfflineStream offlineStream = this._offlineRecognizer.CreateStream();
-
+                    offlineStream = this._offlineRecognizer.CreateStream();
                     offlineStream.AcceptWaveform(sampleRate, workflow.Data);
-
 
                     AsrRequest asrRequest = new AsrRequest(workflow.SessionId, workflow.DeviceId, offlineStream, sampleRate, frameSize, callback, token);
 
@@ -132,12 +131,17 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                 }
                 catch (OperationCanceledException)
                 {
-                    this.Logger.LogWarning(Lang.BaseSherpaAsr_ConvertSpeechTextAsync_UserCanceled, this.ProviderType);
+                    this.Logger.LogDebug(Lang.BaseSherpaAsr_ConvertSpeechTextAsync_RequestCancelled, workflow.DeviceId);
                     throw;
                 }
                 catch (Exception ex)
                 {
                     this.Logger.LogError(ex, Lang.BaseSherpaAsr_ConvertSpeechTextAsync_UnexpectedError, this.ProviderType);
+                    throw;
+                }
+                finally
+                {
+                    offlineStream?.Dispose();
                 }
             }
         }
@@ -218,8 +222,8 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                         {
                             if (request.Token.IsCancellationRequested)
                             {
-                                request.Callback.OnSpeechTextConverted(false, string.Empty);
                                 request.Stream.Dispose();
+                                this.Logger.LogDebug(Lang.BaseSherpaAsr_Processing_RequestCancelledBeforeProcessing, request.DeviceId);
                                 continue;
                             }
                             validRequests.Add(request);
@@ -235,16 +239,26 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 
                             foreach (AsrRequest request in validRequests)
                             {
-                                if (request.Token.IsCancellationRequested)
+                                try
                                 {
-                                    request.Callback.OnSpeechTextConverted(false, string.Empty);
-                                    request.Stream.Dispose();
-                                    continue;
+                                    if (request.Token.IsCancellationRequested)
+                                    {
+                                        this.Logger.LogDebug(Lang.BaseSherpaAsr_Processing_RequestCancelledAfterDecoding, request.DeviceId);
+                                    }
+                                    else
+                                    {
+                                        string resultText = request.Stream.Result.Text;
+                                        request.Callback.OnSpeechTextConverted(true, resultText);
+                                    }
                                 }
-                                string resultText = request.Stream.Result.Text;
-
-                                request.Stream.Dispose();
-                                request.Callback.OnSpeechTextConverted(true, resultText);
+                                catch (Exception ex)
+                                {
+                                    this.Logger.LogError(ex, Lang.BaseSherpaAsr_Processing_ResultProcessingError, request.DeviceId);
+                                }
+                                finally
+                                {
+                                    request.Stream.Dispose();
+                                }
                             }
 
                         }

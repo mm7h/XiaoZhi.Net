@@ -85,7 +85,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        public async Task Handle(Workflow<string> workflow, bool addToChatHistory = true)
+        public async Task Handle(Workflow<string> workflow)
         {
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
@@ -122,7 +122,11 @@ namespace XiaoZhi.Net.Server.Handlers
                     await this._llm.StartDialogueAsync(workflow.Data, this.HandlerToken);
                 }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (OperationCanceledException)
+            {
+                this.Logger.LogDebug(Lang.DialogueHandler_Handle_Cancelled, session.DeviceId);
+            }
+            catch (Exception ex)
             {
                 this.Logger.LogError(ex, Lang.DialogueHandler_Handle_ProcessFailed, session.DeviceId);
             }
@@ -130,7 +134,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public async void NoVoiceCloseConnect(Workflow<string> workflow)
         {
-            await this.Handle(workflow, false);
+            await this.Handle(workflow);
         }
 
         private void OnBeforeTokenGenerate()
@@ -145,19 +149,55 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 return;
             }
+            
+            Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
+            {
+                return;
+            }
+            
             var clonedSegment = this._outSegmentPool.Get();
             clonedSegment.Initialize(outSegment.Content, outSegment.IsFirstSegment, outSegment.IsLastSegment, outSegment.Emotion, outSegment.ParagraphId, outSegment.SentenceId);
 
             var workflow = this._outSegmentWorkflowPool.Get();
-            Session session = this.SendOutter.GetSession();
             workflow.Initialize(session, clonedSegment);
-            await this.NextWriter.WriteAsync(workflow);
+            
+            try
+            {
+                await this.NextWriter.WriteAsync(workflow, this.HandlerToken);
+            }
+            catch (OperationCanceledException)
+            {
+                this._outSegmentPool.Return(clonedSegment);
+                this._outSegmentWorkflowPool.Return(workflow);
+            }
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, Lang.DialogueHandler_OnTokenGenerating_WriteFailed, session.DeviceId);
+                this._outSegmentPool.Return(clonedSegment);
+                this._outSegmentWorkflowPool.Return(workflow);
+            }
         }
 
         private void OnTokenGenerated(IEnumerable<OutSegment> outSegments)
         {
             if (this.HandlerToken.IsCancellationRequested)
             {
+                // Still need to return segments to pool even if cancelled
+                foreach (var seg in outSegments)
+                {
+                    this._outSegmentPool.Return(seg);
+                }
+                return;
+            }
+            
+            Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore())
+            {
+                foreach (var seg in outSegments)
+                {
+                    this._outSegmentPool.Return(seg);
+                }
                 return;
             }
 

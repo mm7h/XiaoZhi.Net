@@ -35,7 +35,7 @@ try
             Console.WriteLine("Please set the environment variable \"OPEN_AI_API_KEY\"");
             return;
         }
-        config.ConfiguredSettings["LLM"][config.SelectedSettings.GetValueOrDefault("ChatLLM", "ChatGlm")]["ApiKey"] = "sk-2e9a2711d0524f4482b7a6fac345504c";
+        config.ConfiguredSettings["LLM"][config.SelectedSettings.GetValueOrDefault("ChatLLM", "ChatGlm")]["ApiKey"] = apiKey;
         if (config.SelectedSettings["TTS"].StartsWith("Huoshan"))
         {
             config.ConfiguredSettings["TTS"][config.SelectedSettings.GetValueOrDefault("TTS", "HuoshanBidirection")]["AppId"] = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;

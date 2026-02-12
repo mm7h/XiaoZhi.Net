@@ -53,10 +53,21 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private void OnSessionCtsTokenChanged(CancellationToken newToken)
         {
-            this._handlerCts?.Cancel();
+            var oldCts = this._handlerCts;
+            try
+            {
+                oldCts?.Cancel();
+                oldCts?.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed, ignore
+            }
+            
             this._handlerCts = CancellationTokenSource.CreateLinkedTokenSource(newToken);
             this.HandlerToken = this._handlerCts.Token;
             this.HandlerToken.Register(this.OnTokenCanceled);
+            this.OnHandlerTokenChanged();
         }
 
         private void OnTokenCanceled()

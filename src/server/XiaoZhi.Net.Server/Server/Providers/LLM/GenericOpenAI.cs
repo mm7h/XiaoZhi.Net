@@ -122,6 +122,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
         private async Task ChatAsync(string userMessage, CancellationToken token)
         {
+            List<OutSegment> allResponse = new List<OutSegment>();
             try
             {
                 this.OnBeforeTokenGenerate?.Invoke();
@@ -131,7 +132,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
                 string cleanContent = DialogueHelper.GetStringNoPunctuationOrEmoji(assistantResponse);
                 IEnumerable<string> segments = DialogueHelper.SplitContentByPunctuations(cleanContent);
-                List<OutSegment> allResponse = new List<OutSegment>();
 
                 int index = 0;
                 int count = segments.Count();
@@ -154,22 +154,26 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
             catch (OperationCanceledException)
             {
-                this.Logger.LogWarning(Lang.GenericOpenAI_ChatAsync_UserCanceled, this.ProviderType);
+                this.Logger.LogDebug(Lang.GenericOpenAI_ChatAsync_Cancelled, allResponse.Count);
+                // Clean up any segments that were created but not yet sent
+                this.OnTokenGenerated?.Invoke(allResponse);
                 throw;
             }
             catch (Exception ex)
             {
                 this.Logger.LogError(ex, Lang.GenericOpenAI_ChatAsync_UnexpectedError, this.ProviderType);
+                // Clean up segments on error
+                this.OnTokenGenerated?.Invoke(allResponse);
             }
         }
 
         private async Task ChatByStreamingAsync(string userMessage, CancellationToken token)
         {
+            List<OutSegment> allResponse = new List<OutSegment>();
             try
             {
                 this.OnBeforeTokenGenerate?.Invoke();
 
-                List<OutSegment> allResponse = new List<OutSegment>();
                 string paragraphId = this.GenerateId();
 
                 await foreach (string sentence in this._chatAgent.GenerateChatResponseStreamingAsync(userMessage, token))
@@ -204,12 +208,16 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
             catch (OperationCanceledException)
             {
-                this.Logger.LogWarning(Lang.GenericOpenAI_ChatAsync_UserCanceled, this.ProviderType);
+                this.Logger.LogDebug(Lang.GenericOpenAI_ChatByStreamingAsync_Cancelled, allResponse.Count);
+                // Clean up any segments that were created
+                this.OnTokenGenerated?.Invoke(allResponse);
                 throw;
             }
             catch (Exception ex)
             {
                 this.Logger.LogError(ex, Lang.GenericOpenAI_ChatAsync_UnexpectedError, this.ProviderType);
+                // Clean up segments on error
+                this.OnTokenGenerated?.Invoke(allResponse);
             }
         }
 

@@ -36,16 +36,16 @@ namespace XiaoZhi.Net.Server.Providers
 
         public virtual void UnregisterDevice(string deviceId, string sessionId)
         {
+            this.Logger.LogInformation(Lang.BaseProvider_UnregisterDevice_Unregistered, this.DeviceId, this.ProviderType, this.SessionId);
             this.DeviceId = string.Empty;
             this.SessionId = string.Empty;
-            this.Logger.LogInformation(Lang.BaseProvider_UnregisterDevice_Unregistered, this.DeviceId, this.SessionId, this.ProviderType);
         }
 
         public virtual bool CheckDeviceRegistered(string deviceId, string sessionId)
         {
-            if (string.IsNullOrEmpty(deviceId) || string.IsNullOrEmpty(sessionId))
+            if (string.IsNullOrEmpty(this.DeviceId) || string.IsNullOrEmpty(this.SessionId))
             {
-                this.Logger.LogError(Lang.BaseProvider_CheckDeviceRegistered_NotRegistered, string.IsNullOrEmpty(deviceId) ? "unkonwn" : deviceId, string.IsNullOrEmpty(sessionId) ? "unkonwn" : sessionId, this.ProviderType);
+                this.Logger.LogError(Lang.BaseProvider_CheckDeviceRegistered_NotRegistered, string.IsNullOrEmpty(this.DeviceId) ? "unkonwn" : this.DeviceId, string.IsNullOrEmpty(this.SessionId) ? "unkonwn" : this.SessionId, this.ProviderType);
                 return false;
             }
             return true;
