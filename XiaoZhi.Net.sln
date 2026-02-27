@@ -11,6 +11,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Test", "tests\X
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{B1EC5935-24E5-4DD5-ABDC-99E86B925140}"
 	ProjectSection(SolutionItems) = preProject
+		docs\01.extend-custom-model.md = docs\01.extend-custom-model.md
 		LICENSE = LICENSE
 		README.md = README.md
 		README_en.md = README_en.md

@@ -48,8 +48,10 @@ try
             // 添加插件
             .WithPlugin<GetTime>(nameof(GetTime))
             // 多媒体文件格式支持
-            .WithAllMedia(useFFmpegAudioMixer: true)
+            .WithMedia(useFFmpegAudioMixer: true)
             //.WithManageApi("http://localhost:5118", "your-secret")
+            // 设置日志输出语言
+            .WithCulture("zh-CN")
             // 构建服务引擎
             .Build();
 

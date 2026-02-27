@@ -18,17 +18,18 @@ try
     string configJson = File.ReadAllText(Path.Combine(Environment.CurrentDirectory, "configs", "config.json"));
 
     // 快速从json文件中获取配置信息
-    XiaoZhiConfig? config = Newtonsoft.Json.JsonConvert.DeserializeObject<XiaoZhiConfig>(configJson);
+    XiaoZhiConfig? config = JsonSerializer.Deserialize<XiaoZhiConfig>(configJson); // 此次省略了对System.Text.Json的一些自定义设置
     if (config is not null)
     {
         // 开始初始化服务
         serverHost = serverBuilder.Initialize(config)
             // 添加插件
             .WithPlugin<GetTime>(nameof(GetTime))
-            // ffmpeg音频支持
-            .InitializeFFmpeg()
             // 多媒体文件格式支持
-            .WithAllMedia(useFFmpeg: true)
+            .WithMedia(useFFmpeg: true)
+            //.WithManageApi("http://localhost:5118", "your-secret") // 请参考 'XiaoZhi.Net.Sample.OTA.Server' 示例
+            // 设置日志输出的语言
+            .WithCulture("zh-CN") // 可选，默认为当前环境语言
             // 构建服务引擎
             .Build();
 
@@ -90,60 +91,67 @@ public class GetTime
 |自定义插件|支持自定义插件函数，方便LLM调用|
 |IOT/MCP|同时支持两种协议调用（IOT协议后续将会被移除）|
 |短期记忆|以设备和单次连接为单位的短期记忆缓存|
-|多媒体音频播放|得力于ffmpeg编码支持，可以播放常见格式的音频文件|
-|音频重采样|服务端TTS输出会以小智设备提供采样率进行音频重采样|
+|多媒体音频播放|得益于ffmpeg（v7.1.1）编码支持，可以播放常见格式的音频文件|
+|音频重采样|可自定义设置服务端TTS输出采样率|
+|音频文件保存|可以通过配置文件来设置是否保存用户说话的音频和TTS生成的音频|
 |连接验证|可根据小智设备信息进行连接服务器前的登入验证|
 
 ### 正在开发 🚧
 
 - [ ] 更多的本地模型支持
 - [ ] 意图识别
-- [ ] 对接更多第三方 LLM、TTS 服务
+- [ ] 对接更多第三方 ASR、LLM、TTS 服务
 - [ ] 长期记忆存储
-- [ ] RAG知识库
+- [ ] RAG知识库，Skills
 - [ ] 智控台管理（ [Abp](https://github.com/abpframework/abp) ）
 
 ## 已接入的平台/使用的模型列表 📋
 
 ### LLM 语言模型
+\* 以下模型均以OpenAI的API规范进行调用
 
-|平台名称|使用方式|收费模式|备注|
-|:-:|:-:|:-:|:-:|
-|智谱（ChatGLMLLM）|API调用|免费|需要[申请密钥](https://bigmodel.cn/usercenter/proj-mgmt/apikeys)|
+|平台名称|查看密钥申请|
+|:-:|:-|
+|智谱（ChatGLMLLM，免费）|[密钥](https://bigmodel.cn/usercenter/proj-mgmt/apikeys)|
+|DeepSeek|[密钥](https://platform.deepseek.com/api_keys)|
+|Doubao（火山引擎）|[密钥](https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey?apikey=%7B%7D)|
+|Qwen（阿里百炼）|[密钥](https://bailian.console.aliyun.com/?apiKey=1#/api-key)|
 
 ---
 
 ### TTS 语音合成
 
-|平台 / 模型名称|使用方式|收费模式|备注|
-|:-:|:-:|:-:|:-:|
-|[Kokoro](#)|本地调用|免费||
-|[火山双向流式](#)|API调用|付费||
+|平台 / 模型名称|备注|
+|:-:|:-|
+|[Kokoro](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources)|基于 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 实现|
+|火山引擎|支持双向websocket流式、http调用|
 
 ---
 
 ### VAD 语音活动检测
 
-|模型名称|使用方式|收费模式|备注|
-|:-:|:-:|:-:|:-:|
-|[SileroVAD](#)|本地调用|免费||
+|模型名称|备注|
+|:-:|:-|
+|[SileroVAD](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources)|基于 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 实现|
+|SileroNative|基于 Microsoft.ML.OnnxRuntime 实现|
 
 ---
 
 ### ASR 语音识别
 
-|平台 / 模型名称|使用方式|收费模式|备注|
-|:-:|:-:|:-:|:-:|
-|[Sense Voice](#)|本地调用|免费||
+|平台 / 模型名称|备注|
+|:-:|:-|
+|[Sense Voice](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources)|基于 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 实现|
+|[Paraformer](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources)|基于 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 实现|
 
 
 ---
 
 ### Memory 记忆存储
 
-|平台 / 模型名称|使用方式|收费模式| 备注 |
-|:-:|:-:|:-:|:-:|
-|内存缓存|本地调用|免费|服务端停止或连接断开后所有记忆将会丢失|
+|平台 / 模型名称|备注|
+|:-:|:-|
+|内存缓存|服务端停止或连接断开后所有记忆将会丢失|
 
 ---
 
@@ -161,8 +169,9 @@ public class GetTime
 │   │   └── ...
 │   └── config.json # 主配置文件
 ├── data
+│   ├── asr-cache  # 当开启保存用于asr识别的音频文件后，用户说话的音频将会保存在这里
 │   └── tts-cache # 当开启保存tts生成的文件后，生成的语音将会保存在这里
-├── ffmpeg # 存放`ffmpeg v7.x` 二进制文件
+├── ffmpeg # 存放 ffmpeg v7.1.1 二进制文件
 ├── logs # 系统日志文件
 ├── models  # 所有模型存放的目录
 │   ├── asr  # 模型类型
@@ -179,23 +188,33 @@ public class GetTime
 │   │       ├── tokens.txt  # 模型所需tokens文件
 │   │       └── voices.bin  # 模型音色文件
 │   └── vad
-│       └── silero
+│       ├── silero
+│       │   └── model.onnx  # 模型文件
+│       └── silero-native
 │           └── model.onnx  # 模型文件
 ├── musics  # 本地音乐文件目录
 └── XiaoZhi.Net.Test.exe # 测试主程序
 
+
 ```
 
-### 二、模型下载
+### 二、模型使用
 
-从上面的模型列表中下载好本地模型后，在models文件夹中，根据文件目录结构将模型放在对应的文件夹中。
+* 使用打包好的模型
 
-*注意模型文件`.onnx`需要统一命名为`model.onnx`
+直接在 [Resource Files](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources) 中下载已经打包好的模型资源，解压后将模型文件放在对应的`models`文件夹中即可。
+
+* 使用其他模型
+
+若需要接入自定义模型，请参阅 [如何扩展自定义模型](docs/01.extend-custom-model.md) 文档。
+
+\* 注意模型文件`.onnx`需要统一命名为`model.onnx`
 
 ### 三、程序运行
 
-点击`XiaoZhi.Net.Sample.Server.exe`运行后，将会在控制台中显示当前监听的`websocket`地址，将其复制到你的小智客户端中即可。
-如果需要完整打印服务端日志，可以在`config.json`中将`LogSetting`项的`LogLevel`改为`DEBUG`。
+点击 `XiaoZhi.Net.Sample.Server.exe` 运行后，将会在控制台中显示当前监听的 `websocket` 地址，将其复制到你的小智客户端中即可。
+
+如果需要完整打印服务端日志，可以在 `config.json` 中将 `LogSetting` 项的 `LogLevel` 改为 `DEBUG`。
 
 ## 贡献🙌
 

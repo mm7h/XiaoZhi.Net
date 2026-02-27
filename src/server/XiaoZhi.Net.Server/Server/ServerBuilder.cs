@@ -52,7 +52,6 @@ namespace XiaoZhi.Net.Server
             this.HostBuilder = this.HostBuilder.ConfigureServices((context, services) =>
             {
                 services.AddSingleton(config);
-                services.AddSingleton(config.AudioSetting);
 
                 services.AddSingleton(connectionStore);
 

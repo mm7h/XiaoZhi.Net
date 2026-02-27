@@ -19,7 +19,7 @@ namespace XiaoZhi.Net.Server
         /// <param name="builder">current builder</param>
         /// <param name="useFFmpeg">use ffmpeg audio mixer support</param>
         /// <returns></returns>
-        public static IServerBuilder WithAllMedia(this IServerBuilder builder, bool useFFmpegAudioMixer = true, string ffmpegPath = "./ffmpeg/")
+        public static IServerBuilder WithMedia(this IServerBuilder builder, bool useFFmpegAudioMixer = true, string ffmpegPath = "./ffmpeg/")
         {
             builder.InitializeFFmpeg(ffmpegPath)
                 .WithAudioPlayer()

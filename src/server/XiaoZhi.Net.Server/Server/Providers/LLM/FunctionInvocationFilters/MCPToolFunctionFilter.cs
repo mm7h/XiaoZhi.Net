@@ -20,7 +20,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
 
         public MCPToolFunctionFilter(ILogger<MCPToolFunctionFilter> logger)
         {
-            _logger = logger;
+            this._logger = logger;
         }
         public async Task OnFunctionInvocationAsync(FunctionInvocationContext context, Func<FunctionInvocationContext, Task> next)
         {
@@ -60,7 +60,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeMcpFailed, context.Function.Name, context.Function.PluginName);
+                        this._logger.LogError(ex, Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeMcpFailed, context.Function.Name, context.Function.PluginName);
                         string failedMessage = string.Format(Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeMcpFailedDetail, context.Function.Name, context.Function.PluginName, ex.Message);
                         context.Result = new FunctionResult(context.Result, failedMessage);
                     }
@@ -115,7 +115,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailed, context.Function.Name, context.Function.PluginName);
+                        this._logger.LogError(ex, Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailed, context.Function.Name, context.Function.PluginName);
                         string failedMessage = string.Format(Lang.MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailedDetail, context.Function.Name, context.Function.PluginName, ex.Message);
                         context.Result = new FunctionResult(context.Result, failedMessage);
                     }

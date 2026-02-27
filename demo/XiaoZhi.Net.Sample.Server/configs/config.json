@@ -15,7 +15,8 @@
   "AudioSetting": {
     "SampleRate": 16000,
     "Channels": 1,
-    "FrameDuration": 60
+    "FrameDuration": 60,
+    "OutSampleRate": 24000
   },
   "DeviceBindSetting": {
     "BindCodePromptFilePath": "configs/assets/bind_code.wav",
@@ -57,6 +58,7 @@
           "SaveFile": true,
           "SavePath": "./data/asr-cache",
           "Format": "mp3",
+          //需要与用户设备设置的采样率和声道保持一致，否则将无法正常保存音频文件
           "SampleRate": 16000,
           "Channels": 1,
           "BitRate": 128000
@@ -65,7 +67,7 @@
       "Paraformer": {
         "FileSavingOption": {
           "SaveFile": true
-          // 剩下的保持如下默认值
+          // 未设置的话，剩下的属性将保持如下默认值
           /*
           "SavePath": "./data/audio-cache",
           "Format": "wav",
@@ -129,19 +131,20 @@
           "Format": "mp3"
         }
       },
-      "HuoshanUnidirectional": {
-        "AppId": "to your api id",
-        "AccessToken": "to your access token",
-        "ResourceId": "volc.service_type.10029",
-        "Speaker": "zh_female_cancan_mars_bigtts",
-        "SpeechRate": 0,
-        "LoudnessRate": 0,
-        "FileSavingOption": {
-          "SaveFile": true,
-          "SavePath": "./data/tts-cache",
-          "Format": "mp3"
-        }
-      },
+      //废弃单向接口，推荐使用HuoshanBidirection接口
+      //"HuoshanUnidirectional": {
+      //  "AppId": "to your api id",
+      //  "AccessToken": "to your access token",
+      //  "ResourceId": "volc.service_type.10029",
+      //  "Speaker": "zh_female_cancan_mars_bigtts",
+      //  "SpeechRate": 0,
+      //  "LoudnessRate": 0,
+      //  "FileSavingOption": {
+      //    "SaveFile": true,
+      //    "SavePath": "./data/tts-cache",
+      //    "Format": "mp3"
+      //  }
+      //},
       "HuoshanHttp": {
         "AppId": "to your api id",
         "AccessToken": "to your access token",

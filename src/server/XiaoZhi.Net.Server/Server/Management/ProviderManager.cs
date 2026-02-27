@@ -433,14 +433,14 @@ namespace XiaoZhi.Net.Server.Management
         {
             int ttsSampleRate = session.PrivateProvider.Tts?.GetTtsSampleRate() ?? this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS).GetTtsSampleRate();
 
-            if (ttsSampleRate == session.AudioSetting.SampleRate)
+            if (ttsSampleRate == session.AudioSetting.OutSampleRate)
             {
                 return;
             }
 
-            this._logger.LogInformation(Lang.ProviderManager_BuildAudioResampler_ResamplingRequired, session.DeviceId, ttsSampleRate, session.AudioSetting.SampleRate);
+            this._logger.LogInformation(Lang.ProviderManager_BuildAudioResampler_ResamplingRequired, session.DeviceId, ttsSampleRate, session.AudioSetting.OutSampleRate);
 
-            ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, ttsSampleRate, session.AudioSetting.SampleRate);
+            ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, ttsSampleRate, session.AudioSetting.OutSampleRate);
             IAudioResampler audioResampler = this._serviceProvider.GetRequiredService<IAudioResampler>();
             if (!audioResampler.Build(resamplerBuildConfig))
             {

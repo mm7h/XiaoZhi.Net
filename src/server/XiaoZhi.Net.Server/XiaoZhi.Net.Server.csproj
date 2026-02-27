@@ -15,8 +15,7 @@
         <Authors>mm7h</Authors>
         <Title>XiaoZhi.Net.Server</Title>
         <PackageIcon />
-        <Description>用C#编写的xiaozhi-esp32服务端，帮助您快速搭建ESP32设备控制服务器。
-Dotnet backend service for xiaozhi-esp32, helps you quickly build an ESP32 device control server.</Description>
+        <Description>xiaozhi esp32的C#服务端，帮助你搭建属于自己的小智服务。Helps you build your own xiaozhi esp32 back-end service.</Description>
         <RepositoryUrl>https://github.com/mm7h/XiaoZhi.Net</RepositoryUrl>
         <PackageProjectUrl>https://github.com/mm7h/XiaoZhi.Net</PackageProjectUrl>
     </PropertyGroup>
