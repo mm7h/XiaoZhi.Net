@@ -12,7 +12,7 @@ namespace XiaoZhi.Net.Server.Common.Configs
         [property: JsonPropertyName("BitRate")] int BitRate = 128000)
     {
         public AudioSavingConfig(bool SaveFile)
-            : this(SaveFile, string.Empty, string.Empty, -1, -1, -1)
+            : this(SaveFile, "./data/audio-cache", "wav", 16000, 1, 128000)
         {
         }
     }

@@ -55,7 +55,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
             if (this._disposed) return;
             this._disposed = true;
             this.ClearAll();
-            this._logger.LogDebug("AudioSubtitleSyncTracker disposed");
+            this._logger.LogDebug("AudioSubtitleRegister disposed");
         }
     }
 }

@@ -142,7 +142,7 @@ namespace XiaoZhi.Net.Server.Media
             }
             else
             {
-                Logger.LogError("FFmpeg is not installed or failed to initialize: {ffmpegVersion}", message);
+                Logger.LogError("FFmpeg is not installed or failed to initialize: {message}", message);
                 return false;
             }
         }

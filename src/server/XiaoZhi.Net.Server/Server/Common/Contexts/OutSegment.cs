@@ -72,6 +72,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.IsLastSegment = false;
             this.Emotion = Emotion.Neutral;
             this.SentenceId = null;
+            this.ParagraphId = null;
         }
 
     }
