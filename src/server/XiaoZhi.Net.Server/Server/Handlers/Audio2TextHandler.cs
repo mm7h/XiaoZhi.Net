@@ -94,7 +94,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     return;
                 }
 
-                await this._asr.ConvertSpeechTextAsync(workflow, this.Config.AudioSetting.SampleRate, this.Config.AudioSetting.FrameSize, this.HandlerToken);
+                await this._asr.ConvertSpeechTextAsync(workflow, session.AudioSetting.SampleRate, session.AudioSetting.FrameSize, this.HandlerToken);
             }
             catch (OperationCanceledException)
             {

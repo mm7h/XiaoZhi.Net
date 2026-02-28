@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+ï»¿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Collections.Concurrent;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
@@ -8,7 +8,7 @@ using XiaoZhi.Net.Server.Media.Abstractions.Dtos;
 namespace XiaoZhi.Net.Server.Media.Subtitle
 {
     /// <summary>
-    /// ÒôÆµ×ÖÄ»×¢²áÆ÷
+    /// éŸ³é¢‘å­—å¹•æ³¨å†Œå™¨
     /// </summary>
     internal class AudioSubtitleRegister : IAudioSubtitleRegister
     {
@@ -52,10 +52,10 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
 
         public void Dispose()
         {
-            if (_disposed) return;
-            _disposed = true;
-            ClearAll();
-            _logger.LogDebug("AudioSubtitleSyncTracker disposed");
+            if (this._disposed) return;
+            this._disposed = true;
+            this.ClearAll();
+            this._logger.LogDebug("AudioSubtitleSyncTracker disposed");
         }
     }
 }
