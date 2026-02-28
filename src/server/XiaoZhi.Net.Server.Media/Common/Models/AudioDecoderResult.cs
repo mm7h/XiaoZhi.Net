@@ -27,7 +27,7 @@ internal readonly struct AudioDecoderResult
     public AudioFrame? Frame { get; }
 
     /// <summary>
-    /// Gets whether or not the decoder is succesfully reading audio frame.
+    /// Gets whether or not the decoder is successfully reading audio frame.
     /// </summary>
     public bool IsSucceeded { get; }
 

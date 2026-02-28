@@ -2,16 +2,24 @@
 
 internal static class ThreadExtensions
 {
+    private const int BreakerCheckIntervalMs = 50;
+
     public static void EnsureThreadDone(this Thread thread, Func<bool>? breaker = default)
     {
+        if (breaker is null)
+        {
+            thread.Join();
+            return;
+        }
+
         while (thread.IsAlive)
         {
-            if (breaker != null && breaker())
+            if (breaker())
             {
                 break;
             }
 
-            Thread.Sleep(10);
+            thread.Join(BreakerCheckIntervalMs);
         }
     }
 }

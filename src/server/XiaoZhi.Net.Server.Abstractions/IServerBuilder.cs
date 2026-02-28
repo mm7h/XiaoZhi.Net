@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Hosting;
 using System.Globalization;
-using System.Text.RegularExpressions;
 using XiaoZhi.Net.Server.Abstractions.Store;
 
 namespace XiaoZhi.Net.Server.Abstractions

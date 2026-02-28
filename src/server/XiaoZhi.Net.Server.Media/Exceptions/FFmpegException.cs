@@ -3,7 +3,7 @@
 namespace XiaoZhi.Net.Server.Media.Exceptions;
 
 /// <summary>
-/// An exception that is thrown when errors occured in internal FFmpeg processes.
+/// An exception that is thrown when errors occurred in internal FFmpeg processes.
 /// <para>Implements: <see cref="Exception"/>.</para>
 /// </summary>
 internal class FFmpegException : Exception

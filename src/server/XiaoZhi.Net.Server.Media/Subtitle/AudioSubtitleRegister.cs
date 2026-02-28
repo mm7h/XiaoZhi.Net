@@ -40,7 +40,7 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
 
         public bool GetSubtitle(string sentenceId, out AudioSubtitle subtitle)
         {
-            return this._subtitlesCache.TryGetValue(sentenceId, out subtitle);
+            return this._subtitlesCache.TryGetValue(sentenceId, out subtitle) && this._subtitlesCache.TryRemove(sentenceId, out _);
         }
 
         public void ClearAll()
