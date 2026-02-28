@@ -3,30 +3,56 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server", "XiaoZhi.Server\XiaoZhi.Net.Server\XiaoZhi.Net.Server.csproj", "{3BE4F5E5-001F-416F-82A8-35BD08D2B619}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server", "src\server\XiaoZhi.Net.Server\XiaoZhi.Net.Server.csproj", "{3BE4F5E5-001F-416F-82A8-35BD08D2B619}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Test", "XiaoZhi.Server\XiaoZhi.Net.Test\XiaoZhi.Net.Test.csproj", "{74F41D2A-4D24-4944-B76A-880C5DC665BA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server.Media", "src\server\XiaoZhi.Net.Server.Media\XiaoZhi.Net.Server.Media.csproj", "{3B7D3048-A465-4300-B311-45AAD4A93CDF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Test", "tests\XiaoZhi.Net.Test\XiaoZhi.Net.Test.csproj", "{74F41D2A-4D24-4944-B76A-880C5DC665BA}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{B1EC5935-24E5-4DD5-ABDC-99E86B925140}"
 	ProjectSection(SolutionItems) = preProject
+		docs\01.extend-custom-model.md = docs\01.extend-custom-model.md
 		LICENSE = LICENSE
 		README.md = README.md
 		README_en.md = README_en.md
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "XiaoZhi.Manage.Api", "XiaoZhi.Manage.Api", "{083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "api", "api", "{083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}"
+	ProjectSection(SolutionItems) = preProject
+		src\api\README.md = src\api\README.md
+	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.WebApi", "XiaoZhi.Manage.Api\XiaoZhi.Net.WebApi\XiaoZhi.Net.WebApi.csproj", "{1F6453B8-5445-4D12-B4A9-D7722C9B522F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.WebApi", "src\api\XiaoZhi.Net.WebApi\XiaoZhi.Net.WebApi.csproj", "{1F6453B8-5445-4D12-B4A9-D7722C9B522F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Domain.Share", "XiaoZhi.Manage.Api\XiaoZhi.Net.Domain.Share\XiaoZhi.Net.Domain.Share.csproj", "{4F9C0C6E-3037-47B0-8F49-50107E5C800C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Domain.Share", "src\api\XiaoZhi.Net.Domain.Share\XiaoZhi.Net.Domain.Share.csproj", "{4F9C0C6E-3037-47B0-8F49-50107E5C800C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Domain", "XiaoZhi.Manage.Api\XiaoZhi.Net.Domain\XiaoZhi.Net.Domain.csproj", "{ED56CFFF-4191-4B1C-B033-AAC506B4E527}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Domain", "src\api\XiaoZhi.Net.Domain\XiaoZhi.Net.Domain.csproj", "{ED56CFFF-4191-4B1C-B033-AAC506B4E527}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Application.Contracts", "XiaoZhi.Manage.Api\XiaoZhi.Net.Application.Contracts\XiaoZhi.Net.Application.Contracts.csproj", "{970CD7CE-BE13-4615-BD51-E513681B447D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Application.Contracts", "src\api\XiaoZhi.Net.Application.Contracts\XiaoZhi.Net.Application.Contracts.csproj", "{970CD7CE-BE13-4615-BD51-E513681B447D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Application", "XiaoZhi.Manage.Api\XiaoZhi.Net.Application\XiaoZhi.Net.Application.csproj", "{05465B56-3A5E-409F-851E-488D41B1B671}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Application", "src\api\XiaoZhi.Net.Application\XiaoZhi.Net.Application.csproj", "{05465B56-3A5E-409F-851E-488D41B1B671}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "XiaoZhi.Server", "XiaoZhi.Server", "{DB999C6B-96B0-4981-B0AB-020F6DABC6D3}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "server", "server", "{DB999C6B-96B0-4981-B0AB-020F6DABC6D3}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "demo", "demo", "{CCE40800-EE6B-4596-BE91-81D9ADF8AD4B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Sample.Server", "demo\XiaoZhi.Net.Sample.Server\XiaoZhi.Net.Sample.Server.csproj", "{7900A5F0-6E19-42A5-8CB5-C77BDD74888F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{C5317539-74FE-4FE4-AF07-417A828F9D08}"
+	ProjectSection(SolutionItems) = preProject
+		tests\README.md = tests\README.md
+		tests\README_en.md = tests\README_en.md
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Sample.OTA.Server", "demo\XiaoZhi.Net.Sample.OTA.Server\XiaoZhi.Net.Sample.OTA.Server.csproj", "{BCD78DD0-4221-40DA-BA34-9DBDD06F0AA3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server.Abstractions", "src\server\XiaoZhi.Net.Server.Abstractions\XiaoZhi.Net.Server.Abstractions.csproj", "{4EE5A774-5F67-4890-8DE8-5A2C50A9415B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server.Media.Abstractions", "src\server\XiaoZhi.Net.Server.Media.Abstractions\XiaoZhi.Net.Server.Media.Abstractions.csproj", "{EE75618F-F646-4D8B-98A3-CDD45BA35C43}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XiaoZhi.Net.Server.I18n", "src\server\XiaoZhi.Net.Server.I18n\XiaoZhi.Net.Server.I18n.csproj", "{42768874-0595-4305-AE58-717C83A6C173}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -38,6 +64,10 @@ Global
 		{3BE4F5E5-001F-416F-82A8-35BD08D2B619}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3BE4F5E5-001F-416F-82A8-35BD08D2B619}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3BE4F5E5-001F-416F-82A8-35BD08D2B619}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3B7D3048-A465-4300-B311-45AAD4A93CDF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3B7D3048-A465-4300-B311-45AAD4A93CDF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3B7D3048-A465-4300-B311-45AAD4A93CDF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3B7D3048-A465-4300-B311-45AAD4A93CDF}.Release|Any CPU.Build.0 = Release|Any CPU
 		{74F41D2A-4D24-4944-B76A-880C5DC665BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{74F41D2A-4D24-4944-B76A-880C5DC665BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{74F41D2A-4D24-4944-B76A-880C5DC665BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -62,51 +92,48 @@ Global
 		{05465B56-3A5E-409F-851E-488D41B1B671}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{05465B56-3A5E-409F-851E-488D41B1B671}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{05465B56-3A5E-409F-851E-488D41B1B671}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7900A5F0-6E19-42A5-8CB5-C77BDD74888F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7900A5F0-6E19-42A5-8CB5-C77BDD74888F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7900A5F0-6E19-42A5-8CB5-C77BDD74888F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7900A5F0-6E19-42A5-8CB5-C77BDD74888F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BCD78DD0-4221-40DA-BA34-9DBDD06F0AA3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BCD78DD0-4221-40DA-BA34-9DBDD06F0AA3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BCD78DD0-4221-40DA-BA34-9DBDD06F0AA3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BCD78DD0-4221-40DA-BA34-9DBDD06F0AA3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4EE5A774-5F67-4890-8DE8-5A2C50A9415B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4EE5A774-5F67-4890-8DE8-5A2C50A9415B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4EE5A774-5F67-4890-8DE8-5A2C50A9415B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4EE5A774-5F67-4890-8DE8-5A2C50A9415B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EE75618F-F646-4D8B-98A3-CDD45BA35C43}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EE75618F-F646-4D8B-98A3-CDD45BA35C43}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EE75618F-F646-4D8B-98A3-CDD45BA35C43}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EE75618F-F646-4D8B-98A3-CDD45BA35C43}.Release|Any CPU.Build.0 = Release|Any CPU
+		{42768874-0595-4305-AE58-717C83A6C173}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{42768874-0595-4305-AE58-717C83A6C173}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{42768874-0595-4305-AE58-717C83A6C173}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{42768874-0595-4305-AE58-717C83A6C173}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{3BE4F5E5-001F-416F-82A8-35BD08D2B619} = {DB999C6B-96B0-4981-B0AB-020F6DABC6D3}
-		{74F41D2A-4D24-4944-B76A-880C5DC665BA} = {DB999C6B-96B0-4981-B0AB-020F6DABC6D3}
+		{3B7D3048-A465-4300-B311-45AAD4A93CDF} = {DB999C6B-96B0-4981-B0AB-020F6DABC6D3}
+		{74F41D2A-4D24-4944-B76A-880C5DC665BA} = {C5317539-74FE-4FE4-AF07-417A828F9D08}
+		{083BDEB9-1E65-46A9-BD63-C62F4C8B3E19} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{1F6453B8-5445-4D12-B4A9-D7722C9B522F} = {083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}
 		{4F9C0C6E-3037-47B0-8F49-50107E5C800C} = {083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}
 		{ED56CFFF-4191-4B1C-B033-AAC506B4E527} = {083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}
 		{970CD7CE-BE13-4615-BD51-E513681B447D} = {083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}
 		{05465B56-3A5E-409F-851E-488D41B1B671} = {083BDEB9-1E65-46A9-BD63-C62F4C8B3E19}
+		{DB999C6B-96B0-4981-B0AB-020F6DABC6D3} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{7900A5F0-6E19-42A5-8CB5-C77BDD74888F} = {CCE40800-EE6B-4596-BE91-81D9ADF8AD4B}
+		{BCD78DD0-4221-40DA-BA34-9DBDD06F0AA3} = {CCE40800-EE6B-4596-BE91-81D9ADF8AD4B}
+		{4EE5A774-5F67-4890-8DE8-5A2C50A9415B} = {DB999C6B-96B0-4981-B0AB-020F6DABC6D3}
+		{EE75618F-F646-4D8B-98A3-CDD45BA35C43} = {DB999C6B-96B0-4981-B0AB-020F6DABC6D3}
+		{42768874-0595-4305-AE58-717C83A6C173} = {DB999C6B-96B0-4981-B0AB-020F6DABC6D3}
 	EndGlobalSection
-	GlobalSection(TeamFoundationVersionControl) = preSolution
-		SccNumberOfProjects = 8
-		SccEnterpriseProvider = {4CA58AB2-18FA-4F8D-95D4-32DDF27D184C}
-		SccTeamFoundationServer = https://muhang.visualstudio.com/
-		SccLocalPath0 = .
-		SccProjectUniqueName1 = XiaoZhi.Net.Server\\XiaoZhi.Net.Server.csproj
-		SccProjectTopLevelParentUniqueName1 = XiaoZhi.Net.sln
-		SccProjectName1 = XiaoZhi.Net.Server
-		SccLocalPath1 = XiaoZhi.Net.Server
-		SccProjectUniqueName2 = XiaoZhi.Net.Test\\XiaoZhi.Net.Test.csproj
-		SccProjectTopLevelParentUniqueName2 = XiaoZhi.Net.sln
-		SccProjectName2 = XiaoZhi.Net.Test
-		SccLocalPath2 = XiaoZhi.Net.Test
-		SccProjectUniqueName3 = XiaoZhi.Net.WebApi\\XiaoZhi.Net.WebApi.csproj
-		SccProjectTopLevelParentUniqueName3 = XiaoZhi.Net.sln
-		SccProjectName3 = XiaoZhi.Net.WebApi
-		SccLocalPath3 = XiaoZhi.Net.WebApi
-		SccProjectUniqueName4 = XiaoZhi.Net.Domain.Share\\XiaoZhi.Net.Domain.Share.csproj
-		SccProjectTopLevelParentUniqueName4 = XiaoZhi.Net.sln
-		SccProjectName4 = XiaoZhi.Net.Domain.Share
-		SccLocalPath4 = XiaoZhi.Net.Domain.Share
-		SccProjectUniqueName5 = XiaoZhi.Net.Domain\\XiaoZhi.Net.Domain.csproj
-		SccProjectTopLevelParentUniqueName5 = XiaoZhi.Net.sln
-		SccProjectName5 = XiaoZhi.Net.Domain
-		SccLocalPath5 = XiaoZhi.Net.Domain
-		SccProjectUniqueName6 = XiaoZhi.Net.Application.Contracts\\XiaoZhi.Net.Application.Contracts.csproj
-		SccProjectTopLevelParentUniqueName6 = XiaoZhi.Net.sln
-		SccProjectName6 = XiaoZhi.Net.Application.Contracts
-		SccLocalPath6 = XiaoZhi.Net.Application.Contracts
-		SccProjectUniqueName7 = XiaoZhi.Net.Application\\XiaoZhi.Net.Application.csproj
-		SccProjectTopLevelParentUniqueName7 = XiaoZhi.Net.sln
-		SccProjectName7 = XiaoZhi.Net.Application
-		SccLocalPath7 = XiaoZhi.Net.Application
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3E8E1B85-DF08-433B-AB5F-28120905F507}
 	EndGlobalSection
 EndGlobal

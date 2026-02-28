@@ -1,0 +1,1230 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Audio2TextHandler_Build_AsrNotConfigured" xml:space="preserve">
+    <value>ASR provider is not configured for the device: {deviceId}.</value>
+  </data>
+  <data name="Audio2TextHandler_Handle_ProcessFailed" xml:space="preserve">
+    <value>Failed to process the audio to text packet from device: {deviceId}.</value>
+  </data>
+  <data name="Audio2TextHandler_OnSpeechTextConverted_ConvertFailed" xml:space="preserve">
+    <value>ASR failed to convert speech text.</value>
+  </data>
+  <data name="Audio2TextHandler_OnSpeechTextConverted_NoSpeak" xml:space="preserve">
+    <value>Device {deviceId} no speak.</value>
+  </data>
+  <data name="Audio2TextHandler_OnSpeechTextConverted_SpeakText" xml:space="preserve">
+    <value>Device {deviceId} speak the text: {speechText}</value>
+  </data>
+  <data name="Audio2TextHandler_Handle_Cancelled" xml:space="preserve">
+    <value>ASR processing cancelled for device {DeviceId}</value>
+  </data>
+  <data name="ServerBuilder_Initialize_ConfigNull" xml:space="preserve">
+    <value>Config cannot be null.</value>
+  </data>
+  <data name="ServerBuilder_WithPlugin_PluginNameNull" xml:space="preserve">
+    <value>Plugin name cannot be null or empty.</value>
+  </data>
+  <data name="ServerBuilder_WithPlugin_FunctionsNull" xml:space="preserve">
+    <value>Functions cannot be null or empty.</value>
+  </data>
+  <data name="ServerBuilder_BuildComponents_ResourceLoadFailed" xml:space="preserve">
+    <value>Failed to load resource components. Please check the configuration and resource implementations.</value>
+  </data>
+  <data name="ServerBuilder_BuildComponents_ProviderBuildFailed" xml:space="preserve">
+    <value>Failed to build provider components. Please check the configuration and provider implementations.</value>
+  </data>
+  <data name="AudioProcessorHandler_Build_AudioProcessorNotConfigured" xml:space="preserve">
+    <value>Audio processor is not configured for the device: {deviceId}.</value>
+  </data>
+  <data name="AudioProcessorHandler_Handle_AudioProcessorNotBuilt" xml:space="preserve">
+    <value>Audio processor is not built for device {deviceId}.</value>
+  </data>
+  <data name="AudioProcessorHandler_Handle_ProcessFailed" xml:space="preserve">
+    <value>Failed to process the audio segment from device: {deviceId}.</value>
+  </data>
+  <data name="AudioProcessorHandler_Handle_Cancelled" xml:space="preserve">
+    <value>Audio processing cancelled for device {DeviceId}</value>
+  </data>
+  <data name="AudioProcessorHandler_OnMixedAudioDataAvailable_WriteFailed" xml:space="preserve">
+    <value>Error writing mixed audio to channel for device {DeviceId}</value>
+  </data>
+  <data name="AudioSendHandler_Build_AudioProcessorNotConfigured" xml:space="preserve">
+    <value>Audio processor is not configured for the device: {deviceId}.</value>
+  </data>
+  <data name="AudioSendHandler_Build_AudioEncoderNotConfigured" xml:space="preserve">
+    <value>Audio encoder is not configured for the device: {deviceId}.</value>
+  </data>
+  <data name="AudioSendHandler_Handle_AudioProcessorNotConfigured" xml:space="preserve">
+    <value>Audio processor is not configured for the device: {deviceId}.</value>
+  </data>
+  <data name="AudioSendHandler_Handle_AudioEncoderNotConfigured" xml:space="preserve">
+    <value>Audio encoder is not configured for the device: {deviceId}.</value>
+  </data>
+  <data name="AudioSendHandler_Handle_FirstFrame" xml:space="preserve">
+    <value>Send the first audio frame from the device: {deviceId}.</value>
+  </data>
+  <data name="AudioSendHandler_Handle_LastFrame" xml:space="preserve">
+    <value>Send the last audio frame from the device: {deviceId}.</value>
+  </data>
+  <data name="AudioSendHandler_Handle_ProcessFailed" xml:space="preserve">
+    <value>Failed to process the audio sending packet from device: {deviceId}.</value>
+  </data>
+  <data name="AudioSendHandler_Handle_Cancelled" xml:space="preserve">
+    <value>Audio sending cancelled for device {DeviceId}</value>
+  </data>
+  <data name="AudioReceiveHandler_Build_VadNotConfigured" xml:space="preserve">
+    <value>VAD provider is not configured for the device: {deviceId}.</value>
+  </data>
+  <data name="AudioReceiveHandler_Build_AudioDecoderNotConfigured" xml:space="preserve">
+    <value>Audio decoder is not configured for the device: {deviceId}.</value>
+  </data>
+  <data name="AudioReceiveHandler_Handle_VadNotConfigured" xml:space="preserve">
+    <value>VAD provider is not configured for the device: {deviceId}.</value>
+  </data>
+  <data name="AudioReceiveHandler_Handle_AudioDecoderNotConfigured" xml:space="preserve">
+    <value>Audio decoder is not configured for the device: {deviceId}.</value>
+  </data>
+  <data name="AudioReceiveHandler_Handle_PacketIgnored" xml:space="preserve">
+    <value>The previous audio packet is processing, this packet would be ignored.</value>
+  </data>
+  <data name="AudioReceiveHandler_Handle_ProcessFailed" xml:space="preserve">
+    <value>Failed to process the audio packet from device: {deviceId}.</value>
+  </data>
+  <data name="AudioReceiveHandler_HandleVoiceDetected_VoiceTooShort" xml:space="preserve">
+    <value>The voice is too short for the session {sessionId}.</value>
+  </data>
+  <data name="AudioReceiveHandler_Handle_Cancelled" xml:space="preserve">
+    <value>Audio processing cancelled for device {DeviceId}</value>
+  </data>
+  <data name="BaseHandler_CheckWorkflowValid_StaleWorkflow" xml:space="preserve">
+    <value>Stale workflow detected in handler {handlerName}. Workflow turn ID: {workflowTurnId}, Session turn ID: {sessionTurnId}.</value>
+  </data>
+  <data name="BaseHandler_OnTokenCanceled_TokenCanceled" xml:space="preserve">
+    <value>Handler {handlerName} cancellation token has been canceled.</value>
+  </data>
+  <data name="DialogueHandler_Build_LlmNotConfigured" xml:space="preserve">
+    <value>LLM provider is not configured for the device: {deviceId}.</value>
+  </data>
+  <data name="DialogueHandler_Handle_LlmNotConfigured" xml:space="preserve">
+    <value>LLM provider is not configured for the device: {deviceId}.</value>
+  </data>
+  <data name="DialogueHandler_Handle_LlmCallTime" xml:space="preserve">
+    <value>Calling the LLM takes {elapsed:F2} ms.</value>
+  </data>
+  <data name="DialogueHandler_Handle_ProcessFailed" xml:space="preserve">
+    <value>Failed to process the llm dialogue from device: {deviceId}.</value>
+  </data>
+  <data name="DialogueHandler_Handle_Cancelled" xml:space="preserve">
+    <value>LLM dialogue cancelled for device {DeviceId}</value>
+  </data>
+  <data name="DialogueHandler_OnTokenGenerating_WriteFailed" xml:space="preserve">
+    <value>Error writing LLM segment to channel for device {DeviceId}</value>
+  </data>
+  <data name="DialogueHandler_OnTokenGenerated_ResponseText" xml:space="preserve">
+    <value>LLM's response text: {content}</value>
+  </data>
+  <data name="DialogueHandler_OnBeforeTokenGenerate_Thinking" xml:space="preserve">
+    <value>Thinking...</value>
+  </data>
+  <data name="HelloMessageHandler_Handle_InitFailed" xml:space="preserve">
+    <value>Failed to initialize providers or handlers for the device: {deviceId}.</value>
+  </data>
+  <data name="Text2AudioHandler_Build_TtsNotConfigured" xml:space="preserve">
+    <value>TTS provider is not configured for the device: {deviceId}.</value>
+  </data>
+  <data name="Text2AudioHandler_Build_PlayerNotConfigured" xml:space="preserve">
+    <value>AudioPlayerClient is not configured for the device: {deviceId}.</value>
+  </data>
+  <data name="Text2AudioHandler_Handle_TtsNotConfigured" xml:space="preserve">
+    <value>TTS provider is not configured for the device: {deviceId}.</value>
+  </data>
+  <data name="Text2AudioHandler_Handle_NoTtsRequired" xml:space="preserve">
+    <value>No tts required, the query text is empty.</value>
+  </data>
+  <data name="Text2AudioHandler_Handle_ProcessFailed" xml:space="preserve">
+    <value>Error occurred during text to audio processing for device: {deviceId}.</value>
+  </data>
+  <data name="Text2AudioHandler_Handle_Cancelled" xml:space="preserve">
+    <value>TTS synthesis cancelled for device {DeviceId}</value>
+  </data>
+  <data name="Text2AudioHandler_CheckBindDevice_PlayerNotBuilt" xml:space="preserve">
+    <value>AudioPlayerClient is not built for the device {deviceId} yet</value>
+  </data>
+  <data name="Text2AudioHandler_CheckBindDevice_InvalidBindCode" xml:space="preserve">
+    <value>Invalid bind code {code} for the device: {deviceId}</value>
+  </data>
+  <data name="Text2AudioHandler_CheckBindDevice_BindCodeFormatError" xml:space="preserve">
+    <value>Bind code format error, please check the configuration.</value>
+  </data>
+  <data name="Text2AudioHandler_CheckBindDevice_BindDevicePrompt" xml:space="preserve">
+    <value>Please log in to the control panel and enter {bindCode} to bind the device.</value>
+  </data>
+  <data name="Text2AudioHandler_CheckBindDevice_VersionNotFound" xml:space="preserve">
+    <value>Version information for this device was not found. Please configure the OTA address correctly and recompile the firmware.</value>
+  </data>
+  <data name="Text2AudioHandler_OnBeforeProcessing_Started" xml:space="preserve">
+    <value>TTS processing started for device: {deviceId}, sentence: {sentence}.</value>
+  </data>
+  <data name="Text2AudioHandler_OnProcessed_Completed" xml:space="preserve">
+    <value>TTS processing completed for device: {deviceId}.</value>
+  </data>
+  <data name="TextHandler_Handle_ReceivedText" xml:space="preserve">
+    <value>Received text from client: {jsonText}</value>
+  </data>
+  <data name="TextHandler_Handle_InvalidType" xml:space="preserve">
+    <value>Invalid type for text message handle.</value>
+  </data>
+  <data name="TextHandler_HandleAbortMessage_Received" xml:space="preserve">
+    <value>Abort message received</value>
+  </data>
+  <data name="TextHandler_HandleAbortMessage_Cancelled" xml:space="preserve">
+    <value>Abort message received-end, cancelled the tasks.</value>
+  </data>
+  <data name="TextHandler_HandleListen_ModeSetting" xml:space="preserve">
+    <value>Client voice listening mode setting is: {mode}</value>
+  </data>
+  <data name="TextHandler_HandleIotDescriptors_ClientNotInit" xml:space="preserve">
+    <value>IoT Client is not initialized for device: {deviceId}.</value>
+  </data>
+  <data name="TextHandler_HandleMcp_ClientNotFound" xml:space="preserve">
+    <value>DeviceMcpClient not found in session {sessionId}.</value>
+  </data>
+  <data name="AudioPacketHelper_PcmBytesToFloat_UnsupportedBitDepth" xml:space="preserve">
+    <value>Unsupported PCM bit depth: {0}</value>
+  </data>
+  <data name="AudioPacketHelper_Float2PcmBytes_UnsupportedFormat" xml:space="preserve">
+    <value>Only support 16-bit, 24-bit and 32-bit PCM format.</value>
+  </data>
+  <data name="AudioPacketHelper_WriteSample_UnsupportedBitDepth" xml:space="preserve">
+    <value>Unsupported bit depth: {0}</value>
+  </data>
+  <data name="CodeTimer_Dispose_JobFinished" xml:space="preserve">
+    <value>The job finished and took {elapsed:F2} ms.</value>
+  </data>
+  <data name="MarkdownCleaner_ReplaceTableBlock_SingleLineTable" xml:space="preserve">
+    <value>Single line table: {0}</value>
+  </data>
+  <data name="MarkdownCleaner_ReplaceTableBlock_TableHeader" xml:space="preserve">
+    <value>Table header: {0}</value>
+  </data>
+  <data name="MarkdownCleaner_ReplaceTableBlock_RowContent" xml:space="preserve">
+    <value>Row {0}: {1}</value>
+  </data>
+  <data name="HandlerManager_InitializePrivateConfig_BuildPipelineFailed" xml:space="preserve">
+    <value>Failed to build the handler pipeline for device: {deviceId}.</value>
+  </data>
+  <data name="HandlerManager_BuildHandlersWorkflow_BuiltWorkflow" xml:space="preserve">
+    <value>Built the workflow of handlers, previous: {previous} -&gt; next: {next}</value>
+  </data>
+  <data name="HandlerManager_ScheduleOnAbort_Aborted" xml:space="preserve">
+    <value>Device: {deviceId}, session: {sessionId} abort the tasks, message: {message}.</value>
+  </data>
+  <data name="ProviderManager_BuildComponent_ProviderBuildFailed" xml:space="preserve">
+    <value>Failed to build {modelName} provider.</value>
+  </data>
+  <data name="ProviderManager_BuildComponent_FFmpegInstalled" xml:space="preserve">
+    <value>FFmpeg is installed successfully, version: {ffmpegVersion}.</value>
+  </data>
+  <data name="ProviderManager_BuildComponent_FFmpegNotFound" xml:space="preserve">
+    <value>FFmpeg is not installed or not found, please check your ffmpeg path configuration.</value>
+  </data>
+  <data name="ProviderManager_BuildComponent_BuildComponentsFailed" xml:space="preserve">
+    <value>Failed to build provider components.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_RemoteServiceUnavailable" xml:space="preserve">
+    <value>Remote service is unavailable or not configured, skipping private models config loading for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_NoPrivateConfig" xml:space="preserve">
+    <value>The device: {deviceId} has not been configured with privatization settings and will use global providers.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateVadBuildFailed" xml:space="preserve">
+    <value>Failed to build private VAD model for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateVadInitialized" xml:space="preserve">
+    <value>Private VAD {modeName} model initialized for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_GenericVadBuildFailed" xml:space="preserve">
+    <value>Failed to build {modelName} provider.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_GenericVadInitialized" xml:space="preserve">
+    <value>Generic VAD {modeName} model initialized for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateAsrBuildFailed" xml:space="preserve">
+    <value>Failed to build private ASR model for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateAsrInitialized" xml:space="preserve">
+    <value>Private ASR {modeName} model initialized for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_GenericAsrBuildFailed" xml:space="preserve">
+    <value>Failed to build {modelName} provider.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_GenericAsrInitialized" xml:space="preserve">
+    <value>Generic ASR {modeName} model initialized for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateLlmBuildFailed" xml:space="preserve">
+    <value>Failed to build private LLM model for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateLlmInitialized" xml:space="preserve">
+    <value>Private emotion LLM {emotionLLMName} and chat LLM {chatLLMName} model initialized for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_GenericLlmBuildFailed" xml:space="preserve">
+    <value>Failed to build generic LLM model per device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_GenericLlmInitialized" xml:space="preserve">
+    <value>Generic emotion LLM {emotionLLMName} and chat LLM {chatLLMName} model initialized for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateTtsBuildFailed" xml:space="preserve">
+    <value>Failed to build private TTS model for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateTtsInitialized" xml:space="preserve">
+    <value>Private TTS {modeName} model initialized for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_GenericTtsBuildFailed" xml:space="preserve">
+    <value>Failed to build {modelName} provider.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_GenericTtsInitialized" xml:space="preserve">
+    <value>Generic TTS {modeName} model initialized for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_DeviceNotFound" xml:space="preserve">
+    <value>The device: {deviceId} is not found, it may not be registered.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_DeviceNotBinded" xml:space="preserve">
+    <value>The device: {deviceId} is not binded, bind code: {bindCode}.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_LoadPrivateConfigFailed" xml:space="preserve">
+    <value>Failed to load private models config for device: {deviceId} with session: {sessionId}.</value>
+  </data>
+  <data name="ProviderManager_SaveMemory_LlmNotInitialized" xml:space="preserve">
+    <value>LLM provider is not initialized, cannot save memory for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_SaveMemory_MemorySaved" xml:space="preserve">
+    <value>Memory saved successfully for device: {deviceId} with session: {sessionId}.</value>
+  </data>
+  <data name="ProviderManager_SaveMemory_SaveMemoryFailed" xml:space="preserve">
+    <value>Failed to save memory for device: {deviceId} with session: {sessionId}.</value>
+  </data>
+  <data name="ProviderManager_SaveMemory_ApiClientNotAvailable" xml:space="preserve">
+    <value>ManageApiClient is not available, cannot save memory for device: {deviceId} with session: {sessionId}.</value>
+  </data>
+  <data name="ProviderManager_BuildAudioResampler_ResamplingRequired" xml:space="preserve">
+    <value>Device {deviceId} requires audio resampling from {ttsSampleRate} to {deviceSampleRate}.</value>
+  </data>
+  <data name="ProviderManager_BuildAudioResampler_BuildFailed" xml:space="preserve">
+    <value>Session {sessionId} failed to build audio resampler.</value>
+  </data>
+  <data name="ProviderManager_BuildAudioEncoder_BuildFailed" xml:space="preserve">
+    <value>Session {sessionId} failed to build audio encoder.</value>
+  </data>
+  <data name="ProviderManager_BuildIoT_BuildFailed" xml:space="preserve">
+    <value>Session {sessionId} failed to build IoT client.</value>
+  </data>
+  <data name="ProviderManager_BuildMCP_BuildFailed" xml:space="preserve">
+    <value>Session {sessionId} failed to build MCP client.</value>
+  </data>
+  <data name="ProviderManager_BuildAudioPlayer_BuildFailed" xml:space="preserve">
+    <value>Session {sessionId} failed to build audio player.</value>
+  </data>
+  <data name="ProviderManager_BuildAudioProcessor_BuildFailed" xml:space="preserve">
+    <value>Session {sessionId} failed to build audio mixer.</value>
+  </data>
+  <data name="ProviderManager_RegisterGlobalProviders_VadBuildFailed" xml:space="preserve">
+    <value>Failed to build {modelName} provider.</value>
+  </data>
+  <data name="ProviderManager_RegisterGlobalProviders_VadInitialized" xml:space="preserve">
+    <value>Generic VAD {modeName} model initialized for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_RegisterGlobalProviders_AsrBuildFailed" xml:space="preserve">
+    <value>Failed to build {modelName} provider.</value>
+  </data>
+  <data name="ProviderManager_RegisterGlobalProviders_AsrInitialized" xml:space="preserve">
+    <value>Generic ASR {modeName} model initialized for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_RegisterGlobalProviders_LlmInitialized" xml:space="preserve">
+    <value>Generic emotion LLM {emotionLLMName} and chat LLM {chatLLMName} model initialized for device: {deviceId}.</value>
+  </data>
+  <data name="ProviderManager_RegisterGlobalProviders_TtsBuildFailed" xml:space="preserve">
+    <value>Failed to build {modelName} provider.</value>
+  </data>
+  <data name="ProviderManager_RegisterGlobalProviders_TtsInitialized" xml:space="preserve">
+    <value>Generic TTS {modeName} model initialized for device: {deviceId}.</value>
+  </data>
+  <data name="SocketSession_SendAsync_SendingJson" xml:space="preserve">
+    <value>Sending json to device {deviceId}: {json}</value>
+  </data>
+  <data name="SocketSession_SendTtsMessageAsync_SessionNotInitialized" xml:space="preserve">
+    <value>Cannot send TTS message, current session has not been initialized yet.</value>
+  </data>
+  <data name="SocketSession_SendSttMessageAsync_SessionNotInitialized" xml:space="preserve">
+    <value>Cannot send STT message, current session has not been initialized yet.</value>
+  </data>
+  <data name="SocketSession_SendLlmMessageAsync_SessionNotInitialized" xml:space="preserve">
+    <value>Cannot send LLM message, current session has not been initialized yet.</value>
+  </data>
+  <data name="SocketSession_SendAbortMessageAsync_SessionNotInitialized" xml:space="preserve">
+    <value>Cannot send Abort message, current session has not been initialized yet.</value>
+  </data>
+  <data name="SocketSession_OnSessionClosedAsync_ClientOffline" xml:space="preserve">
+    <value>Client offline, device id: {deviceId} and session id: {sessionId}, reason: {reason}.</value>
+  </data>
+  <data name="AuthenticationVerification_VerifyAsync_DeviceIdNotFound" xml:space="preserve">
+    <value>Cannot get the device id from ip: {ip} authentication failed.</value>
+  </data>
+  <data name="AuthenticationVerification_VerifyAsync_NewDeviceConnected" xml:space="preserve">
+    <value>New device: {deviceId} with ip {ip} connected</value>
+  </data>
+  <data name="AuthenticationVerification_VerifyAsync_AuthFailed" xml:space="preserve">
+    <value>The device {deviceId} from ip: {ip} authentication failed.</value>
+  </data>
+  <data name="AuthenticationVerification_VerifyAsync_IpNotFound" xml:space="preserve">
+    <value>Cannot get the ip info from the session: {sessionId}.</value>
+  </data>
+  <data name="MessageDispatch_DispatchAsync_ArgumentNull" xml:space="preserve">
+    <value>Session or package cannot be null.</value>
+  </data>
+  <data name="ServerStatusMiddleware_Start_ServerStarted" xml:space="preserve">
+    <value>Server started and listing on: {listeningUrl}</value>
+  </data>
+  <data name="ServerStatusMiddleware_Start_NoListeningOptions" xml:space="preserve">
+    <value>No listening options found for the server. Unable to determine listening URL.</value>
+  </data>
+  <data name="ServerStatusMiddleware_Shutdown_ShuttingDown" xml:space="preserve">
+    <value>Server is shutting down.</value>
+  </data>
+  <data name="SessionContainerMiddleware_RegisterSession_LoginFailed" xml:space="preserve">
+    <value>The session {sessionId} failed to login the server.</value>
+  </data>
+  <data name="BaseSherpaAsr_RegisterDevice_Registered" xml:space="preserve">
+    <value>Registered ASR session for device: {deviceId}, session: {sessionId}</value>
+  </data>
+  <data name="BaseSherpaAsr_UnregisterDevice_Unregistered" xml:space="preserve">
+    <value>Unregistered ASR session for device: {deviceId}, session: {sessionId}</value>
+  </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_ProviderNotBuilt" xml:space="preserve">
+    <value>Please build asr provider first.</value>
+  </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_UnexpectedError" xml:space="preserve">
+    <value>Unexpected error(s) for {providerType}.</value>
+  </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_RequestCancelled" xml:space="preserve">
+    <value>ASR request cancelled for device {DeviceId}</value>
+  </data>
+  <data name="BaseSherpaAsr_Processing_RequestCancelledBeforeProcessing" xml:space="preserve">
+    <value>ASR request for device {DeviceId} cancelled before processing</value>
+  </data>
+  <data name="BaseSherpaAsr_Processing_RequestCancelledAfterDecoding" xml:space="preserve">
+    <value>ASR request for device {DeviceId} cancelled after decoding</value>
+  </data>
+  <data name="BaseSherpaAsr_Processing_ResultProcessingError" xml:space="preserve">
+    <value>Error processing ASR result for device {DeviceId}</value>
+  </data>
+  <data name="BaseSherpaAsr_Processing_ProviderNotBuilt" xml:space="preserve">
+    <value>Please build asr provider first.</value>
+  </data>
+  <data name="BaseSherpaAsr_Processing_ErrorLoop" xml:space="preserve">
+    <value>Error in ASR processing loop.</value>
+  </data>
+  <data name="BaseSherpaAsr_Dispose_WaitFailed" xml:space="preserve">
+    <value>Failed to wait for background task to complete.</value>
+  </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_AudioSaved" xml:space="preserve">
+    <value>User speech audio file {fileName} saved successfully.</value>
+  </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_AudioNotSaved" xml:space="preserve">
+    <value>Failed to save user speech audio file {fileName}.</value>
+  </data>
+  <data name="Paraformer_Build_Built" xml:space="preserve">
+    <value>Built the {providerType} model: {modelName}</value>
+  </data>
+  <data name="Paraformer_Build_InvalidSettings" xml:space="preserve">
+    <value>Invalid model settings for {providerType}: {modelName}</value>
+  </data>
+  <data name="SenseVoice_Build_Built" xml:space="preserve">
+    <value>Built the {providerType} model: {modelName}</value>
+  </data>
+  <data name="SenseVoice_Build_InvalidSettings" xml:space="preserve">
+    <value>Invalid model settings for {providerType}: {modelName}</value>
+  </data>
+  <data name="WebSocketClient_CloseAsync_CloseFailed" xml:space="preserve">
+    <value>Failed to close WebSocket connection gracefully.</value>
+  </data>
+  <data name="DefaultOpusDecoder_Build_Built" xml:space="preserve">
+    <value>Builded the default {providerType}: {modelName}</value>
+  </data>
+  <data name="DefaultOpusDecoder_Build_InvalidSettings" xml:space="preserve">
+    <value>Invalid model settings for {providerType}: {modelName}</value>
+  </data>
+  <data name="DefaultOpusDecoder_DecodeAsync_NotBuilt" xml:space="preserve">
+    <value>Please build opus provider first.</value>
+  </data>
+  <data name="DefaultOpusEncoder_Build_Built" xml:space="preserve">
+    <value>Builded the default {providerType}: {modelName}</value>
+  </data>
+  <data name="DefaultOpusEncoder_Build_InvalidSettings" xml:space="preserve">
+    <value>Invalid model settings for {providerType}: {modelName}</value>
+  </data>
+  <data name="DefaultOpusEncoder_EncodeAsync_NotBuilt" xml:space="preserve">
+    <value>Please build opus provider first.</value>
+  </data>
+  <data name="DefaultResampler_Build_Built" xml:space="preserve">
+    <value>Builded the default {providerType}: {modelName}</value>
+  </data>
+  <data name="DefaultResampler_Build_InvalidSettings" xml:space="preserve">
+    <value>Invalid model settings for {providerType}: {modelName}</value>
+  </data>
+  <data name="DefaultResampler_ResampleAsync_NotBuilt" xml:space="preserve">
+    <value>Please build resampler provider first.</value>
+  </data>
+  <data name="FileMusicPlayer_Build_FFmpegInitFailed" xml:space="preserve">
+    <value>Failed to initialize FFmpeg, please check your the ffmpeg path configuration.</value>
+  </data>
+  <data name="FileMusicPlayer_PlayAsync_NotBuilt" xml:space="preserve">
+    <value>The audio player is not built yet.</value>
+  </data>
+  <data name="FileMusicPlayer_PlayAsync_NoFiles" xml:space="preserve">
+    <value>No audio files to play.</value>
+  </data>
+  <data name="FileMusicPlayer_PauseAsync_Skip" xml:space="preserve">
+    <value>The audio player status is {status}, skip the pausing.</value>
+  </data>
+  <data name="FileMusicPlayer_ResumeAsync_Skip" xml:space="preserve">
+    <value>The audio player status is {status}, skip the resuming.</value>
+  </data>
+  <data name="FileMusicPlayer_StopAsync_Skip" xml:space="preserve">
+    <value>The audio player status is {status}, skip the stopping.</value>
+  </data>
+  <data name="FileMusicPlayer_AudioFileProcessingAsync_Canceled" xml:space="preserve">
+    <value>Audio file processing canceled.</value>
+  </data>
+  <data name="FileMusicPlayer_AudioFileProcessingAsync_Start" xml:space="preserve">
+    <value>Start processing audio file: {file}.</value>
+  </data>
+  <data name="FileMusicPlayer_AudioFileProcessingAsync_Playing" xml:space="preserve">
+    <value>Loaded audio file: {file}, start playing.</value>
+  </data>
+  <data name="FileMusicPlayer_AudioFileProcessingAsync_Completed" xml:space="preserve">
+    <value>Completed processing audio file: {file}.</value>
+  </data>
+  <data name="FileMusicPlayer_AudioFileProcessingAsync_PlaybackCanceled" xml:space="preserve">
+    <value>Canceled playing audio file: {file}.</value>
+  </data>
+  <data name="FileMusicPlayer_AudioFileProcessingAsync_Error" xml:space="preserve">
+    <value>Error processing audio file: {file}.</value>
+  </data>
+  <data name="FileMusicPlayer_Dispose_Timeout" xml:space="preserve">
+    <value>Processing task did not complete within timeout, forcing disposal.</value>
+  </data>
+  <data name="FileMusicPlayer_Dispose_Error" xml:space="preserve">
+    <value>Error waiting for processing task to complete.</value>
+  </data>
+  <data name="IoTClient_RegisterIoTTools_FunctionDescription" xml:space="preserve">
+    <value>Method to get or query the status or value of `{0}`</value>
+  </data>
+  <data name="IoTClient_RegisterIoTTools_PluginDescription" xml:space="preserve">
+    <value>Plugin for managing or controlling the state or functions of the `{0}` device. The following number is just for numbering and has no other meaning.</value>
+  </data>
+  <data name="IoTClient_SetIoTPropertyStatusValue_SetStatus" xml:space="preserve">
+    <value>Session {sessionId} set the iot status / value, key: {key}, value: {value}</value>
+  </data>
+  <data name="IoTClient_SendIoTMessageAsync_MessageNull" xml:space="preserve">
+    <value>Message cannot be null.</value>
+  </data>
+  <data name="DefaultAudioProcessor_Build_Initialized" xml:space="preserve">
+    <value>The audio mixer has been initialized, no need to initialize again.</value>
+  </data>
+  <data name="DefaultAudioProcessor_FireOnMixedAudioData_InvokeError" xml:space="preserve">
+    <value>Error invoking OnMixedAudioDataAvailable event</value>
+  </data>
+  <data name="DefaultAudioProcessor_Build_InvalidSettings" xml:space="preserve">
+    <value>Invalid model settings for {providerType}: {modelName}</value>
+  </data>
+  <data name="NotificationPlayer_Build_FFmpegInitFailed" xml:space="preserve">
+    <value>Failed to initialize FFmpeg, please check your the ffmpeg path configuration.</value>
+  </data>
+  <data name="NotificationPlayer_PlayBindCodeAsync_NotBuilt" xml:space="preserve">
+    <value>The audio player is not built yet.</value>
+  </data>
+  <data name="NotificationPlayer_PlayBindCodeAsync_StreamNull" xml:space="preserve">
+    <value>Failed to get the bind code audio stream.</value>
+  </data>
+  <data name="NotificationPlayer_PlayNotFoundAsync_NotBuilt" xml:space="preserve">
+    <value>The audio player is not built yet.</value>
+  </data>
+  <data name="NotificationPlayer_PlayNotFoundAsync_StreamNull" xml:space="preserve">
+    <value>Failed to get the not found audio stream.</value>
+  </data>
+  <data name="NotificationPlayer_StopAsync_Skip" xml:space="preserve">
+    <value>The audio player status is {status}, skip the stopping.</value>
+  </data>
+  <data name="ChatAgent_Build_Built" xml:space="preserve">
+    <value>Built {providerType} - {modelName}, model name: {chatLLMName}</value>
+  </data>
+  <data name="ChatAgent_Build_BuildPluginsBuilt" xml:space="preserve">
+    <value>Built the plugins for {providerType} - {modelName}.</value>
+  </data>
+  <data name="ChatAgent_Build_BuildPluginsFailed" xml:space="preserve">
+    <value>Failed to build the plugins for {providerType} model {modelName}.</value>
+  </data>
+  <data name="ChatAgent_RegisterDevice_PluginRegistered" xml:space="preserve">
+    <value>LLM plugin {pluginName} registered for device: {deviceId}.</value>
+  </data>
+  <data name="ChatAgent_GenerateChatResponseAsync_AgentNotBuilt" xml:space="preserve">
+    <value>Chat agent is not builded yet.</value>
+  </data>
+  <data name="EmotionAgent_Build_BuildFailed" xml:space="preserve">
+    <value>Failed to build EmotionAgent.</value>
+  </data>
+  <data name="EmotionAgent_AnalyzeEmotionAsync_AgentNotBuilt" xml:space="preserve">
+    <value>Emotion agent is not builded yet.</value>
+  </data>
+  <data name="EmotionAgent_AnalyzeEmotionAsync_UserCanceled" xml:space="preserve">
+    <value>User canceled the job for {providerType}.</value>
+  </data>
+  <data name="EmotionAgent_AnalyzeEmotionAsync_UnexpectedError" xml:space="preserve">
+    <value>Unexpected error(s) for {providerType}.</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_McpClientNotInit" xml:space="preserve">
+    <value>MCP Client is not initialized for device: {deviceId}.</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_SubMcpClientNotFound" xml:space="preserve">
+    <value>SubMcpClient with type name '{0}' not found.</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeMcpFailed" xml:space="preserve">
+    <value>Failed to invoke the MCP tool function: {FunctionName} in plugin: {PluginName}.</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeMcpFailedDetail" xml:space="preserve">
+    <value>Failed to invoke the MCP tool function: {0} in plugin: {1}, and the error message is: {2}.</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_IoTClientNotInit" xml:space="preserve">
+    <value>IoT Client is not initialized for device: {deviceId}.</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_ReturnTypeNotSpecified" xml:space="preserve">
+    <value>Return type for function '{0}' in plugin '{1}' is not specified.</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTSuccess" xml:space="preserve">
+    <value>Invoke the iot command successfully.</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvalidIoTName" xml:space="preserve">
+    <value>Invalid IoT component name format in plugin '{0}'.</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailed" xml:space="preserve">
+    <value>Failed to invoke the IoT tool function: {FunctionName} in plugin: {PluginName}.</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailedDetail" xml:space="preserve">
+    <value>Failed to invoke the IoT tool function: {0} in plugin: {1}, and the error message is: {2}.</value>
+  </data>
+  <data name="MusicPlayer_GetMusicFilesAsync_SessionNotInit" xml:space="preserve">
+    <value>Failed to get music files, the current session is not initialized.</value>
+  </data>
+  <data name="MusicPlayer_GetMusicFilesAsync_NoFilesLog" xml:space="preserve">
+    <value>{ProviderType} - {ModelName}, Failed to get music files due to no files existing for device {deviceId}.</value>
+  </data>
+  <data name="MusicPlayer_GetMusicFilesAsync_NoFilesMsg" xml:space="preserve">
+    <value>Failed to get music files due to no files existing.</value>
+  </data>
+  <data name="MusicPlayer_GetMusicFilesAsync_SuccessLog" xml:space="preserve">
+    <value>{ProviderType} - {ModelName}, Got {fileCount} music files success for device {deviceId}.</value>
+  </data>
+  <data name="MusicPlayer_GetMusicFilesAsync_SuccessMsg" xml:space="preserve">
+    <value>Get the music files success. Available music files: {0}</value>
+  </data>
+  <data name="MusicPlayer_GetMusicFilesAsync_ProviderNotInit" xml:space="preserve">
+    <value>Failed to get music files, the music provider is not initialized yet.</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_SessionNotInit" xml:space="preserve">
+    <value>Failed to play music, the current session is not initialized.</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_PlayerNotInit" xml:space="preserve">
+    <value>Failed to play music, the player is not initialized.</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_NoFiles" xml:space="preserve">
+    <value>Failed to play music, there's no music files in server.</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_MusicNameEmpty" xml:space="preserve">
+    <value>Failed to play music, the field musicName is empty.</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_FileNotFound" xml:space="preserve">
+    <value>Failed to play music, the specified music file was not found.</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_PlayingLog" xml:space="preserve">
+    <value>{ProviderType} - {ModelName}, Playing the music file {musicFilePath} for device {deviceId}.</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_SuccessMsg" xml:space="preserve">
+    <value>Successfully started playing music: {0}</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_FailedLog" xml:space="preserve">
+    <value>Failed to play music file {musicFilePath} for device {deviceId}.</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_FailedMsg" xml:space="preserve">
+    <value>Failed to play music: {0}. Error: {1}</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_ProviderNotInit" xml:space="preserve">
+    <value>Failed to play music, the music provider is not initialized yet.</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_CallResult" xml:space="preserve">
+    <value>Received MCP call result: {result} for message ID {msgId} from device {deviceId}.</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_InitMessage" xml:space="preserve">
+    <value>Received MCP Initialize message from client: {deviceId}.</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_ServerInfo" xml:space="preserve">
+    <value>The server info from xiaozhi client MCP: name - {name}, version - {version}</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_InvalidServerInfo" xml:space="preserve">
+    <value>Invalid server info received from xiaozhi client MCP.</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_ToolListMessage" xml:space="preserve">
+    <value>Received MCP tool list message from client: {deviceId}.</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_ToolAdded" xml:space="preserve">
+    <value>Tool added: {ToolName}</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_ToolCount" xml:space="preserve">
+    <value>Number of tools supported by client devices: {count}</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_MoreTools" xml:space="preserve">
+    <value>Detected that there are more tools available, nextCursor: {nextCursor}</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_ClientReady" xml:space="preserve">
+    <value>All tools have been obtained, MCP client is ready.</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_GetToolsFailed" xml:space="preserve">
+    <value>Cannot get the MCP tools from client.</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_ClientRequest" xml:space="preserve">
+    <value>Received MCP client request: {method}</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_ErrorResponse" xml:space="preserve">
+    <value>Received MCP error response: {ErrorMsg}</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_ErrorResponse_Exception" xml:space="preserve">
+    <value>Received MCP error response: {0}</value>
+  </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_ToolError" xml:space="preserve">
+    <value>Tool call error: {0}</value>
+  </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_TimeoutEx" xml:space="preserve">
+    <value>Response timeout after {0} seconds</value>
+  </data>
+  <data name="BaseMcpClient_SendMcpInitializeAsync_SendingInit" xml:space="preserve">
+    <value>Device {deviceId} sending MCP Initialize request.</value>
+  </data>
+  <data name="BaseMcpClient_SendMcpNotificationAsync_SendingNotification" xml:space="preserve">
+    <value>Device {deviceId} sending MCP notification: {method}.</value>
+  </data>
+  <data name="BaseMcpClient_RequestToolsListAsync_RequestTools" xml:space="preserve">
+    <value>Device {deviceId} request tools list.</value>
+  </data>
+  <data name="BaseMcpClient_RequestToolsListAsync_RequestToolsWithCursor" xml:space="preserve">
+    <value>Device {deviceId} request tools list with cursor: {cursor}.</value>
+  </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_CallTool" xml:space="preserve">
+    <value>Device {deviceId} call MCP tool: {toolName}, args: {args}</value>
+  </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_Timeout" xml:space="preserve">
+    <value>Response timeout after {timeout} seconds for tool call: {toolName}</value>
+  </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_CallSuccess" xml:space="preserve">
+    <value>Got the result of MCP tool call from the device {deviceId} successfully, result: {result}</value>
+  </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_WaitTimeout" xml:space="preserve">
+    <value>Timeout while waiting for MCP tool call response: {toolName}, args: {args}</value>
+  </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_CallFailed" xml:space="preserve">
+    <value>Failed to call MCP tool: {toolName}, args: {args}</value>
+  </data>
+  <data name="BaseMcpClient_AddTool_ToolExists" xml:space="preserve">
+    <value>Tool with name {ToolName} already exists, skipping.</value>
+  </data>
+  <data name="McpEndpointClient_Build_UrlEmpty" xml:space="preserve">
+    <value>Endpoint URL is empty, skip this mcp tpye.</value>
+  </data>
+  <data name="McpEndpointClient_Build_InvalidSettings" xml:space="preserve">
+    <value>Invalid model settings for {providerType}: {modelName}</value>
+  </data>
+  <data name="McpEndpointClient_OnOpen_Connected" xml:space="preserve">
+    <value>MCP Endpoint Client connected and initialized successfully.</value>
+  </data>
+  <data name="DeviceMcpClient_SendMcpInitializeAsync_SendingInit" xml:space="preserve">
+    <value>Session {sessionId} sending MCP Initialize request.</value>
+  </data>
+  <data name="GenericOpenAI_Build_InvalidSettings" xml:space="preserve">
+    <value>Invalid model settings for {providerType}: {modelName}</value>
+  </data>
+  <data name="GenericOpenAI_StartDialogueAsync_NotBuilt" xml:space="preserve">
+    <value>The {providerType} model: {modelName} is not built.</value>
+  </data>
+  <data name="GenericOpenAI_ChatAsync_EmotionDetected" xml:space="preserve">
+    <value>Detected emotion: {detectedEmotion} for segment: {segment}</value>
+  </data>
+  <data name="GenericOpenAI_ChatAsync_UnexpectedError" xml:space="preserve">
+    <value>Unexpected error(s) for {providerType}.</value>
+  </data>
+  <data name="GenericOpenAI_ChatAsync_Cancelled" xml:space="preserve">
+    <value>LLM chat cancelled, cleaning up {Count} segments</value>
+  </data>
+  <data name="GenericOpenAI_ChatByStreamingAsync_Cancelled" xml:space="preserve">
+    <value>LLM streaming chat cancelled, cleaning up {Count} segments</value>
+  </data>
+  <data name="FlashMemory_Build_Built" xml:space="preserve">
+    <value>Builded the default {providerType}: {flashMemory}</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_Build_ConfigIncomplete" xml:space="preserve">
+    <value>Huoshan http v3 TTS configuration is incomplete, please check AppId, AccessToken, ResourceId and speaker.</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_Build_Built" xml:space="preserve">
+    <value>Builded the {providerType} model: {modelName}</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_Build_Failed" xml:space="preserve">
+    <value>Failed to build {modelName}.</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_SynthesisAsync_DevNotReg" xml:space="preserve">
+    <value>Device/session not registered.</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_SynthesisAsync_MissingSentenceId" xml:space="preserve">
+    <value>Failed to process segment due to missing sentence id.</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_SynthesisAsync_RequestFailed" xml:space="preserve">
+    <value>Huoshan HTTP TTS failed: status={status} body={body}</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_SynthesisAsync_ApiError" xml:space="preserve">
+    <value>Huoshan HTTP TTS error: code={code} message={message}</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_SynthesisAsync_GeneralFailed" xml:space="preserve">
+    <value>Huoshan HTTP TTS synthesis failed.</value>
+  </data>
+  <data name="HuoshanHttpTTS_Build_ConfigIncomplete" xml:space="preserve">
+    <value>Huoshan bidirection TTS configuration is incomplete, please check AppId, AccessToken, Cluster and speaker.</value>
+  </data>
+  <data name="HuoshanHttpTTS_Build_Built" xml:space="preserve">
+    <value>Builded the {providerType} model: {modelName}</value>
+  </data>
+  <data name="HuoshanHttpTTS_Build_Failed" xml:space="preserve">
+    <value>Failed to build {modelName}.</value>
+  </data>
+  <data name="HuoshanHttpTTS_SynthesisAsync_ModelNotBuilt" xml:space="preserve">
+    <value>TTS model not built.</value>
+  </data>
+  <data name="HuoshanHttpTTS_SynthesisAsync_DevNotReg" xml:space="preserve">
+    <value>Device/session not registered.</value>
+  </data>
+  <data name="HuoshanHttpTTS_SynthesisAsync_MissingSentenceId" xml:space="preserve">
+    <value>Failed to process segment due to missing sentence id.</value>
+  </data>
+  <data name="HuoshanHttpTTS_SynthesisAsync_RequestFailed" xml:space="preserve">
+    <value>Huoshan HTTP TTS failed: status={status} body={body}</value>
+  </data>
+  <data name="BaseHuoshanTTS_SaveAudioFile_FileSaved" xml:space="preserve">
+    <value>Saved TTS audio file to {audioPath} for the device {deviceId}.</value>
+  </data>
+  <data name="BaseHuoshanTTS_SaveAudioFile_SaveFailed" xml:space="preserve">
+    <value>Failed to save audio file for the device {deviceId}.</value>
+  </data>
+  <data name="HuoshanHttpTTS_SynthesisAsync_ApiError" xml:space="preserve">
+    <value>Huoshan HTTP TTS error: code={code} message={message}</value>
+  </data>
+  <data name="HuoshanHttpTTS_SynthesisAsync_GeneralFailed" xml:space="preserve">
+    <value>Huoshan HTTP TTS synthesis failed.</value>
+  </data>
+  <data name="HuoshanBidirectionTTS_SynthesisAsync_ClientNotInit" xml:space="preserve">
+    <value>WebSocket client is not initialized.</value>
+  </data>
+  <data name="HuoshanBidirectionTTS_SynthesisAsync_MissingIds" xml:space="preserve">
+    <value>Failed to process segment due to missing paragraph id or sentence id.</value>
+  </data>
+  <data name="HuoshanBidirectionTTS_SynthesisAsync_Canceled" xml:space="preserve">
+    <value>TTS synthesis was canceled.</value>
+  </data>
+  <data name="HuoshanBidirectionTTS_SynthesisAsync_Failed" xml:space="preserve">
+    <value>TTS synthesis failed.</value>
+  </data>
+  <data name="HuoshanBidirectionTTS_Dispose_FinishError" xml:space="preserve">
+    <value>FinishConnection during dispose raised an exception.</value>
+  </data>
+  <data name="HuoshanBidirectionTTS_Dispose_Disposed" xml:space="preserve">
+    <value>TTS provider disposed</value>
+  </data>
+  <data name="SileroNative_Build_UnsupportedSampleRate" xml:space="preserve">
+    <value>Unsupported sample rate: {sampleRate}. Only 8000 and 16000 are supported.</value>
+  </data>
+  <data name="SileroNative_Build_Built" xml:space="preserve">
+    <value>Builded the {providerType} model: {modelName}</value>
+  </data>
+  <data name="SileroNative_Build_InvalidSettings" xml:space="preserve">
+    <value>Invalid model settings for {providerType}: {modelName}</value>
+  </data>
+  <data name="SileroNative_AnalysisVoiceAsync_ProviderNotBuilt" xml:space="preserve">
+    <value>Please build vad provider first.</value>
+  </data>
+  <data name="SileroNative_AnalysisVoiceAsync_VoiceStopped" xml:space="preserve">
+    <value>Voice stopped for device: {deviceId}, silence duration: {stopDuration}ms</value>
+  </data>
+  <data name="SileroNative_AnalysisVoiceAsync_UserCanceled" xml:space="preserve">
+    <value>User canceled the job for {providerType}.</value>
+  </data>
+  <data name="SileroNative_AnalysisVoiceAsync_UnexpectedError" xml:space="preserve">
+    <value>Unexpected error(s) for {providerType} in device: {deviceId}</value>
+  </data>
+  <data name="SileroNative_CheckLongTermSilence_Detected" xml:space="preserve">
+    <value>Long term silence detected for device: {deviceId}, duration: {silenceDuration}ms</value>
+  </data>
+  <data name="Kokoro_Build_Built" xml:space="preserve">
+    <value>Builded the {providerType} model: {modelName}</value>
+  </data>
+  <data name="Kokoro_Build_InvalidSettings" xml:space="preserve">
+    <value>Invalid model settings for {providerType}: {modelName}</value>
+  </data>
+  <data name="BaseSherpaTts_UnregisterDevice_Unregistered" xml:space="preserve">
+    <value>Unregistered TTS session for device: {deviceId}, session: {sessionId}</value>
+  </data>
+  <data name="BaseSherpaTts_SynthesisAsync_ProviderNotBuilt" xml:space="preserve">
+    <value>Please build tts provider first.</value>
+  </data>
+  <data name="BaseSherpaTts_SynthesisAsync_MissingIds" xml:space="preserve">
+    <value>Failed to process segment due to missing paragraph id or sentence id.</value>
+  </data>
+  <data name="BaseSherpaTts_SynthesisAsync_FileSaved" xml:space="preserve">
+    <value>Saved tts wave file {fileName} successed, the duration of file is: {duration}s.</value>
+  </data>
+  <data name="BaseSherpaTts_SynthesisAsync_SaveFailed" xml:space="preserve">
+    <value>Failed to save tts wave file {fileName}.</value>
+  </data>
+  <data name="BaseSherpaTts_SynthesisAsync_Generated" xml:space="preserve">
+    <value>TTS generated success, the duration of the voice is: {duration}.</value>
+  </data>
+  <data name="BaseSherpaTts_SynthesisAsync_CallbackNotRegistered" xml:space="preserve">
+    <value>TTS event callback is not registered for device {deviceId}.</value>
+  </data>
+  <data name="BaseSherpaTts_SynthesisAsync_UserCanceled" xml:space="preserve">
+    <value>User canceled the job for {providerType}.</value>
+  </data>
+  <data name="BaseSherpaTts_SynthesisAsync_UnexpectedError" xml:space="preserve">
+    <value>Unexpected error(s) for {providerType}.</value>
+  </data>
+  <data name="HuoshanStreamTTS_Build_ConfigIncomplete" xml:space="preserve">
+    <value>Huoshan bidirection TTS configuration is incomplete, please check AppId, AccessToken, ResourceId and speaker.</value>
+  </data>
+  <data name="HuoshanStreamTTS_Build_Built" xml:space="preserve">
+    <value>Builded the {providerType} model: {modelName}</value>
+  </data>
+  <data name="HuoshanStreamTTS_Build_Failed" xml:space="preserve">
+    <value>Failed to build {modelName}.</value>
+  </data>
+  <data name="HuoshanStreamTTS_ConnectAsync_ClientNotInitLog" xml:space="preserve">
+    <value>WebSocket client is not initialized for Huoshan TTS.</value>
+  </data>
+  <data name="HuoshanStreamTTS_ConnectAsync_ClientNotInitEx" xml:space="preserve">
+    <value>WebSocket client is not initialized.</value>
+  </data>
+  <data name="HuoshanStreamTTS_WaitForEventAsync_Timeout" xml:space="preserve">
+    <value>Wait for {eventType} timed out.</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnOpen_Connected" xml:space="preserve">
+    <value>Huoshan WebSocket connected for the device: {deviceId}.</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnClose_Closed" xml:space="preserve">
+    <value>Huoshan WebSocket closed: {Status} {Description}</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnClose_ClosedEx" xml:space="preserve">
+    <value>WebSocket closed: {status} {desc}</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnError_Error" xml:space="preserve">
+    <value>Huoshan WebSocket error: {Error} {Message}</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnError_ErrorEx" xml:space="preserve">
+    <value>WebSocket error: {error} {message}</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnBinaryMessage_ParseFailed" xml:space="preserve">
+    <value>Failed to parse websocket binary message.</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnBinaryMessage_AppendFailed" xml:space="preserve">
+    <value>Failed to append audio data for TTS session {ttsSessionId}</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnBinaryMessage_ServerFailure" xml:space="preserve">
+    <value>Server reported failure: {message}</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnBinaryMessage_ServerError" xml:space="preserve">
+    <value>Server error: {message}</value>
+  </data>
+  <data name="BaseProvider_RegisterDevice_Registered" xml:space="preserve">
+    <value>Registered device [{deviceId}] with session id: {sessionId} to the provider {providerType}.</value>
+  </data>
+  <data name="BaseProvider_UnregisterDevice_Unregistered" xml:space="preserve">
+    <value>Unregistered device [{deviceId}] with session id: {sessionId} from the provider {providerType}.</value>
+  </data>
+  <data name="BaseProvider_CheckDeviceRegistered_NotRegistered" xml:space="preserve">
+    <value>The device [{deviceId}] with session id: {sessionId} is not registered to the provider {providerType}.</value>
+  </data>
+  <data name="BaseProvider_CheckModelExist_NotFound" xml:space="preserve">
+    <value>Cannot found the model file in path: {modelFilePath}.</value>
+  </data>
+  <data name="BaseProvider_ReplaceMacDelimiters_DeviceIdNull" xml:space="preserve">
+    <value>Device id cannot be null or empty.</value>
+  </data>
+  <data name="Silero_Build_Built" xml:space="preserve">
+    <value>Builded the {providerType} model: {modelName}</value>
+  </data>
+  <data name="Silero_Build_InvalidSettings" xml:space="preserve">
+    <value>Invalid model settings for {providerType}: {modelName}</value>
+  </data>
+  <data name="BaseSherpaVad_Build_UnsupportedSampleRate" xml:space="preserve">
+    <value>Unsupported sample rate: {sampleRate}. Only 8000 and 16000 are supported.</value>
+  </data>
+  <data name="BaseSherpaVad_RegisterDevice_Registered" xml:space="preserve">
+    <value>Registered VAD session state for device: {deviceId}, session: {sessionId}</value>
+  </data>
+  <data name="BaseSherpaVad_UnregisterDevice_Unregistered" xml:space="preserve">
+    <value>Unregistered VAD session state for device: {deviceId}, session: {sessionId}</value>
+  </data>
+  <data name="BaseSherpaVad_ResetSessionState_Reset" xml:space="preserve">
+    <value>Reset VAD session state for device: {deviceId}, session: {sessionId}</value>
+  </data>
+  <data name="BaseSherpaVad_AnalysisVoiceAsync_VoiceStopped" xml:space="preserve">
+    <value>The voice is stopped for device: {deviceId}.</value>
+  </data>
+  <data name="BaseSherpaVad_AnalysisVoiceAsync_UserCanceled" xml:space="preserve">
+    <value>User canceled the job for {providerType}.</value>
+  </data>
+  <data name="BaseSherpaVad_AnalysisVoiceAsync_UnexpectedError" xml:space="preserve">
+    <value>Unexpected error(s) for {providerType}.</value>
+  </data>
+  <data name="BaseSherpaVad_CheckLongTermSilence_Detected" xml:space="preserve">
+    <value>Long term silence detected for device: {deviceId}, duration: {silenceDuration}ms</value>
+  </data>
+  <data name="BaseSherpaVad_AnalysisVoiceAsync_VadNotBuilt" xml:space="preserve">
+    <value>Please build vad provider first.</value>
+  </data>
+  <data name="BaseSherpaVad_AnalysisVoiceAsync_SessionStateNotFound" xml:space="preserve">
+    <value>Session state not found for device: {0}, session: {1}. Please register the device first.</value>
+  </data>
+  <data name="SileroModelState_UpdateHiddenState_SizeMismatch" xml:space="preserve">
+    <value>Hidden state size mismatch. Expected {0}, got {1}</value>
+  </data>
+  <data name="SileroModelState_UpdateCellState_SizeMismatch" xml:space="preserve">
+    <value>Cell state size mismatch. Expected {0}, got {1}</value>
+  </data>
+  <data name="SileroOnnx_Load_Loaded" xml:space="preserve">
+    <value>Loaded the onnx model: {modelName}.</value>
+  </data>
+  <data name="SileroOnnx_Load_InvalidModel" xml:space="preserve">
+    <value>Invalid onnx model: {modelName}.</value>
+  </data>
+  <data name="SileroOnnx_Infer_Disposed" xml:space="preserve">
+    <value>Cannot use disposed {0} instance.</value>
+  </data>
+  <data name="SileroOnnx_Infer_SessionNotInitialized" xml:space="preserve">
+    <value>ONNX InferenceSession is not initialized. Call Load() before Infer().</value>
+  </data>
+  <data name="SileroOnnx_Infer_SampleCountMismatch" xml:space="preserve">
+    <value>Expected {0} samples for {1}Hz, got {2}</value>
+  </data>
+  <data name="SileroOnnx_ValidateInput_SamplesEmpty" xml:space="preserve">
+    <value>Audio samples cannot be null or empty.</value>
+  </data>
+  <data name="SileroOnnx_ValidateInput_UnsupportedSampleRate" xml:space="preserve">
+    <value>Unsupported sample rate: {sampleRate}. Only 8000 and 16000 are supported.</value>
+  </data>
+  <data name="SileroOnnx_ValidateInput_SampleRateChanged" xml:space="preserve">
+    <value>Sample rate changed from {lastSr} to {newSr}, resetting model state.</value>
+  </data>
+  <data name="SileroOnnx_Dispose_Disposed" xml:space="preserve">
+    <value>Silero VAD v4 ONNX model disposed.</value>
+  </data>
+  <data name="MusicProvider_Load_PathNotSet" xml:space="preserve">
+    <value>Music folder path is not set in the settings.</value>
+  </data>
+  <data name="MusicProvider_Load_PathNotExist" xml:space="preserve">
+    <value>Music folder path '{MusicFolderPath}' does not exist.</value>
+  </data>
+  <data name="MusicProvider_UpdateMusicFiles_SettingsNotInitialized" xml:space="preserve">
+    <value>Cannot update music files because the settings are not initialized.</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_BindCodePromptNotExist" xml:space="preserve">
+    <value>The bind code prompt file does not exist: {filePath}</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_BindNotFoundNotExist" xml:space="preserve">
+    <value>The bind not found file does not exist: {filePath}</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_DigitFilesCountError" xml:space="preserve">
+    <value>The digit files folder must contain exactly 10 files for digits 0-9.</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_InvalidDigitFile" xml:space="preserve">
+    <value>Invalid digit file: {fileName}</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_InvalidResourceLoading" xml:space="preserve">
+    <value>Invalid resource loadings for {resourceName}</value>
+  </data>
+  <data name="DefaultDeviceBinding_GetDeviceNotFoundAudioStream_NotLoaded" xml:space="preserve">
+    <value>The bind not found audio file is not loaded.</value>
+  </data>
+  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_InvalidBindCode" xml:space="preserve">
+    <value>Invalid bind code: {bindCode}, it must be a 6-digit numeric string.</value>
+  </data>
+  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_PromptNotLoaded" xml:space="preserve">
+    <value>The bind code prompt audio file is not loaded.</value>
+  </data>
+  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_DigitNotLoaded" xml:space="preserve">
+    <value>The audio file for digit '{digit}' is not loaded.</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_ListEmpty" xml:space="preserve">
+    <value>WAV files list cannot be null or empty</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_FirstFileInvalid" xml:space="preserve">
+    <value>First file is not a valid WAV file</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_FileInvalid" xml:space="preserve">
+    <value>One of the files is not a valid WAV file</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_BufferOverflow" xml:space="preserve">
+    <value>The sum of offset and count is larger than the buffer length.</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_InvalidOrigin" xml:space="preserve">
+    <value>Invalid seek origin</value>
+  </data>
+  <data name="BaseOnnxModel_CheckModelExist_NotFound" xml:space="preserve">
+    <value>Cannot found the onnx model file in path: {modelFilePath}.</value>
+  </data>
+  <data name="ManageApiClient_LoadConfigFromApi_UnknownException" xml:space="preserve">
+    <value>Unknown exception occurred while loading config from api: {0}</value>
+  </data>
+  <data name="EmotionAgent_Build_Built" xml:space="preserve">
+    <value>Built {providerType} - {modelName}, model name: {emotionLLMName}</value>
+  </data>
+  <data name="ChatAgent_Build_BuiltFailed" xml:space="preserve">
+    <value>Faild to built {providerType} - {modelName}, model name: {chatLLMName}</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_FunctionCancelled" xml:space="preserve">
+    <value>Function invocation cancelled for {FunctionName}</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_McpCancelled" xml:space="preserve">
+    <value>MCP tool call cancelled: {FunctionName}</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_IoTCancelled" xml:space="preserve">
+    <value>IoT command call cancelled: {FunctionName}</value>
+  </data>
+  <data name="BaseHandler_OnSessionCtsTokenChanged_CtsAlreadyDisposed" xml:space="preserve">
+    <value>{HandlerName}: Old session CTS already disposed when trying to cancel.</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_KernelNotReady" xml:space="preserve">
+    <value>Kernel is not ready for handling MCP messages. DeviceId: {DeviceId}.</value>
+  </data>
+  <data name="IoTClient_RegisterIoTTools_KernelNull" xml:space="preserve">
+    <value>The Kernel is not yet ready to process IOT messages. Device ID: {DeviceId}.</value>
+  </data>
+</root>

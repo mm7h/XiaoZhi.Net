@@ -1,0 +1,1230 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Audio2TextHandler_Build_AsrNotConfigured" xml:space="preserve">
+    <value>设备 {deviceId} 未配置 ASR 提供程序。</value>
+  </data>
+  <data name="Audio2TextHandler_Handle_ProcessFailed" xml:space="preserve">
+    <value>处理来自设备 {deviceId} 的语音转文本数据包失败。</value>
+  </data>
+  <data name="Audio2TextHandler_OnSpeechTextConverted_ConvertFailed" xml:space="preserve">
+    <value>ASR 转换语音文本失败。</value>
+  </data>
+  <data name="Audio2TextHandler_OnSpeechTextConverted_NoSpeak" xml:space="preserve">
+    <value>设备 {deviceId} 未检测到语音。</value>
+  </data>
+  <data name="Audio2TextHandler_OnSpeechTextConverted_SpeakText" xml:space="preserve">
+    <value>设备 {deviceId} 说了: {speechText}</value>
+  </data>
+  <data name="Audio2TextHandler_Handle_Cancelled" xml:space="preserve">
+    <value>ASR 处理已取消，设备 {DeviceId}</value>
+  </data>
+  <data name="ServerBuilder_Initialize_ConfigNull" xml:space="preserve">
+    <value>配置不能为空。</value>
+  </data>
+  <data name="ServerBuilder_WithPlugin_PluginNameNull" xml:space="preserve">
+    <value>插件名称不能为空。</value>
+  </data>
+  <data name="ServerBuilder_WithPlugin_FunctionsNull" xml:space="preserve">
+    <value>功能列表不能为空。</value>
+  </data>
+  <data name="ServerBuilder_BuildComponents_ResourceLoadFailed" xml:space="preserve">
+    <value>加载资源组件失败。请检查配置和资源实现。</value>
+  </data>
+  <data name="ServerBuilder_BuildComponents_ProviderBuildFailed" xml:space="preserve">
+    <value>构建提供程序组件失败。请检查配置和提供程序实现。</value>
+  </data>
+  <data name="AudioProcessorHandler_Build_AudioProcessorNotConfigured" xml:space="preserve">
+    <value>音频处理器未为设备配置: {deviceId}。</value>
+  </data>
+  <data name="AudioProcessorHandler_Handle_AudioProcessorNotBuilt" xml:space="preserve">
+    <value>音频处理器未为设备构建: {deviceId}。</value>
+  </data>
+  <data name="AudioProcessorHandler_Handle_ProcessFailed" xml:space="preserve">
+    <value>处理来自设备的音频片段失败: {deviceId}。</value>
+  </data>
+  <data name="AudioProcessorHandler_Handle_Cancelled" xml:space="preserve">
+    <value>音频处理已取消，设备 {DeviceId}</value>
+  </data>
+  <data name="AudioProcessorHandler_OnMixedAudioDataAvailable_WriteFailed" xml:space="preserve">
+    <value>将混合音频写入设备 {DeviceId} 的通道时出错</value>
+  </data>
+  <data name="AudioSendHandler_Build_AudioProcessorNotConfigured" xml:space="preserve">
+    <value>音频处理器未为设备配置: {deviceId}。</value>
+  </data>
+  <data name="AudioSendHandler_Build_AudioEncoderNotConfigured" xml:space="preserve">
+    <value>音频编码器未为设备配置: {deviceId}。</value>
+  </data>
+  <data name="AudioSendHandler_Handle_AudioProcessorNotConfigured" xml:space="preserve">
+    <value>音频处理器未为设备配置: {deviceId}。</value>
+  </data>
+  <data name="AudioSendHandler_Handle_AudioEncoderNotConfigured" xml:space="preserve">
+    <value>音频编码器未为设备配置: {deviceId}。</value>
+  </data>
+  <data name="AudioSendHandler_Handle_FirstFrame" xml:space="preserve">
+    <value>发送来自设备的第一帧音频: {deviceId}。</value>
+  </data>
+  <data name="AudioSendHandler_Handle_LastFrame" xml:space="preserve">
+    <value>发送来自设备的最后一帧音频: {deviceId}。</value>
+  </data>
+  <data name="AudioSendHandler_Handle_ProcessFailed" xml:space="preserve">
+    <value>处理来自设备的音频发送数据包失败: {deviceId}。</value>
+  </data>
+  <data name="AudioSendHandler_Handle_Cancelled" xml:space="preserve">
+    <value>音频发送已取消，设备 {DeviceId}</value>
+  </data>
+  <data name="AudioReceiveHandler_Build_VadNotConfigured" xml:space="preserve">
+    <value>VAD提供程序未为设备配置: {deviceId}。</value>
+  </data>
+  <data name="AudioReceiveHandler_Build_AudioDecoderNotConfigured" xml:space="preserve">
+    <value>音频解码器未为设备配置: {deviceId}。</value>
+  </data>
+  <data name="AudioReceiveHandler_Handle_VadNotConfigured" xml:space="preserve">
+    <value>VAD提供程序未为设备配置: {deviceId}。</value>
+  </data>
+  <data name="AudioReceiveHandler_Handle_AudioDecoderNotConfigured" xml:space="preserve">
+    <value>音频解码器未为设备配置: {deviceId}。</value>
+  </data>
+  <data name="AudioReceiveHandler_Handle_PacketIgnored" xml:space="preserve">
+    <value>上一个音频数据包正在处理中，此数据包将被忽略。</value>
+  </data>
+  <data name="AudioReceiveHandler_Handle_ProcessFailed" xml:space="preserve">
+    <value>处理来自设备的音频数据包失败: {deviceId}。</value>
+  </data>
+  <data name="AudioReceiveHandler_HandleVoiceDetected_VoiceTooShort" xml:space="preserve">
+    <value>会话 {sessionId} 的语音太短。</value>
+  </data>
+  <data name="AudioReceiveHandler_Handle_Cancelled" xml:space="preserve">
+    <value>音频处理已取消，设备 {DeviceId}</value>
+  </data>
+  <data name="BaseHandler_CheckWorkflowValid_StaleWorkflow" xml:space="preserve">
+    <value>在处理器 {handlerName} 中检测到过期的工作流。工作流轮次 ID: {workflowTurnId}, 会话轮次 ID: {sessionTurnId}。</value>
+  </data>
+  <data name="BaseHandler_OnTokenCanceled_TokenCanceled" xml:space="preserve">
+    <value>处理器 {handlerName} 的取消令牌已被取消。</value>
+  </data>
+  <data name="DialogueHandler_Build_LlmNotConfigured" xml:space="preserve">
+    <value>LLM提供程序未为设备配置: {deviceId}。</value>
+  </data>
+  <data name="DialogueHandler_Handle_LlmNotConfigured" xml:space="preserve">
+    <value>LLM提供程序未为设备配置: {deviceId}。</value>
+  </data>
+  <data name="DialogueHandler_Handle_LlmCallTime" xml:space="preserve">
+    <value>调用LLM耗时 {elapsed:F2} ms。</value>
+  </data>
+  <data name="DialogueHandler_Handle_ProcessFailed" xml:space="preserve">
+    <value>处理来自设备的LLM对话失败: {deviceId}。</value>
+  </data>
+  <data name="DialogueHandler_Handle_Cancelled" xml:space="preserve">
+    <value>LLM 对话已取消，设备 {DeviceId}</value>
+  </data>
+  <data name="DialogueHandler_OnTokenGenerating_WriteFailed" xml:space="preserve">
+    <value>将 LLM 片段写入设备 {DeviceId} 的通道时出错</value>
+  </data>
+  <data name="DialogueHandler_OnTokenGenerated_ResponseText" xml:space="preserve">
+    <value>LLM响应文本: {content}</value>
+  </data>
+  <data name="DialogueHandler_OnBeforeTokenGenerate_Thinking" xml:space="preserve">
+    <value>思考中...</value>
+  </data>
+  <data name="HelloMessageHandler_Handle_InitFailed" xml:space="preserve">
+    <value>初始化设备的提供程序或处理器失败: {deviceId}。</value>
+  </data>
+  <data name="Text2AudioHandler_Build_TtsNotConfigured" xml:space="preserve">
+    <value>TTS提供程序未为设备配置: {deviceId}。</value>
+  </data>
+  <data name="Text2AudioHandler_Build_PlayerNotConfigured" xml:space="preserve">
+    <value>AudioPlayerClient 未为设备配置: {deviceId}。</value>
+  </data>
+  <data name="Text2AudioHandler_Handle_TtsNotConfigured" xml:space="preserve">
+    <value>TTS提供程序未为设备配置: {deviceId}。</value>
+  </data>
+  <data name="Text2AudioHandler_Handle_NoTtsRequired" xml:space="preserve">
+    <value>无需TTS，查询文本为空。</value>
+  </data>
+  <data name="Text2AudioHandler_Handle_ProcessFailed" xml:space="preserve">
+    <value>处理设备文本转语音时出错: {deviceId}。</value>
+  </data>
+  <data name="Text2AudioHandler_Handle_Cancelled" xml:space="preserve">
+    <value>TTS 合成已取消，设备 {DeviceId}</value>
+  </data>
+  <data name="Text2AudioHandler_CheckBindDevice_PlayerNotBuilt" xml:space="preserve">
+    <value>AudioPlayerClient 尚未为设备 {deviceId} 构建。</value>
+  </data>
+  <data name="Text2AudioHandler_CheckBindDevice_InvalidBindCode" xml:space="preserve">
+    <value>设备 {deviceId} 的绑定码 {code} 无效。</value>
+  </data>
+  <data name="Text2AudioHandler_CheckBindDevice_BindCodeFormatError" xml:space="preserve">
+    <value>绑定码格式错误，请检查配置。</value>
+  </data>
+  <data name="Text2AudioHandler_CheckBindDevice_BindDevicePrompt" xml:space="preserve">
+    <value>请登录控制面板，输入{bindCode}，绑定设备。</value>
+  </data>
+  <data name="Text2AudioHandler_CheckBindDevice_VersionNotFound" xml:space="preserve">
+    <value>没有找到该设备的版本信息，请正确配置 OTA地址，然后重新编译固件。</value>
+  </data>
+  <data name="Text2AudioHandler_OnBeforeProcessing_Started" xml:space="preserve">
+    <value>设备 {deviceId} 的TTS处理已开始，句子: {sentence}。</value>
+  </data>
+  <data name="Text2AudioHandler_OnProcessed_Completed" xml:space="preserve">
+    <value>设备 {deviceId} 的TTS处理已完成。</value>
+  </data>
+  <data name="TextHandler_Handle_ReceivedText" xml:space="preserve">
+    <value>收到来自客户端的文本: {jsonText}</value>
+  </data>
+  <data name="TextHandler_Handle_InvalidType" xml:space="preserve">
+    <value>文本消息处理的类型无效。</value>
+  </data>
+  <data name="TextHandler_HandleAbortMessage_Received" xml:space="preserve">
+    <value>收到中止消息。</value>
+  </data>
+  <data name="TextHandler_HandleAbortMessage_Cancelled" xml:space="preserve">
+    <value>收到中止消息-结束，已取消任务。</value>
+  </data>
+  <data name="TextHandler_HandleListen_ModeSetting" xml:space="preserve">
+    <value>客户端语音监听模式设置为: {mode}</value>
+  </data>
+  <data name="TextHandler_HandleIotDescriptors_ClientNotInit" xml:space="preserve">
+    <value>IoT客户端未为设备初始化: {deviceId}。</value>
+  </data>
+  <data name="TextHandler_HandleMcp_ClientNotFound" xml:space="preserve">
+    <value>会话 {sessionId} 中未找到 DeviceMcpClient。</value>
+  </data>
+  <data name="AudioPacketHelper_PcmBytesToFloat_UnsupportedBitDepth" xml:space="preserve">
+    <value>不支持的 PCM 位深: {0}</value>
+  </data>
+  <data name="AudioPacketHelper_Float2PcmBytes_UnsupportedFormat" xml:space="preserve">
+    <value>仅支持 16位、24位和 32位 PCM 格式。</value>
+  </data>
+  <data name="AudioPacketHelper_WriteSample_UnsupportedBitDepth" xml:space="preserve">
+    <value>不支持的位深: {0}</value>
+  </data>
+  <data name="CodeTimer_Dispose_JobFinished" xml:space="preserve">
+    <value>任务完成，耗时 {elapsed:F2} 毫秒。</value>
+  </data>
+  <data name="MarkdownCleaner_ReplaceTableBlock_SingleLineTable" xml:space="preserve">
+    <value>单行表格：{0}</value>
+  </data>
+  <data name="MarkdownCleaner_ReplaceTableBlock_TableHeader" xml:space="preserve">
+    <value>表头是：{0}</value>
+  </data>
+  <data name="MarkdownCleaner_ReplaceTableBlock_RowContent" xml:space="preserve">
+    <value>第 {0} 行：{1}</value>
+  </data>
+  <data name="HandlerManager_InitializePrivateConfig_BuildPipelineFailed" xml:space="preserve">
+    <value>无法为设备 {deviceId} 构建处理程序管道。</value>
+  </data>
+  <data name="HandlerManager_BuildHandlersWorkflow_BuiltWorkflow" xml:space="preserve">
+    <value>已构建处理程序工作流，上一步：{previous} -&gt; 下一步：{next}</value>
+  </data>
+  <data name="HandlerManager_ScheduleOnAbort_Aborted" xml:space="preserve">
+    <value>设备：{deviceId}，会话：{sessionId} 中止任务，消息：{message}。</value>
+  </data>
+  <data name="ProviderManager_BuildComponent_ProviderBuildFailed" xml:space="preserve">
+    <value>无法构建 {modelName} 提供程序。</value>
+  </data>
+  <data name="ProviderManager_BuildComponent_FFmpegInstalled" xml:space="preserve">
+    <value>FFmpeg 加载成功，版本：{ffmpegVersion}。</value>
+  </data>
+  <data name="ProviderManager_BuildComponent_FFmpegNotFound" xml:space="preserve">
+    <value>FFmpeg 未安装或未找到，请检查您的 FFmpeg 路径配置。</value>
+  </data>
+  <data name="ProviderManager_BuildComponent_BuildComponentsFailed" xml:space="preserve">
+    <value>构建提供程序组件失败。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_RemoteServiceUnavailable" xml:space="preserve">
+    <value>远程服务不可用或未配置，跳过设备 {deviceId} 的私有模型配置加载。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_NoPrivateConfig" xml:space="preserve">
+    <value>设备 {deviceId} 未配置私有化设置，将使用全局提供程序。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateVadBuildFailed" xml:space="preserve">
+    <value>无法为设备 {deviceId} 构建私有 VAD 模型。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateVadInitialized" xml:space="preserve">
+    <value>设备 {deviceId} 的私有 VAD {modeName} 模型已初始化。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_GenericVadBuildFailed" xml:space="preserve">
+    <value>无法构建 {modelName} 提供程序。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_GenericVadInitialized" xml:space="preserve">
+    <value>设备 {deviceId} 的通用 VAD {modeName} 模型已初始化。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateAsrBuildFailed" xml:space="preserve">
+    <value>无法为设备 {deviceId} 构建私有 ASR 模型。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateAsrInitialized" xml:space="preserve">
+    <value>设备 {deviceId} 的私有 ASR {modeName} 模型已初始化。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_GenericAsrBuildFailed" xml:space="preserve">
+    <value>无法构建 {modelName} 提供程序。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_GenericAsrInitialized" xml:space="preserve">
+    <value>设备 {deviceId} 的通用 ASR {modeName} 模型已初始化。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateLlmBuildFailed" xml:space="preserve">
+    <value>无法为设备 {deviceId} 构建私有 LLM 模型。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateLlmInitialized" xml:space="preserve">
+    <value>设备 {deviceId} 的私有情感 LLM {emotionLLMName} 和聊天 LLM {chatLLMName} 模型已初始化。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_GenericLlmBuildFailed" xml:space="preserve">
+    <value>无法为设备 {deviceId} 构建通用 LLM 模型。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_GenericLlmInitialized" xml:space="preserve">
+    <value>设备 {deviceId} 的通用情感 LLM {emotionLLMName} 和聊天 LLM {chatLLMName} 模型已初始化。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateTtsBuildFailed" xml:space="preserve">
+    <value>无法为设备 {deviceId} 构建私有 TTS 模型。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateTtsInitialized" xml:space="preserve">
+    <value>设备 {deviceId} 的私有 TTS {modeName} 模型已初始化。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_GenericTtsBuildFailed" xml:space="preserve">
+    <value>无法构建 {modelName} 提供程序。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_GenericTtsInitialized" xml:space="preserve">
+    <value>设备 {deviceId} 的通用 TTS {modeName} 模型已初始化。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_DeviceNotFound" xml:space="preserve">
+    <value>找不到设备 {deviceId}，可能未注册。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_DeviceNotBinded" xml:space="preserve">
+    <value>设备 {deviceId} 未绑定，绑定码：{bindCode}。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_LoadPrivateConfigFailed" xml:space="preserve">
+    <value>加载设备 {deviceId} 会话 {sessionId} 的私有模型配置失败。</value>
+  </data>
+  <data name="ProviderManager_SaveMemory_LlmNotInitialized" xml:space="preserve">
+    <value>LLM 提供程序未初始化，无法保存设备 {deviceId} 的记忆。</value>
+  </data>
+  <data name="ProviderManager_SaveMemory_MemorySaved" xml:space="preserve">
+    <value>设备 {deviceId} 会话 {sessionId} 的记忆保存成功。</value>
+  </data>
+  <data name="ProviderManager_SaveMemory_SaveMemoryFailed" xml:space="preserve">
+    <value>保存设备 {deviceId} 会话 {sessionId} 的记忆失败。</value>
+  </data>
+  <data name="ProviderManager_SaveMemory_ApiClientNotAvailable" xml:space="preserve">
+    <value>ManageApiClient 不可用，无法保存设备 {deviceId} 会话 {sessionId} 的记忆。</value>
+  </data>
+  <data name="ProviderManager_BuildAudioResampler_ResamplingRequired" xml:space="preserve">
+    <value>设备 {deviceId} 需要音频重采样，从 {ttsSampleRate} 到 {deviceSampleRate}。</value>
+  </data>
+  <data name="ProviderManager_BuildAudioResampler_BuildFailed" xml:space="preserve">
+    <value>会话 {sessionId} 构建音频重采样器失败。</value>
+  </data>
+  <data name="ProviderManager_BuildAudioEncoder_BuildFailed" xml:space="preserve">
+    <value>会话 {sessionId} 构建音频编码器失败。</value>
+  </data>
+  <data name="ProviderManager_BuildIoT_BuildFailed" xml:space="preserve">
+    <value>会话 {sessionId} 构建 IoT 客户端失败。</value>
+  </data>
+  <data name="ProviderManager_BuildMCP_BuildFailed" xml:space="preserve">
+    <value>会话 {sessionId} 构建 MCP 客户端失败。</value>
+  </data>
+  <data name="ProviderManager_BuildAudioPlayer_BuildFailed" xml:space="preserve">
+    <value>会话 {sessionId} 构建音频播放器失败。</value>
+  </data>
+  <data name="ProviderManager_BuildAudioProcessor_BuildFailed" xml:space="preserve">
+    <value>会话 {sessionId} 构建音频混音器失败。</value>
+  </data>
+  <data name="ProviderManager_RegisterGlobalProviders_VadBuildFailed" xml:space="preserve">
+    <value>无法构建 {modelName} 提供程序。</value>
+  </data>
+  <data name="ProviderManager_RegisterGlobalProviders_VadInitialized" xml:space="preserve">
+    <value>设备 {deviceId} 的通用 VAD {modeName} 模型已初始化。</value>
+  </data>
+  <data name="ProviderManager_RegisterGlobalProviders_AsrBuildFailed" xml:space="preserve">
+    <value>无法构建 {modelName} 提供程序。</value>
+  </data>
+  <data name="ProviderManager_RegisterGlobalProviders_AsrInitialized" xml:space="preserve">
+    <value>设备 {deviceId} 的通用 ASR {modeName} 模型已初始化。</value>
+  </data>
+  <data name="ProviderManager_RegisterGlobalProviders_LlmInitialized" xml:space="preserve">
+    <value>设备 {deviceId} 的通用情感 LLM {emotionLLMName} 和聊天 LLM {chatLLMName} 模型已初始化。</value>
+  </data>
+  <data name="ProviderManager_RegisterGlobalProviders_TtsBuildFailed" xml:space="preserve">
+    <value>无法构建 {modelName} 提供程序。</value>
+  </data>
+  <data name="ProviderManager_RegisterGlobalProviders_TtsInitialized" xml:space="preserve">
+    <value>设备 {deviceId} 的通用 TTS {modeName} 模型已初始化。</value>
+  </data>
+  <data name="SocketSession_SendAsync_SendingJson" xml:space="preserve">
+    <value>向设备 {deviceId} 发送 JSON: {json}</value>
+  </data>
+  <data name="SocketSession_SendTtsMessageAsync_SessionNotInitialized" xml:space="preserve">
+    <value>无法发送 TTS 消息，当前会话尚未初始化。</value>
+  </data>
+  <data name="SocketSession_SendSttMessageAsync_SessionNotInitialized" xml:space="preserve">
+    <value>无法发送 STT 消息，当前会话尚未初始化。</value>
+  </data>
+  <data name="SocketSession_SendLlmMessageAsync_SessionNotInitialized" xml:space="preserve">
+    <value>无法发送 LLM 消息，当前会话尚未初始化。</value>
+  </data>
+  <data name="SocketSession_SendAbortMessageAsync_SessionNotInitialized" xml:space="preserve">
+    <value>无法发送中止消息，当前会话尚未初始化。</value>
+  </data>
+  <data name="SocketSession_OnSessionClosedAsync_ClientOffline" xml:space="preserve">
+    <value>客户端离线，设备 ID: {deviceId}，会话 ID: {sessionId}，原因: {reason}。</value>
+  </data>
+  <data name="AuthenticationVerification_VerifyAsync_DeviceIdNotFound" xml:space="preserve">
+    <value>无法从 IP: {ip} 获取设备 ID，认证失败。</value>
+  </data>
+  <data name="AuthenticationVerification_VerifyAsync_NewDeviceConnected" xml:space="preserve">
+    <value>新设备: {deviceId} 已连接，IP: {ip}</value>
+  </data>
+  <data name="AuthenticationVerification_VerifyAsync_AuthFailed" xml:space="preserve">
+    <value>来自 IP: {ip} 的设备 {deviceId} 认证失败。</value>
+  </data>
+  <data name="AuthenticationVerification_VerifyAsync_IpNotFound" xml:space="preserve">
+    <value>无法从会话: {sessionId} 获取 IP 信息。</value>
+  </data>
+  <data name="MessageDispatch_DispatchAsync_ArgumentNull" xml:space="preserve">
+    <value>会话或包不能为空。</value>
+  </data>
+  <data name="ServerStatusMiddleware_Start_ServerStarted" xml:space="preserve">
+    <value>服务器已启动并监听于: {listeningUrl}</value>
+  </data>
+  <data name="ServerStatusMiddleware_Start_NoListeningOptions" xml:space="preserve">
+    <value>未找到服务器的监听选项。无法确定监听 URL。</value>
+  </data>
+  <data name="ServerStatusMiddleware_Shutdown_ShuttingDown" xml:space="preserve">
+    <value>服务器正在关闭。</value>
+  </data>
+  <data name="SessionContainerMiddleware_RegisterSession_LoginFailed" xml:space="preserve">
+    <value>会话 {sessionId} 登录服务器失败。</value>
+  </data>
+  <data name="BaseSherpaAsr_RegisterDevice_Registered" xml:space="preserve">
+    <value>已注册 ASR 会话，设备: {deviceId}，会话: {sessionId}</value>
+  </data>
+  <data name="BaseSherpaAsr_UnregisterDevice_Unregistered" xml:space="preserve">
+    <value>已注销 ASR 会话，设备: {deviceId}，会话: {sessionId}</value>
+  </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_ProviderNotBuilt" xml:space="preserve">
+    <value>请先构建 ASR 提供程序。</value>
+  </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_UnexpectedError" xml:space="preserve">
+    <value>{providerType} 发生意外错误。</value>
+  </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_RequestCancelled" xml:space="preserve">
+    <value>ASR 请求已取消，设备 {DeviceId}</value>
+  </data>
+  <data name="BaseSherpaAsr_Processing_RequestCancelledBeforeProcessing" xml:space="preserve">
+    <value>ASR 请求在处理前已取消，设备 {DeviceId}</value>
+  </data>
+  <data name="BaseSherpaAsr_Processing_RequestCancelledAfterDecoding" xml:space="preserve">
+    <value>ASR 请求在解码后已取消，设备 {DeviceId}</value>
+  </data>
+  <data name="BaseSherpaAsr_Processing_ResultProcessingError" xml:space="preserve">
+    <value>处理 ASR 结果时出错，设备 {DeviceId}</value>
+  </data>
+  <data name="BaseSherpaAsr_Processing_ProviderNotBuilt" xml:space="preserve">
+    <value>请先构建 ASR 提供程序。</value>
+  </data>
+  <data name="BaseSherpaAsr_Processing_ErrorLoop" xml:space="preserve">
+    <value>ASR 处理循环中发生错误。</value>
+  </data>
+  <data name="BaseSherpaAsr_Dispose_WaitFailed" xml:space="preserve">
+    <value>等待后台任务完成失败。</value>
+  </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_AudioSaved" xml:space="preserve">
+    <value>用户语音音频文件 {fileName} 保存成功。</value>
+  </data>
+  <data name="BaseSherpaAsr_ConvertSpeechTextAsync_AudioNotSaved" xml:space="preserve">
+    <value>保存用户语音音频文件 {fileName} 失败。</value>
+  </data>
+  <data name="Paraformer_Build_Built" xml:space="preserve">
+    <value>已构建 {providerType} 模型: {modelName}</value>
+  </data>
+  <data name="Paraformer_Build_InvalidSettings" xml:space="preserve">
+    <value>{providerType} 模型设置无效: {modelName}</value>
+  </data>
+  <data name="SenseVoice_Build_Built" xml:space="preserve">
+    <value>已构建 {providerType} 模型: {modelName}</value>
+  </data>
+  <data name="SenseVoice_Build_InvalidSettings" xml:space="preserve">
+    <value>{providerType} 模型设置无效: {modelName}</value>
+  </data>
+  <data name="WebSocketClient_CloseAsync_CloseFailed" xml:space="preserve">
+    <value>无法优雅地关闭 WebSocket 连接。</value>
+  </data>
+  <data name="DefaultOpusDecoder_Build_Built" xml:space="preserve">
+    <value>已构建 {providerType}: {modelName}</value>
+  </data>
+  <data name="DefaultOpusDecoder_Build_InvalidSettings" xml:space="preserve">
+    <value>{providerType} 模型设置无效: {modelName}</value>
+  </data>
+  <data name="DefaultOpusDecoder_DecodeAsync_NotBuilt" xml:space="preserve">
+    <value>请先构建 opus 提供程序。</value>
+  </data>
+  <data name="DefaultOpusEncoder_Build_Built" xml:space="preserve">
+    <value>已构建 {providerType}: {modelName}</value>
+  </data>
+  <data name="DefaultOpusEncoder_Build_InvalidSettings" xml:space="preserve">
+    <value>{providerType} 模型设置无效: {modelName}</value>
+  </data>
+  <data name="DefaultOpusEncoder_EncodeAsync_NotBuilt" xml:space="preserve">
+    <value>请先构建 opus 提供程序。</value>
+  </data>
+  <data name="DefaultResampler_Build_Built" xml:space="preserve">
+    <value>已构建 {providerType}: {modelName}</value>
+  </data>
+  <data name="DefaultResampler_Build_InvalidSettings" xml:space="preserve">
+    <value>{providerType} 模型设置无效: {modelName}</value>
+  </data>
+  <data name="DefaultResampler_ResampleAsync_NotBuilt" xml:space="preserve">
+    <value>请先构建重采样器提供程序。</value>
+  </data>
+  <data name="FileMusicPlayer_Build_FFmpegInitFailed" xml:space="preserve">
+    <value>FFmpeg 初始化失败，请检查 FFmpeg 路径配置。</value>
+  </data>
+  <data name="FileMusicPlayer_PlayAsync_NotBuilt" xml:space="preserve">
+    <value>音频播放器尚未构建。</value>
+  </data>
+  <data name="FileMusicPlayer_PlayAsync_NoFiles" xml:space="preserve">
+    <value>没有要播放的音频文件。</value>
+  </data>
+  <data name="FileMusicPlayer_PauseAsync_Skip" xml:space="preserve">
+    <value>音频播放器状态为 {status}，跳过暂停。</value>
+  </data>
+  <data name="FileMusicPlayer_ResumeAsync_Skip" xml:space="preserve">
+    <value>音频播放器状态为 {status}，跳过恢复。</value>
+  </data>
+  <data name="FileMusicPlayer_StopAsync_Skip" xml:space="preserve">
+    <value>音频播放器状态为 {status}，跳过停止。</value>
+  </data>
+  <data name="FileMusicPlayer_AudioFileProcessingAsync_Canceled" xml:space="preserve">
+    <value>音频文件处理已取消。</value>
+  </data>
+  <data name="FileMusicPlayer_AudioFileProcessingAsync_Start" xml:space="preserve">
+    <value>开始处理音频文件: {file}。</value>
+  </data>
+  <data name="FileMusicPlayer_AudioFileProcessingAsync_Playing" xml:space="preserve">
+    <value>已加载音频文件: {file}，开始播放。</value>
+  </data>
+  <data name="FileMusicPlayer_AudioFileProcessingAsync_Completed" xml:space="preserve">
+    <value>完成处理音频文件: {file}。</value>
+  </data>
+  <data name="FileMusicPlayer_AudioFileProcessingAsync_PlaybackCanceled" xml:space="preserve">
+    <value>已取消播放音频文件: {file}。</value>
+  </data>
+  <data name="FileMusicPlayer_AudioFileProcessingAsync_Error" xml:space="preserve">
+    <value>处理音频文件时出错: {file}。</value>
+  </data>
+  <data name="FileMusicPlayer_Dispose_Timeout" xml:space="preserve">
+    <value>处理任务未在超时时间内完成，强制释放。</value>
+  </data>
+  <data name="FileMusicPlayer_Dispose_Error" xml:space="preserve">
+    <value>等待处理任务完成时出错。</value>
+  </data>
+  <data name="IoTClient_RegisterIoTTools_FunctionDescription" xml:space="preserve">
+    <value>获取或者查询 `{0}` 的状态或者值的方法</value>
+  </data>
+  <data name="IoTClient_RegisterIoTTools_PluginDescription" xml:space="preserve">
+    <value>用于管理或者操控 `{0}` 设备状态或者功能的插件。后面的数字序号只是用于编号，没有其他意义。</value>
+  </data>
+  <data name="IoTClient_SetIoTPropertyStatusValue_SetStatus" xml:space="preserve">
+    <value>会话 {sessionId} 设置了 IoT 状态/值，键: {key}，值: {value}</value>
+  </data>
+  <data name="IoTClient_SendIoTMessageAsync_MessageNull" xml:space="preserve">
+    <value>消息不能为空。</value>
+  </data>
+  <data name="DefaultAudioProcessor_Build_Initialized" xml:space="preserve">
+    <value>音频混音器已初始化，无需再次初始化。</value>
+  </data>
+  <data name="DefaultAudioProcessor_FireOnMixedAudioData_InvokeError" xml:space="preserve">
+    <value>调用 OnMixedAudioDataAvailable 事件时出错</value>
+  </data>
+  <data name="DefaultAudioProcessor_Build_InvalidSettings" xml:space="preserve">
+    <value>{providerType} 模型设置无效: {modelName}</value>
+  </data>
+  <data name="NotificationPlayer_Build_FFmpegInitFailed" xml:space="preserve">
+    <value>FFmpeg 初始化失败，请检查 FFmpeg 路径配置。</value>
+  </data>
+  <data name="NotificationPlayer_PlayBindCodeAsync_NotBuilt" xml:space="preserve">
+    <value>音频播放器尚未构建。</value>
+  </data>
+  <data name="NotificationPlayer_PlayBindCodeAsync_StreamNull" xml:space="preserve">
+    <value>无法获取绑定码音频流。</value>
+  </data>
+  <data name="NotificationPlayer_PlayNotFoundAsync_NotBuilt" xml:space="preserve">
+    <value>音频播放器尚未构建。</value>
+  </data>
+  <data name="NotificationPlayer_PlayNotFoundAsync_StreamNull" xml:space="preserve">
+    <value>无法获取未找到音频流。</value>
+  </data>
+  <data name="NotificationPlayer_StopAsync_Skip" xml:space="preserve">
+    <value>音频播放器状态为 {status}，跳过停止。</value>
+  </data>
+  <data name="ChatAgent_Build_Built" xml:space="preserve">
+    <value>已构建 {providerType} - {modelName}，模型名称：{chatLLMName}</value>
+  </data>
+  <data name="ChatAgent_Build_BuildPluginsBuilt" xml:space="preserve">
+    <value>已构建 {providerType} - {modelName}的插件。</value>
+  </data>
+  <data name="ChatAgent_Build_BuildPluginsFailed" xml:space="preserve">
+    <value>构建 {providerType} 模型 {modelName} 的插件失败。</value>
+  </data>
+  <data name="ChatAgent_RegisterDevice_PluginRegistered" xml:space="preserve">
+    <value>LLM 插件 {pluginName} 已为设备 {deviceId} 注册。</value>
+  </data>
+  <data name="ChatAgent_GenerateChatResponseAsync_AgentNotBuilt" xml:space="preserve">
+    <value>聊天代理尚未构建。</value>
+  </data>
+  <data name="EmotionAgent_Build_BuildFailed" xml:space="preserve">
+    <value>构建 EmotionAgent 失败。</value>
+  </data>
+  <data name="EmotionAgent_AnalyzeEmotionAsync_AgentNotBuilt" xml:space="preserve">
+    <value>情绪代理尚未构建。</value>
+  </data>
+  <data name="EmotionAgent_AnalyzeEmotionAsync_UserCanceled" xml:space="preserve">
+    <value>用户取消了 {providerType} 的任务。</value>
+  </data>
+  <data name="EmotionAgent_AnalyzeEmotionAsync_UnexpectedError" xml:space="preserve">
+    <value>{providerType} 发生意外错误。</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_McpClientNotInit" xml:space="preserve">
+    <value>MCP 客户端未为设备 {deviceId} 初始化。</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_SubMcpClientNotFound" xml:space="preserve">
+    <value>未找到类型名为 ‘{0}’ 的 SubMcpClient。</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeMcpFailed" xml:space="preserve">
+    <value>调用插件 {PluginName} 中的 MCP 工具函数 {FunctionName} 失败。</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeMcpFailedDetail" xml:space="preserve">
+    <value>调用插件 {1} 中的 MCP 工具函数 {0} 失败，错误信息为：{2}。</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_IoTClientNotInit" xml:space="preserve">
+    <value>IoT 客户端未为设备 {deviceId} 初始化。</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_ReturnTypeNotSpecified" xml:space="preserve">
+    <value>插件‘{1}’中函数‘{0}’的返回类型未指定。</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTSuccess" xml:space="preserve">
+    <value>成功调用 IoT 命令。</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvalidIoTName" xml:space="preserve">
+    <value>插件‘{0}’中的 IoT 组件名称格式无效。</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailed" xml:space="preserve">
+    <value>调用插件 {PluginName} 中的 IoT 工具函数 {FunctionName} 失败。</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailedDetail" xml:space="preserve">
+    <value>调用插件 {1} 中的 IoT 工具函数 {0} 失败，错误信息为：{2}。</value>
+  </data>
+  <data name="MusicPlayer_GetMusicFilesAsync_SessionNotInit" xml:space="preserve">
+    <value>获取音乐文件失败，当前会话尚未初始化。</value>
+  </data>
+  <data name="MusicPlayer_GetMusicFilesAsync_NoFilesLog" xml:space="preserve">
+    <value>{ProviderType} - {ModelName}，获取音乐文件失败，设备 {deviceId} 不存在文件。</value>
+  </data>
+  <data name="MusicPlayer_GetMusicFilesAsync_NoFilesMsg" xml:space="preserve">
+    <value>获取音乐文件失败，不存在文件。</value>
+  </data>
+  <data name="MusicPlayer_GetMusicFilesAsync_SuccessLog" xml:space="preserve">
+    <value>{ProviderType} - {ModelName}，成功为设备 {deviceId} 获取了 {fileCount} 个音乐文件。</value>
+  </data>
+  <data name="MusicPlayer_GetMusicFilesAsync_SuccessMsg" xml:space="preserve">
+    <value>获取音乐文件成功。可用音乐文件：{0}</value>
+  </data>
+  <data name="MusicPlayer_GetMusicFilesAsync_ProviderNotInit" xml:space="preserve">
+    <value>获取音乐文件失败，音乐提供程序尚未初始化。</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_SessionNotInit" xml:space="preserve">
+    <value>播放音乐失败，当前会话尚未初始化。</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_PlayerNotInit" xml:space="preserve">
+    <value>播放音乐失败，播放器尚未初始化。</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_NoFiles" xml:space="preserve">
+    <value>播放音乐失败，服务器中没有音乐文件。</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_MusicNameEmpty" xml:space="preserve">
+    <value>播放音乐失败，字段 musicName 为空。</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_FileNotFound" xml:space="preserve">
+    <value>播放音乐失败，未找到指定的音乐文件。</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_PlayingLog" xml:space="preserve">
+    <value>{ProviderType} - {ModelName}，正在为设备 {deviceId} 播放音乐文件 {musicFilePath}。</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_SuccessMsg" xml:space="preserve">
+    <value>成功开始播放音乐：{0}</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_FailedLog" xml:space="preserve">
+    <value>为设备 {deviceId} 播放音乐文件 {musicFilePath} 失败。</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_FailedMsg" xml:space="preserve">
+    <value>播放音乐失败：{0}。错误：{1}</value>
+  </data>
+  <data name="MusicPlayer_PlayMusic_ProviderNotInit" xml:space="preserve">
+    <value>播放音乐失败，音乐提供程序尚未初始化。</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_CallResult" xml:space="preserve">
+    <value>收到 MCP 调用结果：{result}，消息 ID {msgId}，来自设备 {deviceId}。</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_InitMessage" xml:space="preserve">
+    <value>收到 MCP 初始化消息，来自客户端：{deviceId}。</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_ServerInfo" xml:space="preserve">
+    <value>来自小智客户端 MCP 的服务器信息：名称 - {name}，版本 - {version}</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_InvalidServerInfo" xml:space="preserve">
+    <value>收到无效的小智客户端 MCP 服务器信息。</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_ToolListMessage" xml:space="preserve">
+    <value>收到 MCP 工具列表消息，来自客户端：{deviceId}。</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_ToolAdded" xml:space="preserve">
+    <value>已添加工具：{ToolName}</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_ToolCount" xml:space="preserve">
+    <value>客户端设备支持的工具数量：{count}</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_MoreTools" xml:space="preserve">
+    <value>检测到还有更多工具可用，nextCursor：{nextCursor}</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_ClientReady" xml:space="preserve">
+    <value>已获取所有工具，MCP 客户端已就绪。</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_GetToolsFailed" xml:space="preserve">
+    <value>无法从客户端获取 MCP 工具。</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_ClientRequest" xml:space="preserve">
+    <value>收到 MCP 客户端请求：{method}</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_ErrorResponse" xml:space="preserve">
+    <value>收到 MCP 错误响应：{ErrorMsg}</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_ErrorResponse_Exception" xml:space="preserve">
+    <value>收到 MCP 错误响应：{0}</value>
+  </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_ToolError" xml:space="preserve">
+    <value>工具调用错误：{0}</value>
+  </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_TimeoutEx" xml:space="preserve">
+    <value>{0} 秒后响应超时</value>
+  </data>
+  <data name="BaseMcpClient_SendMcpInitializeAsync_SendingInit" xml:space="preserve">
+    <value>设备 {deviceId} 发送 MCP 初始化请求。</value>
+  </data>
+  <data name="BaseMcpClient_SendMcpNotificationAsync_SendingNotification" xml:space="preserve">
+    <value>设备 {deviceId} 发送 MCP 通知：{method}。</value>
+  </data>
+  <data name="BaseMcpClient_RequestToolsListAsync_RequestTools" xml:space="preserve">
+    <value>设备 {deviceId} 请求工具列表。</value>
+  </data>
+  <data name="BaseMcpClient_RequestToolsListAsync_RequestToolsWithCursor" xml:space="preserve">
+    <value>设备 {deviceId} 请求工具列表，cursor：{cursor}。</value>
+  </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_CallTool" xml:space="preserve">
+    <value>设备 {deviceId} 调用 MCP 工具：{toolName}，参数：{args}</value>
+  </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_Timeout" xml:space="preserve">
+    <value>调用工具 {toolName} 响应超时，{timeout} 秒。</value>
+  </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_CallSuccess" xml:space="preserve">
+    <value>成功获取设备 {deviceId} 的 MCP 工具调用结果，结果：{result}</value>
+  </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_WaitTimeout" xml:space="preserve">
+    <value>等待 MCP 工具调用响应超时：{toolName}，参数：{args}</value>
+  </data>
+  <data name="BaseMcpClient_CallMcpToolAsync_CallFailed" xml:space="preserve">
+    <value>调用 MCP 工具失败：{toolName}，参数：{args}</value>
+  </data>
+  <data name="BaseMcpClient_AddTool_ToolExists" xml:space="preserve">
+    <value>工具 {ToolName} 已存在，跳过。</value>
+  </data>
+  <data name="McpEndpointClient_Build_UrlEmpty" xml:space="preserve">
+    <value>Endpoint URL 为空，跳过此 MCP 类型。</value>
+  </data>
+  <data name="McpEndpointClient_Build_InvalidSettings" xml:space="preserve">
+    <value>{providerType} 配置无效：{modelName}</value>
+  </data>
+  <data name="McpEndpointClient_OnOpen_Connected" xml:space="preserve">
+    <value>MCP Endpoint 客户端连接并初始化成功。</value>
+  </data>
+  <data name="DeviceMcpClient_SendMcpInitializeAsync_SendingInit" xml:space="preserve">
+    <value>会话 {sessionId} 发送 MCP 初始化请求。</value>
+  </data>
+  <data name="GenericOpenAI_Build_InvalidSettings" xml:space="preserve">
+    <value>{providerType} 配置无效：{modelName}</value>
+  </data>
+  <data name="GenericOpenAI_StartDialogueAsync_NotBuilt" xml:space="preserve">
+    <value>{providerType} 模型：{modelName} 未构建。</value>
+  </data>
+  <data name="GenericOpenAI_ChatAsync_EmotionDetected" xml:space="preserve">
+    <value>检测到情感：{detectedEmotion}，片段：{segment}</value>
+  </data>
+  <data name="GenericOpenAI_ChatAsync_UnexpectedError" xml:space="preserve">
+    <value>{providerType} 发生意外错误。</value>
+  </data>
+  <data name="GenericOpenAI_ChatAsync_Cancelled" xml:space="preserve">
+    <value>LLM 对话已取消，清理 {Count} 个片段</value>
+  </data>
+  <data name="GenericOpenAI_ChatByStreamingAsync_Cancelled" xml:space="preserve">
+    <value>LLM 流式对话已取消，清理 {Count} 个片段</value>
+  </data>
+  <data name="FlashMemory_Build_Built" xml:space="preserve">
+    <value>已构建 {providerType}：{flashMemory}</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_Build_ConfigIncomplete" xml:space="preserve">
+    <value>火山 HTTP V3 TTS 配置不完整，请检查 AppId、AccessToken、ResourceId 和 speaker。</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_Build_Built" xml:space="preserve">
+    <value>已构建 {providerType} 模型：{modelName}</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_Build_Failed" xml:space="preserve">
+    <value>构建 {modelName} 失败。</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_SynthesisAsync_DevNotReg" xml:space="preserve">
+    <value>设备/会话未注册。</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_SynthesisAsync_MissingSentenceId" xml:space="preserve">
+    <value>由于缺少句子 ID，处理片段失败。</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_SynthesisAsync_RequestFailed" xml:space="preserve">
+    <value>火山 HTTP TTS 失败：状态={status} 正文={body}</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_SynthesisAsync_ApiError" xml:space="preserve">
+    <value>火山 HTTP TTS 错误：代码={code} 消息={message}</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_SynthesisAsync_GeneralFailed" xml:space="preserve">
+    <value>火山 HTTP TTS 合成失败。</value>
+  </data>
+  <data name="HuoshanHttpTTS_Build_ConfigIncomplete" xml:space="preserve">
+    <value>火山双向 TTS 配置不完整，请检查 AppId、AccessToken、Cluster 和 speaker。</value>
+  </data>
+  <data name="HuoshanHttpTTS_Build_Built" xml:space="preserve">
+    <value>已构建 {providerType} 模型：{modelName}</value>
+  </data>
+  <data name="HuoshanHttpTTS_Build_Failed" xml:space="preserve">
+    <value>构建 {modelName} 失败。</value>
+  </data>
+  <data name="HuoshanHttpTTS_SynthesisAsync_ModelNotBuilt" xml:space="preserve">
+    <value>TTS 模型未构建。</value>
+  </data>
+  <data name="HuoshanHttpTTS_SynthesisAsync_DevNotReg" xml:space="preserve">
+    <value>设备/会话未注册。</value>
+  </data>
+  <data name="HuoshanHttpTTS_SynthesisAsync_MissingSentenceId" xml:space="preserve">
+    <value>由于缺少句子 ID，处理片段失败。</value>
+  </data>
+  <data name="HuoshanHttpTTS_SynthesisAsync_RequestFailed" xml:space="preserve">
+    <value>火山 HTTP TTS 失败：状态={status} 正文={body}</value>
+  </data>
+  <data name="BaseHuoshanTTS_SaveAudioFile_FileSaved" xml:space="preserve">
+    <value>已将 TTS 音频文件保存到 {audioPath}，设备 {deviceId}。</value>
+  </data>
+  <data name="BaseHuoshanTTS_SaveAudioFile_SaveFailed" xml:space="preserve">
+    <value>保存设备 {deviceId} 的音频文件失败。</value>
+  </data>
+  <data name="HuoshanHttpTTS_SynthesisAsync_ApiError" xml:space="preserve">
+    <value>火山 HTTP TTS 错误：代码={code} 消息={message}</value>
+  </data>
+  <data name="HuoshanHttpTTS_SynthesisAsync_GeneralFailed" xml:space="preserve">
+    <value>火山 HTTP TTS 合成失败。</value>
+  </data>
+  <data name="HuoshanBidirectionTTS_SynthesisAsync_ClientNotInit" xml:space="preserve">
+    <value>WebSocket 客户端未初始化。</value>
+  </data>
+  <data name="HuoshanBidirectionTTS_SynthesisAsync_MissingIds" xml:space="preserve">
+    <value>由于缺少段落 ID 或句子 ID，处理片段失败。</value>
+  </data>
+  <data name="HuoshanBidirectionTTS_SynthesisAsync_Canceled" xml:space="preserve">
+    <value>TTS 合成已取消。</value>
+  </data>
+  <data name="HuoshanBidirectionTTS_SynthesisAsync_Failed" xml:space="preserve">
+    <value>TTS 合成失败。</value>
+  </data>
+  <data name="HuoshanBidirectionTTS_Dispose_FinishError" xml:space="preserve">
+    <value>释放期间 FinishConnection 引发异常。</value>
+  </data>
+  <data name="HuoshanBidirectionTTS_Dispose_Disposed" xml:space="preserve">
+    <value>TTS 提供程序已释放</value>
+  </data>
+  <data name="SileroNative_Build_UnsupportedSampleRate" xml:space="preserve">
+    <value>不支持的采样率：{sampleRate}。仅支持 8000 和 16000。</value>
+  </data>
+  <data name="SileroNative_Build_Built" xml:space="preserve">
+    <value>已构建 {providerType} 模型：{modelName}</value>
+  </data>
+  <data name="SileroNative_Build_InvalidSettings" xml:space="preserve">
+    <value>{providerType} 配置无效：{modelName}</value>
+  </data>
+  <data name="SileroNative_AnalysisVoiceAsync_ProviderNotBuilt" xml:space="preserve">
+    <value>请先构建 VAD 提供程序。</value>
+  </data>
+  <data name="SileroNative_AnalysisVoiceAsync_VoiceStopped" xml:space="preserve">
+    <value>设备 {deviceId} 的语音已停止，静默持续时间：{stopDuration}ms</value>
+  </data>
+  <data name="SileroNative_AnalysisVoiceAsync_UserCanceled" xml:space="preserve">
+    <value>用户取消了 {providerType} 任务。</value>
+  </data>
+  <data name="SileroNative_AnalysisVoiceAsync_UnexpectedError" xml:space="preserve">
+    <value>设备 {deviceId} 的 {providerType} 发生意外错误</value>
+  </data>
+  <data name="SileroNative_CheckLongTermSilence_Detected" xml:space="preserve">
+    <value>检测到设备 {deviceId} 的长期静默，持续时间：{silenceDuration}ms</value>
+  </data>
+  <data name="Kokoro_Build_Built" xml:space="preserve">
+    <value>已构建 {providerType} 模型：{modelName}</value>
+  </data>
+  <data name="Kokoro_Build_InvalidSettings" xml:space="preserve">
+    <value>{providerType} 配置无效：{modelName}</value>
+  </data>
+  <data name="BaseSherpaTts_UnregisterDevice_Unregistered" xml:space="preserve">
+    <value>已注销设备 {deviceId} 的 TTS 会话，会话：{sessionId}</value>
+  </data>
+  <data name="BaseSherpaTts_SynthesisAsync_ProviderNotBuilt" xml:space="preserve">
+    <value>请先构建 TTS 提供程序。</value>
+  </data>
+  <data name="BaseSherpaTts_SynthesisAsync_MissingIds" xml:space="preserve">
+    <value>由于缺少段落 ID 或句子 ID，处理片段失败。</value>
+  </data>
+  <data name="BaseSherpaTts_SynthesisAsync_FileSaved" xml:space="preserve">
+    <value>保存 TTS wav 文件 {fileName} 成功，文件时长为：{duration}s。</value>
+  </data>
+  <data name="BaseSherpaTts_SynthesisAsync_SaveFailed" xml:space="preserve">
+    <value>保存 TTS wav 文件 {fileName} 失败。</value>
+  </data>
+  <data name="BaseSherpaTts_SynthesisAsync_Generated" xml:space="preserve">
+    <value>TTS 生成成功，语音时长为：{duration}。</value>
+  </data>
+  <data name="BaseSherpaTts_SynthesisAsync_CallbackNotRegistered" xml:space="preserve">
+    <value>设备 {deviceId} 未注册 TTS 事件回调。</value>
+  </data>
+  <data name="BaseSherpaTts_SynthesisAsync_UserCanceled" xml:space="preserve">
+    <value>用户取消了 {providerType} 任务。</value>
+  </data>
+  <data name="BaseSherpaTts_SynthesisAsync_UnexpectedError" xml:space="preserve">
+    <value>{providerType} 发生意外错误。</value>
+  </data>
+  <data name="HuoshanStreamTTS_Build_ConfigIncomplete" xml:space="preserve">
+    <value>火山双向 TTS 配置不完整，请检查 AppId、AccessToken、ResourceId 和 speaker。</value>
+  </data>
+  <data name="HuoshanStreamTTS_Build_Built" xml:space="preserve">
+    <value>已构建 {providerType} 模型：{modelName}</value>
+  </data>
+  <data name="HuoshanStreamTTS_Build_Failed" xml:space="preserve">
+    <value>构建 {modelName} 失败。</value>
+  </data>
+  <data name="HuoshanStreamTTS_ConnectAsync_ClientNotInitLog" xml:space="preserve">
+    <value>火山 TTS 的 WebSocket 客户端未初始化。</value>
+  </data>
+  <data name="HuoshanStreamTTS_ConnectAsync_ClientNotInitEx" xml:space="preserve">
+    <value>WebSocket 客户端未初始化。</value>
+  </data>
+  <data name="HuoshanStreamTTS_WaitForEventAsync_Timeout" xml:space="preserve">
+    <value>等待 {eventType} 超时。</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnOpen_Connected" xml:space="preserve">
+    <value>设备 {deviceId} 的火山 WebSocket 已连接。</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnClose_Closed" xml:space="preserve">
+    <value>火山 WebSocket 已关闭：{Status} {Description}</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnClose_ClosedEx" xml:space="preserve">
+    <value>WebSocket 已关闭：{status} {desc}</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnError_Error" xml:space="preserve">
+    <value>火山 WebSocket 错误：{Error} {Message}</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnError_ErrorEx" xml:space="preserve">
+    <value>WebSocket 错误：{error} {message}</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnBinaryMessage_ParseFailed" xml:space="preserve">
+    <value>无法解析 WebSocket 二进制消息。</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnBinaryMessage_AppendFailed" xml:space="preserve">
+    <value>无法为 TTS 会话 {ttsSessionId} 追加音频数据。</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnBinaryMessage_ServerFailure" xml:space="preserve">
+    <value>服务器报告失败：{message}</value>
+  </data>
+  <data name="HuoshanStreamTTS_OnBinaryMessage_ServerError" xml:space="preserve">
+    <value>服务器错误：{message}</value>
+  </data>
+  <data name="BaseProvider_RegisterDevice_Registered" xml:space="preserve">
+    <value>设备 [{deviceId}] 已注册到提供者 {providerType}，会话 ID：{sessionId}。</value>
+  </data>
+  <data name="BaseProvider_UnregisterDevice_Unregistered" xml:space="preserve">
+    <value>设备 [{deviceId}] 已从提供者 {providerType} 注销，会话 ID：{sessionId}。</value>
+  </data>
+  <data name="BaseProvider_CheckDeviceRegistered_NotRegistered" xml:space="preserve">
+    <value>设备 [{deviceId}]（会话 ID：{sessionId}）未注册到提供者 {providerType}。</value>
+  </data>
+  <data name="BaseProvider_CheckModelExist_NotFound" xml:space="preserve">
+    <value>在路径：{modelFilePath} 中未找到模型文件。</value>
+  </data>
+  <data name="BaseProvider_ReplaceMacDelimiters_DeviceIdNull" xml:space="preserve">
+    <value>设备 ID 不能为空。</value>
+  </data>
+  <data name="Silero_Build_Built" xml:space="preserve">
+    <value>已构建 {providerType} 模型：{modelName}</value>
+  </data>
+  <data name="Silero_Build_InvalidSettings" xml:space="preserve">
+    <value>{providerType} 模型设置无效：{modelName}</value>
+  </data>
+  <data name="BaseSherpaVad_Build_UnsupportedSampleRate" xml:space="preserve">
+    <value>不支持的采样率：{sampleRate}。仅支持 8000 和 16000。</value>
+  </data>
+  <data name="BaseSherpaVad_RegisterDevice_Registered" xml:space="preserve">
+    <value>已注册设备的 VAD 会话状态：{deviceId}，会话：{sessionId}</value>
+  </data>
+  <data name="BaseSherpaVad_UnregisterDevice_Unregistered" xml:space="preserve">
+    <value>已注销设备的 VAD 会话状态：{deviceId}，会话：{sessionId}</value>
+  </data>
+  <data name="BaseSherpaVad_ResetSessionState_Reset" xml:space="preserve">
+    <value>已重置设备的 VAD 会话状态：{deviceId}，会话：{sessionId}</value>
+  </data>
+  <data name="BaseSherpaVad_AnalysisVoiceAsync_VoiceStopped" xml:space="preserve">
+    <value>设备语音已停止：{deviceId}。</value>
+  </data>
+  <data name="BaseSherpaVad_AnalysisVoiceAsync_UserCanceled" xml:space="preserve">
+    <value>用户取消了 {providerType} 的任务。</value>
+  </data>
+  <data name="BaseSherpaVad_AnalysisVoiceAsync_UnexpectedError" xml:space="preserve">
+    <value>{providerType} 发生意外错误。</value>
+  </data>
+  <data name="BaseSherpaVad_CheckLongTermSilence_Detected" xml:space="preserve">
+    <value>检测到设备长期静默：{deviceId}，持续时间：{silenceDuration}ms</value>
+  </data>
+  <data name="BaseSherpaVad_AnalysisVoiceAsync_VadNotBuilt" xml:space="preserve">
+    <value>请先构建 VAD 提供程序。</value>
+  </data>
+  <data name="BaseSherpaVad_AnalysisVoiceAsync_SessionStateNotFound" xml:space="preserve">
+    <value>未找到设备 {0} 的会话状态，会话：{1}。请先注册设备。</value>
+  </data>
+  <data name="SileroModelState_UpdateHiddenState_SizeMismatch" xml:space="preserve">
+    <value>隐藏状态大小不匹配。预期 {0}，实际 {1}</value>
+  </data>
+  <data name="SileroModelState_UpdateCellState_SizeMismatch" xml:space="preserve">
+    <value>单元状态大小不匹配。预期 {0}，实际 {1}</value>
+  </data>
+  <data name="SileroOnnx_Load_Loaded" xml:space="preserve">
+    <value>已加载 ONNX 模型：{modelName}。</value>
+  </data>
+  <data name="SileroOnnx_Load_InvalidModel" xml:space="preserve">
+    <value>无效的 ONNX 模型：{modelName}。</value>
+  </data>
+  <data name="SileroOnnx_Infer_Disposed" xml:space="preserve">
+    <value>无法使用已释放的 {0} 实例。</value>
+  </data>
+  <data name="SileroOnnx_Infer_SessionNotInitialized" xml:space="preserve">
+    <value>ONNX InferenceSession 未初始化。请在 Infer() 之前调用 Load()。</value>
+  </data>
+  <data name="SileroOnnx_Infer_SampleCountMismatch" xml:space="preserve">
+    <value>预期 {1}Hz 为 {0} 个样本，实际为 {2}</value>
+  </data>
+  <data name="SileroOnnx_ValidateInput_SamplesEmpty" xml:space="preserve">
+    <value>音频样本不能为空。</value>
+  </data>
+  <data name="SileroOnnx_ValidateInput_UnsupportedSampleRate" xml:space="preserve">
+    <value>不支持的采样率：{sampleRate}。仅支持 8000 和 16000。</value>
+  </data>
+  <data name="SileroOnnx_ValidateInput_SampleRateChanged" xml:space="preserve">
+    <value>采样率从 {lastSr} 更改为 {newSr}，重置模型状态。</value>
+  </data>
+  <data name="SileroOnnx_Dispose_Disposed" xml:space="preserve">
+    <value>Silero VAD v4 ONNX 模型已释放。</value>
+  </data>
+  <data name="MusicProvider_Load_PathNotSet" xml:space="preserve">
+    <value>未在设置中设置音乐文件夹路径。</value>
+  </data>
+  <data name="MusicProvider_Load_PathNotExist" xml:space="preserve">
+    <value>音乐文件夹路径 '{MusicFolderPath}' 不存在。</value>
+  </data>
+  <data name="MusicProvider_UpdateMusicFiles_SettingsNotInitialized" xml:space="preserve">
+    <value>无法更新音乐文件，因为设置未初始化。</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_BindCodePromptNotExist" xml:space="preserve">
+    <value>绑定码提示文件不存在：{filePath}</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_BindNotFoundNotExist" xml:space="preserve">
+    <value>绑定未找到文件不存在：{filePath}</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_DigitFilesCountError" xml:space="preserve">
+    <value>数字文件文件夹必须正好包含 10 个数字 0-9 的文件。</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_InvalidDigitFile" xml:space="preserve">
+    <value>无效的数字文件：{fileName}</value>
+  </data>
+  <data name="DefaultDeviceBinding_Load_InvalidResourceLoading" xml:space="preserve">
+    <value>资源加载无效：{resourceName}</value>
+  </data>
+  <data name="DefaultDeviceBinding_GetDeviceNotFoundAudioStream_NotLoaded" xml:space="preserve">
+    <value>未加载绑定未找到音频文件。</value>
+  </data>
+  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_InvalidBindCode" xml:space="preserve">
+    <value>无效的绑定码：{bindCode}，必须是 6 位数字字符串。</value>
+  </data>
+  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_PromptNotLoaded" xml:space="preserve">
+    <value>未加载绑定码提示音频文件。</value>
+  </data>
+  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_DigitNotLoaded" xml:space="preserve">
+    <value>未加载数字 '{digit}' 的音频文件。</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_ListEmpty" xml:space="preserve">
+    <value>WAV 文件列表不能为空</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_FirstFileInvalid" xml:space="preserve">
+    <value>第一个文件不是有效的 WAV 文件</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_FileInvalid" xml:space="preserve">
+    <value>其中一个文件不是有效的 WAV 文件</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_BufferOverflow" xml:space="preserve">
+    <value>偏移量和计数之和大于缓冲区长度。</value>
+  </data>
+  <data name="DefaultDeviceBinding_CombinedStream_InvalidOrigin" xml:space="preserve">
+    <value>无效的搜索原点</value>
+  </data>
+  <data name="BaseOnnxModel_CheckModelExist_NotFound" xml:space="preserve">
+    <value>在路径：{modelFilePath} 中未找到 onnx 模型文件。</value>
+  </data>
+  <data name="ManageApiClient_LoadConfigFromApi_UnknownException" xml:space="preserve">
+    <value>从 API 加载配置时发生未知异常：{0}</value>
+  </data>
+  <data name="EmotionAgent_Build_Built" xml:space="preserve">
+    <value>已构建 {providerType} - {modelName}，模型名称：{emotionLLMName}</value>
+  </data>
+  <data name="ChatAgent_Build_BuiltFailed" xml:space="preserve">
+    <value>构建{providerType} - {modelName}失败，模型名称：{chatLLMName}</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_FunctionCancelled" xml:space="preserve">
+    <value>函数调用已取消：{FunctionName}</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_McpCancelled" xml:space="preserve">
+    <value>MCP 工具调用已取消：{FunctionName}</value>
+  </data>
+  <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_IoTCancelled" xml:space="preserve">
+    <value>IoT 命令调用已取消：{FunctionName}</value>
+  </data>
+  <data name="BaseHandler_OnSessionCtsTokenChanged_CtsAlreadyDisposed" xml:space="preserve">
+    <value>{HandlerName}：尝试取消时，旧会话CTS已被释放。</value>
+  </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_KernelNotReady" xml:space="preserve">
+    <value>Kernel尚未准备好处理 MCP 消息。设备 ID：{DeviceId}。</value>
+  </data>
+  <data name="IoTClient_RegisterIoTTools_KernelNull" xml:space="preserve">
+    <value>Kernel尚未准备好处理 IOT 消息。设备 ID：{DeviceId}。</value>
+  </data>
+</root>
