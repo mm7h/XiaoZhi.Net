@@ -25,6 +25,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override bool Build(PrivateProvider privateProvider)
         {
+            this.Builded = true;
             return true;
         }
 

@@ -113,7 +113,13 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             }
             catch (ObjectDisposedException)
             {
-                
+                lock (_lock)
+                {
+                    this.Reset();
+                    this._isReseting = false;
+                    this.CreateCancellationTokenSource();
+                    this.SessionCtsTokenChanged?.Invoke(this._sessionCts.Token);
+                }
             }
         }
 

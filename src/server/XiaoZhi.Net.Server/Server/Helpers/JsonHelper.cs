@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -42,18 +41,6 @@ namespace XiaoZhi.Net.Server.Helpers
         public override string ConvertName(string name)
         {
             if (string.IsNullOrEmpty(name) || string.IsNullOrWhiteSpace(name)) return string.Empty;
-
-
-            // 尝试获取属性的 JsonPropertyName 特性
-            var propertyInfo = GetPropertyInfo(name);
-            if (propertyInfo != null)
-            {
-                var jsonPropertyAttribute = propertyInfo.GetCustomAttribute<JsonPropertyNameAttribute>();
-                if (jsonPropertyAttribute != null)
-                {
-                    return jsonPropertyAttribute.Name;
-                }
-            }
 
             ReadOnlySpan<char> spanName = name.Trim();
             var stringBuilder = new StringBuilder();
@@ -121,35 +108,6 @@ namespace XiaoZhi.Net.Server.Helpers
 
             var result = stringBuilder.ToString().ToLower();
             return result;
-        }
-
-        private PropertyInfo? GetPropertyInfo(string propertyName)
-        {
-            // 遍历当前加载的所有程序集
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                try
-                {
-                    foreach (var type in assembly.GetTypes())
-                    {
-                        var property = type.GetProperty(propertyName, 
-                            BindingFlags.Public | 
-                            BindingFlags.NonPublic | 
-                            BindingFlags.Instance);
-                        
-                        if (property != null)
-                        {
-                            return property;
-                        }
-                    }
-                }
-                catch
-                {
-                    // 忽略程序集加载错误
-                    continue;
-                }
-            }
-            return null;
         }
     }
 }
