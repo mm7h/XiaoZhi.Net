@@ -1218,4 +1218,7 @@
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_IoTCancelled" xml:space="preserve">
     <value>IoT command call cancelled: {FunctionName}</value>
   </data>
+  <data name="BaseHandler_OnSessionCtsTokenChanged_CtsAlreadyDisposed" xml:space="preserve">
+    <value>{HandlerName}: Old session CTS already disposed when trying to cancel.</value>
+  </data>
 </root>

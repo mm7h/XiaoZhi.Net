@@ -5,8 +5,7 @@ namespace XiaoZhi.Net.Server
     public sealed class XiaoZhiConfig
     {
         public ServerProtocol ServerProtocol { get; set; }
-        public string Prompt { get; set; } = null!;
-        public int? CloseConnectionNoVoiceTime { get; set; }
+        public string Prompt { get; set; } = string.Empty;
         public bool AuthEnabled { get; set; }
         public LogSetting LogSetting { get; set; } = new LogSetting();
         public WebSocketServerOption WebSocketServerOption { get; set; } = new WebSocketServerOption();

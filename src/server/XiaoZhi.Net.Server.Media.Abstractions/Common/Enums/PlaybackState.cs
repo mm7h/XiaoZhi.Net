@@ -16,7 +16,7 @@ public enum PlaybackState
     Playing,
 
     /// <summary>
-    /// Indicates that the playback is currently buferring.
+    /// Indicates that the playback is currently buffering.
     /// </summary>
     Buffering,
 

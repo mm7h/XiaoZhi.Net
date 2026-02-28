@@ -75,7 +75,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 this.Logger.LogError(Lang.AudioReceiveHandler_Handle_AudioDecoderNotConfigured, session.DeviceId);
                 return;
             }
-            if (!session.IsIdle)
+            if (session.IsAudioProcessing)
             {
 #if DEBUG
                 this.Logger.LogDebug(Lang.AudioReceiveHandler_Handle_PacketIgnored);
@@ -173,7 +173,8 @@ namespace XiaoZhi.Net.Server.Handlers
                 session.Reset();
                 return;
             }
-
+            
+            session.RefreshLastActivityTime();
             session.AudioPacket.ResetAudioBuffer();
             var workflow = this._audioBufferWorkflowPool.Get();
             workflow.Initialize(session, audioData);

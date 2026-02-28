@@ -61,7 +61,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             catch (ObjectDisposedException)
             {
-                // Already disposed, ignore
+                this.Logger.LogDebug(Lang.BaseHandler_OnSessionCtsTokenChanged_CtsAlreadyDisposed, this.HandlerName);
             }
             
             this._handlerCts = CancellationTokenSource.CreateLinkedTokenSource(newToken);

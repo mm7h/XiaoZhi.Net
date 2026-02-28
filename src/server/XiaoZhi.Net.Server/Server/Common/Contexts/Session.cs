@@ -48,7 +48,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public bool CloseAfterChat { get; set; }
         public long TurnId => Interlocked.Read(ref _turnId);
 
-        public bool IsIdle => Interlocked.Read(ref _isAudioProcessing) == 1;
+        public bool IsAudioProcessing => Interlocked.Read(ref _isAudioProcessing) == 1;
 
         public bool ShouldIgnore() => this._isReseting;
 
@@ -84,16 +84,16 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         public void RejectIncomingAudio()
         {
-            Interlocked.Exchange(ref _isAudioProcessing, 0);
+            Interlocked.Exchange(ref this._isAudioProcessing, 0);
         }
         public void AcceptIncomingAudio()
         {
-            Interlocked.Exchange(ref _isAudioProcessing, 1);
+            Interlocked.Exchange(ref this._isAudioProcessing, 1);
         }
 
         public void Reset()
         {
-            Interlocked.Increment(ref _turnId);
+            Interlocked.Increment(ref this._turnId);
             this.AcceptIncomingAudio();
             this.AudioPacket.Reset();
         }
@@ -164,7 +164,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         public override string ToString()
         {
-            return $"DeviceId: {DeviceId}, SessionId: {SessionId}";
+            return $"DeviceId: {this.DeviceId}, SessionId: {this.SessionId}";
         }
     }
 }

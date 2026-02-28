@@ -40,6 +40,7 @@
         "SilenceThresholdSecond": 0.7,
         "MinSpeechDurationSecond": 0.5,
         "MaxSpeechDurationSecond": 60,
+        // 间隔多久没有检测到声音就断开连接，单位毫秒
         "CloseConnectionNoVoiceTime": 120000
       },
       "SileroNative": {

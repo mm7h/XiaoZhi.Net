@@ -1218,4 +1218,7 @@
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_IoTCancelled" xml:space="preserve">
     <value>IoT 命令调用已取消：{FunctionName}</value>
   </data>
+  <data name="BaseHandler_OnSessionCtsTokenChanged_CtsAlreadyDisposed" xml:space="preserve">
+    <value>{HandlerName}：尝试取消时，旧会话CTS已被释放。</value>
+  </data>
 </root>

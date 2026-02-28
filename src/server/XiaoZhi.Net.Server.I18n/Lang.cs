@@ -56,6 +56,7 @@ namespace XiaoZhi.Net.Server.I18n
         public static string AudioReceiveHandler_Handle_Cancelled => ResourceManager.GetString("AudioReceiveHandler_Handle_Cancelled", resourceCulture) ?? "";
 
         public static string BaseHandler_CheckWorkflowValid_StaleWorkflow => ResourceManager.GetString("BaseHandler_CheckWorkflowValid_StaleWorkflow", resourceCulture) ?? "";
+        public static string BaseHandler_OnSessionCtsTokenChanged_CtsAlreadyDisposed => ResourceManager.GetString("BaseHandler_OnSessionCtsTokenChanged_CtsAlreadyDisposed", resourceCulture) ?? "";
         public static string BaseHandler_OnTokenCanceled_TokenCanceled => ResourceManager.GetString("BaseHandler_OnTokenCanceled_TokenCanceled", resourceCulture) ?? "";
 
         public static string DialogueHandler_Build_LlmNotConfigured => ResourceManager.GetString("DialogueHandler_Build_LlmNotConfigured", resourceCulture) ?? "";
