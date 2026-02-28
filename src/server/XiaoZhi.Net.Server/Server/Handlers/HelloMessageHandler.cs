@@ -33,8 +33,7 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             Session session = this.SendOutter.GetSession();
 
-            AudioSetting defaultAudioParams = new AudioSetting(DEFAULT_AUDIO_FORMAT, this.Config.AudioSetting.SampleRate, this.Config.AudioSetting.Channels, this.Config.AudioSetting.FrameDuration);
-            HelloMessage defaultHelloMessage = new HelloMessage(this.SendOutter.SessionId, this.Config.ServerProtocol.GetDescription().ToLower(), defaultAudioParams);
+            HelloMessage defaultHelloMessage = new HelloMessage(this.SendOutter.SessionId, this.Config.ServerProtocol.GetDescription().ToLower(), this.Config.AudioSetting);
 
             if (helloMessage.TryGetPropertyValue("audio_params", out var audioParams) && audioParams is not null)
             {
@@ -48,12 +47,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 session.AudioSetting.SampleRate = sampleRate;
                 session.AudioSetting.Channels = channels;
                 session.AudioSetting.FrameDuration = frameDuration;
-                session.AudioSetting.OutSampleRate = this.Config.AudioSetting.OutSampleRate;
-
-                defaultHelloMessage.AudioParams.Format = format;
-                defaultHelloMessage.AudioParams.SampleRate = sampleRate;
-                defaultHelloMessage.AudioParams.Channels = channels;
-                defaultHelloMessage.AudioParams.FrameDuration = frameDuration;
             }
             bool providerInitResult = await this._providerManager.InitializePrivateConfigAsync(session);
             bool handlerInitResult = this._handlerManager.InitializePrivateConfig(session);

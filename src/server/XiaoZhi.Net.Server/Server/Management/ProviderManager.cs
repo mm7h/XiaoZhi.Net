@@ -180,6 +180,8 @@ namespace XiaoZhi.Net.Server.Management
                 {
                     this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_RemoteServiceUnavailable, session.DeviceId);
 
+                    session.IsDeviceBinded = true; // Assume device is binded if manage API is not available
+
                     return this.RegisterGlobalProviders(session);
                 }
 
@@ -433,14 +435,14 @@ namespace XiaoZhi.Net.Server.Management
         {
             int ttsSampleRate = session.PrivateProvider.Tts?.GetTtsSampleRate() ?? this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS).GetTtsSampleRate();
 
-            if (ttsSampleRate == session.AudioSetting.OutSampleRate)
+            if (ttsSampleRate == this._config.AudioSetting.SampleRate)
             {
                 return;
             }
 
-            this._logger.LogInformation(Lang.ProviderManager_BuildAudioResampler_ResamplingRequired, session.DeviceId, ttsSampleRate, session.AudioSetting.OutSampleRate);
+            this._logger.LogInformation(Lang.ProviderManager_BuildAudioResampler_ResamplingRequired, session.DeviceId, ttsSampleRate, this._config.AudioSetting.SampleRate);
 
-            ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, ttsSampleRate, session.AudioSetting.OutSampleRate);
+            ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, ttsSampleRate, this._config.AudioSetting.SampleRate);
             IAudioResampler audioResampler = this._serviceProvider.GetRequiredService<IAudioResampler>();
             if (!audioResampler.Build(resamplerBuildConfig))
             {
@@ -462,7 +464,7 @@ namespace XiaoZhi.Net.Server.Management
         public void BuildAudioEncoder(Session session)
         {
             IAudioEncoder audioEncoder = this._serviceProvider.GetRequiredService<IAudioEncoder>();
-            if (!audioEncoder.Build(session.AudioSetting))
+            if (!audioEncoder.Build(this._config.AudioSetting))
             {
                 this._logger.LogWarning(Lang.ProviderManager_BuildAudioEncoder_BuildFailed, session.SessionId);
             }
@@ -674,7 +676,7 @@ namespace XiaoZhi.Net.Server.Management
         public void BuildAudioPlayer(Session session)
         {
             IAudioPlayerClient audioPlayerClient = this._serviceProvider.GetRequiredService<IAudioPlayerClient>();
-            if (!audioPlayerClient.Build(session.AudioSetting))
+            if (!audioPlayerClient.Build(this._config.AudioSetting))
             {
                 this._logger.LogWarning(Lang.ProviderManager_BuildAudioPlayer_BuildFailed, session.SessionId);
             }
@@ -694,7 +696,7 @@ namespace XiaoZhi.Net.Server.Management
         public void BuildAudioProcessor(Session session)
         {
             IAudioProcessor audioProcessor = this._serviceProvider.GetRequiredService<IAudioProcessor>();
-            if (!audioProcessor.Build(session.AudioSetting))
+            if (!audioProcessor.Build(this._config.AudioSetting))
             {
                 this._logger.LogWarning(Lang.ProviderManager_BuildAudioProcessor_BuildFailed, session.SessionId);
             }

@@ -68,7 +68,7 @@ internal class StreamAudioPlayer : AudioPlayerBase<Stream, StreamAudioPlayer>, I
     {
         if (_decoderOptions is null)
         {
-            throw new ArgumentNullException("Decoder options is not set.");
+            throw new InvalidOperationException("Decoder options is not set.");
         }
 
         return new FFmpegStreamDecoder(stream, _decoderOptions);

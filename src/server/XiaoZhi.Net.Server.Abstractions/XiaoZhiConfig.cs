@@ -68,7 +68,6 @@ namespace XiaoZhi.Net.Server
         public int Channels { get; set; } = 1;
         public int FrameDuration { get; set; } = 60;
         public int FrameSize => this.SampleRate * this.FrameDuration * this.Channels / 1000;
-        public int OutSampleRate { get; set; } = 24000;
     }
     public sealed class MusicProviderSetting
     {

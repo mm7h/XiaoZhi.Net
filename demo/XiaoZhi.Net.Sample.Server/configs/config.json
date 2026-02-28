@@ -13,10 +13,9 @@
     "RetainedFileCountLimit": 30
   },
   "AudioSetting": {
-    "SampleRate": 16000,
+    "SampleRate": 24000,
     "Channels": 1,
-    "FrameDuration": 60,
-    "OutSampleRate": 24000
+    "FrameDuration": 60
   },
   "DeviceBindSetting": {
     "BindCodePromptFilePath": "configs/assets/bind_code.wav",
@@ -112,11 +111,10 @@
     "TTS": {
       "Kokoro": {
         "Lexicons": "./lexicon/lexicon-zh.txt,./lexicon/lexicon-us-en.txt",
-        "UseStreaming": false,
         "FileSavingOption": {
           "SaveFile": true,
           "SavePath": "./data/tts-cache",
-          "Format": "mp3"
+          "Format": "pcm"
         }
       },
       "HuoshanBidirection": {
@@ -129,7 +127,7 @@
         "FileSavingOption": {
           "SaveFile": true,
           "SavePath": "./data/tts-cache",
-          "Format": "mp3"
+          "Format": "pcm"
         }
       },
       //废弃单向接口，推荐使用HuoshanBidirection接口

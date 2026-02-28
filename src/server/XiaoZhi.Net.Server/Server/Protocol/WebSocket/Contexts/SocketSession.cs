@@ -51,7 +51,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         }
         public Task SendTtsMessageAsync(TtsStatus state, string? text = null)
         {
-            if (this.XiaoZhiSession is null)
+            if (this.XiaoZhiSession is null || this.XiaoZhiSession.PrivateProvider.Tts is null)
             {
                 this.Logger.LogError(Lang.SocketSession_SendTtsMessageAsync_SessionNotInitialized);
                 return Task.FromException(new SessionNotInitializedException());
@@ -62,6 +62,11 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
                 ["state"] = state.GetDescription(),
                 ["session_id"] = this.SessionId
             };
+
+            if (state == TtsStatus.Start)
+            {
+                msg["sample_rate"] = this.XiaoZhiSession.PrivateProvider.Tts.GetTtsSampleRate().ToString();
+            }
 
             if (!string.IsNullOrEmpty(text))
             {

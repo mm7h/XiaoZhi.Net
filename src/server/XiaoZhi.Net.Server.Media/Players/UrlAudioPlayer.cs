@@ -67,7 +67,7 @@ internal class UrlAudioPlayer : AudioPlayerBase<string, UrlAudioPlayer>, IUrlAud
     {
         if (_decoderOptions is null)
         {
-            throw new ArgumentNullException("Decoder options is not set.");
+            throw new InvalidOperationException("Decoder options is not set.");
         }
         return new FFmpegUrlDecoder(url, _decoderOptions);
     }

@@ -286,6 +286,7 @@ namespace XiaoZhi.Net.Server.Media.Encoders.FFmpeg
                 ".wav" => "wav",
                 ".ogg" => "ogg",
                 ".m4a" => "ipod",
+                ".pcm" => "s16le",
                 _ => "mp3"
             };
         }
@@ -300,6 +301,7 @@ namespace XiaoZhi.Net.Server.Media.Encoders.FFmpeg
                 ".wav" => AVCodecID.AV_CODEC_ID_PCM_S16LE,
                 ".ogg" => AVCodecID.AV_CODEC_ID_VORBIS,
                 ".m4a" => AVCodecID.AV_CODEC_ID_AAC,
+                ".pcm" => AVCodecID.AV_CODEC_ID_PCM_S16LE,
                 _ => AVCodecID.AV_CODEC_ID_MP3
             };
         }

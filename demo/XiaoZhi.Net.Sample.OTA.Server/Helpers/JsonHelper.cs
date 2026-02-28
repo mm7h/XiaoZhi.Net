@@ -12,7 +12,9 @@ namespace Demo.OTA.Server.Helpers
             PropertyNameCaseInsensitive = true,
             PropertyNamingPolicy = new JsonSnakeCaseNamingPolicy(),
             DictionaryKeyPolicy = new JsonSnakeCaseNamingPolicy(),
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true
         };
 
         public static string ToJson(this object obj) => JsonSerializer.Serialize(obj, JsonHelper.OPTIONS);

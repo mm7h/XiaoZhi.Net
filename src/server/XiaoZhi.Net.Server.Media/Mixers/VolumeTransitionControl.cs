@@ -1,4 +1,5 @@
-﻿using XiaoZhi.Net.Server.Media.Abstractions.Common.Enums;
+﻿using System.Diagnostics;
+using XiaoZhi.Net.Server.Media.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Media.Mixers
 {
@@ -7,14 +8,14 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         private float _startVolume = 0.0f;
         private float _currentVolume = 0.0f;
         private float _targetVolume = 0.0f;
-        private DateTime _transitionStartTime = DateTime.MinValue;
-        private int _transitionDurationMs = 500;
+        private long _transitionStartTicks = 0;
+        private long _transitionDurationTicks = 0;
         private VolumeTransitionCurve _transitionCurve = VolumeTransitionCurve.Logarithmic;
         private bool _isInitialized = false;
 
         public float CurrentVolume => _currentVolume;
         public float TargetVolume => _targetVolume;
-        public bool IsTransitioning => DateTime.Now < _transitionStartTime.AddMilliseconds(_transitionDurationMs);
+        public bool IsTransitioning => _transitionDurationTicks > 0 && Stopwatch.GetTimestamp() - _transitionStartTicks < _transitionDurationTicks;
 
         public void StartTransition(float newTargetVolume, int durationMs, VolumeTransitionCurve curve)
         {
@@ -31,8 +32,10 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             {
                 _startVolume = _currentVolume;
                 _targetVolume = newTargetVolume;
-                _transitionStartTime = DateTime.Now;
-                _transitionDurationMs = durationMs;
+                _transitionStartTicks = Stopwatch.GetTimestamp();
+                _transitionDurationTicks = durationMs > 0
+                    ? (long)(durationMs / 1000.0 * Stopwatch.Frequency)
+                    : 0;
                 _transitionCurve = curve;
             }
             else
@@ -51,8 +54,8 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 return _currentVolume;
             }
 
-            var elapsed = (DateTime.Now - _transitionStartTime).TotalMilliseconds;
-            var progress = Math.Min(1.0f, (float)(elapsed / _transitionDurationMs));
+            var elapsedTicks = Stopwatch.GetTimestamp() - _transitionStartTicks;
+            var progress = Math.Min(1.0f, (float)((double)elapsedTicks / _transitionDurationTicks));
 
             if (progress >= 1.0f)
             {
