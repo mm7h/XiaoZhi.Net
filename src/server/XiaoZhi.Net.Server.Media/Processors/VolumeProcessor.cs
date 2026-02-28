@@ -12,7 +12,7 @@ internal class VolumeProcessor : SampleProcessorBase
     /// <summary>
     /// Initializes <see cref="VolumeProcessor"/>. The volume range should between 0f to 1f.
     /// </summary>
-    /// <param name="initialVolume">Inital desired audio volume.</param>
+    /// <param name="initialVolume">Initial desired audio volume.</param>
     public VolumeProcessor(float initialVolume = 1.0f)
     {
         Volume = initialVolume;

@@ -15,7 +15,7 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ProviderManager _providerManager;
         private readonly HandlerManager _handlerManager;
         public HelloMessageHandler(ProviderManager providerManager, HandlerManager handlerManager, XiaoZhiConfig config,
-            ILogger<TextHandler> logger) : base(config, logger)
+            ILogger<HelloMessageHandler> logger) : base(config, logger)
         {
             this._providerManager = providerManager;
             this._handlerManager = handlerManager;
@@ -33,7 +33,7 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
 
             AudioSetting defaultAudioParams = new AudioSetting(DEFAULT_AUDIO_FORMAT, this.Config.AudioSetting.SampleRate, this.Config.AudioSetting.Channels, this.Config.AudioSetting.FrameDuration);
-            HelloMessage defultHelloMessage = new HelloMessage(this.SendOutter.SessionId, this.Config.ServerProtocol.GetDescription().ToLower(), defaultAudioParams);
+            HelloMessage defaultHelloMessage = new HelloMessage(this.SendOutter.SessionId, this.Config.ServerProtocol.GetDescription().ToLower(), defaultAudioParams);
 
             if (helloMessage.TryGetPropertyValue("audio_params", out var audioParams) && audioParams is not null)
             {
@@ -49,17 +49,17 @@ namespace XiaoZhi.Net.Server.Handlers
                 session.AudioSetting.FrameDuration = frameDuration;
                 session.AudioSetting.OutSampleRate = this.Config.AudioSetting.OutSampleRate;
 
-                defultHelloMessage.AudioParams.Format = format;
-                defultHelloMessage.AudioParams.SampleRate = sampleRate;
-                defultHelloMessage.AudioParams.Channels = channels;
-                defultHelloMessage.AudioParams.FrameDuration = frameDuration;
+                defaultHelloMessage.AudioParams.Format = format;
+                defaultHelloMessage.AudioParams.SampleRate = sampleRate;
+                defaultHelloMessage.AudioParams.Channels = channels;
+                defaultHelloMessage.AudioParams.FrameDuration = frameDuration;
             }
             bool providerInitResult = await this._providerManager.InitializePrivateConfigAsync(session);
             bool handlerInitResult = this._handlerManager.InitializePrivateConfig(session);
 
             if (providerInitResult && handlerInitResult)
             {
-                await this.SendOutter.SendAsync(JsonHelper.Serialize(defultHelloMessage));
+                await this.SendOutter.SendAsync(JsonHelper.Serialize(defaultHelloMessage));
 
                 if (helloMessage.TryGetPropertyValue("features", out var features) && features is not null)
                 {

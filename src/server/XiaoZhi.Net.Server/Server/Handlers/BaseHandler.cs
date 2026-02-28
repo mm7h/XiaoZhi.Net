@@ -10,6 +10,7 @@ namespace XiaoZhi.Net.Server.Handlers
     internal abstract class BaseHandler : IHandler
     {
         private CancellationTokenSource? _handlerCts;
+        private CancellationTokenRegistration? _tokenRegistration;
 
         public BaseHandler(XiaoZhiConfig config, ILogger logger)
         {
@@ -31,7 +32,7 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             this._handlerCts = CancellationTokenSource.CreateLinkedTokenSource(session.SessionCtsToken);
             this.HandlerToken = this._handlerCts.Token;
-            this.HandlerToken.Register(this.OnTokenCanceled);
+            this._tokenRegistration = this.HandlerToken.Register(this.OnTokenCanceled);
             session.SessionCtsTokenChanged += this.OnSessionCtsTokenChanged;
         }
 
@@ -53,6 +54,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private void OnSessionCtsTokenChanged(CancellationToken newToken)
         {
+            this._tokenRegistration?.Dispose();
             var oldCts = this._handlerCts;
             try
             {
@@ -66,7 +68,7 @@ namespace XiaoZhi.Net.Server.Handlers
             
             this._handlerCts = CancellationTokenSource.CreateLinkedTokenSource(newToken);
             this.HandlerToken = this._handlerCts.Token;
-            this.HandlerToken.Register(this.OnTokenCanceled);
+            this._tokenRegistration = this.HandlerToken.Register(this.OnTokenCanceled);
             this.OnHandlerTokenChanged();
         }
 
@@ -82,6 +84,7 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             Session session = this.SendOutter.GetSession();
             session.SessionCtsTokenChanged -= this.OnSessionCtsTokenChanged;
+            this._tokenRegistration?.Dispose();
             this._handlerCts?.Dispose();
         }
     }

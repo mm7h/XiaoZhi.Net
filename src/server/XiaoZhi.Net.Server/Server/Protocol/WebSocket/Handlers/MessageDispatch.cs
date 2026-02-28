@@ -27,13 +27,13 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
                         string? type = jsonObject?["type"]?.GetValue<string>()?.ToLower();
                         if (jsonObject is JsonObject jsonObj && !string.IsNullOrEmpty(type) && type == "hello")
                         {
-                            session.XiaoZhiSession.HandlerPipeline.HandleHelloMessage(jsonObj);
+                            await session.XiaoZhiSession.HandlerPipeline.HandleHelloMessage(jsonObj);
                         }
                         else
                             session.XiaoZhiSession.HandlerPipeline.HandleTextMessage(package.Message);
                         break;
                     case OpCode.Binary:
-                       await session.XiaoZhiSession.HandlerPipeline.HandleBinaryMessageAsync(package.Data.ToArray());
+                        await session.XiaoZhiSession.HandlerPipeline.HandleBinaryMessageAsync(package.Data.ToArray());
                         break;
                     //case OpCode.Ping:
                     //    break;

@@ -6,8 +6,8 @@ namespace XiaoZhi.Net.Server.Common.Constants
 {
     internal static class SherpaModels
     {
-        public static string[] VadModels = [nameof(Silero)];
-        public static string[] AsrModels = [nameof(SenseVoice), nameof(Paraformer)];
-        public static string[] TtsModels = [nameof(Kokoro)];
+        public static readonly string[] VadModels = [nameof(Silero)];
+        public static readonly string[] AsrModels = [nameof(SenseVoice), nameof(Paraformer)];
+        public static readonly string[] TtsModels = [nameof(Kokoro)];
     }
 }
