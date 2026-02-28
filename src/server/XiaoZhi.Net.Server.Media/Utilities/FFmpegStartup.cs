@@ -4,6 +4,7 @@ namespace XiaoZhi.Net.Server.Media.Utilities
 {
     internal static class FFmpegStartup
     {
+        private static readonly object _syncLock = new();
         private static Lazy<(bool Success, string Message)> _initializer = CreateInitializer();
 
         internal static string FFmpegRootPath = "./ffmpeg/";
@@ -11,7 +12,14 @@ namespace XiaoZhi.Net.Server.Media.Utilities
         /// <summary>
         /// Gets a value indicating whether FFmpeg has been successfully initialized.
         /// </summary>
-        internal static bool FFmpegInitialized => _initializer.IsValueCreated && _initializer.Value.Success;
+        internal static bool FFmpegInitialized
+        {
+            get
+            {
+                var lazy = Volatile.Read(ref _initializer);
+                return lazy.IsValueCreated && lazy.Value.Success;
+            }
+        }
 
         public static void RegisterFFmpegBinaries(string ffmpegBinariesPath)
         {
@@ -19,13 +27,18 @@ namespace XiaoZhi.Net.Server.Media.Utilities
             {
                 throw new ArgumentNullException(nameof(ffmpegBinariesPath), "FFmpeg binaries path must not be null or empty.");
             }
-            ffmpeg.RootPath = FFmpegRootPath = ffmpegBinariesPath;
-            _initializer = CreateInitializer();
+
+            lock (_syncLock)
+            {
+                ffmpeg.RootPath = FFmpegRootPath = ffmpegBinariesPath;
+                Volatile.Write(ref _initializer, CreateInitializer());
+            }
         }
 
         public static bool CheckFFmpegInstalled(out string message)
         {
-            var result = _initializer.Value;
+            var lazy = Volatile.Read(ref _initializer);
+            var result = lazy.Value;
             message = result.Message;
             return result.Success;
         }

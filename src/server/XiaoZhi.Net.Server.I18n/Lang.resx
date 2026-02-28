@@ -1221,4 +1221,10 @@
   <data name="BaseHandler_OnSessionCtsTokenChanged_CtsAlreadyDisposed" xml:space="preserve">
     <value>{HandlerName}: Old session CTS already disposed when trying to cancel.</value>
   </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_KernelNotReady" xml:space="preserve">
+    <value>Kernel is not ready for handling MCP messages. DeviceId: {DeviceId}.</value>
+  </data>
+  <data name="IoTClient_RegisterIoTTools_KernelNull" xml:space="preserve">
+    <value>The Kernel is not yet ready to process IOT messages. Device ID: {DeviceId}.</value>
+  </data>
 </root>

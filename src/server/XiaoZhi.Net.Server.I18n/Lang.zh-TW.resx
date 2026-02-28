@@ -1221,4 +1221,10 @@
   <data name="BaseHandler_OnSessionCtsTokenChanged_CtsAlreadyDisposed" xml:space="preserve">
     <value>{HandlerName}：嘗試取消時，舊的會話CTS已被釋放。</value>
   </data>
+  <data name="BaseMcpClient_HandleMcpMessageAsync_KernelNotReady" xml:space="preserve">
+    <value>Kernel尚未準備好處理 MCP 訊息。設備 ID：{DeviceId}。</value>
+  </data>
+  <data name="IoTClient_RegisterIoTTools_KernelNull" xml:space="preserve">
+    <value>Kernel尚未準備好處理 IOT 訊息。設備 ID：{DeviceId}。</value>
+  </data>
 </root>

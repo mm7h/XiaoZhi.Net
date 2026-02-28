@@ -20,7 +20,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public IAudioResampler? AudioResampler { get; private set; }
         public IAudioEncoder? AudioEncoder { get; private set; }
 
-        public Kernel Kernel => this._kernel ?? throw new InvalidOperationException("Kernel is not set. Please set the kernel before using the session.");
+        public Kernel? Kernel => this._kernel;
         public bool HasIoT { get; private set; }
 
         public IIoTClient? IoTClient => this._iotClient;

@@ -9,7 +9,7 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Common.Dtos;
+using XiaoZhi.Net.Server.Common.Models;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 
@@ -97,6 +97,11 @@ namespace XiaoZhi.Net.Server.Providers.IoT
 
         private void RegisterIoTTools(JsonArray descriptors)
         {
+            if (this.CurrentSession.PrivateProvider.Kernel is null)
+            {
+                this.Logger.LogError(Lang.IoTClient_RegisterIoTTools_KernelNull, this.CurrentSession.DeviceId);
+                return;
+            }
             int index = 1;
             foreach (JsonNode? descriptor in descriptors)
             {

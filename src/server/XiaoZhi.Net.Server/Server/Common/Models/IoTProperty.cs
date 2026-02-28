@@ -1,7 +1,7 @@
 ﻿using System;
 using XiaoZhi.Net.Server.Helpers;
 
-namespace XiaoZhi.Net.Server.Common.Dtos
+namespace XiaoZhi.Net.Server.Common.Models
 {
     internal class IoTProperty
     {

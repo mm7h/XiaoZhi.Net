@@ -1,4 +1,4 @@
-﻿namespace XiaoZhi.Net.Server.Common.Dtos
+﻿namespace XiaoZhi.Net.Server.Common.Models
 {
     internal class HelloMessage
     {

@@ -70,6 +70,11 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
         public async virtual Task HandleMcpMessageAsync(JsonObject payloadObj)
         {
+            if (this.CurrentSession.PrivateProvider.Kernel is null)
+            {
+                this.Logger.LogError(Lang.BaseMcpClient_HandleMcpMessageAsync_KernelNotReady, this.CurrentSession.DeviceId);
+                return;
+            }
             if (payloadObj.TryGetPropertyValue("result", out var result) && result is not null)
             {
                 int msgId = payloadObj["id"]?.AsValue().GetValue<int>() ?? 0;

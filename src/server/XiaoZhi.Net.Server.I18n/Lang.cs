@@ -260,6 +260,7 @@ namespace XiaoZhi.Net.Server.I18n
         public static string IoTClient_RegisterIoTTools_PluginDescription => ResourceManager.GetString("IoTClient_RegisterIoTTools_PluginDescription", resourceCulture) ?? "";
         public static string IoTClient_SetIoTPropertyStatusValue_SetStatus => ResourceManager.GetString("IoTClient_SetIoTPropertyStatusValue_SetStatus", resourceCulture) ?? "";
         public static string IoTClient_SendIoTMessageAsync_MessageNull => ResourceManager.GetString("IoTClient_SendIoTMessageAsync_MessageNull", resourceCulture) ?? "";
+        public static string IoTClient_RegisterIoTTools_KernelNull => ResourceManager.GetString("IoTClient_RegisterIoTTools_KernelNull", resourceCulture) ?? "";
         #endregion
 
         #region DefaultAudioProcessor
@@ -308,6 +309,10 @@ namespace XiaoZhi.Net.Server.I18n
         public static string MCPToolFunctionFilter_OnFunctionInvocationAsync_FunctionCancelled => ResourceManager.GetString("MCPToolFunctionFilter_OnFunctionInvocationAsync_FunctionCancelled", resourceCulture) ?? "";
         public static string MCPToolFunctionFilter_OnFunctionInvocationAsync_McpCancelled => ResourceManager.GetString("MCPToolFunctionFilter_OnFunctionInvocationAsync_McpCancelled", resourceCulture) ?? "";
         public static string MCPToolFunctionFilter_OnFunctionInvocationAsync_IoTCancelled => ResourceManager.GetString("MCPToolFunctionFilter_OnFunctionInvocationAsync_IoTCancelled", resourceCulture) ?? "";
+        #endregion
+
+        #region BaseMcpClient
+        public static string BaseMcpClient_HandleMcpMessageAsync_KernelNotReady => ResourceManager.GetString("BaseMcpClient_HandleMcpMessageAsync_KernelNotReady", resourceCulture) ?? "";
         #endregion
 
         #region MusicPlayer
@@ -385,7 +390,6 @@ namespace XiaoZhi.Net.Server.I18n
         public static string BaseHuoshanTTS_SaveAudioFile_FileSaved => ResourceManager.GetString("BaseHuoshanTTS_SaveAudioFile_FileSaved", resourceCulture) ?? "";
         public static string BaseHuoshanTTS_SaveAudioFile_SaveFailed => ResourceManager.GetString("BaseHuoshanTTS_SaveAudioFile_SaveFailed", resourceCulture) ?? "";
         #endregion
-
 
         #region HuoshanHttpV3TTS
         public static string HuoshanHttpV3TTS_Build_ConfigIncomplete => ResourceManager.GetString("HuoshanHttpV3TTS_Build_ConfigIncomplete", resourceCulture) ?? "";
