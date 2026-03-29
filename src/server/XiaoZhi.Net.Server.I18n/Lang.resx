@@ -432,6 +432,9 @@
   <data name="ProviderManager_BuildAudioEncoder_BuildFailed" xml:space="preserve">
     <value>Session {sessionId} failed to build audio encoder.</value>
   </data>
+  <data name="ProviderManager_BuildAudioDecoder_BuildFailed" xml:space="preserve">
+    <value>Session {sessionId} failed to build audio decoder.</value>
+  </data>
   <data name="ProviderManager_BuildIoT_BuildFailed" xml:space="preserve">
     <value>Session {sessionId} failed to build IoT client.</value>
   </data>

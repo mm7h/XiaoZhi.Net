@@ -432,6 +432,9 @@
   <data name="ProviderManager_BuildAudioEncoder_BuildFailed" xml:space="preserve">
     <value>工作階段 {sessionId} 建置音訊編碼器失敗。</value>
   </data>
+  <data name="ProviderManager_BuildAudioDecoder_BuildFailed" xml:space="preserve">
+    <value>工作階段 {sessionId} 建置音訊解碼器失敗。</value>
+  </data>
   <data name="ProviderManager_BuildIoT_BuildFailed" xml:space="preserve">
     <value>工作階段 {sessionId} 建置 IoT 用戶端失敗。</value>
   </data>

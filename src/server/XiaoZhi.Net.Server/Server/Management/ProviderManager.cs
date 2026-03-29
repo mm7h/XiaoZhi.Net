@@ -420,7 +420,7 @@ namespace XiaoZhi.Net.Server.Management
             IAudioDecoder audioDecoder = this._serviceProvider.GetRequiredService<IAudioDecoder>();
             if (!audioDecoder.Build(session.AudioSetting))
             {
-                this._logger.LogWarning(Lang.ProviderManager_BuildAudioEncoder_BuildFailed, session.SessionId);
+                this._logger.LogWarning(Lang.ProviderManager_BuildAudioDecoder_BuildFailed, session.SessionId);
             }
             session.PrivateProvider.SetAudioDecoder(audioDecoder);
         }
