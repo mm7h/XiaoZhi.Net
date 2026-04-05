@@ -145,6 +145,7 @@ namespace XiaoZhi.Net.Server.I18n
         public static string ProviderManager_BuildAudioResampler_ResamplingRequired => ResourceManager.GetString("ProviderManager_BuildAudioResampler_ResamplingRequired", resourceCulture) ?? "";
         public static string ProviderManager_BuildAudioResampler_BuildFailed => ResourceManager.GetString("ProviderManager_BuildAudioResampler_BuildFailed", resourceCulture) ?? "";
 
+        public static string ProviderManager_BuildAudioDecoder_BuildFailed => ResourceManager.GetString("ProviderManager_BuildAudioDecoder_BuildFailed", resourceCulture) ?? "";
         public static string ProviderManager_BuildAudioEncoder_BuildFailed => ResourceManager.GetString("ProviderManager_BuildAudioEncoder_BuildFailed", resourceCulture) ?? "";
         public static string ProviderManager_BuildIoT_BuildFailed => ResourceManager.GetString("ProviderManager_BuildIoT_BuildFailed", resourceCulture) ?? "";
         public static string ProviderManager_BuildMCP_BuildFailed => ResourceManager.GetString("ProviderManager_BuildMCP_BuildFailed", resourceCulture) ?? "";
