@@ -201,12 +201,18 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override void Dispose()
         {
-            Session session = this.SendOutter.GetSession();
-            if (session is null)
+            if (this._vad is not null)
             {
-                return;
+                Session session = this.SendOutter.GetSession();
+                if (session is not null)
+                {
+                    this._vad.UnregisterDevice(session.DeviceId, session.SessionId);
+                }
+                if (!this._vad.IsSherpaModel)
+                {
+                    this._vad.Dispose();
+                }
             }
-            this._vad?.UnregisterDevice(session.DeviceId, session.SessionId);
             this.NextWriter.Complete();
             base.Dispose();
         }

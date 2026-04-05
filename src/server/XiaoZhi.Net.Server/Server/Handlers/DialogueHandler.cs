@@ -215,6 +215,12 @@ namespace XiaoZhi.Net.Server.Handlers
                 this._llm.OnBeforeTokenGenerate -= this.OnBeforeTokenGenerate;
                 this._llm.OnTokenGenerating -= this.OnTokenGenerating;
                 this._llm.OnTokenGenerated -= this.OnTokenGenerated;
+                Session session = this.SendOutter.GetSession();
+                if (session is not null)
+                {
+                    this._llm.UnregisterDevice(session.DeviceId, session.SessionId);
+                }
+                this._llm.Dispose();
             }
             this.NextWriter.Complete();
             base.Dispose();

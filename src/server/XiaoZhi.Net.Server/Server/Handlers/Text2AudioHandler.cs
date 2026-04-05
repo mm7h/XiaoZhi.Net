@@ -383,16 +383,28 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override void Dispose()
         {
-            Session session = this.SendOutter.GetSession();
-            if (session is null)
+            if (this._tts is not null)
             {
-                return;
+                Session session = this.SendOutter.GetSession();
+                if (session is not null)
+                {
+                    this._tts.UnregisterDevice(session.DeviceId, session.SessionId);
+                }
+                if (!this._tts.IsSherpaModel)
+                {
+                    this._tts.Dispose();
+                }
             }
-            this._tts?.UnregisterDevice(session.DeviceId, session.SessionId);
             if (this._audioPlayerClient is not null)
             {
+                Session session = this.SendOutter.GetSession();
+                if (session is not null)
+                {
+                    this._audioPlayerClient.UnregisterDevice(session.DeviceId, session.SessionId);
+                }
                 this._audioPlayerClient.SystemNotification.OnAudioData -= this.OnNotificationAudioDataAsync;
                 this._audioPlayerClient.MusicPlayer.OnAudioData -= this.OnMusicAudioDataAsync;
+                this._audioPlayerClient.Dispose();
             }
             this.NextWriter.Complete();
             this.NextWriter2.Complete();

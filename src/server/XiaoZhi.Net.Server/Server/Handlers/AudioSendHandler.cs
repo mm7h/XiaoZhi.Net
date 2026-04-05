@@ -132,6 +132,19 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
+        public override void Dispose()
+        {
+            if (this._audioEncoder is not null)
+            {
+                Session session = this.SendOutter.GetSession();
+                if (session is not null)
+                {
+                    this._audioEncoder.UnregisterDevice(session.DeviceId, session.SessionId);
+                }
+                this._audioEncoder.Dispose();
+            }
+            base.Dispose();
+        }
     }
 }
 

@@ -192,6 +192,16 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override void Dispose()
         {
+            if (this._audioProcessor is not null)
+            {
+                Session session = this.SendOutter.GetSession();
+                if (session is not null)
+                {
+                    this._audioProcessor.UnregisterDevice(session.DeviceId, session.SessionId);
+                }
+                this._audioProcessor.Dispose();
+            }
+            
             this.NextWriter.Complete();
             base.Dispose();
         }

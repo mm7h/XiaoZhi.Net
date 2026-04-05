@@ -112,13 +112,13 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 return;
             }
-            
+
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
             {
                 return;
             }
-            
+
             if (!success)
             {
                 this.Logger.LogError(Lang.Audio2TextHandler_OnSpeechTextConverted_ConvertFailed);
@@ -136,7 +136,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             var nextWorkflow = this._stringWorkflowPool.Get();
             nextWorkflow.Initialize(session, speechText);
-            
+
             try
             {
                 await this.NextWriter.WriteAsync(nextWorkflow, this.HandlerToken);
@@ -149,12 +149,19 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override void Dispose()
         {
-            Session session = this.SendOutter.GetSession();
-            if (session is null)
+            if (this._asr is not null)
             {
-                return;
+                Session session = this.SendOutter.GetSession();
+                if (session is not null)
+                {
+                    this._asr.UnregisterDevice(session.DeviceId, session.SessionId);
+                }
+                if (!this._asr.IsSherpaModel)
+                {
+                    this._asr.Dispose();
+                }
             }
-            this._asr?.UnregisterDevice(session.DeviceId, session.SessionId);
+
             this.NextWriter.Complete();
             base.Dispose();
         }
