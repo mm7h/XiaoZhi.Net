@@ -54,6 +54,9 @@
       "SenseVoice": {
         "UseInverseTextNormalization": 1,
         "DecodingMethod": "greedy_search",
+        // MaxBatchSize和BatchWaitTimeMs两个参数谁先满足就会触发ASR识别
+        "MaxBatchSize": 10, //对于批量ASR识别，每轮处理周期最大能够处理的音频数量
+        "BatchWaitTimeMs": 50, //对于批量ASR识别，每轮处理周期最大的等待时间，单位毫秒
         "FileSavingOption": {
           "SaveFile": true,
           "SavePath": "./data/asr-cache",

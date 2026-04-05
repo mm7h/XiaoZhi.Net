@@ -19,8 +19,6 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 {
     internal abstract class BaseSherpaAsr<TLogger> : BaseProvider<TLogger, ModelSetting>
     {
-        private const int MAX_WAITING_TIME_MS = 100;
-
         private readonly IAudioEditor _audioEditor;
         private readonly ConcurrentDictionary<string, IAsrEventCallback> _asrSessions;
         private readonly Channel<AsrRequest> _requestChannel;
@@ -39,7 +37,8 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
         }
 
 
-        public int MaxBatchSize { get; protected set; } = 50;
+        public int MaxBatchSize { get; protected set; } = 10;
+        public int BatchWaitTimeMs { get; protected set; } = 20;
         public AudioSavingConfig? AudioSavingConfig { get; protected set; }
         public override string ProviderType => "asr";
 
@@ -61,7 +60,8 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
             }
             //this._config.RuleFsts = this.ModelSetting.Config.RuleFsts;
 
-            this.MaxBatchSize = modelSetting.Config.GetConfigValueOrDefault("MaxBatchSize", 50);
+            this.MaxBatchSize = modelSetting.Config.GetConfigValueOrDefault("MaxBatchSize", 10);
+            this.BatchWaitTimeMs = modelSetting.Config.GetConfigValueOrDefault("BatchWaitTimeMs", 20);
             this.AudioSavingConfig = modelSetting.Config.GetConfigValueOrDefault("FileSavingOption", new AudioSavingConfig(false));
             if (this.AudioSavingConfig.SaveFile && !Directory.Exists(this.AudioSavingConfig.SavePath))
             {
@@ -128,6 +128,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                     AsrRequest asrRequest = new AsrRequest(workflow.SessionId, workflow.DeviceId, offlineStream, sampleRate, frameSize, callback, token);
 
                     await this._requestChannel.Writer.WriteAsync(asrRequest, token);
+                    offlineStream = null;
                 }
                 catch (OperationCanceledException)
                 {
@@ -188,28 +189,24 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                             batchRequests.Add(req);
                         }
 
-                        if (batchRequests.Count < this.MaxBatchSize)
+                        if (this.BatchWaitTimeMs > 0 && batchRequests.Count < this.MaxBatchSize)
                         {
-                            using var timeoutCts = new CancellationTokenSource(MAX_WAITING_TIME_MS);
-                            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(shutDownToken, timeoutCts.Token);
+                            Task timeoutTask = Task.Delay(this.BatchWaitTimeMs, shutDownToken);
 
-                            try
+                            while (batchRequests.Count < this.MaxBatchSize)
                             {
-                                while (batchRequests.Count < this.MaxBatchSize)
+                                Task waitToReadTask = this._requestChannel.Reader.WaitToReadAsync(shutDownToken).AsTask();
+                                Task completed = await Task.WhenAny(waitToReadTask, timeoutTask);
+
+                                if (completed == timeoutTask || shutDownToken.IsCancellationRequested)
                                 {
-                                    if (await this._requestChannel.Reader.WaitToReadAsync(linkedCts.Token))
-                                    {
-                                        while (batchRequests.Count < this.MaxBatchSize && this._requestChannel.Reader.TryRead(out var req))
-                                        {
-                                            batchRequests.Add(req);
-                                        }
-                                    }
+                                    break;
                                 }
-                            }
-                            catch (OperationCanceledException)
-                            {
-                                // Ignore timeout, but respect shutdown
-                                if (shutDownToken.IsCancellationRequested) break;
+
+                                while (batchRequests.Count < this.MaxBatchSize && this._requestChannel.Reader.TryRead(out var req))
+                                {
+                                    batchRequests.Add(req);
+                                }
                             }
                         }
                     }
@@ -232,10 +229,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 
                         if (validRequests.Count > 0)
                         {
-                            await Task.Run(() =>
-                            {
-                                this._offlineRecognizer.Decode(validRequests.Select(b => b.Stream));
-                            });
+                            this._offlineRecognizer.Decode(validRequests.Select(b => b.Stream));
 
                             foreach (AsrRequest request in validRequests)
                             {
@@ -253,6 +247,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                                 }
                                 catch (Exception ex)
                                 {
+                                    request.Callback.OnSpeechTextConverted(false, string.Empty);
                                     this.Logger.LogError(ex, Lang.BaseSherpaAsr_Processing_ResultProcessingError, request.DeviceId);
                                 }
                                 finally
@@ -260,7 +255,6 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                                     request.Stream.Dispose();
                                 }
                             }
-
                         }
                     }
                 }
