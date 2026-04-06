@@ -47,6 +47,7 @@ namespace XiaoZhi.Net.Server.Handlers
             this._audioProcessor.RegisterDevice(session.DeviceId, session.SessionId);
             this._audioProcessor.OnMixedAudioDataAvailable += this.OnMixedAudioDataAvailable;
             this.RegisterCancellationToken();
+            this.Builded = true;
             return true;
         }
 

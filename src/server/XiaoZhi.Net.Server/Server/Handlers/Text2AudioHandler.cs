@@ -59,7 +59,7 @@ namespace XiaoZhi.Net.Server.Handlers
             this._audioPlayerClient.MusicPlayer.OnAudioData += this.OnMusicAudioDataAsync;
             this._audioPlayerClient.RegisterDevice(session.DeviceId, session.SessionId);
             this.RegisterCancellationToken();
-
+            this.Builded = true;
             return true;
         }
 

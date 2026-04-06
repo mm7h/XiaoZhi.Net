@@ -41,6 +41,7 @@ namespace XiaoZhi.Net.Server.Handlers
             this._asr = privateProvider.Asr;
             this._asr.RegisterDevice(session.DeviceId, session.SessionId, this);
             this.RegisterCancellationToken();
+            this.Builded = true;
             return true;
         }
 

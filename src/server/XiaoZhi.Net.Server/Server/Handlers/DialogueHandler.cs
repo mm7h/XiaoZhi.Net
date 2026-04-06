@@ -52,6 +52,7 @@ namespace XiaoZhi.Net.Server.Handlers
             this._llm.OnTokenGenerated += this.OnTokenGenerated;
             this._llm.RegisterDevice(session.DeviceId, session.SessionId);
             this.RegisterCancellationToken();
+            this.Builded = true;
             return true;
         }
 

@@ -32,7 +32,8 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override bool Build(PrivateProvider privateProvider)
         {
-            this.RegisterCancellationToken();
+            this.RegisterCancellationToken(); 
+            this.Builded = true;
             return true;
         }
 

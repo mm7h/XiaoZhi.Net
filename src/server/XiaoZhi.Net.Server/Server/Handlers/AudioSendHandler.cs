@@ -48,6 +48,7 @@ namespace XiaoZhi.Net.Server.Handlers
             this._audioProcessor = privateProvider.AudioProcessor;
             this._audioEncoder = privateProvider.AudioEncoder;
             this.RegisterCancellationToken();
+            this.Builded = true;
             return true;
         }
 
