@@ -6,6 +6,7 @@ namespace XiaoZhi.Net.Server.Handlers
 {
     internal interface IHandler : IDisposable
     {
+        string HandlerName { get; }
         bool Builded { get; }
         bool Build(PrivateProvider privateProvider);
         IBizSendOutter SendOutter { get; set; }
