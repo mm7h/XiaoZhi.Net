@@ -1,13 +1,9 @@
-﻿using Microsoft.SemanticKernel;
+﻿using System.Collections.Generic;
+using XiaoZhi.Net.Server.Common.Contexts;
 
 namespace XiaoZhi.Net.Server.Common.Configs
 {
     internal record LLMBuildConfig(
-        string EmotionLLMModelName,
-        string ChatLLMModelName,
-        string Prompt,
-        bool UseStreaming,
-        bool UseEmotions,
-        string SummaryMemory,
-        Kernel Kernel);
+        Dictionary<string, ModelSetting> AgentSettings,
+        PrivateProvider SessionPrivateProvider);
 }

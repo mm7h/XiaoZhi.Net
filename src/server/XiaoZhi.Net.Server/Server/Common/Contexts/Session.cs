@@ -26,8 +26,9 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.AudioSetting = new AudioSetting();
             this.AudioPacket = new AudioPacket();
             this.HandlerPipeline = new HandlerPipeline();
-            this.PrivateProvider = new PrivateProvider();
+            this.PrivateProvider = new PrivateProvider(this);
             this.CreateCancellationTokenSource();
+            this.PrivateProvider.RegisterCancellationToken();
         }
 
         public event Action<CancellationToken>? SessionCtsTokenChanged;

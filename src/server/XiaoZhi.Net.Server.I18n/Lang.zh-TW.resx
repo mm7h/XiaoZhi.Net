@@ -382,7 +382,7 @@
     <value>無法為裝置 {deviceId} 建置私有 LLM 模型。</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateLlmInitialized" xml:space="preserve">
-    <value>裝置 {deviceId} 的私有情感 LLM {emotionLLMName} 和聊天 LLM {chatLLMName} 模型已初始化。</value>
+    <value>裝置 {deviceId} 的私有agent(s) 已初始化。</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericLlmBuildFailed" xml:space="preserve">
     <value>無法為裝置 {deviceId} 建置通用 LLM 模型。</value>

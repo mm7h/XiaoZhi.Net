@@ -1,8 +1,9 @@
 ﻿using Flurl;
 using Flurl.Http;
 using Flurl.Http.Configuration;
-using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.Extensions.AI;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Constants;
@@ -45,7 +46,7 @@ namespace XiaoZhi.Net.Server.Services
             }
         }
 
-        public Task SaveMemoryAsync(string deviceId, string sessionId, ChatHistory chats)
+        public Task SaveMemoryAsync(string deviceId, string sessionId, IReadOnlyList<ChatMessage> chats)
         {
             throw new NotImplementedException();
         }

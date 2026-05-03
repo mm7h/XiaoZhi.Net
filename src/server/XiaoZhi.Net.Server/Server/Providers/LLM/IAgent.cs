@@ -1,8 +1,8 @@
-﻿using XiaoZhi.Net.Server.Common.Configs;
+﻿using XiaoZhi.Net.Server.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
 {
-    internal interface IAgent : IProvider<LLMBuildConfig>
+    internal interface IAgent : IProvider<LLMAgentBuildConfig>
     {
         string Prompt { get; }
         int Order { get; }

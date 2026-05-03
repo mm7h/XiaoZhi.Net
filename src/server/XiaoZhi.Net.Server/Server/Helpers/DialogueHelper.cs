@@ -1,4 +1,4 @@
-﻿using Microsoft.SemanticKernel.ChatCompletion;
+﻿using Microsoft.Extensions.AI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -204,26 +204,16 @@ namespace XiaoZhi.Net.Server.Helpers
             }
         }
 
-        public static ChatHistory Convert2ChatMessages(this IEnumerable<Dialogue> dialogues)
+        /// <summary>将 Dialogue 列表转换为 MEAI ChatMessage 列表</summary>
+        public static List<ChatMessage> Convert2ChatMessages(this IEnumerable<Dialogue> dialogues)
         {
-            ChatHistory chatHistory = new ChatHistory();
+            var chatMessages = new List<ChatMessage>();
 
             foreach (Dialogue dialogue in dialogues)
             {
-                if (dialogue.Role == AuthorRole.System)
-                {
-                    chatHistory.AddSystemMessage(dialogue.Content);
-                }
-                else if (dialogue.Role == AuthorRole.User)
-                {
-                    chatHistory.AddUserMessage(dialogue.Content);
-                }
-                else if (dialogue.Role == AuthorRole.Assistant)
-                {
-                    chatHistory.AddAssistantMessage(dialogue.Content);
-                }
+                chatMessages.Add(new ChatMessage(dialogue.Role, dialogue.Content));
             }
-            return chatHistory;
+            return chatMessages;
         }
     }
 }

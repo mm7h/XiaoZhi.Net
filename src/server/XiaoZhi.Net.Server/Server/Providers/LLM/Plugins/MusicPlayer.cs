@@ -1,14 +1,13 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.SemanticKernel;
+﻿using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Resources;
-using XiaoZhi.Net.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
 {
@@ -26,21 +25,23 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
 
         public override bool Build(LLMPluginConfig config)
         {
-            if (config.Kernel.Data.TryGetValue("session", out object? val) && val is Session session)
-            {
-                this.CurrentSession = session;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            this.CurrentSessionProvider = config.SessionProvider;
+            return true;
         }
 
-        [KernelFunction, Description("获取服务端音乐文件列表，返回包含音乐文件名称的列表信息")]
+        public override IEnumerable<AITool> AsAITools()
+        {
+            yield return AIFunctionFactory.Create(() => this.GetMusicFilesAsync(),
+                    nameof(GetMusicFilesAsync),
+                    "获取服务端音乐文件列表，返回包含音乐文件名称的列表信息");
+            yield return AIFunctionFactory.Create(async (bool isRandom, string? musicName) => await this.PlayMusic(isRandom, musicName),
+                    nameof(PlayMusic),
+                    $"播放服务端音乐文件（需要先调用方法 `{nameof(GetMusicFilesAsync)}` 获取音乐列表），返回播放结果描述，你需要播报正在播放的音乐文件名称。");
+        }
+
         public string GetMusicFilesAsync()
         {
-            if (this.CurrentSession is null)
+            if (this.CurrentSessionProvider is null)
             {
                 return Lang.MusicPlayer_GetMusicFilesAsync_SessionNotInit;
             }
@@ -62,15 +63,14 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
                 return Lang.MusicPlayer_GetMusicFilesAsync_ProviderNotInit;
         }
 
-        [KernelFunction, Description("播放服务端音乐文件（需要先调用方法 `" + nameof(GetMusicFilesAsync) + "` 来获取本地有哪些音乐文件；如果已经调用过该方法获取到了音乐文件列表，那么就不需要再调用了），返回播放结果的描述信息，你需要播报正在播放的音乐文件名称。")]
         public async ValueTask<string> PlayMusic([Description("是否为随机播放")] bool isRandom, [Description("音乐名称，如果是随机播放，那么不需要此参数")] string? musicName = null)
         {
-            if (this.CurrentSession is null)
+            if (this.CurrentSessionProvider is null)
             {
                 return Lang.MusicPlayer_PlayMusic_SessionNotInit;
             }
 
-            if (this.CurrentSession.PrivateProvider.AudioPlayerClient is null)
+            if (this.CurrentSessionProvider.AudioPlayerClient is null)
             {
                 return Lang.MusicPlayer_PlayMusic_PlayerNotInit;
             }
@@ -113,7 +113,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
 
                 try
                 {
-                    await this.CurrentSession.PrivateProvider.AudioPlayerClient.MusicPlayer.PlayAsync(this.CurrentSession.SessionCtsToken, musicFilePath);
+                    await this.CurrentSessionProvider.AudioPlayerClient.MusicPlayer.PlayAsync(this.CurrentSessionProvider.Token, musicFilePath);
 
                     this.Logger.LogInformation(Lang.MusicPlayer_PlayMusic_PlayingLog, this.ProviderType, this.ModelName, musicFilePath, this.DeviceId);
 

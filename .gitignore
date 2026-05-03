@@ -1,3 +1,5 @@
+/.vscode/
+/.github/
 /.vs/
 *.user
 *.pubxml

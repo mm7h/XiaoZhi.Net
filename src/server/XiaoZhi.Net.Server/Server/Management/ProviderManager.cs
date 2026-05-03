@@ -1,9 +1,11 @@
 ﻿using Flurl.Http.Configuration;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.SemanticKernel;
+using OpenAI;
 using System;
+using System.ClientModel;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -25,7 +27,6 @@ using XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification;
 using XiaoZhi.Net.Server.Providers.IoT;
 using XiaoZhi.Net.Server.Providers.LLM;
 using XiaoZhi.Net.Server.Providers.LLM.Agents;
-using XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters;
 using XiaoZhi.Net.Server.Providers.LLM.Plugins;
 using XiaoZhi.Net.Server.Providers.MCP;
 using XiaoZhi.Net.Server.Providers.MCP.DeviceMcp;
@@ -45,15 +46,13 @@ namespace XiaoZhi.Net.Server.Management
     internal class ProviderManager
     {
         private readonly IServiceProvider _serviceProvider;
-        private readonly Kernel _globalKernel;
         private readonly XiaoZhiConfig _config;
         private readonly ILogger<ProviderManager> _logger;
 
 
-        public ProviderManager(IServiceProvider serviceProvider, Kernel _globalKernel, XiaoZhiConfig config, ILogger<ProviderManager> logger)
+        public ProviderManager(IServiceProvider serviceProvider, XiaoZhiConfig config, ILogger<ProviderManager> logger)
         {
             this._serviceProvider = serviceProvider;
-            this._globalKernel = _globalKernel;
             this._config = config;
             this._logger = logger;
         }
@@ -244,66 +243,47 @@ namespace XiaoZhi.Net.Server.Management
                     this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericAsrInitialized, genericAsr.ModelName, session.DeviceId);
                 }
 
-                if (privateModelsConfig.EmotionLlmSetting is not null && privateModelsConfig.ChatLlmSetting is not null)
+                if (privateModelsConfig.AgentSettings.Any())
                 {
-                    Kernel privateKernel = this._globalKernel.Clone();
                     ILlm privateLlm = this._serviceProvider.GetRequiredService<ILlm>();
 
-                    string llmModelName = privateModelsConfig.ChatLlmSetting.ModelName;
-                    string prompt = privateModelsConfig.ChatLlmSetting.Config.GetConfigValueOrDefault("Prompt", this._config.Prompt);
-                    bool useStreaming = privateModelsConfig.ChatLlmSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
-                    string summaryMemory = privateModelsConfig.ChatLlmSetting.Config.GetConfigValueOrDefault("SummaryMemory", string.Empty);
-                    bool useEmotions = privateModelsConfig.EmotionLlmSetting.Config.GetConfigValueOrDefault("UseEmotions", false);
-
                     LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
-                        privateModelsConfig.EmotionLlmSetting.ModelName,
-                        privateModelsConfig.ChatLlmSetting.ModelName,
-                        prompt,
-                        useStreaming,
-                        useEmotions,
-                        summaryMemory,
-                        privateKernel);
+                        privateModelsConfig.AgentSettings,
+                        session.PrivateProvider);
 
-                    privateKernel.Data.Add("session", session);
                     if (!privateLlm.Build(llmBuildConfig))
                     {
                         this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateLlmBuildFailed, session.DeviceId);
                         return false;
                     }
-                    session.PrivateProvider.SetKernel(privateKernel);
                     session.PrivateProvider.SetLlm(privateLlm);
 
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateLlmInitialized, privateModelsConfig.EmotionLlmSetting.ModelName, privateModelsConfig.ChatLlmSetting.ModelName, session.DeviceId);
+                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateLlmInitialized, session.DeviceId);
                 }
                 else
                 {
-                    Kernel privateKernel = this._globalKernel.Clone();
                     ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
 
-                    ModelSetting emotionLLMModelSetting = this.GetSelectedLLMSetting("EmotionLLM", this._config);
                     ModelSetting chatLLMModelSetting = this.GetSelectedLLMSetting("ChatLLM", this._config);
-                    bool useStreaming = chatLLMModelSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
-                    bool useEmotions = emotionLLMModelSetting.Config.GetConfigValueOrDefault("UseEmotions", false);
+                    chatLLMModelSetting.Config.SetConfigValue("Prompt", this._config.Prompt);
+                    Dictionary<string, ModelSetting> agentSettings = new Dictionary<string, ModelSetting>
+                    {
+                        { SubAgentNames.EmotionAgent, this.GetSelectedLLMSetting("EmotionLLM", this._config) },
+                        { SubAgentNames.ChatAgent, chatLLMModelSetting },
+                    };
 
                     LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
-                        emotionLLMModelSetting.ModelName,
-                        chatLLMModelSetting.ModelName,
-                        this._config.Prompt,
-                        useStreaming,
-                        useEmotions,
-                        SummaryMemory: string.Empty,
-                        privateKernel);
+                        agentSettings,
+                        session.PrivateProvider);
 
-                    privateKernel.Data.Add("session", session);
                     if (!genericLlm.Build(llmBuildConfig))
                     {
                         this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericLlmBuildFailed, session.DeviceId);
                         return false;
                     }
-                    session.PrivateProvider.SetKernel(privateKernel);
                     session.PrivateProvider.SetLlm(genericLlm);
 
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericLlmInitialized, emotionLLMModelSetting.ModelName, chatLLMModelSetting.ModelName, session.DeviceId);
+                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericLlmInitialized, session.DeviceId);
                 }
 
                 if (privateModelsConfig.TtsSetting is not null)
@@ -523,20 +503,21 @@ namespace XiaoZhi.Net.Server.Management
                     throw new ModelBuildException($"Invalid llm model setting, endPoint: {endPoint}, apiKey: {apiKey}, modelId: {modelId}.");
                 }
 
-                switch (llmSettingItem.Key.ToLower())
+                string serviceKey = $"LLM_{llmSettingItem.Key}";
+                string capturedEndPoint = endPoint;
+                string capturedApiKey = apiKey;
+                string capturedModelId = modelId;
+
+                // 注册 IChatClient，使用 MEAI OpenAI 适配器
+                services.AddKeyedSingleton<IChatClient>(serviceKey, (_, _) =>
                 {
-                    case "qwen":
-                    case "doubao":
-                    case "deepseek":
-                    case "chatglm":
-                        services.AddOpenAIChatCompletion(modelId, new Uri(endPoint), apiKey, orgId: "Xiao Zhi", $"LLM_{llmSettingItem.Key}");
-                        break;
-                    default:
-                        throw new ModelBuildException("Invalid llm model.");
-                }
+                    OpenAIClient openAIClient = new OpenAIClient(
+                        new ApiKeyCredential(capturedApiKey),
+                        new OpenAIClientOptions { Endpoint = new Uri(capturedEndPoint) });
+                    return openAIClient.GetChatClient(capturedModelId).AsIChatClient();
+                });
             }
 
-            services.AddTransient<IFunctionInvocationFilter, MCPToolFunctionFilter>();
             services.AddTransient<IEmotionAgent, EmotionAgent>();
             services.AddTransient<IChatAgent, ChatAgent>();
             services.AddTransient<ILlm, GenericOpenAI>();
@@ -733,32 +714,27 @@ namespace XiaoZhi.Net.Server.Management
             #endregion
 
             #region LLM
-            Kernel privateKernel = this._globalKernel.Clone();
             ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
 
-            ModelSetting emotionLLMModelSetting = this.GetSelectedLLMSetting("EmotionLLM", this._config);
             ModelSetting chatLLMModelSetting = this.GetSelectedLLMSetting("ChatLLM", this._config);
-            bool useStreaming = chatLLMModelSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
-            bool useEmotions = emotionLLMModelSetting.Config.GetConfigValueOrDefault("UseEmotions", false);
+            chatLLMModelSetting.Config.SetConfigValue("Prompt", this._config.Prompt);
+            Dictionary<string, ModelSetting> agentSettings = new Dictionary<string, ModelSetting>
+                    {
+                        { SubAgentNames.EmotionAgent, this.GetSelectedLLMSetting("EmotionLLM", this._config) },
+                        { SubAgentNames.ChatAgent, chatLLMModelSetting },
+                    };
 
             LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
-                emotionLLMModelSetting.ModelName,
-                chatLLMModelSetting.ModelName,
-                this._config.Prompt,
-                useStreaming,
-                useEmotions,
-                SummaryMemory: string.Empty,
-                privateKernel);
+                agentSettings,
+                session.PrivateProvider);
 
-            privateKernel.Data.Add("session", session);
             if (!genericLlm.Build(llmBuildConfig))
             {
                 throw new ModelBuildException("Failed to build generic LLM model.");
             }
-            session.PrivateProvider.SetKernel(privateKernel);
             session.PrivateProvider.SetLlm(genericLlm);
 
-            this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_LlmInitialized, emotionLLMModelSetting.ModelName, chatLLMModelSetting.ModelName, session.DeviceId);
+            this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericLlmInitialized, session.DeviceId);
             #endregion
 
             #region Tts

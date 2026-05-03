@@ -1,16 +1,25 @@
-﻿using Microsoft.SemanticKernel;
+﻿using Microsoft.Extensions.AI;
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {
     internal class PrivateProvider
     {
-        private Kernel? _kernel;
         private IIoTClient? _iotClient;
         private IMcpClient? _mcpClient;
         private IAudioProcessor? _audioProcessor;
         private IAudioPlayerClient? _audioPlayerClient;
+        private CancellationTokenSource? _providerCts;
+        private Session _session;
+
+        public PrivateProvider(Session session)
+        {
+            this._session = session;
+            this.FunctionTools = new List<AITool>();
+        }
 
         public IAudioDecoder? AudioDecoder { get; private set; }
         public IVad? Vad { get; private set; }
@@ -19,8 +28,8 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public ITts? Tts { get; private set; }
         public IAudioResampler? AudioResampler { get; private set; }
         public IAudioEncoder? AudioEncoder { get; private set; }
+        public List<AITool> FunctionTools { get; private set; }
 
-        public Kernel? Kernel => this._kernel;
         public bool HasIoT { get; private set; }
 
         public IIoTClient? IoTClient => this._iotClient;
@@ -30,6 +39,30 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public IAudioProcessor? AudioProcessor => this._audioProcessor;
 
         public IAudioPlayerClient? AudioPlayerClient => this._audioPlayerClient;
+
+        public CancellationToken Token { get; private set; }
+
+        public void RegisterCancellationToken()
+        {
+            this._providerCts = CancellationTokenSource.CreateLinkedTokenSource(this._session.SessionCtsToken);
+            this.Token = this._providerCts.Token;
+            this._session.SessionCtsTokenChanged += this.OnSessionCtsTokenChanged;
+        }
+
+        private void OnSessionCtsTokenChanged(CancellationToken newToken)
+        {
+            var oldCts = this._providerCts;
+            try
+            {
+                oldCts?.Cancel();
+                oldCts?.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            this._providerCts = CancellationTokenSource.CreateLinkedTokenSource(newToken);
+            this.Token = this._providerCts.Token;
+        }
 
         public void SetAudioDecoder(IAudioDecoder audioDecoder)
         {
@@ -60,11 +93,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.AudioEncoder = audioEncoder;
         }
 
-        public void SetKernel(Kernel kernel)
-        {
-            this._kernel = kernel;
-        }
-
         public void SetIoTClient(IIoTClient iotClient)
         {
             this._iotClient = iotClient;
@@ -87,6 +115,17 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         }
         public void Release()
         {
+            if (this._session is not null)
+            {
+                this._session.SessionCtsTokenChanged -= this.OnSessionCtsTokenChanged;
+            }
+            try
+            {
+                this._providerCts?.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
             if (this.Vad is not null && !this.Vad.IsSherpaModel)
             {
                 this.Vad.Dispose();
@@ -106,7 +145,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._mcpClient?.Dispose();
             this._audioPlayerClient?.Dispose();
             this._audioProcessor?.Dispose();
-            this._kernel = null;
+            this.FunctionTools.Clear();
         }
     }
 }

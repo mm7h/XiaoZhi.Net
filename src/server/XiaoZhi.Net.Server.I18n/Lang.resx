@@ -382,7 +382,7 @@
     <value>Failed to build private LLM model for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateLlmInitialized" xml:space="preserve">
-    <value>Private emotion LLM {emotionLLMName} and chat LLM {chatLLMName} model initialized for device: {deviceId}.</value>
+    <value>Initialized private agent(s) for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericLlmBuildFailed" xml:space="preserve">
     <value>Failed to build generic LLM model per device: {deviceId}.</value>

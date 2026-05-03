@@ -36,7 +36,7 @@ namespace XiaoZhi.Net.Server.Providers
 
         public virtual void UnregisterDevice(string deviceId, string sessionId)
         {
-            this.Logger.LogInformation(Lang.BaseProvider_UnregisterDevice_Unregistered, this.DeviceId, this.ProviderType, this.SessionId);
+            this.Logger.LogInformation(Lang.BaseProvider_UnregisterDevice_Unregistered, this.DeviceId, this.SessionId, this.ProviderType);
             this.DeviceId = string.Empty;
             this.SessionId = string.Empty;
         }

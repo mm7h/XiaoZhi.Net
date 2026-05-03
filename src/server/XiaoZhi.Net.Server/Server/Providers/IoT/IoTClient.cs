@@ -1,11 +1,12 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.SemanticKernel;
+﻿using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -17,7 +18,6 @@ namespace XiaoZhi.Net.Server.Providers.IoT
 {
     internal class IoTClient : BaseProvider<IoTClient, Session>, IIoTClient
     {
-        private readonly Action _tempMethod = () => { };
         private readonly IList<IoTProperty> _iotProperties;
 
         public IoTClient(ILogger<IoTClient> logger) : base(logger)
@@ -49,18 +49,17 @@ namespace XiaoZhi.Net.Server.Providers.IoT
             }
         }
 
-        public async Task ExecuteIoTCommand(string iotDeviceComponentName, string functionName, IReadOnlyList<KernelParameterMetadata> parameterInfos, KernelArguments arguments)
+        public async Task ExecuteIoTCommandAsync(string iotDeviceComponentName, string functionName, IReadOnlyDictionary<string, object?> arguments, IReadOnlyList<IoTParameterInfo> parameterInfos, CancellationToken cancellationToken = default)
         {
-            IDictionary<string, object?> resultArgs = new Dictionary<string, object?>(arguments.Count);
+            IDictionary<string, object?> resultArgs = new Dictionary<string, object?>();
             foreach (var argument in arguments)
             {
-                KernelParameterMetadata? metadata = parameterInfos.FirstOrDefault(p => string.Equals(p.Name, argument.Key, StringComparison.OrdinalIgnoreCase));
-                if (metadata is not null)
+                IoTParameterInfo? paramInfo = parameterInfos.FirstOrDefault(p => string.Equals(p.Name, argument.Key, StringComparison.OrdinalIgnoreCase));
+                if (paramInfo is not null)
                 {
-                    object? val = IoTTypeMappingHelper.ConvertValue(argument.Value, metadata.ParameterType);
+                    object? val = IoTTypeMappingHelper.ConvertValue(argument.Value, paramInfo.ParameterType);
                     resultArgs.Add(argument.Key, val);
-
-                    this.UpdateIoTPropertyStatus(iotDeviceComponentName, metadata.Name, val, metadata.ParameterType);
+                    this.UpdateIoTPropertyStatus(iotDeviceComponentName, paramInfo.Name, val, paramInfo.ParameterType);
                 }
                 else
                 {
@@ -97,11 +96,6 @@ namespace XiaoZhi.Net.Server.Providers.IoT
 
         private void RegisterIoTTools(JsonArray descriptors)
         {
-            if (this.CurrentSession.PrivateProvider.Kernel is null)
-            {
-                this.Logger.LogError(Lang.IoTClient_RegisterIoTTools_KernelNull, this.CurrentSession.DeviceId);
-                return;
-            }
             int index = 1;
             foreach (JsonNode? descriptor in descriptors)
             {
@@ -118,11 +112,9 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                 }
 
                 string deviceDescription = descriptor["description"]?.GetValue<string>() ?? "";
+                index++;
 
-                string pluginName = $"{this.ProviderType}_{iotDeviceComponentName}_{index++}";
-
-                List<KernelFunction> deviceFunctions = new List<KernelFunction>();
-
+                // 注册属性读取工具（AIFunction 闭包，直接读取本地属性状态）
                 JsonObject properties = descriptor["properties"] as JsonObject ?? new JsonObject();
                 foreach (var property in properties)
                 {
@@ -132,27 +124,32 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                         string propDescription = propObj["description"]?.GetValue<string>() ?? string.Empty;
                         string propType = propObj["type"]?.GetValue<string>() ?? "string";
 
-                        IDictionary<string, object?> propertyDic = new Dictionary<string, object?>
-                        {
-                            { "session_id", this.CurrentSession.SessionId },
-                            { "iot_device_component_name", iotDeviceComponentName }
-                        };
+                        string capturedComponent = iotDeviceComponentName;
+                        string capturedProp = propName;
+                        Type capturedType = IoTTypeMappingHelper.GetIoTType(propType);
+                        IoTClient capturedClient = this;
 
-                        KernelFunctionFromMethodOptions propertyFunctionOption = new KernelFunctionFromMethodOptions
-                        {
-                            FunctionName = $"get_{iotDeviceComponentName.ToLower()}_{propName.ToLower()}",
-                            Description = string.Format(Lang.IoTClient_RegisterIoTTools_FunctionDescription, propDescription),
-                            AdditionalMetadata = new ReadOnlyDictionary<string, object?>(propertyDic),
-                            ReturnParameter = new KernelReturnParameterMetadata { ParameterType = IoTTypeMappingHelper.GetIoTType(propType), Schema = KernelJsonSchema.Parse(propObj.ToJsonString()) }
-                        };
-                        KernelFunction propertyFunction = KernelFunctionFactory.CreateFromMethod(this._tempMethod, propertyFunctionOption);
+                        string funcName = $"get_{iotDeviceComponentName.ToLower()}_{propName.ToLower()}";
 
-                        deviceFunctions.Add(propertyFunction);
+                        AIFunction propertyFunc = AIFunctionFactory.Create(
+                            () =>
+                            {
+                                // 直接按 component 和 prop 名查找属性状态
+                                IoTProperty? prop = capturedClient._iotProperties.FirstOrDefault(
+                                    i => i.IoTComponentName == capturedComponent.ToLower()
+                                      && i.Name == capturedProp.ToLower()
+                                      && i.Type == capturedType);
+                                return prop?.StatusValue?.ToString() ?? string.Empty;
+                            },
+                            funcName,
+                            string.Format(Lang.IoTClient_RegisterIoTTools_FunctionDescription, propDescription));
 
+                        this.CurrentSession.PrivateProvider.FunctionTools.Add(propertyFunc);
                         this.RegisterIoTProperties(iotDeviceComponentName, propName, propObj);
                     }
                 }
 
+                // 注册方法调用工具（AIFunction 闭包，接收 JSON 参数并路由执行）
                 JsonObject methods = descriptor["methods"] as JsonObject ?? new JsonObject();
                 foreach (var method in methods)
                 {
@@ -161,47 +158,52 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                         string methodName = method.Key;
                         string methodDescription = methodObj["description"]?.GetValue<string>() ?? string.Empty;
 
-                        List<KernelParameterMetadata> methodParameters = new List<KernelParameterMetadata>();
+                        List<IoTParameterInfo> methodParameters = new List<IoTParameterInfo>();
                         JsonObject parameters = methodObj["parameters"] as JsonObject ?? new JsonObject();
+                        StringBuilder paramDescBuilder = new StringBuilder();
                         foreach (var parameter in parameters)
                         {
                             if (parameter.Value is JsonObject paramObj)
                             {
                                 string paramName = parameter.Key;
                                 string paramDescription = paramObj["description"]?.GetValue<string>() ?? string.Empty;
-                                string propType = paramObj["type"]?.GetValue<string>() ?? "string";
+                                string paramType = paramObj["type"]?.GetValue<string>() ?? "string";
 
-                                KernelParameterMetadata methodParameter = new KernelParameterMetadata(paramName)
-                                {
-                                    Description = paramDescription,
-                                    IsRequired = true,
-                                    ParameterType = IoTTypeMappingHelper.GetIoTType(propType),
-                                    Schema = KernelJsonSchema.Parse(paramObj.ToJsonString())
-                                };
-                                methodParameters.Add(methodParameter);
+                                IoTParameterInfo paramInfo = new IoTParameterInfo(
+                                    paramName,
+                                    paramDescription,
+                                    IoTTypeMappingHelper.GetIoTType(paramType));
+                                methodParameters.Add(paramInfo);
+                                paramDescBuilder.AppendLine($"- {paramName} ({paramType}): {paramDescription}");
                             }
                         }
 
-                        IDictionary<string, object?> methodDic = new Dictionary<string, object?>
-                        {
-                            { "session_id", this.CurrentSession.SessionId },
-                            { "iot_device_component_name", iotDeviceComponentName }
-                        };
+                        string capturedComponent = iotDeviceComponentName;
+                        string capturedMethod = methodName;
+                        List<IoTParameterInfo> capturedParams = new List<IoTParameterInfo>(methodParameters);
+                        IoTClient capturedClient = this;
+                        string fullDescription = methodParameters.Count > 0
+                            ? $"{methodDescription}\n参数格式为 JSON 对象，字段如下:\n{paramDescBuilder}"
+                            : methodDescription;
 
-                        KernelFunctionFromMethodOptions methodFunctionOption = new KernelFunctionFromMethodOptions
-                        {
-                            FunctionName = methodName,
-                            Description = methodDescription,
-                            Parameters = methodParameters,
-                            AdditionalMetadata = new ReadOnlyDictionary<string, object?>(methodDic)
-                        };
-                        KernelFunction methodFunction = KernelFunctionFactory.CreateFromMethod(_tempMethod, methodFunctionOption);
+                        AIFunction methodFunc = AIFunctionFactory.Create(
+                            async (string arguments_json, CancellationToken ct) =>
+                            {
+                                Dictionary<string, object?> dict = string.IsNullOrEmpty(arguments_json)
+                                    ? new Dictionary<string, object?>()
+                                    : JsonSerializer.Deserialize<Dictionary<string, object?>>(
+                                        arguments_json,
+                                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                                      ?? new Dictionary<string, object?>();
+                                await capturedClient.ExecuteIoTCommandAsync(capturedComponent, capturedMethod, dict, capturedParams, ct);
+                                return "OK";
+                            },
+                            methodName,
+                            fullDescription);
 
-                        deviceFunctions.Add(methodFunction);
+                        this.CurrentSession.PrivateProvider.FunctionTools.Add(methodFunc);
                     }
                 }
-
-                this.CurrentSession.PrivateProvider.Kernel.ImportPluginFromFunctions(pluginName, string.Format(Lang.IoTClient_RegisterIoTTools_PluginDescription, !string.IsNullOrEmpty(iotDeviceComponentName) ? iotDeviceComponentName : deviceDescription), deviceFunctions);
             }
         }
 

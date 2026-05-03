@@ -1,24 +1,23 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
-using OpenAI.Chat;
+﻿using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
-using XiaoZhi.Net.Server.Common.Configs;
+using XiaoZhi.Net.Server.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
     internal class EmotionAgent : BaseAgent<EmotionAgent>, IEmotionAgent
     {
-        private Kernel? _kernel;
-        private KernelFunction? _emotionFunction;
-        private OpenAIPromptExecutionSettings? _chatExecutionSettings;
+        private IChatClient? _emotionChatClient;
         private bool _useEmotions = true;
 
         private const string EMOTION_PROMPT_TEMPLATE = @"<message role=""system"">You are an expert emotional tone analyzer for conversational AI. Your task is to analyze the sentiment of the provided text. If a conversation context is provided (e.g., User: ... Assistant: ...), analyze the sentiment of the Assistant's response to determine which single emotion from the predefined list matches the tone.
@@ -57,38 +56,23 @@ Assistant Sentence: ""{{$latestSentence}}""</message>";
         public EmotionAgent(IServiceProvider serviceProvider, ILogger<EmotionAgent> logger) : base(serviceProvider, logger)
         {
         }
-        public override string ModelName => nameof(EmotionAgent);
+        public override string ModelName => SubAgentNames.EmotionAgent;
         public override int Order => 11;
         public override bool SupportsStreaming => false;
 
-        public override bool Build(LLMBuildConfig modelSetting)
+        public override bool Build(LLMAgentBuildConfig agentBuildConfig)
         {
             try
             {
-                this._useEmotions = modelSetting.UseEmotions;
+                this._useEmotions = agentBuildConfig.AgentSetting.Config.GetConfigValueOrDefault("UseEmotions", false);
                 if (!this._useEmotions)
                 {
                     return true;
                 }
-                this._kernel = modelSetting.Kernel.Clone();
-                this._kernel.Plugins.Clear();
-
-                string serviceId = $"LLM_{modelSetting.EmotionLLMModelName}";
-
-                this._chatExecutionSettings = new OpenAIPromptExecutionSettings
-                {
-                    ServiceId = serviceId,
-                    Temperature = 0.5f,
-                    MaxTokens = 40,
-                    ResponseFormat = ChatResponseFormat.CreateTextFormat(),
-                    FunctionChoiceBehavior = FunctionChoiceBehavior.None()
-                };
-
-
-                this._emotionFunction = this._kernel.CreateFunctionFromPrompt(EMOTION_PROMPT_TEMPLATE, this._chatExecutionSettings);
+                this._emotionChatClient = this.ServiceProvider.GetRequiredKeyedService<IChatClient>($"LLM_{agentBuildConfig.AgentSetting.ModelName}");
                 this.Prompt = EMOTION_PROMPT_TEMPLATE;
 
-                this.Logger.LogInformation(Lang.EmotionAgent_Build_Built, this.ProviderType, this.ModelName, modelSetting.EmotionLLMModelName);
+                this.Logger.LogInformation(Lang.EmotionAgent_Build_Built, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
                 return true;
             }
             catch (Exception ex)
@@ -108,26 +92,32 @@ Assistant Sentence: ""{{$latestSentence}}""</message>";
             {
                 throw new SessionNotInitializedException();
             }
-            if (this._kernel is null || this._emotionFunction is null)
+            if (this._emotionChatClient is null)
             {
                 throw new InvalidOperationException(Lang.EmotionAgent_AnalyzeEmotionAsync_AgentNotBuilt);
             }
             if (string.IsNullOrEmpty(latestSentence))
-            { 
+            {
                 return Emotion.Neutral;
             }
             try
             {
-                KernelArguments arguments = new KernelArguments(this._chatExecutionSettings)
+                // 手动替换 prompt 模板中的变量，无需 KernelFunction
+                string resolvedPrompt = EMOTION_PROMPT_TEMPLATE
+                    .Replace("{{$userMessage}}", userMessage)
+                    .Replace("{{$latestSentence}}", latestSentence);
+
+                var messages = new List<ChatMessage>
                 {
-                    { "userMessage", userMessage },
-                    { "latestSentence", latestSentence }
+                    new ChatMessage(ChatRole.User, resolvedPrompt)
                 };
 
-                var functionResult = await this._emotionFunction.InvokeAsync(this._kernel, arguments, token);
+                var options = new ChatOptions { Temperature = 0.5f, MaxOutputTokens = 40 };
+                var response = await this._emotionChatClient.GetResponseAsync(messages, options, token);
 
-                string content = functionResult.GetValue<string>() ?? string.Empty;
-                string assistantContent = MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(content), @"<think>.*?</think>", string.Empty, RegexOptions.Singleline));
+                string content = response.Text ?? string.Empty;
+                string assistantContent = MarkdownCleaner.CleanMarkdown(
+                    Regex.Replace(Regex.Unescape(content), @"<think>.*?</think>", string.Empty, RegexOptions.Singleline));
 
                 return this.ParseEmotion(assistantContent);
             }

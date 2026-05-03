@@ -1,7 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
-using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +13,7 @@ using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Common.Configs;
+using XiaoZhi.Net.Server.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
 {
@@ -24,7 +24,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
         private readonly ObjectPool<OutSegment> _outSegmentPool;
         private readonly Dictionary<string, IAgent> _subAgents = new Dictionary<string, IAgent>();
-        private Kernel? _kernel;
         private int _seqParagraphId = 0;
         private int _seqSentenceId = 0;
 
@@ -38,13 +37,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
             this._outSegmentPool = outSegmentPool;
             this._subAgents = new Dictionary<string, IAgent>();
-            this.LLMChatHistory = new ChatHistory();
         }
         public override string ModelName => nameof(GenericOpenAI);
         public override string ProviderType => "llm";
 
-        public bool UseStreaming { get; private set; }
-        public ChatHistory LLMChatHistory { get; }
+        /// <summary>当前对话历史，来自 ChatAgent（供保存记忆等扩展使用）</summary>
+        public IReadOnlyList<ChatMessage> LLMChatHistory => this._chatAgent.ChatHistory;
 
         public event Action? OnBeforeTokenGenerate;
         public event Action<OutSegment>? OnTokenGenerating;
@@ -54,15 +52,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM
         {
             try
             {
-                this._kernel = modelSetting.Kernel;
-                this.UseStreaming = modelSetting.UseStreaming;
-
                 this._subAgents.Add(SubAgentNames.EmotionAgent, this._emotionAgent);
                 this._subAgents.Add(SubAgentNames.ChatAgent, this._chatAgent);
 
                 var buildResults = this._subAgents.Values
                     .AsParallel()
-                    .Select(client => client.Build(modelSetting))
+                    .Select(client => client.Build(new LLMAgentBuildConfig(modelSetting.AgentSettings[client.ModelName], modelSetting.SessionPrivateProvider)))
                     .ToArray();
 
                 return buildResults.All(result => result);
@@ -89,7 +84,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             {
                 throw new SessionNotInitializedException();
             }
-            if (!this._subAgents.Any() || this._kernel is null)
+            if (!this._subAgents.Any())
             {
                 this.Logger.LogError(Lang.GenericOpenAI_StartDialogueAsync_NotBuilt, this.ProviderType, this.ModelName);
                 return;
@@ -115,7 +110,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             return $"{devicePart}_{sessionPart}_{sequence}";
         }
 
-        private string GenerateSentenceId(string paragraphId) 
+        private string GenerateSentenceId(string paragraphId)
         {
             return $"{paragraphId}_{Interlocked.Increment(ref this._seqSentenceId)}";
         }

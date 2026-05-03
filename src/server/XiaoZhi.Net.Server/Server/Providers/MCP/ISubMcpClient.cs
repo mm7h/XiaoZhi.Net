@@ -1,4 +1,4 @@
-﻿using Microsoft.SemanticKernel;
+﻿using Microsoft.Extensions.AI;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
@@ -8,7 +8,8 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 {
     internal interface ISubMcpClient : IProvider<MCPClientBuildConfig>
     {
-        ICollection<KernelFunction> Functions { get; }
+        /// <summary>已注册的 MCP 工具函数列表</summary>
+        ICollection<AIFunction> Functions { get; }
         bool IsReady { get; }
         int NextId { get; }
         bool HasTool(string toolName);
@@ -17,6 +18,6 @@ namespace XiaoZhi.Net.Server.Providers.MCP
         Task SendMcpNotificationAsync(string method);
         Task RequestToolsListAsync();
         Task RequestToolsListAsync(string cursor);
-        Task<string> CallMcpToolAsync(string toolName, KernelArguments arguments, int timeout = 30);
+        Task<string> CallMcpToolAsync(string toolName, IReadOnlyDictionary<string, object?> arguments, int timeout = 30);
     }
 }

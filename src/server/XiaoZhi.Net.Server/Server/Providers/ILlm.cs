@@ -1,4 +1,4 @@
-﻿using Microsoft.SemanticKernel.ChatCompletion;
+﻿using Microsoft.Extensions.AI;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -13,8 +13,8 @@ namespace XiaoZhi.Net.Server.Providers
         event Action OnBeforeTokenGenerate;
         event Action<OutSegment> OnTokenGenerating;
         event Action<IEnumerable<OutSegment>> OnTokenGenerated;
-        bool UseStreaming { get; }
-        ChatHistory LLMChatHistory { get; }
+        /// <summary>当前对话的聊天历史，用于保存记忆等功能</summary>
+        IReadOnlyList<ChatMessage> LLMChatHistory { get; }
         Task StartDialogueAsync(string userMessage, CancellationToken token);
     }
 }

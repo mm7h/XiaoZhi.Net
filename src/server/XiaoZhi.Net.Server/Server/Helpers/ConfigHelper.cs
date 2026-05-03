@@ -42,5 +42,34 @@ namespace XiaoZhi.Net.Server.Helpers
 
             return JsonSerializer.Deserialize<TValue>(value, JsonHelper.OPTIONS) ?? defaultValue;
         }
+
+        public static void SetConfigValue<TValue>(this IDictionary<string, string> config, string key, TValue? configValue)
+        { 
+            if (config == null || string.IsNullOrEmpty(key))
+            {
+                return;
+            }
+
+            if (configValue == null)
+            {
+                if (config.ContainsKey(key))
+                {
+                    config.Remove(key);
+                }
+                return;
+            }
+
+            string value;
+            if (configValue is string s)
+            {
+                value = s;
+            }
+            else
+            {
+                value = JsonSerializer.Serialize(configValue, JsonHelper.OPTIONS);
+            }
+
+            config[key] = value;
+        }
     }
 }

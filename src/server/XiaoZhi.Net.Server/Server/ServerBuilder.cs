@@ -3,10 +3,8 @@ using Flurl.Http.Configuration;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.SemanticKernel;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Globalization;
 using System.Linq;
 using XiaoZhi.Net.Server.Abstractions;
@@ -54,8 +52,6 @@ namespace XiaoZhi.Net.Server
                 services.AddSingleton(config);
 
                 services.AddSingleton(connectionStore);
-
-                services.AddKernel();
             })
             .RegisterLogger(config)
             .RegisterResources()
@@ -81,7 +77,8 @@ namespace XiaoZhi.Net.Server
             }
             this.HostBuilder.ConfigureServices((context, services) =>
             {
-                services.AddSingleton(sp => KernelPluginFactory.CreateFromType<TPlugin>(pluginName, sp));
+                // 保留扩展点，当前阶段以 DI 单例方式注册类型，需要时再封装为 AIFunction
+                services.AddSingleton(typeof(TPlugin));
             });
             return this;
         }
@@ -97,10 +94,12 @@ namespace XiaoZhi.Net.Server
                 throw new ArgumentNullException(nameof(functions), Lang.ServerBuilder_WithPlugin_FunctionsNull);
             }
 
-            IEnumerable<KernelFunction> kernelFunctions = functions.Select(f => KernelFunctionFactory.CreateFromMethod(f.Method, f.FunctionName, f.Description));
+            // 将 IFunction 列表封装为 AIFunction 并注册为 IEnumerable<AIFunction>
+            IEnumerable<AIFunction> aiFunctions = functions.Select(
+                f => AIFunctionFactory.Create(f.Method, new AIFunctionFactoryOptions { Name = f.FunctionName, Description = f.Description }));
             this.HostBuilder.ConfigureServices((context, services) =>
             {
-                services.AddSingleton(sp => KernelPluginFactory.CreateFromFunctions(pluginName, kernelFunctions));
+                services.AddSingleton(aiFunctions);
             });
             return this;
         }

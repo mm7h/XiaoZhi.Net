@@ -1,11 +1,10 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.SemanticKernel;
+﻿using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -21,19 +20,18 @@ namespace XiaoZhi.Net.Server.Providers.MCP
     internal abstract class BaseMcpClient<TLogger> : BaseProvider<TLogger, MCPClientBuildConfig>, ISubMcpClient
     {
         private readonly SemaphoreSlim _lockerSlim = new SemaphoreSlim(1, 1);
-        private readonly Action _tempMethod = () => { };
 
         private bool _isReady = false;
         private int _nextId = 1;
 
-        private IDictionary<string, KernelFunction> _mcpTools = new ConcurrentDictionary<string, KernelFunction>();
+        private IDictionary<string, AIFunction> _mcpTools = new ConcurrentDictionary<string, AIFunction>();
         private IDictionary<int, TaskCompletionSource<JsonObject>> _callResults = new ConcurrentDictionary<int, TaskCompletionSource<JsonObject>>();
 
         public BaseMcpClient(ILogger<TLogger> logger) : base(logger)
         {
 
         }
-        public ICollection<KernelFunction> Functions => this._mcpTools.Values;
+        public ICollection<AIFunction> Functions => this._mcpTools.Values;
 
         public bool IsReady
         {
@@ -70,11 +68,6 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
         public async virtual Task HandleMcpMessageAsync(JsonObject payloadObj)
         {
-            if (this.CurrentSession.PrivateProvider.Kernel is null)
-            {
-                this.Logger.LogError(Lang.BaseMcpClient_HandleMcpMessageAsync_KernelNotReady, this.CurrentSession.DeviceId);
-                return;
-            }
             if (payloadObj.TryGetPropertyValue("result", out var result) && result is not null)
             {
                 int msgId = payloadObj["id"]?.AsValue().GetValue<int>() ?? 0;
@@ -132,35 +125,38 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                             JsonObject properties = inputSchema["properties"] as JsonObject ?? new JsonObject();
                             JsonArray requiredProperties = inputSchema["required"] as JsonArray ?? new JsonArray();
 
-                            List<KernelParameterMetadata> kernelParameters = new List<KernelParameterMetadata>();
-
+                            List<string> paramDescs = new List<string>();
                             foreach (var property in properties)
                             {
                                 if (property.Value is JsonObject propObj)
                                 {
                                     string propName = property.Key;
                                     string propDescription = propObj["description"]?.GetValue<string>() ?? string.Empty;
-
-                                    KernelParameterMetadata kernelParameter = new KernelParameterMetadata(propName)
-                                    {
-                                        Description = propDescription,
-                                        IsRequired = requiredProperties.Contains(propName),
-                                        Schema = KernelJsonSchema.Parse(propObj.ToJsonString())
-                                    };
-                                    kernelParameters.Add(kernelParameter);
+                                    bool isRequired = requiredProperties.Any(r => r?.GetValue<string>() == propName);
+                                    paramDescs.Add($"- {propName}{(isRequired ? " (required)" : "(optional)")}: {propDescription}");
                                 }
                             }
 
-                            KernelFunctionFromMethodOptions functionOption = new KernelFunctionFromMethodOptions
-                            {
-                                FunctionName = this.SanitizeToolName(toolName),
-                                Description = toolDescription,
-                                Parameters = kernelParameters,
-                                AdditionalMetadata = new ReadOnlyDictionary<string, object?>(this.AdditionalMetadataDic)
-                            };
-                            KernelFunction toolFunction = KernelFunctionFactory.CreateFromMethod(this._tempMethod, functionOption);
+                            string capturedToolName = toolName;
+                            BaseMcpClient<TLogger> capturedClient = this;
+                            string fullDescription = paramDescs.Count > 0
+                                ? $"{toolDescription}\n参数格式为 JSON 对象，字段如下:\n{string.Join("\n", paramDescs)}"
+                                : toolDescription;
 
-                            this.AddTool(toolName, toolFunction);
+                            AIFunction toolFunc = AIFunctionFactory.Create(
+                                async (string argumentsJson, CancellationToken ct) =>
+                                {
+                                    var argDict = string.IsNullOrEmpty(argumentsJson)
+                                        ? new Dictionary<string, object?>()
+                                        : JsonHelper.Deserialize<Dictionary<string, object?>>(argumentsJson)
+                                          ?? new Dictionary<string, object?>();
+                                    return await capturedClient.CallMcpToolAsync(capturedToolName, argDict);
+                                },
+                                this.SanitizeToolName(toolName),
+                                fullDescription,
+                                JsonHelper.OPTIONS);
+
+                            this.AddTool(toolName, toolFunc);
                             this.Logger.LogInformation(Lang.BaseMcpClient_HandleMcpMessageAsync_ToolAdded, toolName);
                         }
 
@@ -176,9 +172,11 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                         else
                         {
                             this.IsReady = true;
-
-                            this.CurrentSession.PrivateProvider.Kernel.ImportPluginFromFunctions(this.ModelName, this._mcpTools.Values);
-
+                            // 将所有 AIFunction 注册到 session 共享工具列表
+                            foreach (var func in this._mcpTools.Values)
+                            {
+                                this.CurrentSession.PrivateProvider.FunctionTools.Add(func);
+                            }
                             this.Logger.LogInformation(Lang.BaseMcpClient_HandleMcpMessageAsync_ClientReady);
                         }
 
@@ -292,7 +290,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             }
         }
 
-        public async virtual Task<string> CallMcpToolAsync(string toolName, KernelArguments arguments, int timeout = 30)
+        public async virtual Task<string> CallMcpToolAsync(string toolName, IReadOnlyDictionary<string, object?> arguments, int timeout = 30)
         {
             if (string.IsNullOrEmpty(toolName))
             {
@@ -309,9 +307,9 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             int toolCallId = this.NextId;
             Task<JsonObject> resultTask = this.RegisterCallResultAsync(toolCallId);
 
-            string argJson = arguments.ToJson();
+            string argJson = System.Text.Json.JsonSerializer.Serialize(arguments);
 
-            if (this._mcpTools.TryGetValue(toolName, out KernelFunction? mcpTool))
+            if (this._mcpTools.TryGetValue(toolName, out AIFunction? mcpTool))
             {
                 string realToolName = mcpTool.Name;
 
@@ -379,7 +377,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
         protected abstract Task SendMCPMessageAsync<TMessage>(TMessage message);
 
-        protected void AddTool(string toolName, KernelFunction toolFunction)
+        protected void AddTool(string toolName, AIFunction toolFunction)
         {
             try
             {
