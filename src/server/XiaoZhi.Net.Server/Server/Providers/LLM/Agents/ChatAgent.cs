@@ -2,7 +2,6 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using OpenAI.Responses;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -26,8 +25,8 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
         private ChatClientAgent? _chatClientAgent;
 
         private AgentSession? _agentSession;
-        /// <summary>共享工具列表引用，IoT/MCP 会动态向其中注册工具</summary>
-        private IList<AITool>? _sharedTools;
+
+        private List<AITool>? _functionTools;
 
         public ChatAgent(IServiceProvider serviceProvider, ILogger<ChatAgent> logger) : base(serviceProvider, logger)
         {
@@ -54,7 +53,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             {
                 this.Prompt = agentBuildConfig.AgentSetting.Config.GetConfigValueOrDefault("Prompt")!;
                 this.UseStreaming = agentBuildConfig.AgentSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
-                string ? summaryMemory = agentBuildConfig.AgentSetting.Config.GetValueOrDefault("SummaryMemory");
+                string? summaryMemory = agentBuildConfig.AgentSetting.Config.GetValueOrDefault("SummaryMemory");
 
                 // 若有历史记忆摘要，追加到系统提示词中
                 string instructions = this.Prompt;
@@ -64,18 +63,29 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                 }
                 IChatClient chatClient = this.ServiceProvider.GetRequiredKeyedService<IChatClient>($"LLM_{agentBuildConfig.AgentSetting.ModelName}");
 
+                bool pluginsBuildResult = this.BuildPlugins(agentBuildConfig.SessionPrivateProvider);
+
+                this._functionTools = agentBuildConfig.SessionPrivateProvider.FunctionTools;
+
+                ChatClientAgentOptions chatClientAgentOptions = new ChatClientAgentOptions
+                {
+                    Name = nameof(ChatAgent),
+                    Description = $"the agent of {nameof(ChatAgent)}",
+                    ChatOptions = new ChatOptions
+                    {
+                        Instructions = instructions,
+                        Temperature = 0.5f,
+                        MaxOutputTokens = 40,
+                    },
+                };
+
                 this._chatClientAgent = new ChatClientAgent(
                     chatClient: chatClient,
-                    instructions: instructions,
-                    name: nameof(ChatAgent),
-                    description: $"the agent of {nameof(ChatAgent)}",
+                    options: chatClientAgentOptions,
                     services: this.ServiceProvider
                 );
 
-                // 创建 AgentSession，对话历史将存储于其 StateBag
                 this._agentSession = this._chatClientAgent.CreateSessionAsync(agentBuildConfig.SessionPrivateProvider.Token).GetAwaiter().GetResult();
-
-                bool pluginsBuildResult = this.BuildPlugins(agentBuildConfig.SessionPrivateProvider);
 
                 if (pluginsBuildResult)
                 {
@@ -113,7 +123,11 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                 throw new InvalidOperationException(Lang.ChatAgent_GenerateChatResponseAsync_AgentNotBuilt);
             }
 
-            ChatClientAgentRunOptions runOptions = this.BuildCurrentRunOptions();
+            ChatClientAgentRunOptions runOptions = new ChatClientAgentRunOptions(new ChatOptions
+            {
+                Tools = this._functionTools,
+                ToolMode = ChatToolMode.Auto
+            });
             AgentResponse response = await this._chatClientAgent.RunAsync(userMessage, this._agentSession, runOptions, token);
 
             string content = response.Text ?? string.Empty;
@@ -134,11 +148,14 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                 throw new InvalidOperationException(Lang.ChatAgent_GenerateChatResponseAsync_AgentNotBuilt);
             }
 
-
-            ChatClientAgentRunOptions runOptions = this.BuildCurrentRunOptions();
             StringBuilder allResponse = new StringBuilder();
             StringBuilder segmentResponse = new StringBuilder();
 
+            ChatClientAgentRunOptions runOptions = new ChatClientAgentRunOptions(new ChatOptions
+            {
+                Tools = this._functionTools,
+                ToolMode = ChatToolMode.Auto
+            });
             await foreach (AgentResponseUpdate update in this._chatClientAgent.RunStreamingAsync(userMessage, this._agentSession, runOptions, token))
             {
                 string content = update.Text ?? string.Empty;
@@ -169,22 +186,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                 allResponse.Append(sentence);
                 yield return sentence;
             }
-        }
-
-        /// <summary>构建本次调用的运行选项，动态注入当前共享工具列表</summary>
-        private ChatClientAgentRunOptions BuildCurrentRunOptions()
-        {
-            var chatOptions = new ChatOptions
-            {
-                Temperature = 0.5f,
-                MaxOutputTokens = 40
-            };
-            if (this._sharedTools != null && this._sharedTools.Count > 0)
-            {
-                chatOptions.Tools = new List<AITool>(this._sharedTools);
-                chatOptions.ToolMode = ChatToolMode.Auto;
-            }
-            return new ChatClientAgentRunOptions(chatOptions);
         }
 
         private bool BuildPlugins(PrivateProvider sessionProvider)

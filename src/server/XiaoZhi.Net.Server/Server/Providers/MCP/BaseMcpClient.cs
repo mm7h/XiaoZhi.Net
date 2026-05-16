@@ -148,8 +148,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                                 {
                                     var argDict = string.IsNullOrEmpty(argumentsJson)
                                         ? new Dictionary<string, object?>()
-                                        : JsonHelper.Deserialize<Dictionary<string, object?>>(argumentsJson)
-                                          ?? new Dictionary<string, object?>();
+                                        : JsonHelper.Deserialize<Dictionary<string, object?>>(argumentsJson) ?? new Dictionary<string, object?>();
                                     return await capturedClient.CallMcpToolAsync(capturedToolName, argDict);
                                 },
                                 this.SanitizeToolName(toolName),
