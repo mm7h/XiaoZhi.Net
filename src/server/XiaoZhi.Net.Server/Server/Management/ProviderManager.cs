@@ -149,7 +149,7 @@ namespace XiaoZhi.Net.Server.Management
             ModelSetting modelSetting = new ModelSetting
             {
                 ModelName = selectedModel,
-                Config = setting
+                Config = new Dictionary<string, string>(setting)
             };
 
             return modelSetting;
@@ -163,10 +163,20 @@ namespace XiaoZhi.Net.Server.Management
             ModelSetting modelSetting = new ModelSetting
             {
                 ModelName = selectedModel,
-                Config = setting
+                Config = new Dictionary<string, string>(setting)
             };
 
             return modelSetting;
+        }
+
+        private ModelSetting GetSelectedLLMSettingOrFallback(string selectedLLMType, string fallbackLLMType, XiaoZhiConfig config)
+        {
+            if (config.SelectedSettings.ContainsKey(selectedLLMType))
+            {
+                return this.GetSelectedLLMSetting(selectedLLMType, config);
+            }
+
+            return this.GetSelectedLLMSetting(fallbackLLMType, config);
         }
 
         public async Task<bool> InitializePrivateConfigAsync(Session session)
@@ -264,11 +274,12 @@ namespace XiaoZhi.Net.Server.Management
                 {
                     ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
 
+                    ModelSetting intentLLMModelSetting = this.GetSelectedLLMSettingOrFallback("IntentLLM", "ChatLLM", this._config);
                     ModelSetting chatLLMModelSetting = this.GetSelectedLLMSetting("ChatLLM", this._config);
                     chatLLMModelSetting.Config.SetConfigValue("Prompt", this._config.Prompt);
                     Dictionary<string, ModelSetting> agentSettings = new Dictionary<string, ModelSetting>
                     {
-                        { SubAgentNames.EmotionAgent, this.GetSelectedLLMSetting("EmotionLLM", this._config) },
+                        { SubAgentNames.IntentAgent, intentLLMModelSetting },
                         { SubAgentNames.ChatAgent, chatLLMModelSetting },
                     };
 
@@ -518,7 +529,7 @@ namespace XiaoZhi.Net.Server.Management
                 });
             }
 
-            services.AddTransient<IEmotionAgent, EmotionAgent>();
+            services.AddTransient<IIntentAgent, IntentAgent>();
             services.AddTransient<IChatAgent, ChatAgent>();
             services.AddTransient<ILlm, GenericOpenAI>();
         }
@@ -716,11 +727,12 @@ namespace XiaoZhi.Net.Server.Management
             #region LLM
             ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
 
+            ModelSetting intentLLMModelSetting = this.GetSelectedLLMSettingOrFallback("IntentLLM", "ChatLLM", this._config);
             ModelSetting chatLLMModelSetting = this.GetSelectedLLMSetting("ChatLLM", this._config);
             chatLLMModelSetting.Config.SetConfigValue("Prompt", this._config.Prompt);
             Dictionary<string, ModelSetting> agentSettings = new Dictionary<string, ModelSetting>
                     {
-                        { SubAgentNames.EmotionAgent, this.GetSelectedLLMSetting("EmotionLLM", this._config) },
+                        { SubAgentNames.IntentAgent, intentLLMModelSetting },
                         { SubAgentNames.ChatAgent, chatLLMModelSetting },
                     };
 

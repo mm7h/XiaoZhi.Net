@@ -1,20 +1,60 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Agents.AI.Workflows;
+using Microsoft.Extensions.Logging;
 using System;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
-    internal abstract class BaseAgent<TLogger> : BaseProvider<TLogger, LLMAgentBuildConfig>, IAgent
+    internal abstract class BaseAgent<TLogger> : Executor
     {
-        protected BaseAgent(IServiceProvider serviceProvider, ILogger<TLogger> logger) : base(logger)
+        protected BaseAgent(string agentName, IServiceProvider serviceProvider, ILogger<TLogger> logger) : base(agentName)
         {
             this.ServiceProvider = serviceProvider;
+            this.Logger = logger;
+            this.AgentName = agentName;
         }
         public IServiceProvider ServiceProvider { get; set; }
-        public override string ProviderType => "llm agent";
-        public string Prompt { get; protected set; } = string.Empty;
+        public string AgentName { get; }
+        public string Prompt { get; protected set; } = "You are a helpful assistant.";
         public abstract int Order { get; }
         public virtual bool IsEnabled { get; protected set; } = true;
         public virtual bool SupportsStreaming { get; protected set; } = true;
+        protected ILogger<TLogger> Logger { get; }
+        protected string SessionId { get; set; } = string.Empty;
+        protected string DeviceId { get; set; } = string.Empty;
+        public abstract bool Build(LLMAgentBuildConfig buildConfig);
+        public abstract void Dispose();
+
+        public virtual void RegisterDevice(string deviceId, string sessionId)
+        {
+            this.DeviceId = deviceId;
+            this.SessionId = sessionId;
+            //todo
+            //this.Logger.LogInformation(Lang.BaseProvider_RegisterDevice_Registered, this.DeviceId, this.SessionId, this.ProviderType);
+        }
+
+        public virtual void UnregisterDevice(string deviceId, string sessionId)
+        {
+            //todo
+            //this.Logger.LogInformation(Lang.BaseProvider_UnregisterDevice_Unregistered, this.DeviceId, this.SessionId, this.ProviderType);
+            this.DeviceId = string.Empty;
+            this.SessionId = string.Empty;
+        }
+
+        public virtual bool CheckDeviceRegistered(string deviceId, string sessionId)
+        {
+            if (string.IsNullOrEmpty(this.DeviceId) || string.IsNullOrEmpty(this.SessionId))
+            {
+                //todo
+                //this.Logger.LogError(Lang.BaseProvider_CheckDeviceRegistered_NotRegistered, string.IsNullOrEmpty(this.DeviceId) ? "unkonwn" : this.DeviceId, string.IsNullOrEmpty(this.SessionId) ? "unkonwn" : this.SessionId, this.ProviderType);
+                return false;
+            }
+            return true;
+        }
+        protected virtual string GenerateId()
+        {
+            return Guid.NewGuid().ToString("N");
+        }
     }
 }

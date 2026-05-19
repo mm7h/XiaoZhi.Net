@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.AI;
+﻿using Microsoft.Agents.AI.Workflows;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
 using System;
@@ -6,34 +8,41 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Common.Configs;
+using XiaoZhi.Net.Server.Providers.LLM.Plugins;
 using XiaoZhi.Net.Server.Server.Common.Configs;
+using XiaoZhi.Net.Server.Server.Providers.LLM.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
 {
     internal class GenericOpenAI : BaseProvider<GenericOpenAI, LLMBuildConfig>, ILlm
     {
+        private readonly IServiceProvider _serviceProvider;
+
+        private readonly IIntentAgent _intentAgent;
+
         private readonly IChatAgent _chatAgent;
-        private readonly IEmotionAgent _emotionAgent;
 
         private readonly ObjectPool<OutSegment> _outSegmentPool;
         private readonly Dictionary<string, IAgent> _subAgents = new Dictionary<string, IAgent>();
+        private Workflow? _dialogueWorkflow;
         private int _seqParagraphId = 0;
         private int _seqSentenceId = 0;
 
-        public GenericOpenAI(IChatAgent chatAgent,
-            IEmotionAgent emotionAgent,
+        public GenericOpenAI(IServiceProvider serviceProvider,
+            IIntentAgent intentAgent,
+            IChatAgent chatAgent,
             ObjectPool<OutSegment> outSegmentPool,
             ILogger<GenericOpenAI> logger) : base(logger)
         {
+            this._serviceProvider = serviceProvider;
+            this._intentAgent = intentAgent;
             this._chatAgent = chatAgent;
-            this._emotionAgent = emotionAgent;
 
             this._outSegmentPool = outSegmentPool;
             this._subAgents = new Dictionary<string, IAgent>();
@@ -52,21 +61,50 @@ namespace XiaoZhi.Net.Server.Providers.LLM
         {
             try
             {
-                this._subAgents.Add(SubAgentNames.EmotionAgent, this._emotionAgent);
-                this._subAgents.Add(SubAgentNames.ChatAgent, this._chatAgent);
+                this._subAgents.Clear();
+
+                Dictionary<string, ModelSetting> resolvedAgentSettings = this.ResolveAgentSettings(modelSetting.AgentSettings);
 
                 var buildResults = this._subAgents.Values
                     .AsParallel()
-                    .Select(client => client.Build(new LLMAgentBuildConfig(modelSetting.AgentSettings[client.ModelName], modelSetting.SessionPrivateProvider)))
+                    .Select(client =>
+                    {
+                        bool subAgentBuildResult = client.Build(new LLMAgentBuildConfig(resolvedAgentSettings[client.AgentName], modelSetting.SessionPrivateProvider));
+                        this._subAgents.Add(client.AgentName, client);
+                        return subAgentBuildResult;
+                    })
                     .ToArray();
 
-                return buildResults.All(result => result);
+                bool buildSuccess = buildResults.All(result => result);
+                if (buildSuccess)
+                {
+                    this._dialogueWorkflow = this.BuildDialogueWorkflow(modelSetting.SessionPrivateProvider);
+                }
+
+                return buildSuccess;
             }
             catch (Exception ex)
             {
                 this.Logger.LogError(ex, Lang.GenericOpenAI_Build_InvalidSettings, this.ProviderType, this.ModelName);
                 return false;
             }
+        }
+
+        private Workflow BuildDialogueWorkflow(PrivateProvider sessionPrivateProvider)
+        {
+            IntentDetectionExecutor intentDetectionExecutor = new IntentDetectionExecutor(this._intentAgent);
+            IntentActionExecutor intentActionExecutor = new IntentActionExecutor(this._serviceProvider, sessionPrivateProvider);
+            ChatResponseExecutor chatResponseExecutor = new ChatResponseExecutor(this._chatAgent);
+            WorkflowOutputExecutor workflowOutputExecutor = new WorkflowOutputExecutor();
+
+            return new WorkflowBuilder(intentDetectionExecutor)
+                .AddSwitch(intentDetectionExecutor, sw => sw
+                    .AddCase<IntentResult>(result => result is not null && result.Matched, intentActionExecutor)
+                    .AddCase<IntentResult>(result => result is null || !result.Matched, chatResponseExecutor))
+                .AddEdge(intentActionExecutor, workflowOutputExecutor)
+                .AddEdge(chatResponseExecutor, workflowOutputExecutor)
+                .WithOutputFrom(workflowOutputExecutor)
+                .Build();
         }
 
         public override void RegisterDevice(string deviceId, string sessionId)
@@ -89,15 +127,15 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 this.Logger.LogError(Lang.GenericOpenAI_StartDialogueAsync_NotBuilt, this.ProviderType, this.ModelName);
                 return;
             }
-            if (this._chatAgent.UseStreaming)
+            if (this._dialogueWorkflow is null)
             {
-                await this.ChatByStreamingAsync(userMessage, token);
+                throw new InvalidOperationException("Dialogue workflow is not initialized.");
             }
-            else
-            {
-                await this.ChatAsync(userMessage, token);
-            }
+
+            WorkflowOutputs workflowOutputs = await this.RunDialogueWorkflowAsync(userMessage, token);
+            await this.EmitWorkflowOutputAsync(workflowOutputs, token);
         }
+
         protected override string GenerateId()
         {
             string devicePart = this.ReplaceMacDelimiters(this.DeviceId, "_");
@@ -115,31 +153,53 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             return $"{paragraphId}_{Interlocked.Increment(ref this._seqSentenceId)}";
         }
 
-        private async Task ChatAsync(string userMessage, CancellationToken token)
+        private async Task<WorkflowOutputs> RunDialogueWorkflowAsync(string userMessage, CancellationToken token)
+        {
+            await using StreamingRun run = await InProcessExecution.RunStreamingAsync(this._dialogueWorkflow!, userMessage, string.Empty, token);
+            WorkflowOutputs? output = null;
+
+            await foreach (WorkflowEvent workflowEvent in run.WatchStreamAsync())
+            {
+                switch (workflowEvent)
+                {
+                    case WorkflowOutputEvent workflowOutputEvent when workflowOutputEvent.Data is WorkflowOutputs workflowOutput:
+                        output = workflowOutput;
+                        break;
+                    case WorkflowErrorEvent workflowErrorEvent:
+                        throw workflowErrorEvent.Exception ?? new InvalidOperationException("Dialogue workflow failed.");
+                    case ExecutorFailedEvent executorFailedEvent:
+                        throw new InvalidOperationException($"Executor '{executorFailedEvent.ExecutorId}' failed with {(executorFailedEvent.Data is null ? "unknown error" : executorFailedEvent.Data)}.");
+                }
+            }
+
+            return output ?? throw new InvalidOperationException("Dialogue workflow produced no output.");
+        }
+
+        private Task EmitWorkflowOutputAsync(WorkflowOutputs workflowOutputs, CancellationToken token)
         {
             List<OutSegment> allResponse = new List<OutSegment>();
             try
             {
                 this.OnBeforeTokenGenerate?.Invoke();
 
-                string assistantResponse = await this._chatAgent.GenerateChatResponseAsync(userMessage, token);
-                token.ThrowIfCancellationRequested();
+                List<EmotionTagParser.ParsedEmotionSegment> segments = DialogueHelper.SplitContentByPunctuations(workflowOutputs.ResponseText)
+                    .Select(EmotionTagParser.Parse)
+                    .Select(segment => new EmotionTagParser.ParsedEmotionSegment(
+                        DialogueHelper.GetStringNoPunctuationOrEmoji(segment.Content),
+                        segment.Emotion))
+                    .Where(segment => !string.IsNullOrWhiteSpace(segment.Content))
+                    .ToList();
 
-                string cleanContent = DialogueHelper.GetStringNoPunctuationOrEmoji(assistantResponse);
-                IEnumerable<string> segments = DialogueHelper.SplitContentByPunctuations(cleanContent);
-
-                int index = 0;
-                int count = segments.Count();
                 string paragraphId = this.GenerateId();
-                foreach (string sentence in segments)
+                for (int index = 0; index < segments.Count; index++)
                 {
                     token.ThrowIfCancellationRequested();
-                    index++;
-                    Emotion detectedEmotion = await this._emotionAgent.AnalyzeEmotionAsync(userMessage, sentence, token);
-                    this.Logger.LogDebug(Lang.GenericOpenAI_ChatAsync_EmotionDetected, detectedEmotion, sentence);
+
+                    EmotionTagParser.ParsedEmotionSegment segment = segments[index];
+                    this.Logger.LogDebug(Lang.GenericOpenAI_ChatAsync_EmotionDetected, segment.Emotion, segment.Content);
 
                     var outSegment = this._outSegmentPool.Get();
-                    outSegment.Initialize(sentence, index == 1, index == count, detectedEmotion, paragraphId, this.GenerateSentenceId(paragraphId));
+                    outSegment.Initialize(segment.Content, index == 0, index == segments.Count - 1, segment.Emotion, paragraphId, this.GenerateSentenceId(paragraphId));
 
                     allResponse.Add(outSegment);
                     this.OnTokenGenerating?.Invoke(outSegment);
@@ -150,70 +210,46 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             catch (OperationCanceledException)
             {
                 this.Logger.LogDebug(Lang.GenericOpenAI_ChatAsync_Cancelled, allResponse.Count);
-                // Clean up any segments that were created but not yet sent
                 this.OnTokenGenerated?.Invoke(allResponse);
                 throw;
             }
             catch (Exception ex)
             {
                 this.Logger.LogError(ex, Lang.GenericOpenAI_ChatAsync_UnexpectedError, this.ProviderType);
-                // Clean up segments on error
                 this.OnTokenGenerated?.Invoke(allResponse);
             }
+
+            return Task.CompletedTask;
         }
 
-        private async Task ChatByStreamingAsync(string userMessage, CancellationToken token)
+        private Dictionary<string, ModelSetting> ResolveAgentSettings(Dictionary<string, ModelSetting> agentSettings)
         {
-            List<OutSegment> allResponse = new List<OutSegment>();
-            try
+            if (!agentSettings.TryGetValue(SubAgentNames.ChatAgent, out ModelSetting? chatAgentSetting))
             {
-                this.OnBeforeTokenGenerate?.Invoke();
+                throw new InvalidOperationException("ChatAgent setting is required.");
+            }
 
-                string paragraphId = this.GenerateId();
-
-                await foreach (string sentence in this._chatAgent.GenerateChatResponseStreamingAsync(userMessage, token))
+            Dictionary<string, ModelSetting> resolvedSettings = new Dictionary<string, ModelSetting>
+            {
+                { SubAgentNames.ChatAgent, CloneModelSetting(chatAgentSetting) },
                 {
-                    token.ThrowIfCancellationRequested();
-
-                    Emotion detectedEmotion = await this._emotionAgent.AnalyzeEmotionAsync(userMessage, sentence, token);
-                    this.Logger.LogDebug(Lang.GenericOpenAI_ChatAsync_EmotionDetected, detectedEmotion, sentence);
-
-                    var outSegment = this._outSegmentPool.Get();
-                    outSegment.Initialize(sentence, detectedEmotion, paragraphId, this.GenerateSentenceId(paragraphId));
-
-                    if (allResponse.Count == 0)
-                    {
-                        outSegment.IsFirstSegment = true;
-                    }
-                    allResponse.Add(outSegment);
-                    if (allResponse.Count >= 2)
-                    {
-                        this.OnTokenGenerating?.Invoke(allResponse[^2]);
-                    }
-
+                    SubAgentNames.IntentAgent,
+                    agentSettings.TryGetValue(SubAgentNames.IntentAgent, out ModelSetting? intentAgentSetting)
+                        ? CloneModelSetting(intentAgentSetting)
+                        : CloneModelSetting(chatAgentSetting)
                 }
-                if (allResponse.Any())
-                {
-                    OutSegment lastOutSegment = allResponse.Last();
-                    lastOutSegment.IsLastSegment = true;
-                    this.OnTokenGenerating?.Invoke(lastOutSegment);
-                }
+            };
 
-                this.OnTokenGenerated?.Invoke(allResponse);
-            }
-            catch (OperationCanceledException)
+            return resolvedSettings;
+        }
+
+        private static ModelSetting CloneModelSetting(ModelSetting modelSetting)
+        {
+            return new ModelSetting
             {
-                this.Logger.LogDebug(Lang.GenericOpenAI_ChatByStreamingAsync_Cancelled, allResponse.Count);
-                // Clean up any segments that were created
-                this.OnTokenGenerated?.Invoke(allResponse);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                this.Logger.LogError(ex, Lang.GenericOpenAI_ChatAsync_UnexpectedError, this.ProviderType);
-                // Clean up segments on error
-                this.OnTokenGenerated?.Invoke(allResponse);
-            }
+                ModelName = modelSetting.ModelName,
+                Config = new Dictionary<string, string>(modelSetting.Config)
+            };
         }
 
         public override void Dispose()
@@ -223,6 +259,92 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 agent.Dispose();
             }
             this._subAgents.Clear();
+            this._dialogueWorkflow = null;
+        }
+    }
+
+    internal sealed class IntentDetectionExecutor : Executor<string, IntentResult>
+    {
+        private readonly IIntentAgent _intentAgent;
+
+        public IntentDetectionExecutor(IIntentAgent intentAgent) : base("IntentDetection")
+        {
+            this._intentAgent = intentAgent;
+        }
+
+        public override async ValueTask<IntentResult> HandleAsync(string message, IWorkflowContext context, CancellationToken cancellationToken = default)
+        {
+            return await this._intentAgent.DetectIntentAsync(message, cancellationToken);
+        }
+    }
+
+    internal sealed class IntentActionExecutor : Executor<IntentResult, WorkflowOutputs>
+    {
+        private readonly IServiceProvider _serviceProvider;
+
+        private readonly PrivateProvider _sessionPrivateProvider;
+
+        public IntentActionExecutor(IServiceProvider serviceProvider, PrivateProvider sessionPrivateProvider) : base("IntentAction")
+        {
+            this._serviceProvider = serviceProvider;
+            this._sessionPrivateProvider = sessionPrivateProvider;
+        }
+
+        public override async ValueTask<WorkflowOutputs> HandleAsync(IntentResult message, IWorkflowContext context, CancellationToken cancellationToken = default)
+        {
+            if (message.IntentName.Equals("play_music", StringComparison.OrdinalIgnoreCase))
+            {
+                MusicPlayer musicPlayer = this._serviceProvider.GetRequiredService<MusicPlayer>();
+                musicPlayer.Build(new LLMPluginConfig(this._sessionPrivateProvider));
+                string responseText = await musicPlayer.PlayMusic(message.IsRandom, message.MusicName);
+                return new WorkflowOutputs
+                {
+                    ResponseText = responseText,
+                    HandledByIntent = true,
+                    Source = message.IntentName
+                };
+            }
+
+            return new WorkflowOutputs
+            {
+                ResponseText = message.Reply,
+                HandledByIntent = true,
+                Source = message.IntentName
+            };
+        }
+    }
+
+    internal sealed class ChatResponseExecutor : Executor<IntentResult, WorkflowOutputs>
+    {
+        private readonly IChatAgent _chatAgent;
+
+        public ChatResponseExecutor(IChatAgent chatAgent) : base("ChatResponse")
+        {
+            this._chatAgent = chatAgent;
+        }
+
+        public override async ValueTask<WorkflowOutputs> HandleAsync(IntentResult message, IWorkflowContext context, CancellationToken cancellationToken = default)
+        {
+            string responseText = await this._chatAgent.GenerateChatResponseAsync(message.UserMessage, cancellationToken);
+            return new WorkflowOutputs
+            {
+                ResponseText = responseText,
+                HandledByIntent = false,
+                Source = SubAgentNames.ChatAgent
+            };
+        }
+    }
+
+    internal sealed class WorkflowOutputExecutor : Executor<WorkflowOutputs, WorkflowOutputs>
+    {
+        public WorkflowOutputExecutor() : base("WorkflowOutput")
+        {
+        }
+
+        public override async ValueTask<WorkflowOutputs> HandleAsync(WorkflowOutputs message, IWorkflowContext context, CancellationToken cancellationToken = default)
+        {
+            await context.YieldOutputAsync(message, cancellationToken);
+            return message;
         }
     }
 }

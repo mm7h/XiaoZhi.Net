@@ -1,4 +1,5 @@
 ﻿using Microsoft.Agents.AI;
+using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -15,6 +16,7 @@ using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 using XiaoZhi.Net.Server.Providers.LLM.Plugins;
 using XiaoZhi.Net.Server.Server.Common.Configs;
 
@@ -26,15 +28,13 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
         private AgentSession? _agentSession;
 
-        private List<AITool>? _functionTools;
-
-        public ChatAgent(IServiceProvider serviceProvider, ILogger<ChatAgent> logger) : base(serviceProvider, logger)
+        public ChatAgent(IServiceProvider serviceProvider, ILogger<ChatAgent> logger) : base(SubAgentNames.ChatAgent, serviceProvider, logger)
         {
+            
         }
 
         public bool UseStreaming { get; private set; }
 
-        public override string ModelName => SubAgentNames.ChatAgent;
         public override int Order => 10;
 
         public List<ChatMessage> ChatHistory
@@ -65,12 +65,14 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
                 bool pluginsBuildResult = this.BuildPlugins(agentBuildConfig.SessionPrivateProvider);
 
-                this._functionTools = agentBuildConfig.SessionPrivateProvider.FunctionTools;
-
                 ChatClientAgentOptions chatClientAgentOptions = new ChatClientAgentOptions
                 {
-                    Name = nameof(ChatAgent),
-                    Description = $"the agent of {nameof(ChatAgent)}",
+                    Name = SubAgentNames.ChatAgent,
+                    Description = $"the agent of {SubAgentNames.ChatAgent}",
+                    AIContextProviders = new List<AIContextProvider>
+                    {
+                        new SessionFunctionToolContextProvider(agentBuildConfig.SessionPrivateProvider)
+                    },
                     ChatOptions = new ChatOptions
                     {
                         Instructions = instructions,
@@ -89,27 +91,36 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
                 if (pluginsBuildResult)
                 {
-                    this.Logger.LogInformation(Lang.ChatAgent_Build_BuildPluginsBuilt, this.ProviderType, this.ModelName);
-                    this.Logger.LogInformation(Lang.ChatAgent_Build_Built, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
+                    //todo
+                    //this.Logger.LogInformation(Lang.ChatAgent_Build_BuildPluginsBuilt, this.ProviderType, this.ModelName);
+                    //this.Logger.LogInformation(Lang.ChatAgent_Build_Built, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
                     return true;
                 }
                 else
                 {
-                    this.Logger.LogError(Lang.ChatAgent_Build_BuiltFailed, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
-                    this.Logger.LogError(Lang.ChatAgent_Build_BuildPluginsFailed, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
+                    //todo
+                    //this.Logger.LogError(Lang.ChatAgent_Build_BuiltFailed, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
+                    //this.Logger.LogError(Lang.ChatAgent_Build_BuildPluginsFailed, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, Lang.ChatAgent_Build_BuiltFailed, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
+                //todo
+                //this.Logger.LogError(ex, Lang.ChatAgent_Build_BuiltFailed, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
                 return false;
             }
         }
 
-        public override void RegisterDevice(string deviceId, string sessionId)
+
+        protected override ProtocolBuilder ConfigureProtocol(ProtocolBuilder protocolBuilder)
         {
-            base.RegisterDevice(deviceId, sessionId);
+            return protocolBuilder.ConfigureRoutes(routeBuilder =>
+            {
+                routeBuilder
+                .add
+                .AddHandler<string, ValueTask<IntentResult>>(this.DetectIntentAsync);
+            });
         }
 
         public async Task<string> GenerateChatResponseAsync(string userMessage, CancellationToken token)
@@ -125,7 +136,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
             ChatClientAgentRunOptions runOptions = new ChatClientAgentRunOptions(new ChatOptions
             {
-                Tools = this._functionTools,
                 ToolMode = ChatToolMode.Auto
             });
             AgentResponse response = await this._chatClientAgent.RunAsync(userMessage, this._agentSession, runOptions, token);
@@ -153,7 +163,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
             ChatClientAgentRunOptions runOptions = new ChatClientAgentRunOptions(new ChatOptions
             {
-                Tools = this._functionTools,
                 ToolMode = ChatToolMode.Auto
             });
             await foreach (AgentResponseUpdate update in this._chatClientAgent.RunStreamingAsync(userMessage, this._agentSession, runOptions, token))
@@ -198,7 +207,8 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             if (musicPlayerPlugin.Build(llmPluginConfig))
             {
                 sessionProvider.FunctionTools.AddRange(musicPlayerPlugin.AsAITools());
-                this.Logger.LogInformation(Lang.ChatAgent_Build_BuildPluginsBuilt, this.ProviderType, this.ModelName);
+                //todo
+                //this.Logger.LogInformation(Lang.ChatAgent_Build_BuildPluginsBuilt, this.ProviderType, this.ModelName);
             }
             else
             {

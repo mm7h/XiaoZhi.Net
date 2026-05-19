@@ -2,7 +2,7 @@
 {
     internal static class SubAgentNames
     {
-        public const string EmotionAgent = "EmotionAgent";
+        public const string IntentAgent = "IntentAgent";
         public const string ChatAgent = "ChatAgent";
     }
 }
