@@ -1,19 +1,21 @@
 using Microsoft.Agents.AI;
+using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
-using XiaoZhi.Net.Server.Server.Common.Configs;
-using XiaoZhi.Net.Server.Common.Constants;
-using Microsoft.Agents.AI.Workflows;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
+using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models;
+using XiaoZhi.Net.Server.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
@@ -112,11 +114,11 @@ Rules:
                 //todo
                 throw new InvalidOperationException("");
             }
+            IAsyncEnumerable<AgentResponseUpdate> updates = this._intentClientAgent.RunStreamingAsync(userMessage, session: this._agentSession, cancellationToken: token);
+            AgentResponse agentResponse = await updates.ToAgentResponseAsync(token);
 
-            AgentResponse response = await this._intentClientAgent.RunAsync(userMessage, this._agentSession, cancellationToken: token);
-            string content = response.Text ?? string.Empty;
             string cleanContent = MarkdownCleaner.CleanMarkdown(
-                Regex.Replace(Regex.Unescape(content), @"<think>.*?</think>", string.Empty, RegexOptions.Singleline));
+                Regex.Replace(Regex.Unescape(agentResponse.Text), @"<think>.*?</think>", string.Empty, RegexOptions.Singleline));
 
             string jsonPayload = ExtractJsonPayload(cleanContent);
             IntentResult? intentResult = JsonSerializer.Deserialize<IntentResult>(jsonPayload, JsonHelper.OPTIONS);

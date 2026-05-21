@@ -1,6 +1,7 @@
 ﻿using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Text.RegularExpressions;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Server.Common.Configs;
 
@@ -55,6 +56,17 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
         protected virtual string GenerateId()
         {
             return Guid.NewGuid().ToString("N");
+        }
+
+        protected string ReplaceMacDelimiters(string deviceId, string newDelimiter = "")
+        {
+            if (string.IsNullOrWhiteSpace(deviceId))
+            {
+                //todo
+                throw new ArgumentException("", nameof(deviceId));
+            }
+
+            return Regex.Replace(deviceId, @"[^a-fA-F0-9]", newDelimiter);
         }
     }
 }

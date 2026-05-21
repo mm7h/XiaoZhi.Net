@@ -28,6 +28,9 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
         private AgentSession? _agentSession;
 
+        private int _seqParagraphId = 0;
+        private int _seqSentenceId = 0;
+
         public ChatAgent(IServiceProvider serviceProvider, ILogger<ChatAgent> logger) : base(SubAgentNames.ChatAgent, serviceProvider, logger)
         {
             
@@ -118,12 +121,11 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             return protocolBuilder.ConfigureRoutes(routeBuilder =>
             {
                 routeBuilder
-                .add
-                .AddHandler<string, ValueTask<IntentResult>>(this.DetectIntentAsync);
+                .AddHandler<string, ValueTask<string>>(this.GenerateChatResponseAsync);
             });
         }
-
-        public async Task<string> GenerateChatResponseAsync(string userMessage, CancellationToken token)
+        [MessageHandler]
+        public async ValueTask<string> GenerateChatResponseAsync(string userMessage, IWorkflowContext workflowContext, CancellationToken token)
         {
             if (!this.CheckDeviceRegistered(this.DeviceId, this.SessionId))
             {
@@ -218,7 +220,22 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
             return true;
         }
+        protected override string GenerateId()
+        {
+            string devicePart = this.ReplaceMacDelimiters(this.DeviceId, "_");
+            string sessionPart = this.SessionId.Replace("-", string.Empty);
+            if (sessionPart.Length > 7)
+            {
+                sessionPart = sessionPart.Substring(0, 7);
+            }
+            int sequence = Interlocked.Increment(ref this._seqParagraphId);
+            return $"{devicePart}_{sessionPart}_{sequence}";
+        }
 
+        private string GenerateSentenceId(string paragraphId)
+        {
+            return $"{paragraphId}_{Interlocked.Increment(ref this._seqSentenceId)}";
+        }
         public override void Dispose()
         {
         }

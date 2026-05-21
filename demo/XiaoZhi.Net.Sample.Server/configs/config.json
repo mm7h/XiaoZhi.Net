@@ -26,10 +26,10 @@
     "VAD": "SileroNative",
     "ASR": "SenseVoice",
     "EmotionLLM": "Chatglm",
+    "Intent": "None",
     "ChatLLM": "Chatglm",
     "TTS": "HuoshanBidirection",
-    "INTENT": "None",
-    "MEMORY": "FlashMemory"
+    "Memory": "FlashMemory"
   },
   "ConfiguredSettings": {
     "VAD": {

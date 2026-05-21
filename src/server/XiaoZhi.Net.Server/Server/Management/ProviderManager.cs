@@ -104,7 +104,7 @@ namespace XiaoZhi.Net.Server.Management
 
                 #region Memory
                 IMemory memory = serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY);
-                if (!memory.Build(this.GetSelectedSetting("MEMORY", this._config)))
+                if (!memory.Build(this.GetSelectedSetting("Memory", this._config)))
                 {
                     this._logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, memory.ModelName);
                     return false;
@@ -274,7 +274,7 @@ namespace XiaoZhi.Net.Server.Management
                 {
                     ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
 
-                    ModelSetting intentLLMModelSetting = this.GetSelectedLLMSettingOrFallback("IntentLLM", "ChatLLM", this._config);
+                    ModelSetting intentLLMModelSetting = this.GetSelectedLLMSettingOrFallback("Intent", "ChatLLM", this._config);
                     ModelSetting chatLLMModelSetting = this.GetSelectedLLMSetting("ChatLLM", this._config);
                     chatLLMModelSetting.Config.SetConfigValue("Prompt", this._config.Prompt);
                     Dictionary<string, ModelSetting> agentSettings = new Dictionary<string, ModelSetting>

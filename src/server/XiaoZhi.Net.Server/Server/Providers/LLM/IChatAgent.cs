@@ -10,7 +10,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
         bool UseStreaming { get; }
         /// <summary>当前对话历史</summary>
         List<ChatMessage> ChatHistory { get; }
-        Task<string> GenerateChatResponseAsync(string userMessage, CancellationToken token);
-        IAsyncEnumerable<string> GenerateChatResponseStreamingAsync(string userMessage, CancellationToken token);
+        //Task<string> GenerateChatResponseAsync(string userMessage, CancellationToken token);
+        //IAsyncEnumerable<string> GenerateChatResponseStreamingAsync(string userMessage, CancellationToken token);
     }
 }

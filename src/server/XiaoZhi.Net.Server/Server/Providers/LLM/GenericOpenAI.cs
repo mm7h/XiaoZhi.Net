@@ -1,4 +1,5 @@
-﻿using Microsoft.Agents.AI.Workflows;
+﻿using Microsoft.Agents.AI;
+using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -8,15 +9,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
-using XiaoZhi.Net.Server.Common.Configs;
+using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 using XiaoZhi.Net.Server.Providers.LLM.Plugins;
 using XiaoZhi.Net.Server.Server.Common.Configs;
-using XiaoZhi.Net.Server.Server.Providers.LLM.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
 {
@@ -63,13 +64,13 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             {
                 this._subAgents.Clear();
 
-                Dictionary<string, ModelSetting> resolvedAgentSettings = this.ResolveAgentSettings(modelSetting.AgentSettings);
+                //todo: get agent instances
 
                 var buildResults = this._subAgents.Values
                     .AsParallel()
                     .Select(client =>
                     {
-                        bool subAgentBuildResult = client.Build(new LLMAgentBuildConfig(resolvedAgentSettings[client.AgentName], modelSetting.SessionPrivateProvider));
+                        bool subAgentBuildResult = client.Build(new LLMAgentBuildConfig(modelSetting.AgentSettings[client.AgentName], modelSetting.SessionPrivateProvider));
                         this._subAgents.Add(client.AgentName, client);
                         return subAgentBuildResult;
                     })
@@ -92,19 +93,19 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
         private Workflow BuildDialogueWorkflow(PrivateProvider sessionPrivateProvider)
         {
-            IntentDetectionExecutor intentDetectionExecutor = new IntentDetectionExecutor(this._intentAgent);
-            IntentActionExecutor intentActionExecutor = new IntentActionExecutor(this._serviceProvider, sessionPrivateProvider);
-            ChatResponseExecutor chatResponseExecutor = new ChatResponseExecutor(this._chatAgent);
-            WorkflowOutputExecutor workflowOutputExecutor = new WorkflowOutputExecutor();
+            //IntentDetectionExecutor intentDetectionExecutor = new IntentDetectionExecutor(this._intentAgent);
+            //IntentActionExecutor intentActionExecutor = new IntentActionExecutor(this._serviceProvider, sessionPrivateProvider);
+            //ChatResponseExecutor chatResponseExecutor = new ChatResponseExecutor(this._chatAgent);
+            //WorkflowOutputExecutor workflowOutputExecutor = new WorkflowOutputExecutor();
 
-            return new WorkflowBuilder(intentDetectionExecutor)
-                .AddSwitch(intentDetectionExecutor, sw => sw
-                    .AddCase<IntentResult>(result => result is not null && result.Matched, intentActionExecutor)
-                    .AddCase<IntentResult>(result => result is null || !result.Matched, chatResponseExecutor))
-                .AddEdge(intentActionExecutor, workflowOutputExecutor)
-                .AddEdge(chatResponseExecutor, workflowOutputExecutor)
-                .WithOutputFrom(workflowOutputExecutor)
-                .Build();
+            //return new WorkflowBuilder(intentDetectionExecutor)
+            //    .AddSwitch(intentDetectionExecutor, sw => sw
+            //        .AddCase<IntentResult>(result => result is not null && !result.IntentDetected, intentActionExecutor)
+            //    .AddEdge(intentActionExecutor, workflowOutputExecutor)
+            //    .AddEdge(chatResponseExecutor, workflowOutputExecutor)
+            //    .WithOutputFrom(workflowOutputExecutor)
+            //    .Build();
+            throw new NotImplementedException();
         }
 
         public override void RegisterDevice(string deviceId, string sessionId)
@@ -131,7 +132,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             {
                 throw new InvalidOperationException("Dialogue workflow is not initialized.");
             }
-
+            
             WorkflowOutputs workflowOutputs = await this.RunDialogueWorkflowAsync(userMessage, token);
             await this.EmitWorkflowOutputAsync(workflowOutputs, token);
         }
@@ -222,35 +223,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             return Task.CompletedTask;
         }
 
-        private Dictionary<string, ModelSetting> ResolveAgentSettings(Dictionary<string, ModelSetting> agentSettings)
-        {
-            if (!agentSettings.TryGetValue(SubAgentNames.ChatAgent, out ModelSetting? chatAgentSetting))
-            {
-                throw new InvalidOperationException("ChatAgent setting is required.");
-            }
-
-            Dictionary<string, ModelSetting> resolvedSettings = new Dictionary<string, ModelSetting>
-            {
-                { SubAgentNames.ChatAgent, CloneModelSetting(chatAgentSetting) },
-                {
-                    SubAgentNames.IntentAgent,
-                    agentSettings.TryGetValue(SubAgentNames.IntentAgent, out ModelSetting? intentAgentSetting)
-                        ? CloneModelSetting(intentAgentSetting)
-                        : CloneModelSetting(chatAgentSetting)
-                }
-            };
-
-            return resolvedSettings;
-        }
-
-        private static ModelSetting CloneModelSetting(ModelSetting modelSetting)
-        {
-            return new ModelSetting
-            {
-                ModelName = modelSetting.ModelName,
-                Config = new Dictionary<string, string>(modelSetting.Config)
-            };
-        }
 
         public override void Dispose()
         {
@@ -260,91 +232,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
             this._subAgents.Clear();
             this._dialogueWorkflow = null;
-        }
-    }
-
-    internal sealed class IntentDetectionExecutor : Executor<string, IntentResult>
-    {
-        private readonly IIntentAgent _intentAgent;
-
-        public IntentDetectionExecutor(IIntentAgent intentAgent) : base("IntentDetection")
-        {
-            this._intentAgent = intentAgent;
-        }
-
-        public override async ValueTask<IntentResult> HandleAsync(string message, IWorkflowContext context, CancellationToken cancellationToken = default)
-        {
-            return await this._intentAgent.DetectIntentAsync(message, cancellationToken);
-        }
-    }
-
-    internal sealed class IntentActionExecutor : Executor<IntentResult, WorkflowOutputs>
-    {
-        private readonly IServiceProvider _serviceProvider;
-
-        private readonly PrivateProvider _sessionPrivateProvider;
-
-        public IntentActionExecutor(IServiceProvider serviceProvider, PrivateProvider sessionPrivateProvider) : base("IntentAction")
-        {
-            this._serviceProvider = serviceProvider;
-            this._sessionPrivateProvider = sessionPrivateProvider;
-        }
-
-        public override async ValueTask<WorkflowOutputs> HandleAsync(IntentResult message, IWorkflowContext context, CancellationToken cancellationToken = default)
-        {
-            if (message.IntentName.Equals("play_music", StringComparison.OrdinalIgnoreCase))
-            {
-                MusicPlayer musicPlayer = this._serviceProvider.GetRequiredService<MusicPlayer>();
-                musicPlayer.Build(new LLMPluginConfig(this._sessionPrivateProvider));
-                string responseText = await musicPlayer.PlayMusic(message.IsRandom, message.MusicName);
-                return new WorkflowOutputs
-                {
-                    ResponseText = responseText,
-                    HandledByIntent = true,
-                    Source = message.IntentName
-                };
-            }
-
-            return new WorkflowOutputs
-            {
-                ResponseText = message.Reply,
-                HandledByIntent = true,
-                Source = message.IntentName
-            };
-        }
-    }
-
-    internal sealed class ChatResponseExecutor : Executor<IntentResult, WorkflowOutputs>
-    {
-        private readonly IChatAgent _chatAgent;
-
-        public ChatResponseExecutor(IChatAgent chatAgent) : base("ChatResponse")
-        {
-            this._chatAgent = chatAgent;
-        }
-
-        public override async ValueTask<WorkflowOutputs> HandleAsync(IntentResult message, IWorkflowContext context, CancellationToken cancellationToken = default)
-        {
-            string responseText = await this._chatAgent.GenerateChatResponseAsync(message.UserMessage, cancellationToken);
-            return new WorkflowOutputs
-            {
-                ResponseText = responseText,
-                HandledByIntent = false,
-                Source = SubAgentNames.ChatAgent
-            };
-        }
-    }
-
-    internal sealed class WorkflowOutputExecutor : Executor<WorkflowOutputs, WorkflowOutputs>
-    {
-        public WorkflowOutputExecutor() : base("WorkflowOutput")
-        {
-        }
-
-        public override async ValueTask<WorkflowOutputs> HandleAsync(WorkflowOutputs message, IWorkflowContext context, CancellationToken cancellationToken = default)
-        {
-            await context.YieldOutputAsync(message, cancellationToken);
-            return message;
         }
     }
 }

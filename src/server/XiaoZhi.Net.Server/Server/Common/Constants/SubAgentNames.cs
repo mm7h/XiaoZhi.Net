@@ -4,5 +4,6 @@
     {
         public const string IntentAgent = "IntentAgent";
         public const string ChatAgent = "ChatAgent";
+        public const string OutputAgent = "OutputAgent";
     }
 }
