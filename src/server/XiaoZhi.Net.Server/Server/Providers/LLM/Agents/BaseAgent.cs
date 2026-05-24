@@ -7,7 +7,7 @@ using XiaoZhi.Net.Server.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
-    internal abstract class BaseAgent<TLogger> : Executor
+    internal abstract class BaseAgent<TLogger> : Executor, IAgent
     {
         protected BaseAgent(string agentName, IServiceProvider serviceProvider, ILogger<TLogger> logger) : base(agentName)
         {
@@ -26,6 +26,8 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
         protected string DeviceId { get; set; } = string.Empty;
         public abstract bool Build(LLMAgentBuildConfig buildConfig);
         public abstract void Dispose();
+
+        public Executor AsExecutor() => this;
 
         public virtual void RegisterDevice(string deviceId, string sessionId)
         {

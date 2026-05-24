@@ -18,9 +18,12 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public PrivateProvider(Session session)
         {
             this._session = session;
+            this.DeviceId = session.DeviceId;
+            this.SessionId = session.SessionId;
             this.FunctionTools = new List<AITool>();
         }
-
+        public string DeviceId { get; }
+        public string SessionId { get; }
         public IAudioDecoder? AudioDecoder { get; private set; }
         public IVad? Vad { get; private set; }
         public IAsr? Asr { get; private set; }

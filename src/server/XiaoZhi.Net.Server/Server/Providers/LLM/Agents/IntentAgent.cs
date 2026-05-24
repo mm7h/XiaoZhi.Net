@@ -14,7 +14,6 @@ using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
-using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models;
 using XiaoZhi.Net.Server.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
@@ -99,7 +98,8 @@ Rules:
             return protocolBuilder.ConfigureRoutes(routeBuilder =>
             {
                 routeBuilder.AddHandler<string, ValueTask<IntentResult>>(this.DetectIntentAsync);
-            });
+            })
+            .SendsMessage<IntentResult>();
         }
 
         [MessageHandler]

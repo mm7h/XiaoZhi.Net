@@ -361,14 +361,14 @@ namespace XiaoZhi.Net.Server.Management
                 return;
             }
 
-            if (session.PrivateProvider.Llm.LLMChatHistory.Any())
+            if (session.PrivateProvider.Llm.GetChatHistory().Any())
             {
                 ManageApiClient? manageApiClient = this._serviceProvider.GetService<ManageApiClient>();
                 if (manageApiClient is not null)
                 {
                     try
                     {
-                        await manageApiClient.SaveMemoryAsync(session.DeviceId, session.SessionId, session.PrivateProvider.Llm.LLMChatHistory);
+                        await manageApiClient.SaveMemoryAsync(session.DeviceId, session.SessionId, session.PrivateProvider.Llm.GetChatHistory());
                         this._logger.LogInformation(Lang.ProviderManager_SaveMemory_MemorySaved, session.DeviceId, session.SessionId);
                     }
                     catch (Exception ex)
@@ -514,18 +514,15 @@ namespace XiaoZhi.Net.Server.Management
                     throw new ModelBuildException($"Invalid llm model setting, endPoint: {endPoint}, apiKey: {apiKey}, modelId: {modelId}.");
                 }
 
-                string serviceKey = $"LLM_{llmSettingItem.Key}";
-                string capturedEndPoint = endPoint;
-                string capturedApiKey = apiKey;
-                string capturedModelId = modelId;
+                string llmProviderKey = $"LLM_{llmSettingItem.Key}";
 
                 // 注册 IChatClient，使用 MEAI OpenAI 适配器
-                services.AddKeyedSingleton<IChatClient>(serviceKey, (_, _) =>
+                services.AddKeyedSingleton<IChatClient>(llmProviderKey, (_, _) =>
                 {
                     OpenAIClient openAIClient = new OpenAIClient(
-                        new ApiKeyCredential(capturedApiKey),
-                        new OpenAIClientOptions { Endpoint = new Uri(capturedEndPoint) });
-                    return openAIClient.GetChatClient(capturedModelId).AsIChatClient();
+                        new ApiKeyCredential(apiKey),
+                        new OpenAIClientOptions { Endpoint = new Uri(endPoint) });
+                    return openAIClient.GetChatClient(modelId).AsIChatClient();
                 });
             }
 

@@ -13,8 +13,8 @@ namespace XiaoZhi.Net.Server.Providers
         event Action OnBeforeTokenGenerate;
         event Action<OutSegment> OnTokenGenerating;
         event Action<IEnumerable<OutSegment>> OnTokenGenerated;
-        /// <summary>当前对话的聊天历史，用于保存记忆等功能</summary>
-        IReadOnlyList<ChatMessage> LLMChatHistory { get; }
+
+        IReadOnlyList<ChatMessage> GetChatHistory();
         Task StartDialogueAsync(string userMessage, CancellationToken token);
     }
 }

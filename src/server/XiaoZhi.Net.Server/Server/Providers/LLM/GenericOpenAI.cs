@@ -1,5 +1,4 @@
-﻿using Microsoft.Agents.AI;
-using Microsoft.Agents.AI.Workflows;
+﻿using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -16,7 +15,6 @@ using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
-using XiaoZhi.Net.Server.Providers.LLM.Plugins;
 using XiaoZhi.Net.Server.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
@@ -25,10 +23,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
     {
         private readonly IServiceProvider _serviceProvider;
 
-        private readonly IIntentAgent _intentAgent;
-
-        private readonly IChatAgent _chatAgent;
-
         private readonly ObjectPool<OutSegment> _outSegmentPool;
         private readonly Dictionary<string, IAgent> _subAgents = new Dictionary<string, IAgent>();
         private Workflow? _dialogueWorkflow;
@@ -36,23 +30,16 @@ namespace XiaoZhi.Net.Server.Providers.LLM
         private int _seqSentenceId = 0;
 
         public GenericOpenAI(IServiceProvider serviceProvider,
-            IIntentAgent intentAgent,
-            IChatAgent chatAgent,
             ObjectPool<OutSegment> outSegmentPool,
             ILogger<GenericOpenAI> logger) : base(logger)
         {
             this._serviceProvider = serviceProvider;
-            this._intentAgent = intentAgent;
-            this._chatAgent = chatAgent;
 
             this._outSegmentPool = outSegmentPool;
             this._subAgents = new Dictionary<string, IAgent>();
         }
         public override string ModelName => nameof(GenericOpenAI);
         public override string ProviderType => "llm";
-
-        /// <summary>当前对话历史，来自 ChatAgent（供保存记忆等扩展使用）</summary>
-        public IReadOnlyList<ChatMessage> LLMChatHistory => this._chatAgent.ChatHistory;
 
         public event Action? OnBeforeTokenGenerate;
         public event Action<OutSegment>? OnTokenGenerating;
@@ -63,7 +50,8 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             try
             {
                 this._subAgents.Clear();
-
+                IIntentAgent intentAgent = this._serviceProvider.GetRequiredKeyedService<IIntentAgent>(SubAgentNames.IntentAgent);
+                IChatAgent chatAgent = this._serviceProvider.GetRequiredKeyedService<IChatAgent>(SubAgentNames.ChatAgent);
                 //todo: get agent instances
 
                 var buildResults = this._subAgents.Values
@@ -81,7 +69,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 {
                     this._dialogueWorkflow = this.BuildDialogueWorkflow(modelSetting.SessionPrivateProvider);
                 }
-
                 return buildSuccess;
             }
             catch (Exception ex)
@@ -91,21 +78,21 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
         }
 
-        private Workflow BuildDialogueWorkflow(PrivateProvider sessionPrivateProvider)
+        private Workflow BuildDialogueWorkflow(PrivateProvider privateProvider)
         {
-            //IntentDetectionExecutor intentDetectionExecutor = new IntentDetectionExecutor(this._intentAgent);
-            //IntentActionExecutor intentActionExecutor = new IntentActionExecutor(this._serviceProvider, sessionPrivateProvider);
-            //ChatResponseExecutor chatResponseExecutor = new ChatResponseExecutor(this._chatAgent);
-            //WorkflowOutputExecutor workflowOutputExecutor = new WorkflowOutputExecutor();
+            Executor intentExecutor = this._subAgents[SubAgentNames.IntentAgent].AsExecutor();
+            Executor chatExecutor = this._subAgents[SubAgentNames.ChatAgent].AsExecutor();
+            Executor outputExecutor = this._subAgents[SubAgentNames.OutputAgent].AsExecutor();
 
-            //return new WorkflowBuilder(intentDetectionExecutor)
-            //    .AddSwitch(intentDetectionExecutor, sw => sw
-            //        .AddCase<IntentResult>(result => result is not null && !result.IntentDetected, intentActionExecutor)
-            //    .AddEdge(intentActionExecutor, workflowOutputExecutor)
-            //    .AddEdge(chatResponseExecutor, workflowOutputExecutor)
-            //    .WithOutputFrom(workflowOutputExecutor)
-            //    .Build();
-            throw new NotImplementedException();
+            return new WorkflowBuilder(intentExecutor)
+                .AddSwitch(intentExecutor, sw => sw
+                    .AddCase<IntentResult>(result => result is not null && !result.IntentDetected, chatExecutor)
+                    .AddCase<IntentResult>(result => result is not null && result.IntentDetected, outputExecutor))
+                .AddEdge(chatExecutor, outputExecutor)
+                .WithOutputFrom(outputExecutor)
+                .WithName(privateProvider.DeviceId)
+                .WithDescription($"Dialogue workflow for device {privateProvider.DeviceId} and session {privateProvider.SessionId}")
+                .Build();
         }
 
         public override void RegisterDevice(string deviceId, string sessionId)
@@ -130,11 +117,17 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
             if (this._dialogueWorkflow is null)
             {
+                //todo
                 throw new InvalidOperationException("Dialogue workflow is not initialized.");
             }
             
             WorkflowOutputs workflowOutputs = await this.RunDialogueWorkflowAsync(userMessage, token);
             await this.EmitWorkflowOutputAsync(workflowOutputs, token);
+        }
+
+        public IReadOnlyList<ChatMessage> GetChatHistory()
+        {
+            throw new NotImplementedException();
         }
 
         protected override string GenerateId()

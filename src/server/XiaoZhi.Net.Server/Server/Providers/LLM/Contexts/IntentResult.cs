@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Contexts
 {
-    internal sealed class IntentResult
+    internal sealed record IntentResult
     {
         [JsonPropertyName("intent_detected")]
         [Description("Whether an intent is detected, true if the user wants to trigger a built-in device function instead of normal conversation")]

@@ -40,7 +40,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
                 return this.XiaoZhiSession;
             }
         }
-        public Task SendAsync(string json)
+        public new Task SendAsync(string json)
         {
             this.Logger.LogDebug(Lang.SocketSession_SendAsync_SendingJson, this.XiaoZhiSession?.DeviceId, Regex.Unescape(!string.IsNullOrEmpty(json) ? json : string.Empty));
             return base.SendAsync(json).AsTask();

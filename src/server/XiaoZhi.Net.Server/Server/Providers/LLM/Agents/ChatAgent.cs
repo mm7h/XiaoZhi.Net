@@ -33,7 +33,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
         public ChatAgent(IServiceProvider serviceProvider, ILogger<ChatAgent> logger) : base(SubAgentNames.ChatAgent, serviceProvider, logger)
         {
-            
+
         }
 
         public bool UseStreaming { get; private set; }
@@ -66,22 +66,20 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                 }
                 IChatClient chatClient = this.ServiceProvider.GetRequiredKeyedService<IChatClient>($"LLM_{agentBuildConfig.AgentSetting.ModelName}");
 
+                //todo
                 bool pluginsBuildResult = this.BuildPlugins(agentBuildConfig.SessionPrivateProvider);
 
                 ChatClientAgentOptions chatClientAgentOptions = new ChatClientAgentOptions
                 {
                     Name = SubAgentNames.ChatAgent,
                     Description = $"the agent of {SubAgentNames.ChatAgent}",
-                    AIContextProviders = new List<AIContextProvider>
-                    {
-                        new SessionFunctionToolContextProvider(agentBuildConfig.SessionPrivateProvider)
-                    },
                     ChatOptions = new ChatOptions
                     {
                         Instructions = instructions,
                         Temperature = 0.5f,
                         MaxOutputTokens = 40,
-                    },
+                        ResponseFormat = ChatResponseFormat.ForJsonSchema<ChatMessageResult>()
+                    }
                 };
 
                 this._chatClientAgent = new ChatClientAgent(
