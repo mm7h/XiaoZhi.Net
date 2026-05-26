@@ -27,25 +27,25 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
         {
             return protocolBuilder.ConfigureRoutes(routeBuilder =>
             {
-                routeBuilder.AddHandler<IntentResult, ValueTask<WorkflowOutputs>>(this.HandleOutputsAsync)
-                .AddHandler<ChatMessageResult, ValueTask<WorkflowOutputs>>(this.HandleOutputsAsync);
-            });
+                routeBuilder.AddHandler<IntentResult>(this.HandleOutputsAsync)
+                .AddHandler<string>(this.HandleOutputsAsync);
+            })
+            .YieldsOutput<WorkflowOutputs>();
         }
 
         [MessageHandler]
-        public async ValueTask<WorkflowOutputs> HandleOutputsAsync(IntentResult intentResult, IWorkflowContext context, CancellationToken token)
+        public async ValueTask HandleOutputsAsync(IntentResult intentResult, IWorkflowContext context, CancellationToken token)
         {
             await context.YieldOutputAsync(intentResult, token);
             ChatMessageItemResult chatMessageItemResult = new(Emotion.Neutral, intentResult.Feedback);
-            ChatMessageResult chatMessageResult = new ChatMessageResult([chatMessageItemResult]);
-            return new WorkflowOutputs(false, chatMessageResult);
+            //return new WorkflowOutputs(false, [chatMessageItemResult]);
         }
 
         [MessageHandler]
-        public async ValueTask<WorkflowOutputs> HandleOutputsAsync(ChatMessageResult chatMessageResult, IWorkflowContext context, CancellationToken token)
+        public async ValueTask HandleOutputsAsync(string chatMessageResult, IWorkflowContext context, CancellationToken token)
         {
             await context.YieldOutputAsync(chatMessageResult, token);
-            return new WorkflowOutputs(false, chatMessageResult);
+            //return new WorkflowOutputs(false, chatMessageResult);
         }
 
         public override void Dispose()

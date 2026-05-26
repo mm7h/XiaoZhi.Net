@@ -78,7 +78,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                         Instructions = instructions,
                         Temperature = 0.5f,
                         MaxOutputTokens = 40,
-                        ResponseFormat = ChatResponseFormat.ForJsonSchema<ChatMessageResult>()
+                        ResponseFormat = ChatResponseFormat.Text
                     }
                 };
 
@@ -119,11 +119,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             return protocolBuilder.ConfigureRoutes(routeBuilder =>
             {
                 routeBuilder
-                .AddHandler<string, ValueTask<string>>(this.GenerateChatResponseAsync);
-            });
+                .AddHandler<string>(this.GenerateChatResponseAsync);
+            })
+            .SendsMessage<string>();
         }
-        [MessageHandler]
-        public async ValueTask<string> GenerateChatResponseAsync(string userMessage, IWorkflowContext workflowContext, CancellationToken token)
+
+        public async ValueTask GenerateChatResponseAsync(string userMessage, IWorkflowContext workflowContext, CancellationToken token)
         {
             if (!this.CheckDeviceRegistered(this.DeviceId, this.SessionId))
             {
@@ -144,7 +145,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             string assistantContent = MarkdownCleaner.CleanMarkdown(
                 Regex.Replace(Regex.Unescape(content), @"<think>.*?</think>", string.Empty, RegexOptions.Singleline));
 
-            return assistantContent;
         }
 
         public async IAsyncEnumerable<string> GenerateChatResponseStreamingAsync(string userMessage, [EnumeratorCancellation] CancellationToken token)

@@ -2,5 +2,5 @@ using System.Collections.Generic;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Contexts
 {
-    internal record WorkflowOutputs(bool HandledByIntent, ChatMessageResult Results);
+    internal record WorkflowOutputs(bool HandledByIntent, List<ChatMessageItemResult> Results);
 }
