@@ -526,8 +526,9 @@ namespace XiaoZhi.Net.Server.Management
                 });
             }
 
-            services.AddTransient<IIntentAgent, IntentAgent>();
-            services.AddTransient<IChatAgent, ChatAgent>();
+            services.AddKeyedTransient<IIntentAgent, IntentAgent>(SubAgentNames.IntentAgent);
+            services.AddKeyedTransient<IChatAgent, ChatAgent>(SubAgentNames.ChatAgent);
+            services.AddKeyedTransient<IAgent, OutputAgent>(SubAgentNames.OutputAgent);
             services.AddTransient<ILlm, GenericOpenAI>();
         }
         #endregion

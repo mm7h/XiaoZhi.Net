@@ -28,15 +28,10 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
         private AgentSession? _agentSession;
 
-        private int _seqParagraphId = 0;
-        private int _seqSentenceId = 0;
-
         public ChatAgent(IServiceProvider serviceProvider, ILogger<ChatAgent> logger) : base(SubAgentNames.ChatAgent, serviceProvider, logger)
         {
 
         }
-
-        public bool UseStreaming { get; private set; }
 
         public override int Order => 10;
 
@@ -55,7 +50,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             try
             {
                 this.Prompt = agentBuildConfig.AgentSetting.Config.GetConfigValueOrDefault("Prompt")!;
-                this.UseStreaming = agentBuildConfig.AgentSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
                 string? summaryMemory = agentBuildConfig.AgentSetting.Config.GetValueOrDefault("SummaryMemory");
 
                 // 若有历史记忆摘要，追加到系统提示词中
@@ -119,12 +113,14 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             return protocolBuilder.ConfigureRoutes(routeBuilder =>
             {
                 routeBuilder
-                .AddHandler<string>(this.GenerateChatResponseAsync);
+                .AddHandler<IntentResult>(this.GenerateChatResponseAsync);
             })
             .SendsMessage<string>();
         }
 
-        public async ValueTask GenerateChatResponseAsync(string userMessage, IWorkflowContext workflowContext, CancellationToken token)
+        /// <summary>接收IntentResult，逐句将原始文本（含Emotion标识前缀）发送给OutputAgent</summary>
+        [MessageHandler]
+        public async ValueTask GenerateChatResponseAsync(IntentResult intentResult, IWorkflowContext workflowContext, CancellationToken token)
         {
             if (!this.CheckDeviceRegistered(this.DeviceId, this.SessionId))
             {
@@ -135,19 +131,15 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                 throw new InvalidOperationException(Lang.ChatAgent_GenerateChatResponseAsync_AgentNotBuilt);
             }
 
-            ChatClientAgentRunOptions runOptions = new ChatClientAgentRunOptions(new ChatOptions
+            // 逐句发送原始文本（含 [Emotion] 前缀）给 OutputAgent 统一处理
+            await foreach (string sentence in this.StreamLLMResponseAsync(intentResult.UserMessage, token))
             {
-                ToolMode = ChatToolMode.Auto
-            });
-            AgentResponse response = await this._chatClientAgent.RunAsync(userMessage, this._agentSession, runOptions, token);
-
-            string content = response.Text ?? string.Empty;
-            string assistantContent = MarkdownCleaner.CleanMarkdown(
-                Regex.Replace(Regex.Unescape(content), @"<think>.*?</think>", string.Empty, RegexOptions.Singleline));
-
+                await workflowContext.SendMessageAsync(sentence, token);
+            }
         }
 
-        public async IAsyncEnumerable<string> GenerateChatResponseStreamingAsync(string userMessage, [EnumeratorCancellation] CancellationToken token)
+        /// <summary>流式调用LLM，按标点符号分句逐句返回</summary>
+        private async IAsyncEnumerable<string> StreamLLMResponseAsync(string userMessage, [EnumeratorCancellation] CancellationToken token)
         {
             if (!this.CheckDeviceRegistered(this.DeviceId, this.SessionId))
             {
@@ -217,22 +209,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             #endregion
 
             return true;
-        }
-        protected override string GenerateId()
-        {
-            string devicePart = this.ReplaceMacDelimiters(this.DeviceId, "_");
-            string sessionPart = this.SessionId.Replace("-", string.Empty);
-            if (sessionPart.Length > 7)
-            {
-                sessionPart = sessionPart.Substring(0, 7);
-            }
-            int sequence = Interlocked.Increment(ref this._seqParagraphId);
-            return $"{devicePart}_{sessionPart}_{sequence}";
-        }
-
-        private string GenerateSentenceId(string paragraphId)
-        {
-            return $"{paragraphId}_{Interlocked.Increment(ref this._seqSentenceId)}";
         }
         public override void Dispose()
         {

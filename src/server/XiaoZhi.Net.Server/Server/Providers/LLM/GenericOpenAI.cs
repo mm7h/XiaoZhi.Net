@@ -12,7 +12,6 @@ using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
-using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 using XiaoZhi.Net.Server.Server.Common.Configs;
@@ -50,21 +49,27 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             try
             {
                 this._subAgents.Clear();
+                // 先获取所有agent实例并填入字典，再并行构建
                 IIntentAgent intentAgent = this._serviceProvider.GetRequiredKeyedService<IIntentAgent>(SubAgentNames.IntentAgent);
                 IChatAgent chatAgent = this._serviceProvider.GetRequiredKeyedService<IChatAgent>(SubAgentNames.ChatAgent);
-                //todo: get agent instances
+                IAgent outputAgent = this._serviceProvider.GetRequiredKeyedService<IAgent>(SubAgentNames.OutputAgent);
 
-                var buildResults = this._subAgents.Values
+                this._subAgents[intentAgent.AgentName] = intentAgent;
+                this._subAgents[chatAgent.AgentName] = chatAgent;
+                this._subAgents[outputAgent.AgentName] = outputAgent;
+
+                // 并行构建所有agent，OutputAgent没有对应配置时使用空配置
+                bool buildSuccess = this._subAgents.Values
                     .AsParallel()
-                    .Select(client =>
+                    .Select(agent =>
                     {
-                        bool subAgentBuildResult = client.Build(new LLMAgentBuildConfig(modelSetting.AgentSettings[client.AgentName], modelSetting.SessionPrivateProvider));
-                        this._subAgents.Add(client.AgentName, client);
-                        return subAgentBuildResult;
+                        ModelSetting agentSetting = modelSetting.AgentSettings.TryGetValue(agent.AgentName, out ModelSetting? setting)
+                            ? setting
+                            : new ModelSetting { ModelName = agent.AgentName };
+                        return agent.Build(new LLMAgentBuildConfig(agentSetting, modelSetting.SessionPrivateProvider));
                     })
-                    .ToArray();
+                    .All(r => r);
 
-                bool buildSuccess = buildResults.All(result => result);
                 if (buildSuccess)
                 {
                     this._dialogueWorkflow = this.BuildDialogueWorkflow(modelSetting.SessionPrivateProvider);
@@ -121,8 +126,8 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 throw new InvalidOperationException("Dialogue workflow is not initialized.");
             }
             
-            WorkflowOutputs workflowOutputs = await this.RunDialogueWorkflowAsync(userMessage, token);
-            await this.EmitWorkflowOutputAsync(workflowOutputs, token);
+            this.OnBeforeTokenGenerate?.Invoke();
+            await this.RunAndEmitWorkflowStreamingAsync(userMessage, token);
         }
 
         public IReadOnlyList<ChatMessage> GetChatHistory()
@@ -147,73 +152,80 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             return $"{paragraphId}_{Interlocked.Increment(ref this._seqSentenceId)}";
         }
 
-        private async Task<WorkflowOutputs> RunDialogueWorkflowAsync(string userMessage, CancellationToken token)
+        private async Task RunAndEmitWorkflowStreamingAsync(string userMessage, CancellationToken token)
         {
             await using StreamingRun run = await InProcessExecution.RunStreamingAsync(this._dialogueWorkflow!, userMessage, string.Empty, token);
-            WorkflowOutputs? output = null;
 
-            await foreach (WorkflowEvent workflowEvent in run.WatchStreamAsync())
-            {
-                switch (workflowEvent)
-                {
-                    case WorkflowOutputEvent workflowOutputEvent when workflowOutputEvent.Data is WorkflowOutputs workflowOutput:
-                        output = workflowOutput;
-                        break;
-                    case WorkflowErrorEvent workflowErrorEvent:
-                        throw workflowErrorEvent.Exception ?? new InvalidOperationException("Dialogue workflow failed.");
-                    case ExecutorFailedEvent executorFailedEvent:
-                        throw new InvalidOperationException($"Executor '{executorFailedEvent.ExecutorId}' failed with {(executorFailedEvent.Data is null ? "unknown error" : executorFailedEvent.Data)}.");
-                }
-            }
+            List<OutSegment> allSegments = new List<OutSegment>();
+            string paragraphId = this.GenerateId();
+            int segmentCount = 0;
+            OutSegment? pendingSegment = null; // 缓冲上一句，等待确认是否为最后一段
 
-            return output ?? throw new InvalidOperationException("Dialogue workflow produced no output.");
-        }
-
-        private Task EmitWorkflowOutputAsync(WorkflowOutputs workflowOutputs, CancellationToken token)
-        {
-            List<OutSegment> allResponse = new List<OutSegment>();
             try
             {
-                this.OnBeforeTokenGenerate?.Invoke();
-
-                List<EmotionTagParser.ParsedEmotionSegment> segments = DialogueHelper.SplitContentByPunctuations(workflowOutputs.ResponseText)
-                    .Select(EmotionTagParser.Parse)
-                    .Select(segment => new EmotionTagParser.ParsedEmotionSegment(
-                        DialogueHelper.GetStringNoPunctuationOrEmoji(segment.Content),
-                        segment.Emotion))
-                    .Where(segment => !string.IsNullOrWhiteSpace(segment.Content))
-                    .ToList();
-
-                string paragraphId = this.GenerateId();
-                for (int index = 0; index < segments.Count; index++)
+                await foreach (WorkflowEvent workflowEvent in run.WatchStreamAsync())
                 {
                     token.ThrowIfCancellationRequested();
 
-                    EmotionTagParser.ParsedEmotionSegment segment = segments[index];
-                    this.Logger.LogDebug(Lang.GenericOpenAI_ChatAsync_EmotionDetected, segment.Emotion, segment.Content);
+                    switch (workflowEvent)
+                    {
+                        case WorkflowOutputEvent workflowOutputEvent when workflowOutputEvent.Data is WorkflowOutputs output:
+                            foreach (ChatMessageItemResult item in output.Results)
+                            {
+                                this.Logger.LogDebug(Lang.GenericOpenAI_ChatAsync_EmotionDetected, item.Emotion, item.Content);
 
-                    var outSegment = this._outSegmentPool.Get();
-                    outSegment.Initialize(segment.Content, index == 0, index == segments.Count - 1, segment.Emotion, paragraphId, this.GenerateSentenceId(paragraphId));
+                                // 将前一个pending segment以isLast=false立即发出，无需等待LLM全部完成
+                                if (pendingSegment is not null)
+                                {
+                                    allSegments.Add(pendingSegment);
+                                    this.OnTokenGenerating?.Invoke(pendingSegment);
+                                }
 
-                    allResponse.Add(outSegment);
-                    this.OnTokenGenerating?.Invoke(outSegment);
+                                // 当前item暂存为pending，等待下一句到来或流结束以确定IsLastSegment
+                                OutSegment seg = this._outSegmentPool.Get();
+                                seg.Initialize(item.Content, segmentCount == 0, false, item.Emotion, paragraphId, this.GenerateSentenceId(paragraphId));
+                                pendingSegment = seg;
+                                segmentCount++;
+                            }
+                            break;
+
+                        case WorkflowErrorEvent workflowErrorEvent:
+                            throw workflowErrorEvent.Exception ?? new InvalidOperationException("Dialogue workflow failed.");
+                        case ExecutorFailedEvent executorFailedEvent:
+                            throw new InvalidOperationException($"Executor '{executorFailedEvent.ExecutorId}' failed with {(executorFailedEvent.Data is null ? "unknown error" : executorFailedEvent.Data)}.");
+                    }
                 }
 
-                this.OnTokenGenerated?.Invoke(allResponse);
+                // 流结束，将最后一句标记为IsLastSegment后发出
+                if (pendingSegment is not null)
+                {
+                    pendingSegment.IsLastSegment = true;
+                    allSegments.Add(pendingSegment);
+                    this.OnTokenGenerating?.Invoke(pendingSegment);
+                }
+
+                this.OnTokenGenerated?.Invoke(allSegments);
             }
             catch (OperationCanceledException)
             {
-                this.Logger.LogDebug(Lang.GenericOpenAI_ChatAsync_Cancelled, allResponse.Count);
-                this.OnTokenGenerated?.Invoke(allResponse);
+                // 确保pending segment归入allSegments以便池回收
+                if (pendingSegment is not null)
+                {
+                    allSegments.Add(pendingSegment);
+                }
+                this.Logger.LogDebug(Lang.GenericOpenAI_ChatAsync_Cancelled, allSegments.Count);
+                this.OnTokenGenerated?.Invoke(allSegments);
                 throw;
             }
             catch (Exception ex)
             {
+                if (pendingSegment is not null)
+                {
+                    allSegments.Add(pendingSegment);
+                }
                 this.Logger.LogError(ex, Lang.GenericOpenAI_ChatAsync_UnexpectedError, this.ProviderType);
-                this.OnTokenGenerated?.Invoke(allResponse);
+                this.OnTokenGenerated?.Invoke(allSegments);
             }
-
-            return Task.CompletedTask;
         }
 
 

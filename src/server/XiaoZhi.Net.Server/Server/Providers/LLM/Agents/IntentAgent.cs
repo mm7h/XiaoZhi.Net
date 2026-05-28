@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
+using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
@@ -22,30 +23,27 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
     {
         private const string INTENT_INSTRUCTIONS = """
 You are an intent detector for a smart voice device.
-Your job is to determine whether the user wants to trigger a built-in device function instead of normal conversation.
+Your job is to determine whether the user wants to trigger a built-in device function (such as playing music, controlling IoT devices, or calling other tools) instead of continuing normal conversation.
 
-Currently supported intents:
-- play_music: the user wants the device to play music, listen to songs, play one song, play some music, random music, or a named local music file.
+If matching tools are available and the user clearly wants to trigger a device function, call the appropriate tool first.
 
-Return JSON only with these fields:
-- matched: boolean
-- intent_name: string
-- is_random: boolean
-- music_name: string or null
-- reply: string
+After processing, return JSON only with these two fields:
+- intent_detected: boolean — true if the user triggered a device function (i.e., a tool was called); false if the request should continue as normal conversation
+- feedback: string — a short, natural Chinese sentence spoken to the user after the function runs; must be empty string when intent_detected is false
 
 Rules:
-1. If the user only wants normal conversation, knowledge Q and A, storytelling, weather, translation, or anything that should continue to chat, set matched to false.
-2. Set intent_name to play_music only when the user clearly wants music playback.
-3. If the user asks for random music or does not provide a music name, set is_random to true and music_name to null.
-4. If the user names a specific song, singer, or music title, set is_random to false and fill music_name with the best extracted text.
-5. reply should be a short plain Chinese sentence that can be spoken after the function runs. Leave it empty when matched is false.
-6. Never output markdown, explanations, or any text outside the JSON object.
+1. If the user wants normal conversation, knowledge Q&A, storytelling, weather, translation, or anything that does not require a tool call, set intent_detected to false and feedback to empty string.
+2. If the user clearly wants to trigger a device function and a matching tool is available, call the tool, then set intent_detected to true and fill feedback with a brief confirmation reply.
+3. If the user seems to want a device function but no matching tool is available, set intent_detected to false and feedback to empty string.
+4. Never output markdown, explanations, or any text outside the JSON object.
 """;
 
         private ChatClientAgent? _intentClientAgent;
 
         private AgentSession? _agentSession;
+
+        /// <summary>当前会话的私有提供者，用于在调用时懒加载工具列表</summary>
+        private PrivateProvider? _sessionPrivateProvider;
 
         public IntentAgent(IServiceProvider serviceProvider, ILogger<IntentAgent> logger) : base(SubAgentNames.IntentAgent, serviceProvider, logger)
         {
@@ -81,6 +79,8 @@ Rules:
                     services: this.ServiceProvider);
 
                 this._agentSession = this._intentClientAgent.CreateSessionAsync(agentBuildConfig.SessionPrivateProvider.Token).GetAwaiter().GetResult();
+                // 保存会话私有提供者，供调用时懒加载工具
+                this._sessionPrivateProvider = agentBuildConfig.SessionPrivateProvider;
                 //todo
                 //this.Logger.LogInformation(Lang.ChatAgent_Build_Built, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
                 return true;
@@ -97,7 +97,7 @@ Rules:
         {
             return protocolBuilder.ConfigureRoutes(routeBuilder =>
             {
-                routeBuilder.AddHandler<string, ValueTask<IntentResult>>(this.DetectIntentAsync);
+                routeBuilder.AddHandler<string, IntentResult>(this.DetectIntentAsync);
             })
             .SendsMessage<IntentResult>();
         }
@@ -114,7 +114,15 @@ Rules:
                 //todo
                 throw new InvalidOperationException("");
             }
-            IAsyncEnumerable<AgentResponseUpdate> updates = this._intentClientAgent.RunStreamingAsync(userMessage, session: this._agentSession, cancellationToken: token);
+            // 调用时从会话提供者中懒加载工具，确保IoT/MCP工具已注册
+            ChatClientAgentRunOptions runOptions = new ChatClientAgentRunOptions(new ChatOptions
+            {
+                ToolMode = ChatToolMode.Auto,
+                Tools = (this._sessionPrivateProvider?.FunctionTools.Count > 0)
+                    ? this._sessionPrivateProvider.FunctionTools
+                    : null
+            });
+            IAsyncEnumerable<AgentResponseUpdate> updates = this._intentClientAgent.RunStreamingAsync(userMessage, session: this._agentSession, options: runOptions, cancellationToken: token);
             AgentResponse agentResponse = await updates.ToAgentResponseAsync(token);
 
             string cleanContent = MarkdownCleaner.CleanMarkdown(
