@@ -169,16 +169,6 @@ namespace XiaoZhi.Net.Server.Management
             return modelSetting;
         }
 
-        private ModelSetting GetSelectedLLMSettingOrFallback(string selectedLLMType, string fallbackLLMType, XiaoZhiConfig config)
-        {
-            if (config.SelectedSettings.ContainsKey(selectedLLMType))
-            {
-                return this.GetSelectedLLMSetting(selectedLLMType, config);
-            }
-
-            return this.GetSelectedLLMSetting(fallbackLLMType, config);
-        }
-
         public async Task<bool> InitializePrivateConfigAsync(Session session)
         {
             try
@@ -217,15 +207,11 @@ namespace XiaoZhi.Net.Server.Management
                 }
                 else
                 {
-                    IVad genericVad = this._serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
-                    if (!genericVad.IsSherpaModel && !genericVad.Build(this.GetSelectedSetting("VAD", this._config)))
+                    bool vadRegistered = this.RegisterGlobalVadProviders(session);
+                    if (!vadRegistered)
                     {
-                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericVadBuildFailed, genericVad.ModelName);
                         return false;
                     }
-                    session.PrivateProvider.SetVad(genericVad);
-
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericVadInitialized, genericVad.ModelName, session.DeviceId);
                 }
 
                 if (privateModelsConfig.AsrSetting is not null)
@@ -242,15 +228,11 @@ namespace XiaoZhi.Net.Server.Management
                 }
                 else
                 {
-                    IAsr genericAsr = this._serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
-                    if (!genericAsr.IsSherpaModel && !genericAsr.Build(this.GetSelectedSetting("ASR", this._config)))
+                    bool asrRegistered = this.RegisterGlobalAsrProviders(session);
+                    if (!asrRegistered)
                     {
-                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericAsrBuildFailed, genericAsr.ModelName);
                         return false;
                     }
-                    session.PrivateProvider.SetAsr(genericAsr);
-
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericAsrInitialized, genericAsr.ModelName, session.DeviceId);
                 }
 
                 if (privateModelsConfig.AgentSettings.Any())
@@ -272,29 +254,11 @@ namespace XiaoZhi.Net.Server.Management
                 }
                 else
                 {
-                    ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
-
-                    ModelSetting intentLLMModelSetting = this.GetSelectedLLMSettingOrFallback("Intent", "ChatLLM", this._config);
-                    ModelSetting chatLLMModelSetting = this.GetSelectedLLMSetting("ChatLLM", this._config);
-                    chatLLMModelSetting.Config.SetConfigValue("Prompt", this._config.Prompt);
-                    Dictionary<string, ModelSetting> agentSettings = new Dictionary<string, ModelSetting>
+                    bool llmRegistered = this.RegisterGlobalLlmProviders(session);
+                    if (!llmRegistered)
                     {
-                        { SubAgentNames.IntentAgent, intentLLMModelSetting },
-                        { SubAgentNames.ChatAgent, chatLLMModelSetting },
-                    };
-
-                    LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
-                        agentSettings,
-                        session.PrivateProvider);
-
-                    if (!genericLlm.Build(llmBuildConfig))
-                    {
-                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericLlmBuildFailed, session.DeviceId);
                         return false;
                     }
-                    session.PrivateProvider.SetLlm(genericLlm);
-
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericLlmInitialized, session.DeviceId);
                 }
 
                 if (privateModelsConfig.TtsSetting is not null)
@@ -311,15 +275,11 @@ namespace XiaoZhi.Net.Server.Management
                 }
                 else
                 {
-                    ITts genericTts = this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
-                    if (!genericTts.IsSherpaModel && !genericTts.Build(this.GetSelectedSetting("TTS", this._config)))
+                    bool ttsRegistered = this.RegisterGlobalTtsProviders(session);
+                    if (!ttsRegistered)
                     {
-                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericTtsBuildFailed, genericTts.ModelName);
                         return false;
                     }
-                    session.PrivateProvider.SetTts(genericTts);
-
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericTtsInitialized, genericTts.ModelName, session.DeviceId);
                 }
 
                 return true;
@@ -526,6 +486,7 @@ namespace XiaoZhi.Net.Server.Management
                 });
             }
 
+            services.AddKeyedTransient<IAgent, InputAgent>(SubAgentNames.InputAgent);
             services.AddKeyedTransient<IIntentAgent, IntentAgent>(SubAgentNames.IntentAgent);
             services.AddKeyedTransient<IChatAgent, ChatAgent>(SubAgentNames.ChatAgent);
             services.AddKeyedTransient<IAgent, OutputAgent>(SubAgentNames.OutputAgent);
@@ -543,7 +504,7 @@ namespace XiaoZhi.Net.Server.Management
         #region Memory
         private static void RegisterMemory(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            string modelName = ConvertToKebabCase(config.SelectedSettings["MEMORY"]);
+            string modelName = ConvertToKebabCase(config.SelectedSettings["Memory"]);
             switch (modelName)
             {
                 case "flash-memory":
@@ -700,7 +661,16 @@ namespace XiaoZhi.Net.Server.Management
 
         private bool RegisterGlobalProviders(Session session)
         {
-            #region Vad
+            bool vadRegistered = this.RegisterGlobalVadProviders(session);
+            bool asrRegistered = this.RegisterGlobalAsrProviders(session);
+            bool llmRegistered = this.RegisterGlobalLlmProviders(session);
+            bool ttsRegistered = this.RegisterGlobalTtsProviders(session);
+
+            return vadRegistered && asrRegistered && llmRegistered && ttsRegistered;
+        }
+
+        private bool RegisterGlobalVadProviders(Session session)
+        {
             IVad genericVad = this._serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
             if (!genericVad.IsSherpaModel && !genericVad.Build(this.GetSelectedSetting("VAD", this._config)))
             {
@@ -709,9 +679,11 @@ namespace XiaoZhi.Net.Server.Management
             }
             session.PrivateProvider.SetVad(genericVad);
             this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_VadInitialized, genericVad.ModelName, session.DeviceId);
-            #endregion
+            return true;
+        }
 
-            #region Asr
+        private bool RegisterGlobalAsrProviders(Session session)
+        {
             IAsr genericAsr = this._serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
             if (!genericAsr.IsSherpaModel && !genericAsr.Build(this.GetSelectedSetting("ASR", this._config)))
             {
@@ -720,19 +692,39 @@ namespace XiaoZhi.Net.Server.Management
             }
             session.PrivateProvider.SetAsr(genericAsr);
             this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_AsrInitialized, genericAsr.ModelName, session.DeviceId);
-            #endregion
+            return true;
+        }
 
-            #region LLM
+        private bool RegisterGlobalLlmProviders(Session session)
+        {
             ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
 
-            ModelSetting intentLLMModelSetting = this.GetSelectedLLMSettingOrFallback("IntentLLM", "ChatLLM", this._config);
+            ModelSetting intentLLMModelSetting = this.GetSelectedSetting("Intent", this._config);
             ModelSetting chatLLMModelSetting = this.GetSelectedLLMSetting("ChatLLM", this._config);
             chatLLMModelSetting.Config.SetConfigValue("Prompt", this._config.Prompt);
+
+            ModelSetting inputAgentSetting = new ModelSetting
+            {
+                ModelName = SubAgentNames.InputAgent,
+                Config = new Dictionary<string, string>
+                {
+                   { "IntentType", intentLLMModelSetting.Config.GetConfigValueOrDefault("Type", "None") }
+                }
+            };
+
+            ModelSetting outputAgentSetting = new ModelSetting
+            {
+                ModelName = SubAgentNames.OutputAgent,
+                Config = new Dictionary<string, string>(0)
+            };
+
             Dictionary<string, ModelSetting> agentSettings = new Dictionary<string, ModelSetting>
-                    {
-                        { SubAgentNames.IntentAgent, intentLLMModelSetting },
-                        { SubAgentNames.ChatAgent, chatLLMModelSetting },
-                    };
+            {
+                { SubAgentNames.InputAgent, inputAgentSetting },
+                { SubAgentNames.IntentAgent, intentLLMModelSetting },
+                { SubAgentNames.ChatAgent, chatLLMModelSetting },
+                { SubAgentNames.OutputAgent, outputAgentSetting },
+            };
 
             LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
                 agentSettings,
@@ -740,14 +732,17 @@ namespace XiaoZhi.Net.Server.Management
 
             if (!genericLlm.Build(llmBuildConfig))
             {
-                throw new ModelBuildException("Failed to build generic LLM model.");
+                this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericLlmBuildFailed, session.DeviceId);
+                return false;
             }
             session.PrivateProvider.SetLlm(genericLlm);
 
             this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericLlmInitialized, session.DeviceId);
-            #endregion
+            return true;
+        }
 
-            #region Tts
+        private bool RegisterGlobalTtsProviders(Session session)
+        {
             ITts genericTts = this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
             if (!genericTts.IsSherpaModel && !genericTts.Build(this.GetSelectedSetting("TTS", this._config)))
             {
@@ -756,8 +751,6 @@ namespace XiaoZhi.Net.Server.Management
             }
             session.PrivateProvider.SetTts(genericTts);
             this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_TtsInitialized, genericTts.ModelName, session.DeviceId);
-            #endregion
-
             return true;
         }
 

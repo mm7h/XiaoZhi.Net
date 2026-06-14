@@ -8,7 +8,7 @@ using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
-using XiaoZhi.Net.Server.Server.Common.Configs;
+using XiaoZhi.Net.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {

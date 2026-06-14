@@ -3,6 +3,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
+using ModelContextProtocol.Protocol;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +15,6 @@ using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
-using XiaoZhi.Net.Server.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
 {
@@ -49,23 +49,22 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             try
             {
                 this._subAgents.Clear();
-                // 先获取所有agent实例并填入字典，再并行构建
+
+                IAgent inputAgent = this._serviceProvider.GetRequiredKeyedService<IAgent>(SubAgentNames.InputAgent);
                 IIntentAgent intentAgent = this._serviceProvider.GetRequiredKeyedService<IIntentAgent>(SubAgentNames.IntentAgent);
                 IChatAgent chatAgent = this._serviceProvider.GetRequiredKeyedService<IChatAgent>(SubAgentNames.ChatAgent);
                 IAgent outputAgent = this._serviceProvider.GetRequiredKeyedService<IAgent>(SubAgentNames.OutputAgent);
 
+                this._subAgents[inputAgent.AgentName] = inputAgent;
                 this._subAgents[intentAgent.AgentName] = intentAgent;
                 this._subAgents[chatAgent.AgentName] = chatAgent;
                 this._subAgents[outputAgent.AgentName] = outputAgent;
 
-                // 并行构建所有agent，OutputAgent没有对应配置时使用空配置
                 bool buildSuccess = this._subAgents.Values
                     .AsParallel()
                     .Select(agent =>
                     {
-                        ModelSetting agentSetting = modelSetting.AgentSettings.TryGetValue(agent.AgentName, out ModelSetting? setting)
-                            ? setting
-                            : new ModelSetting { ModelName = agent.AgentName };
+                        ModelSetting agentSetting = modelSetting.AgentSettings[agent.AgentName];
                         return agent.Build(new LLMAgentBuildConfig(agentSetting, modelSetting.SessionPrivateProvider));
                     })
                     .All(r => r);
@@ -85,14 +84,18 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
         private Workflow BuildDialogueWorkflow(PrivateProvider privateProvider)
         {
+            Executor inputExecutor = this._subAgents[SubAgentNames.InputAgent].AsExecutor();
             Executor intentExecutor = this._subAgents[SubAgentNames.IntentAgent].AsExecutor();
             Executor chatExecutor = this._subAgents[SubAgentNames.ChatAgent].AsExecutor();
             Executor outputExecutor = this._subAgents[SubAgentNames.OutputAgent].AsExecutor();
 
-            return new WorkflowBuilder(intentExecutor)
+            return new WorkflowBuilder(inputExecutor)
+                .AddSwitch(inputExecutor, i => i
+                    .AddCase<WorkflowPreInputs>(iw => iw is not null && iw.IntentRequired, intentExecutor)
+                    .AddCase<WorkflowPreInputs>(iw => iw is not null && !iw.IntentRequired, chatExecutor))
                 .AddSwitch(intentExecutor, sw => sw
-                    .AddCase<IntentResult>(result => result is not null && !result.IntentDetected, chatExecutor)
-                    .AddCase<IntentResult>(result => result is not null && result.IntentDetected, outputExecutor))
+                    .AddCase<IntentResult>(ir => ir is not null && !ir.IntentDetected, chatExecutor)
+                    .AddCase<IntentResult>(ir => ir is not null && ir.IntentDetected, outputExecutor))
                 .AddEdge(chatExecutor, outputExecutor)
                 .WithOutputFrom(outputExecutor)
                 .WithName(privateProvider.DeviceId)
@@ -125,7 +128,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 //todo
                 throw new InvalidOperationException("Dialogue workflow is not initialized.");
             }
-            
+
             this.OnBeforeTokenGenerate?.Invoke();
             await this.RunAndEmitWorkflowStreamingAsync(userMessage, token);
         }

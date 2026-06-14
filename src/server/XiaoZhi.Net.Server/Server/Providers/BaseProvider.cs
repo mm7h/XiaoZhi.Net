@@ -31,12 +31,12 @@ namespace XiaoZhi.Net.Server.Providers
         {
             this.DeviceId = deviceId;
             this.SessionId = sessionId;
-            this.Logger.LogInformation(Lang.BaseProvider_RegisterDevice_Registered, this.DeviceId, this.SessionId, this.ProviderType);
+            this.Logger.LogInformation(Lang.BaseProvider_RegisterDevice_Registered, this.DeviceId, this.ProviderType, this.SessionId);
         }
 
         public virtual void UnregisterDevice(string deviceId, string sessionId)
         {
-            this.Logger.LogInformation(Lang.BaseProvider_UnregisterDevice_Unregistered, this.DeviceId, this.SessionId, this.ProviderType);
+            this.Logger.LogInformation(Lang.BaseProvider_UnregisterDevice_Unregistered, this.DeviceId, this.ProviderType, this.SessionId);
             this.DeviceId = string.Empty;
             this.SessionId = string.Empty;
         }

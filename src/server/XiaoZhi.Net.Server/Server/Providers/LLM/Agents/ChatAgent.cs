@@ -18,7 +18,6 @@ using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 using XiaoZhi.Net.Server.Providers.LLM.Plugins;
-using XiaoZhi.Net.Server.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
@@ -113,14 +112,34 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             return protocolBuilder.ConfigureRoutes(routeBuilder =>
             {
                 routeBuilder
-                .AddHandler<IntentResult>(this.GenerateChatResponseAsync);
+                .AddHandler<WorkflowPreInputs>(this.GenerateChatResponseAsync)
+                .AddHandler<IntentResult>(this.GenerateChatFromIntentResponseAsync);
             })
             .SendsMessage<string>();
         }
 
+        
+        [MessageHandler]
+        public async ValueTask GenerateChatResponseAsync(WorkflowPreInputs preInput, IWorkflowContext workflowContext, CancellationToken token)
+        {
+            if (!this.CheckDeviceRegistered(this.DeviceId, this.SessionId))
+            {
+                throw new SessionNotInitializedException();
+            }
+            if (this._chatClientAgent is null || this._agentSession is null)
+            {
+                throw new InvalidOperationException(Lang.ChatAgent_GenerateChatResponseAsync_AgentNotBuilt);
+            }
+
+            await foreach (string sentence in this.StreamLLMResponseAsync(preInput.UserMessage, token))
+            {
+                await workflowContext.SendMessageAsync(sentence, token);
+            }
+        }
+
         /// <summary>接收IntentResult，逐句将原始文本（含Emotion标识前缀）发送给OutputAgent</summary>
         [MessageHandler]
-        public async ValueTask GenerateChatResponseAsync(IntentResult intentResult, IWorkflowContext workflowContext, CancellationToken token)
+        public async ValueTask GenerateChatFromIntentResponseAsync(IntentResult intentResult, IWorkflowContext workflowContext, CancellationToken token)
         {
             if (!this.CheckDeviceRegistered(this.DeviceId, this.SessionId))
             {

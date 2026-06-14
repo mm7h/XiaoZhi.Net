@@ -175,8 +175,25 @@
         }
       }
     },
-    "INTENT": {},
-    "MEMORY": {
+    "Intent": {
+      "None": {
+        "Type": "None"
+      },
+      "IntentLlm": {
+        "Type": "IntentLlm",
+        "LLM": "Chatglm",
+        "FunctionTools": [
+
+        ]
+      },
+      "FunctionCall": {
+        "Type": "FunctionCall",
+        "FunctionTools": [
+
+        ]
+      }
+    },
+    "Memory": {
       "FlashMemory": {}
     }
   },

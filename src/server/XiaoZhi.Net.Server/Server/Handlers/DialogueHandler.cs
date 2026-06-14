@@ -156,28 +156,29 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 return;
             }
-            
-            var clonedSegment = this._outSegmentPool.Get();
-            clonedSegment.Initialize(outSegment.Content, outSegment.IsFirstSegment, outSegment.IsLastSegment, outSegment.Emotion, outSegment.ParagraphId, outSegment.SentenceId);
 
-            var workflow = this._outSegmentWorkflowPool.Get();
-            workflow.Initialize(session, clonedSegment);
-            
-            try
-            {
-                await this.NextWriter.WriteAsync(workflow, this.HandlerToken);
-            }
-            catch (OperationCanceledException)
-            {
-                this._outSegmentPool.Return(clonedSegment);
-                this._outSegmentWorkflowPool.Return(workflow);
-            }
-            catch (Exception ex)
-            {
-                this.Logger.LogError(ex, Lang.DialogueHandler_OnTokenGenerating_WriteFailed, session.DeviceId);
-                this._outSegmentPool.Return(clonedSegment);
-                this._outSegmentWorkflowPool.Return(workflow);
-            }
+            //var clonedSegment = this._outSegmentPool.Get();
+            //clonedSegment.Initialize(outSegment.Content, outSegment.IsFirstSegment, outSegment.IsLastSegment, outSegment.Emotion, outSegment.ParagraphId, outSegment.SentenceId);
+
+            //var workflow = this._outSegmentWorkflowPool.Get();
+            //workflow.Initialize(session, clonedSegment);
+
+            //try
+            //{
+            //    await this.NextWriter.WriteAsync(workflow, this.HandlerToken);
+            //}
+            //catch (OperationCanceledException)
+            //{
+            //    this._outSegmentPool.Return(clonedSegment);
+            //    this._outSegmentWorkflowPool.Return(workflow);
+            //}
+            //catch (Exception ex)
+            //{
+            //    this.Logger.LogError(ex, Lang.DialogueHandler_OnTokenGenerating_WriteFailed, session.DeviceId);
+            //    this._outSegmentPool.Return(clonedSegment);
+            //    this._outSegmentWorkflowPool.Return(workflow);
+            //}
+            Console.WriteLine(outSegment.Content);
         }
 
         private void OnTokenGenerated(IEnumerable<OutSegment> outSegments)

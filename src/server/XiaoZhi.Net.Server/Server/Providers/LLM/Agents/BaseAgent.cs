@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Text.RegularExpressions;
 using XiaoZhi.Net.Server.I18n;
-using XiaoZhi.Net.Server.Server.Common.Configs;
+using XiaoZhi.Net.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {

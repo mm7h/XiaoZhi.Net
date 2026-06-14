@@ -2,6 +2,7 @@
 {
     internal static class SubAgentNames
     {
+        public const string InputAgent = "InputAgent";
         public const string IntentAgent = "IntentAgent";
         public const string ChatAgent = "ChatAgent";
         public const string OutputAgent = "OutputAgent";

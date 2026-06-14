@@ -15,7 +15,7 @@ using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
-using XiaoZhi.Net.Server.Server.Common.Configs;
+using XiaoZhi.Net.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
@@ -37,10 +37,9 @@ Rules:
 3. If the user seems to want a device function but no matching tool is available, set intent_detected to false and feedback to empty string.
 4. Never output markdown, explanations, or any text outside the JSON object.
 """;
+        private const string ACCEPTED_INTENT_MODEL = "INTENT_LLM";
 
         private ChatClientAgent? _intentClientAgent;
-
-        private AgentSession? _agentSession;
 
         /// <summary>当前会话的私有提供者，用于在调用时懒加载工具列表</summary>
         private PrivateProvider? _sessionPrivateProvider;
@@ -58,7 +57,23 @@ Rules:
             try
             {
                 this.Prompt = INTENT_INSTRUCTIONS;
-                IChatClient chatClient = this.ServiceProvider.GetRequiredKeyedService<IChatClient>($"LLM_{agentBuildConfig.AgentSetting.ModelName}");
+
+                string intentType = agentBuildConfig.AgentSetting.Config.GetConfigValueOrDefault("Type", "None");
+                if (string.Compare(ACCEPTED_INTENT_MODEL, intentType, StringComparison.OrdinalIgnoreCase) != 0)
+                {
+                    //no intent model required, skip building intent agent
+                    //todo: log
+                    return true;
+                }
+
+                string? selectedLLMModel = agentBuildConfig.AgentSetting.Config.GetValueOrDefault("LLM");
+                if (string.IsNullOrEmpty(selectedLLMModel))
+                {
+                    //todo: log
+                    return false;
+                }
+
+                IChatClient chatClient = this.ServiceProvider.GetRequiredKeyedService<IChatClient>($"LLM_{selectedLLMModel}");
 
                 ChatClientAgentOptions options = new ChatClientAgentOptions
                 {
@@ -78,7 +93,6 @@ Rules:
                     options: options,
                     services: this.ServiceProvider);
 
-                this._agentSession = this._intentClientAgent.CreateSessionAsync(agentBuildConfig.SessionPrivateProvider.Token).GetAwaiter().GetResult();
                 // 保存会话私有提供者，供调用时懒加载工具
                 this._sessionPrivateProvider = agentBuildConfig.SessionPrivateProvider;
                 //todo
@@ -97,19 +111,19 @@ Rules:
         {
             return protocolBuilder.ConfigureRoutes(routeBuilder =>
             {
-                routeBuilder.AddHandler<string, IntentResult>(this.DetectIntentAsync);
+                routeBuilder.AddHandler<string>(this.DetectIntentAsync);
             })
             .SendsMessage<IntentResult>();
         }
 
         [MessageHandler]
-        public async ValueTask<IntentResult> DetectIntentAsync(string userMessage, IWorkflowContext workflowContext, CancellationToken token)
+        public async ValueTask DetectIntentAsync(string userMessage, IWorkflowContext workflowContext, CancellationToken token)
         {
             if (!this.CheckDeviceRegistered(this.DeviceId, this.SessionId))
             {
                 throw new SessionNotInitializedException();
             }
-            if (this._intentClientAgent is null || this._agentSession is null)
+            if (this._intentClientAgent is null)
             {
                 //todo
                 throw new InvalidOperationException("");
@@ -122,33 +136,10 @@ Rules:
                     ? this._sessionPrivateProvider.FunctionTools
                     : null
             });
-            IAsyncEnumerable<AgentResponseUpdate> updates = this._intentClientAgent.RunStreamingAsync(userMessage, session: this._agentSession, options: runOptions, cancellationToken: token);
-            AgentResponse agentResponse = await updates.ToAgentResponseAsync(token);
+            AgentResponse<IntentResult> intentResponseResult = await this._intentClientAgent.RunAsync<IntentResult>(userMessage, serializerOptions: JsonHelper.OPTIONS, options: runOptions, cancellationToken: token);
 
-            string cleanContent = MarkdownCleaner.CleanMarkdown(
-                Regex.Replace(Regex.Unescape(agentResponse.Text), @"<think>.*?</think>", string.Empty, RegexOptions.Singleline));
-
-            string jsonPayload = ExtractJsonPayload(cleanContent);
-            IntentResult? intentResult = JsonSerializer.Deserialize<IntentResult>(jsonPayload, JsonHelper.OPTIONS);
-            if (intentResult is null)
-            {
-                throw new JsonException($"Failed to deserialize intent result: {cleanContent}");
-            }
-
-            intentResult.UserMessage = userMessage;
-            return intentResult;
-        }
-
-        private static string ExtractJsonPayload(string content)
-        {
-            int start = content.IndexOf('{');
-            int end = content.LastIndexOf('}');
-            if (start >= 0 && end > start)
-            {
-                return content.Substring(start, end - start + 1);
-            }
-
-            return content;
+            intentResponseResult.Result.UserMessage = userMessage;
+            await workflowContext.SendMessageAsync(intentResponseResult.Result, token);
         }
 
         public override void Dispose()

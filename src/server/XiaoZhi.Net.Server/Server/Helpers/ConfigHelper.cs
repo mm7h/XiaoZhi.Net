@@ -25,6 +25,12 @@ namespace XiaoZhi.Net.Server.Helpers
             {
                 return default;
             }
+
+            if (typeof(TValue) == typeof(string))
+            {
+                return (TValue)(object)value;
+            }
+
             return JsonSerializer.Deserialize<TValue>(value, JsonHelper.OPTIONS);
         }
 
@@ -38,6 +44,11 @@ namespace XiaoZhi.Net.Server.Helpers
             if (string.IsNullOrEmpty(value))
             {
                 return defaultValue;
+            }
+
+            if (typeof(TValue) == typeof(string))
+            {
+                return (TValue)(object)value;
             }
 
             return JsonSerializer.Deserialize<TValue>(value, JsonHelper.OPTIONS) ?? defaultValue;

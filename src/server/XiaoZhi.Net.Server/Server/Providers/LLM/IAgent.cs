@@ -1,6 +1,6 @@
 ﻿using Microsoft.Agents.AI.Workflows;
 using System;
-using XiaoZhi.Net.Server.Server.Common.Configs;
+using XiaoZhi.Net.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
 {
