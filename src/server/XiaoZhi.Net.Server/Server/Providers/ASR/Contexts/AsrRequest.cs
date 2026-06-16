@@ -1,8 +1,7 @@
 ﻿using SherpaOnnx;
 using System.Threading;
-using XiaoZhi.Net.Server.Providers.ASR;
 
-namespace XiaoZhi.Net.Server.Common.Contexts
+namespace XiaoZhi.Net.Server.Providers.ASR.Contexts
 {
     internal record AsrRequest(
         string SessionId,

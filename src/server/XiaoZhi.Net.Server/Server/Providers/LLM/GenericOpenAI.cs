@@ -3,7 +3,6 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
-using ModelContextProtocol.Protocol;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -51,8 +50,8 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 this._subAgents.Clear();
 
                 IAgent inputAgent = this._serviceProvider.GetRequiredKeyedService<IAgent>(SubAgentNames.InputAgent);
-                IIntentAgent intentAgent = this._serviceProvider.GetRequiredKeyedService<IIntentAgent>(SubAgentNames.IntentAgent);
-                IChatAgent chatAgent = this._serviceProvider.GetRequiredKeyedService<IChatAgent>(SubAgentNames.ChatAgent);
+                IAgent intentAgent = this._serviceProvider.GetRequiredKeyedService<IAgent>(SubAgentNames.IntentAgent);
+                IAgent chatAgent = this._serviceProvider.GetRequiredKeyedService<IAgent>(SubAgentNames.ChatAgent);
                 IAgent outputAgent = this._serviceProvider.GetRequiredKeyedService<IAgent>(SubAgentNames.OutputAgent);
 
                 this._subAgents[inputAgent.AgentName] = inputAgent;

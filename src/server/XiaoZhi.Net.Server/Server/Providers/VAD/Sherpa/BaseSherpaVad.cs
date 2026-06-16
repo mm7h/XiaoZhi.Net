@@ -4,10 +4,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Providers.VAD.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 {

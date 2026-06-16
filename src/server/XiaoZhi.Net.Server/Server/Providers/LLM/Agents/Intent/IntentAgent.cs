@@ -5,8 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Constants;
@@ -19,7 +17,7 @@ using XiaoZhi.Net.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
-    internal sealed class IntentAgent : BaseAgent<IntentAgent>, IIntentAgent
+    internal sealed class IntentAgent : BaseAgent<IntentAgent>
     {
         private const string INTENT_INSTRUCTIONS = """
 You are an intent detector for a smart voice device.

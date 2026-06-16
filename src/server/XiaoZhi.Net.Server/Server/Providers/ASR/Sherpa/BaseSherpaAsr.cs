@@ -13,6 +13,7 @@ using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Providers.ASR.Contexts;
 using XiaoZhi.Net.Server.Media.Abstractions;
 
 namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa

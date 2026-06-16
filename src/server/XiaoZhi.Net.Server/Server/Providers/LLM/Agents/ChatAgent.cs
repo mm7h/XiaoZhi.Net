@@ -21,7 +21,7 @@ using XiaoZhi.Net.Server.Providers.LLM.Plugins;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
-    internal class ChatAgent : BaseAgent<ChatAgent>, IChatAgent
+    internal class ChatAgent : BaseAgent<ChatAgent>
     {
         private ChatClientAgent? _chatClientAgent;
 

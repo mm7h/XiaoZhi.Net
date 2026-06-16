@@ -487,8 +487,8 @@ namespace XiaoZhi.Net.Server.Management
             }
 
             services.AddKeyedTransient<IAgent, InputAgent>(SubAgentNames.InputAgent);
-            services.AddKeyedTransient<IIntentAgent, IntentAgent>(SubAgentNames.IntentAgent);
-            services.AddKeyedTransient<IChatAgent, ChatAgent>(SubAgentNames.ChatAgent);
+            services.AddKeyedTransient<IAgent, IntentAgent>(SubAgentNames.IntentAgent);
+            services.AddKeyedTransient<IAgent, ChatAgent>(SubAgentNames.ChatAgent);
             services.AddKeyedTransient<IAgent, OutputAgent>(SubAgentNames.OutputAgent);
             services.AddTransient<ILlm, GenericOpenAI>();
         }

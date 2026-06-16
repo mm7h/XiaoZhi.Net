@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace XiaoZhi.Net.Server.Common.Contexts
+namespace XiaoZhi.Net.Server.Providers.VAD.Contexts
 {
     /// <summary>
     /// Per-session state for VAD processing.
