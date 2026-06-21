@@ -4,14 +4,13 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Abstractions.Store;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Management;
+using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 using XiaoZhi.Net.Server.Services;
 using XiaoZhi.Net.Server.Store;
 
@@ -69,37 +68,27 @@ namespace XiaoZhi.Net.Server
             return this;
         }
 
-        public IServerBuilder WithPlugin<TPlugin>(string pluginName)
+        public IServerBuilder WithFunctionTools(params Delegate[] functions)
         {
-            if (string.IsNullOrWhiteSpace(pluginName))
-            {
-                throw new ArgumentNullException(nameof(pluginName), Lang.ServerBuilder_WithPlugin_PluginNameNull);
-            }
-            this.HostBuilder.ConfigureServices((context, services) =>
-            {
-                // 保留扩展点，当前阶段以 DI 单例方式注册类型，需要时再封装为 AIFunction
-                services.AddSingleton(typeof(TPlugin));
-            });
-            return this;
-        }
-
-        public IServerBuilder WithPlugin<TPlugin>(string pluginName, IEnumerable<IFunction> functions)
-        {
-            if (string.IsNullOrWhiteSpace(pluginName))
-            {
-                throw new ArgumentNullException(nameof(pluginName), Lang.ServerBuilder_WithPlugin_PluginNameNull);
-            }
-            if (functions == null || !functions.Any())
+            if (functions == null || functions.Length == 0)
             {
                 throw new ArgumentNullException(nameof(functions), Lang.ServerBuilder_WithPlugin_FunctionsNull);
             }
 
-            // 将 IFunction 列表封装为 AIFunction 并注册为 IEnumerable<AIFunction>
-            IEnumerable<AIFunction> aiFunctions = functions.Select(
-                f => AIFunctionFactory.Create(f.Method, new AIFunctionFactoryOptions { Name = f.FunctionName, Description = f.Description }));
+            foreach (Delegate function in functions)
+            {
+                if (function is null)
+                {
+                    throw new ArgumentNullException(nameof(functions), Lang.ServerBuilder_WithPlugin_FunctionsNull);
+                }
+            }
+
             this.HostBuilder.ConfigureServices((context, services) =>
             {
-                services.AddSingleton(aiFunctions);
+                foreach (Delegate function in functions)
+                {
+                    services.AddSingleton(function.ToFunctionToolRegistration());
+                }
             });
             return this;
         }

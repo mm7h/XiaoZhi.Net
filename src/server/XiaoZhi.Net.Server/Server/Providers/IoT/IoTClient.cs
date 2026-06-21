@@ -8,11 +8,13 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Models;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.IoT
 {
@@ -49,7 +51,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
             }
         }
 
-        public async Task ExecuteIoTCommandAsync(string iotDeviceComponentName, string functionName, IReadOnlyDictionary<string, object?> arguments, IReadOnlyList<IoTParameterInfo> parameterInfos, CancellationToken cancellationToken = default)
+        public async Task<FunctionReturn<string>> ExecuteIoTCommandAsync(string iotDeviceComponentName, string functionName, IReadOnlyDictionary<string, object?> arguments, IReadOnlyList<IoTParameterInfo> parameterInfos, CancellationToken cancellationToken = default)
         {
             IDictionary<string, object?> resultArgs = new Dictionary<string, object?>();
             foreach (var argument in arguments)
@@ -74,15 +76,27 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                 Parameters = resultArgs
             };
             await this.SendIoTMessageAsync(command);
+            return new FunctionReturn<string>
+            {
+                Next = ToolAction.Continue,
+                Result = "OK",
+                Response = "操作已执行。"
+            };
         }
 
-        public object? GetIoTPropertyStatus(string functionName, Type returnValueType)
+        public FunctionReturn<object?> GetIoTPropertyStatus(string functionName, Type returnValueType)
         {
             List<string> splitedItems = functionName.Split("_", StringSplitOptions.RemoveEmptyEntries).ToList();
             string iotDeviceComponentName = splitedItems[1];
             string propName = splitedItems[2];
             IoTProperty? property = this._iotProperties.FirstOrDefault(i => i.IoTComponentName == iotDeviceComponentName && i.Name == propName && i.Type == returnValueType);
-            return property?.StatusValue ?? null;
+            object? result = property?.StatusValue ?? null;
+            return new FunctionReturn<object?>
+            {
+                Next = ToolAction.Continue,
+                Result = result,
+                Response = result?.ToString()
+            };
         }
 
         private void UpdateIoTPropertyStatus(string iotDeviceComponentName, string propName, object? val, Type? valType = null)
@@ -139,12 +153,19 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                                     i => i.IoTComponentName == capturedComponent.ToLower()
                                       && i.Name == capturedProp.ToLower()
                                       && i.Type == capturedType);
-                                return prop?.StatusValue?.ToString() ?? string.Empty;
+                                object? statusValue = prop?.StatusValue;
+                                return new FunctionReturn<object?>
+                                {
+                                    Next = ToolAction.Continue,
+                                    Result = statusValue,
+                                    Response = statusValue?.ToString()
+                                };
                             },
                             funcName,
                             string.Format(Lang.IoTClient_RegisterIoTTools_FunctionDescription, propDescription));
 
-                        this.CurrentSession.PrivateProvider.FunctionTools.Add(propertyFunc);
+                        FunctionMetadata propertyMetadata = propertyFunc.ToFunctionMetadata();
+                        this.CurrentSession.PrivateProvider.AddFunctionToolRegistration(new FunctionToolRegistration(propertyFunc, propertyMetadata, ToolAction.Continue));
                         this.RegisterIoTProperties(iotDeviceComponentName, propName, propObj);
                     }
                 }
@@ -195,13 +216,19 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                                         arguments_json,
                                         new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                                       ?? new Dictionary<string, object?>();
-                                await capturedClient.ExecuteIoTCommandAsync(capturedComponent, capturedMethod, dict, capturedParams, ct);
-                                return "OK";
+                                return await capturedClient.ExecuteIoTCommandAsync(capturedComponent, capturedMethod, dict, capturedParams, ct);
                             },
                             methodName,
                             fullDescription);
 
-                        this.CurrentSession.PrivateProvider.FunctionTools.Add(methodFunc);
+                        string normalizedMethodSchema = new JsonObject
+                        {
+                            ["type"] = "object",
+                            ["properties"] = parameters,
+                            ["required"] = new JsonArray()
+                        }.ToJsonString(JsonHelper.OPTIONS);
+                        FunctionMetadata methodMetadata = methodFunc.ToFunctionMetadata(normalizedMethodSchema, methodDescription);
+                        this.CurrentSession.PrivateProvider.AddFunctionToolRegistration(new FunctionToolRegistration(methodFunc, methodMetadata, ToolAction.Continue));
                     }
                 }
             }

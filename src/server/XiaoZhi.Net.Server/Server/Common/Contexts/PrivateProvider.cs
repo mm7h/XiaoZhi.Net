@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using XiaoZhi.Net.Server.Providers;
+using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {
@@ -13,6 +14,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private IAudioProcessor? _audioProcessor;
         private IAudioPlayerClient? _audioPlayerClient;
         private CancellationTokenSource? _providerCts;
+        private readonly Dictionary<string, FunctionToolRegistration> _functionToolRegistrations;
         private Session _session;
 
         public PrivateProvider(Session session)
@@ -21,6 +23,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.DeviceId = session.DeviceId;
             this.SessionId = session.SessionId;
             this.FunctionTools = new List<AITool>();
+            this._functionToolRegistrations = new Dictionary<string, FunctionToolRegistration>(StringComparer.OrdinalIgnoreCase);
         }
         public string DeviceId { get; }
         public string SessionId { get; }
@@ -44,6 +47,17 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public IAudioPlayerClient? AudioPlayerClient => this._audioPlayerClient;
 
         public CancellationToken Token { get; private set; }
+
+        public void AddFunctionToolRegistration(FunctionToolRegistration registration)
+        {
+            this.FunctionTools.Add(registration.Function);
+            this._functionToolRegistrations[registration.Function.Name] = registration;
+        }
+
+        public bool TryGetFunctionToolRegistration(string functionName, out FunctionToolRegistration? registration)
+        {
+            return this._functionToolRegistrations.TryGetValue(functionName, out registration);
+        }
 
         public void RegisterCancellationToken()
         {
@@ -149,6 +163,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._audioPlayerClient?.Dispose();
             this._audioProcessor?.Dispose();
             this.FunctionTools.Clear();
+            this._functionToolRegistrations.Clear();
         }
     }
 }

@@ -26,22 +26,12 @@ namespace XiaoZhi.Net.Server.Abstractions
         /// <exception cref="ArgumentNullException"></exception>
         IServerBuilder Initialize(XiaoZhiConfig config, IStore connectionStore);
         /// <summary>
-        /// 添加插件
+        /// 注册自定义函数工具。
         /// </summary>
-        /// <typeparam name="TPlugin">插件类对应的Type</typeparam>
-        /// <param name="pluginName">插件名称</param>
+        /// <param name="functions">需要注册的函数委托列表。</param>
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
-        IServerBuilder WithPlugin<TPlugin>(string pluginName);
-        /// <summary>
-        /// 添加插件
-        /// </summary>
-        /// <typeparam name="TPlugin">插件类对应的Type</typeparam>
-        /// <param name="pluginName">插件名称</param>
-        /// <param name="functions">支撑该插件的functions</param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        IServerBuilder WithPlugin<TPlugin>(string pluginName, IEnumerable<IFunction> functions);
+        IServerBuilder WithFunctionTools(params Delegate[] functions);
         /// <summary>
         /// 添加自定义验证
         /// </summary>

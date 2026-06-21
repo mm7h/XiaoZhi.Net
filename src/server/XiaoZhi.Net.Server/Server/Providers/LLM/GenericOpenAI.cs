@@ -48,14 +48,19 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             try
             {
                 this._subAgents.Clear();
+                this._dialogueWorkflow = null;
 
                 IAgent inputAgent = this._serviceProvider.GetRequiredKeyedService<IAgent>(SubAgentNames.InputAgent);
-                IAgent intentAgent = this._serviceProvider.GetRequiredKeyedService<IAgent>(SubAgentNames.IntentAgent);
+                IAgent intentDetectionAgent = this._serviceProvider.GetRequiredKeyedService<IAgent>(SubAgentNames.IntentDetectionAgent);
+                IAgent functionCallAgent = this._serviceProvider.GetRequiredKeyedService<IAgent>(SubAgentNames.FunctionCallAgent);
+                IAgent intentResponseAgent = this._serviceProvider.GetRequiredKeyedService<IAgent>(SubAgentNames.IntentResponseAgent);
                 IAgent chatAgent = this._serviceProvider.GetRequiredKeyedService<IAgent>(SubAgentNames.ChatAgent);
                 IAgent outputAgent = this._serviceProvider.GetRequiredKeyedService<IAgent>(SubAgentNames.OutputAgent);
 
                 this._subAgents[inputAgent.AgentName] = inputAgent;
-                this._subAgents[intentAgent.AgentName] = intentAgent;
+                this._subAgents[intentDetectionAgent.AgentName] = intentDetectionAgent;
+                this._subAgents[functionCallAgent.AgentName] = functionCallAgent;
+                this._subAgents[intentResponseAgent.AgentName] = intentResponseAgent;
                 this._subAgents[chatAgent.AgentName] = chatAgent;
                 this._subAgents[outputAgent.AgentName] = outputAgent;
 
@@ -63,8 +68,15 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                     .AsParallel()
                     .Select(agent =>
                     {
-                        ModelSetting agentSetting = modelSetting.AgentSettings[agent.AgentName];
-                        return agent.Build(new LLMAgentBuildConfig(agentSetting, modelSetting.SessionPrivateProvider));
+                        if (modelSetting.AgentSettings.TryGetValue(agent.AgentName, out ModelSetting? agentSetting))
+                        {
+                            return agent.Build(new LLMAgentBuildConfig(agentSetting, modelSetting.SessionPrivateProvider));
+                        }
+                        else
+                        {
+                            //todo: log
+                            return false;
+                        }
                     })
                     .All(r => r);
 
@@ -83,22 +95,37 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
         private Workflow BuildDialogueWorkflow(PrivateProvider privateProvider)
         {
-            Executor inputExecutor = this._subAgents[SubAgentNames.InputAgent].AsExecutor();
-            Executor intentExecutor = this._subAgents[SubAgentNames.IntentAgent].AsExecutor();
-            Executor chatExecutor = this._subAgents[SubAgentNames.ChatAgent].AsExecutor();
-            Executor outputExecutor = this._subAgents[SubAgentNames.OutputAgent].AsExecutor();
+            ExecutorBinding inputExecutor = this._subAgents[SubAgentNames.InputAgent].AsExecutor();
+            ExecutorBinding chatExecutor = this._subAgents[SubAgentNames.ChatAgent].AsExecutor();
+            ExecutorBinding outputExecutor = this._subAgents[SubAgentNames.OutputAgent].AsExecutor();
+            ExecutorBinding intentSubWorkflow = this.BuildIntentSubWorkflow(privateProvider)
+                .BindAsExecutor($"{this.ReplaceMacDelimiters(privateProvider.DeviceId, "_")}_{privateProvider.SessionId.Replace("-", string.Empty)}_intent_binding");
 
             return new WorkflowBuilder(inputExecutor)
-                .AddSwitch(inputExecutor, i => i
-                    .AddCase<WorkflowPreInputs>(iw => iw is not null && iw.IntentRequired, intentExecutor)
-                    .AddCase<WorkflowPreInputs>(iw => iw is not null && !iw.IntentRequired, chatExecutor))
-                .AddSwitch(intentExecutor, sw => sw
-                    .AddCase<IntentResult>(ir => ir is not null && !ir.IntentDetected, chatExecutor)
-                    .AddCase<IntentResult>(ir => ir is not null && ir.IntentDetected, outputExecutor))
+                .AddEdge<WorkflowPreInputs>(inputExecutor, intentSubWorkflow, iw => iw is not null && iw.IntentRequired)
+                .AddEdge<WorkflowPreInputs>(inputExecutor, chatExecutor, iw => iw is not null && !iw.IntentRequired)
+                .AddEdge<IntentDetectionResult>(intentSubWorkflow, chatExecutor, id => id is not null && !id.Detected)
+                .AddEdge(intentSubWorkflow, outputExecutor)
                 .AddEdge(chatExecutor, outputExecutor)
                 .WithOutputFrom(outputExecutor)
                 .WithName(privateProvider.DeviceId)
                 .WithDescription($"Dialogue workflow for device {privateProvider.DeviceId} and session {privateProvider.SessionId}")
+                .Build();
+        }
+
+        private Workflow BuildIntentSubWorkflow(PrivateProvider privateProvider)
+        {
+            ExecutorBinding intentDetectionExecutor = this._subAgents[SubAgentNames.IntentDetectionAgent].AsExecutor();
+            ExecutorBinding functionCallExecutor = this._subAgents[SubAgentNames.FunctionCallAgent].AsExecutor();
+            ExecutorBinding intentResponseExecutor = this._subAgents[SubAgentNames.IntentResponseAgent].AsExecutor();
+
+            return new WorkflowBuilder(intentDetectionExecutor)
+                .AddEdge<IntentDetectionResult>(intentDetectionExecutor, functionCallExecutor, dr => dr is not null && dr.Detected)
+                .AddEdge<IntentDetectionResult>(intentDetectionExecutor, intentResponseExecutor, dr => dr is not null && !dr.Detected)
+                .AddEdge(functionCallExecutor, intentResponseExecutor)
+                .WithOutputFrom(intentResponseExecutor)
+                .WithName($"{privateProvider.DeviceId}_intent")
+                .WithDescription($"Intent workflow for device {privateProvider.DeviceId} and session {privateProvider.SessionId}")
                 .Build();
         }
 
@@ -124,12 +151,11 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             }
             if (this._dialogueWorkflow is null)
             {
-                //todo
                 throw new InvalidOperationException("Dialogue workflow is not initialized.");
             }
 
             this.OnBeforeTokenGenerate?.Invoke();
-            await this.RunAndEmitWorkflowStreamingAsync(userMessage, token);
+            await this.RunAndEmitWorkflowStreamingAsync(this._dialogueWorkflow, userMessage, token);
         }
 
         public IReadOnlyList<ChatMessage> GetChatHistory()
@@ -154,9 +180,9 @@ namespace XiaoZhi.Net.Server.Providers.LLM
             return $"{paragraphId}_{Interlocked.Increment(ref this._seqSentenceId)}";
         }
 
-        private async Task RunAndEmitWorkflowStreamingAsync(string userMessage, CancellationToken token)
+        private async Task RunAndEmitWorkflowStreamingAsync(Workflow dialogueWorkflow, string userMessage, CancellationToken token)
         {
-            await using StreamingRun run = await InProcessExecution.RunStreamingAsync(this._dialogueWorkflow!, userMessage, string.Empty, token);
+            await using StreamingRun run = await InProcessExecution.Concurrent.RunStreamingAsync(dialogueWorkflow, userMessage, this.DeviceId, token);
 
             List<OutSegment> allSegments = new List<OutSegment>();
             string paragraphId = this.GenerateId();

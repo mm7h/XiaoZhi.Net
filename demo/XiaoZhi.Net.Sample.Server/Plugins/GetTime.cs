@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using XiaoZhi.Net.Server.Abstractions;
 
 namespace XiaoZhi.Net.Sample.Server.Plugins
 {
@@ -8,9 +9,15 @@ namespace XiaoZhi.Net.Sample.Server.Plugins
     public class GetTime
     {
         [Description("获取当前的日期和时间")]
-        public DateTime GetNowTime()
+        [ToolBehavior(ToolAction.DirectResponse)]
+        public FunctionReturn<DateTime> GetNowTime()
         {
-            return DateTime.Now;
+            DateTime now = DateTime.Now;
+            return new FunctionReturn<DateTime>
+            {
+                Result = now,
+                Response = $"现在时间是 {now:yyyy-MM-dd HH:mm:ss}"
+            };
         }
     }
 }

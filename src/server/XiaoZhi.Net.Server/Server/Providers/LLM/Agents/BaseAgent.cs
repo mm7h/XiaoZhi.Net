@@ -9,7 +9,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
     internal abstract class BaseAgent<TLogger> : Executor, IAgent
     {
-        protected BaseAgent(string agentName, IServiceProvider serviceProvider, ILogger<TLogger> logger) : base(agentName)
+        protected BaseAgent(string agentName, IServiceProvider serviceProvider, ILogger<TLogger> logger) : base(agentName, declareCrossRunShareable: true)
         {
             this.ServiceProvider = serviceProvider;
             this.Logger = logger;
@@ -55,6 +55,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             }
             return true;
         }
+
         protected virtual string GenerateId()
         {
             return Guid.NewGuid().ToString("N");

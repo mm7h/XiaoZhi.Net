@@ -27,7 +27,7 @@
     "ASR": "SenseVoice",
     "EmotionLLM": "Chatglm",
     "Intent": "None",
-    "ChatLLM": "Chatglm",
+    "LLM": "Chatglm",
     "TTS": "HuoshanBidirection",
     "Memory": "FlashMemory"
   },
@@ -85,30 +85,22 @@
       "Chatglm": {
         "BaseUrl": "https://open.bigmodel.cn/api/paas/v4/",
         "ApiKey": "to your llm api key",
-        "ModelName": "glm-4-flash",
-        "UseStreaming": true,
-        "UseEmotions": true
+        "ModelName": "glm-4-flash"
       },
       "Deepseek": {
         "BaseUrl": "https://api.deepseek.com/v1",
         "ApiKey": "to your llm api key",
-        "ModelName": "deepseek-chat",
-        "UseStreaming": true,
-        "UseEmotions": true
+        "ModelName": "deepseek-chat"
       },
       "Doubao": {
         "BaseUrl": "https://ark.cn-beijing.volces.com/api/v3",
         "ApiKey": "to your llm api key",
-        "ModelName": "doubao-1-5-pro-32k-250115",
-        "UseStreaming": true,
-        "UseEmotions": true
+        "ModelName": "doubao-1-5-pro-32k-250115"
       },
       "Qwen": {
         "BaseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "ApiKey": "to your llm api key",
-        "ModelName": "qwen-max",
-        "UseStreaming": true,
-        "UseEmotions": true
+        "ModelName": "qwen-max"
       }
     },
     "TTS": {

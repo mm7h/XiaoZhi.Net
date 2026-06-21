@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.MCP
@@ -18,6 +19,6 @@ namespace XiaoZhi.Net.Server.Providers.MCP
         Task SendMcpNotificationAsync(string method);
         Task RequestToolsListAsync();
         Task RequestToolsListAsync(string cursor);
-        Task<string> CallMcpToolAsync(string toolName, IReadOnlyDictionary<string, object?> arguments, int timeout = 30);
+        Task<FunctionReturn<string>> CallMcpToolAsync(string toolName, IReadOnlyDictionary<string, object?> arguments, int timeout = 30);
     }
 }

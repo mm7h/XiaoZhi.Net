@@ -12,8 +12,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
     internal class InputAgent : BaseAgent<InputAgent>
     {
-        private const string ACCEPTED_INTENT_MODEL = "INTENT_LLM";
-
         public InputAgent(IServiceProvider serviceProvider, ILogger<InputAgent> logger) : base(SubAgentNames.InputAgent, serviceProvider, logger)
         {
         }
@@ -39,7 +37,11 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
         public async ValueTask PreDialogueHandlerAsync(string userMessage, IWorkflowContext context, CancellationToken token)
         {
-            WorkflowPreInputs preInputs = new WorkflowPreInputs(string.Compare(ACCEPTED_INTENT_MODEL, this._intentType, StringComparison.OrdinalIgnoreCase) != 0, userMessage);
+            bool intentRequired = string.Compare("IntentLlm", this._intentType, StringComparison.OrdinalIgnoreCase) == 0;
+            WorkflowPreInputs preInputs = new WorkflowPreInputs(intentRequired, userMessage);
+
+            this.Logger.LogDebug("设备 {deviceId}发来消息: {userMessage}", this.DeviceId, userMessage);
+
             await context.SendMessageAsync(preInputs, token);
         }
 

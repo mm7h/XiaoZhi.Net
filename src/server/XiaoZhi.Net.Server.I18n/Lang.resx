@@ -1036,7 +1036,7 @@
     <value>WebSocket client is not initialized.</value>
   </data>
   <data name="HuoshanStreamTTS_WaitForEventAsync_Timeout" xml:space="preserve">
-    <value>Wait for {eventType} timed out.</value>
+    <value>Wait for {0} timed out.</value>
   </data>
   <data name="HuoshanStreamTTS_OnOpen_Connected" xml:space="preserve">
     <value>Huoshan WebSocket connected for the device: {deviceId}.</value>
@@ -1045,13 +1045,13 @@
     <value>Huoshan WebSocket closed: {Status} {Description}</value>
   </data>
   <data name="HuoshanStreamTTS_OnClose_ClosedEx" xml:space="preserve">
-    <value>WebSocket closed: {status} {desc}</value>
+    <value>WebSocket closed: {0} {1}</value>
   </data>
   <data name="HuoshanStreamTTS_OnError_Error" xml:space="preserve">
     <value>Huoshan WebSocket error: {Error} {Message}</value>
   </data>
   <data name="HuoshanStreamTTS_OnError_ErrorEx" xml:space="preserve">
-    <value>WebSocket error: {error} {message}</value>
+    <value>WebSocket error: {0} {1}</value>
   </data>
   <data name="HuoshanStreamTTS_OnBinaryMessage_ParseFailed" xml:space="preserve">
     <value>Failed to parse websocket binary message.</value>
@@ -1060,10 +1060,10 @@
     <value>Failed to append audio data for TTS session {ttsSessionId}</value>
   </data>
   <data name="HuoshanStreamTTS_OnBinaryMessage_ServerFailure" xml:space="preserve">
-    <value>Server reported failure: {message}</value>
+    <value>Server reported failure: {0}</value>
   </data>
   <data name="HuoshanStreamTTS_OnBinaryMessage_ServerError" xml:space="preserve">
-    <value>Server error: {message}</value>
+    <value>Server error: {0}</value>
   </data>
   <data name="BaseProvider_RegisterDevice_Registered" xml:space="preserve">
     <value>Registered device [{deviceId}] with session id: {sessionId} to the provider {providerType}.</value>

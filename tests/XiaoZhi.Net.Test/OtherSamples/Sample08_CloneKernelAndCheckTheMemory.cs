@@ -61,25 +61,25 @@ namespace XiaoZhi.Net.Test.OtherSamples
         }
         static async Task InitMCP(Kernel kernel)
         {
-            var (command, arguments) = GetCommandAndArguments();
+//            var (command, arguments) = GetCommandAndArguments();
 
-            var clientTransport = new StdioClientTransport(new()
-            {
-                Name = "Demo Server",
-                Command = command,
-                Arguments = arguments,
-            });
+//            var clientTransport = new StdioClientTransport(new()
+//            {
+//                Name = "Demo Server",
+//                Command = command,
+//                Arguments = arguments,
+//            });
 
-            await using var mcpClient = await McpClientFactory.CreateAsync(clientTransport);
+//            await using var mcpClient = await McpClientFactory.CreateAsync(clientTransport);
 
-            var tools = await mcpClient.ListToolsAsync();
-            foreach (var tool in tools)
-            {
-                Console.WriteLine($"Connected to server with tools: {tool.Name}");
-            }
-#pragma warning disable SKEXP0001
-            var functions = tools.Select(aiFunction => aiFunction.AsKernelFunction()).ToList();
-#pragma warning restore SKEXP0001
+//            var tools = await mcpClient.ListToolsAsync();
+//            foreach (var tool in tools)
+//            {
+//                Console.WriteLine($"Connected to server with tools: {tool.Name}");
+//            }
+//#pragma warning disable SKEXP0001
+//            var functions = tools.Select(aiFunction => aiFunction.AsKernelFunction()).ToList();
+//#pragma warning restore SKEXP0001
 
             // kernel.Plugins.AddFromFunctions("Tools", functions);
         }

@@ -1036,7 +1036,7 @@
     <value>WebSocket 客戶端未初始化。</value>
   </data>
   <data name="HuoshanStreamTTS_WaitForEventAsync_Timeout" xml:space="preserve">
-    <value>等待 {eventType} 超時。</value>
+    <value>等待 {0} 超時。</value>
   </data>
   <data name="HuoshanStreamTTS_OnOpen_Connected" xml:space="preserve">
     <value>裝置 {deviceId} 的火山 WebSocket 已連線。</value>
@@ -1045,13 +1045,13 @@
     <value>火山 WebSocket 已關閉：{Status} {Description}</value>
   </data>
   <data name="HuoshanStreamTTS_OnClose_ClosedEx" xml:space="preserve">
-    <value>WebSocket 已關閉：{status} {desc}</value>
+    <value>WebSocket 已關閉：{0} {1}</value>
   </data>
   <data name="HuoshanStreamTTS_OnError_Error" xml:space="preserve">
     <value>火山 WebSocket 錯誤：{Error} {Message}</value>
   </data>
   <data name="HuoshanStreamTTS_OnError_ErrorEx" xml:space="preserve">
-    <value>WebSocket 錯誤：{error} {message}</value>
+    <value>WebSocket 錯誤：{0} {1}</value>
   </data>
   <data name="HuoshanStreamTTS_OnBinaryMessage_ParseFailed" xml:space="preserve">
     <value>無法解析 WebSocket 二進位訊息。</value>
@@ -1060,10 +1060,10 @@
     <value>無法為 TTS 工作階段 {ttsSessionId} 追加音訊資料。</value>
   </data>
   <data name="HuoshanStreamTTS_OnBinaryMessage_ServerFailure" xml:space="preserve">
-    <value>伺服器報告失敗：{message}</value>
+    <value>伺服器報告失敗：{0}</value>
   </data>
   <data name="HuoshanStreamTTS_OnBinaryMessage_ServerError" xml:space="preserve">
-    <value>伺服器錯誤：{message}</value>
+    <value>伺服器錯誤：{0}</value>
   </data>
   <data name="BaseProvider_RegisterDevice_Registered" xml:space="preserve">
     <value>裝置 [{deviceId}] 已註冊到提供者 {providerType}，工作階段 ID：{sessionId}。</value>

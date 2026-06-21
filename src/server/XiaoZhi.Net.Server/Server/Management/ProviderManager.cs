@@ -27,6 +27,7 @@ using XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification;
 using XiaoZhi.Net.Server.Providers.IoT;
 using XiaoZhi.Net.Server.Providers.LLM;
 using XiaoZhi.Net.Server.Providers.LLM.Agents;
+using XiaoZhi.Net.Server.Providers.LLM.Agents.Intent;
 using XiaoZhi.Net.Server.Providers.LLM.Plugins;
 using XiaoZhi.Net.Server.Providers.MCP;
 using XiaoZhi.Net.Server.Providers.MCP.DeviceMcp;
@@ -145,20 +146,6 @@ namespace XiaoZhi.Net.Server.Management
         {
             string selectedModel = config.SelectedSettings[selectedModelType];
             Dictionary<string, string> setting = config.ConfiguredSettings[selectedModelType][selectedModel];
-
-            ModelSetting modelSetting = new ModelSetting
-            {
-                ModelName = selectedModel,
-                Config = new Dictionary<string, string>(setting)
-            };
-
-            return modelSetting;
-        }
-
-        private ModelSetting GetSelectedLLMSetting(string selectedLLMType, XiaoZhiConfig config)
-        {
-            string selectedModel = config.SelectedSettings[selectedLLMType];
-            Dictionary<string, string> setting = config.ConfiguredSettings["LLM"][selectedModel];
 
             ModelSetting modelSetting = new ModelSetting
             {
@@ -487,7 +474,9 @@ namespace XiaoZhi.Net.Server.Management
             }
 
             services.AddKeyedTransient<IAgent, InputAgent>(SubAgentNames.InputAgent);
-            services.AddKeyedTransient<IAgent, IntentAgent>(SubAgentNames.IntentAgent);
+            services.AddKeyedTransient<IAgent, IntentDetectionAgent>(SubAgentNames.IntentDetectionAgent);
+            services.AddKeyedTransient<IAgent, FunctionCallAgent>(SubAgentNames.FunctionCallAgent);
+            services.AddKeyedTransient<IAgent, IntentResponseAgent>(SubAgentNames.IntentResponseAgent);
             services.AddKeyedTransient<IAgent, ChatAgent>(SubAgentNames.ChatAgent);
             services.AddKeyedTransient<IAgent, OutputAgent>(SubAgentNames.OutputAgent);
             services.AddTransient<ILlm, GenericOpenAI>();
@@ -699,16 +688,25 @@ namespace XiaoZhi.Net.Server.Management
         {
             ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
 
-            ModelSetting intentLLMModelSetting = this.GetSelectedSetting("Intent", this._config);
-            ModelSetting chatLLMModelSetting = this.GetSelectedLLMSetting("ChatLLM", this._config);
-            chatLLMModelSetting.Config.SetConfigValue("Prompt", this._config.Prompt);
+            ModelSetting selectedIntentLLMModelSetting = this.GetSelectedSetting("Intent", this._config);
+            string intentType = selectedIntentLLMModelSetting.Config.GetConfigValueOrDefault("Type", "None");
+
+            ModelSetting selectedChatLLMModelSetting = this.GetSelectedSetting("LLM", this._config);
+            selectedChatLLMModelSetting.Config.SetConfigValue("Prompt", this._config.Prompt);
+            selectedChatLLMModelSetting.Config.SetConfigValue("IntentType", intentType);
+
+            ModelSetting intentResponseAgentSetting = new ModelSetting
+            {
+                ModelName = selectedIntentLLMModelSetting.ModelName,
+                Config = new Dictionary<string, string>(selectedIntentLLMModelSetting.Config)
+            };
 
             ModelSetting inputAgentSetting = new ModelSetting
             {
                 ModelName = SubAgentNames.InputAgent,
                 Config = new Dictionary<string, string>
                 {
-                   { "IntentType", intentLLMModelSetting.Config.GetConfigValueOrDefault("Type", "None") }
+                   { "IntentType", intentType }
                 }
             };
 
@@ -721,8 +719,10 @@ namespace XiaoZhi.Net.Server.Management
             Dictionary<string, ModelSetting> agentSettings = new Dictionary<string, ModelSetting>
             {
                 { SubAgentNames.InputAgent, inputAgentSetting },
-                { SubAgentNames.IntentAgent, intentLLMModelSetting },
-                { SubAgentNames.ChatAgent, chatLLMModelSetting },
+                { SubAgentNames.IntentDetectionAgent, selectedIntentLLMModelSetting },
+                { SubAgentNames.FunctionCallAgent, new ModelSetting { ModelName = SubAgentNames.FunctionCallAgent, Config = new Dictionary<string, string>(0) } },
+                { SubAgentNames.IntentResponseAgent, intentResponseAgentSetting },
+                { SubAgentNames.ChatAgent, selectedChatLLMModelSetting },
                 { SubAgentNames.OutputAgent, outputAgentSetting },
             };
 

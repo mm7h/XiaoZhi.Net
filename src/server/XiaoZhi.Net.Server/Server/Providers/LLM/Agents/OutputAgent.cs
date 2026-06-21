@@ -30,22 +30,9 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             return protocolBuilder.ConfigureRoutes(routeBuilder =>
             {
                 routeBuilder
-                    .AddHandler<IntentResult>(this.HandleIntentResultAsync)
                     .AddHandler<string>(this.HandleChatSentenceAsync);
             })
             .YieldsOutput<WorkflowOutputs>();
-        }
-
-        /// <summary>意图路径：将feedback包装为WorkflowOutputs并输出</summary>
-        [MessageHandler]
-        public async ValueTask HandleIntentResultAsync(IntentResult intentResult, IWorkflowContext context, CancellationToken token)
-        {
-            List<ChatMessageItemResult> results = new List<ChatMessageItemResult>();
-            if (!string.IsNullOrWhiteSpace(intentResult.Feedback))
-            {
-                results.Add(new ChatMessageItemResult(Emotion.Neutral, intentResult.Feedback));
-            }
-            await context.YieldOutputAsync(new WorkflowOutputs(true, results), token);
         }
 
         /// <summary>对话路径：解析ChatAgent发来的单句文本（含Emotion标识），yield WorkflowOutputs</summary>

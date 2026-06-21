@@ -10,10 +10,12 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Common.Configs;
+using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.MCP
 {
@@ -25,6 +27,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
         private int _nextId = 1;
 
         private IDictionary<string, AIFunction> _mcpTools = new ConcurrentDictionary<string, AIFunction>();
+    private IDictionary<string, FunctionToolRegistration> _mcpToolRegistrations = new ConcurrentDictionary<string, FunctionToolRegistration>();
         private IDictionary<int, TaskCompletionSource<JsonObject>> _callResults = new ConcurrentDictionary<int, TaskCompletionSource<JsonObject>>();
 
         public BaseMcpClient(ILogger<TLogger> logger) : base(logger)
@@ -155,12 +158,13 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                                 fullDescription,
                                 JsonHelper.OPTIONS);
 
-                            this.AddTool(toolName, toolFunc);
+                            string inputJsonSchema = inputSchema.ToJsonString(JsonHelper.OPTIONS);
+                            FunctionMetadata metadata = toolFunc.ToFunctionMetadata(inputJsonSchema, toolDescription);
+                            FunctionToolRegistration registration = new FunctionToolRegistration(toolFunc, metadata, ToolAction.Continue);
+
+                            this.AddTool(toolName, registration);
                             this.Logger.LogInformation(Lang.BaseMcpClient_HandleMcpMessageAsync_ToolAdded, toolName);
                         }
-
-                        this.Logger.LogInformation(Lang.BaseMcpClient_HandleMcpMessageAsync_ToolCount, toolsJson.Count);
-
 
                         string nextCursor = resultObj["nextCursor"]?.GetValue<string>() ?? string.Empty;
                         if (!string.IsNullOrEmpty(nextCursor))
@@ -172,11 +176,12 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                         {
                             this.IsReady = true;
                             // 将所有 AIFunction 注册到 session 共享工具列表
-                            foreach (var func in this._mcpTools.Values)
+                            foreach (FunctionToolRegistration registration in this._mcpToolRegistrations.Values)
                             {
-                                this.CurrentSession.PrivateProvider.FunctionTools.Add(func);
+                                this.CurrentSession.PrivateProvider.AddFunctionToolRegistration(registration);
                             }
                             this.Logger.LogInformation(Lang.BaseMcpClient_HandleMcpMessageAsync_ClientReady);
+                            this.Logger.LogInformation(Lang.BaseMcpClient_HandleMcpMessageAsync_ToolCount, this._mcpToolRegistrations.Values.Count);
                         }
 
                         return;
@@ -289,7 +294,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             }
         }
 
-        public async virtual Task<string> CallMcpToolAsync(string toolName, IReadOnlyDictionary<string, object?> arguments, int timeout = 30)
+        public async virtual Task<FunctionReturn<string>> CallMcpToolAsync(string toolName, IReadOnlyDictionary<string, object?> arguments, int timeout = 30)
         {
             if (string.IsNullOrEmpty(toolName))
             {
@@ -354,11 +359,23 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                     var firstItem = content.First();
                     if (firstItem is JsonObject first && first.TryGetPropertyValue("text", out var textNode) && textNode is not null)
                     {
-                        return textNode.GetValue<string>();
+                        string text = textNode.GetValue<string>();
+                        return new FunctionReturn<string>
+                        {
+                            Next = ToolAction.Continue,
+                            Result = text,
+                            Response = text
+                        };
                     }
                 }
 
-                return JsonHelper.Serialize(rawResult);
+                string serialized = JsonHelper.Serialize(rawResult);
+                return new FunctionReturn<string>
+                {
+                    Next = ToolAction.Continue,
+                    Result = serialized,
+                    Response = serialized
+                };
             }
             catch (TimeoutException timeoutException)
             {
@@ -376,7 +393,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
         protected abstract Task SendMCPMessageAsync<TMessage>(TMessage message);
 
-        protected void AddTool(string toolName, AIFunction toolFunction)
+        protected void AddTool(string toolName, FunctionToolRegistration toolRegistration)
         {
             try
             {
@@ -386,7 +403,8 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                     this.Logger.LogWarning(Lang.BaseMcpClient_AddTool_ToolExists, toolName);
                     return;
                 }
-                this._mcpTools.Add(toolName, toolFunction);
+                this._mcpTools.Add(toolName, toolRegistration.Function);
+                this._mcpToolRegistrations.Add(toolName, toolRegistration);
             }
             finally
             {

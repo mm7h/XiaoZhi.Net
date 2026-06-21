@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Resources;
@@ -39,11 +40,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
                     $"播放服务端音乐文件（需要先调用方法 `{nameof(GetMusicFilesAsync)}` 获取音乐列表），返回播放结果描述，你需要播报正在播放的音乐文件名称。");
         }
 
-        public string GetMusicFilesAsync()
+        [ToolBehavior(ToolAction.DirectResponse)]
+        public FunctionReturn<string> GetMusicFilesAsync()
         {
             if (this.CurrentSessionProvider is null)
             {
-                return Lang.MusicPlayer_GetMusicFilesAsync_SessionNotInit;
+                return new FunctionReturn<string> { Next = ToolAction.DirectResponse, Result = Lang.MusicPlayer_GetMusicFilesAsync_SessionNotInit, Response = Lang.MusicPlayer_GetMusicFilesAsync_SessionNotInit };
             }
             if (this._musicProvider is not null)
             {
@@ -51,28 +53,32 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
                 if (!this._musicProvider.HasMusicFiles)
                 {
                     this.Logger.LogWarning(Lang.MusicPlayer_GetMusicFilesAsync_NoFilesLog, this.ProviderType, this.ModelName, this.DeviceId);
-                    return Lang.MusicPlayer_GetMusicFilesAsync_NoFilesMsg;
+                    return new FunctionReturn<string> { Next = ToolAction.DirectResponse, Result = Lang.MusicPlayer_GetMusicFilesAsync_NoFilesMsg, Response = Lang.MusicPlayer_GetMusicFilesAsync_NoFilesMsg };
                 }
 
                 IEnumerable<string> musicNames = musicFiles.Keys;
                 this.Logger.LogInformation(Lang.MusicPlayer_GetMusicFilesAsync_SuccessLog, this.ProviderType, this.ModelName, musicNames.Count(), this.DeviceId);
 
-                return string.Format(Lang.MusicPlayer_GetMusicFilesAsync_SuccessMsg, string.Join(", ", musicNames));
+                string response = string.Format(Lang.MusicPlayer_GetMusicFilesAsync_SuccessMsg, string.Join(", ", musicNames));
+                return new FunctionReturn<string> { Next = ToolAction.DirectResponse, Result = response, Response = response };
             }
             else
-                return Lang.MusicPlayer_GetMusicFilesAsync_ProviderNotInit;
+            {
+                return new FunctionReturn<string> { Next = ToolAction.DirectResponse, Result = Lang.MusicPlayer_GetMusicFilesAsync_ProviderNotInit, Response = Lang.MusicPlayer_GetMusicFilesAsync_ProviderNotInit };
+            }
         }
 
-        public async ValueTask<string> PlayMusic([Description("是否为随机播放")] bool isRandom, [Description("音乐名称，如果是随机播放，那么不需要此参数")] string? musicName = null)
+        [ToolBehavior(ToolAction.DirectResponse)]
+        public async ValueTask<FunctionReturn<string>> PlayMusic([Description("是否为随机播放")] bool isRandom, [Description("音乐名称，如果是随机播放，那么不需要此参数")] string? musicName = null)
         {
             if (this.CurrentSessionProvider is null)
             {
-                return Lang.MusicPlayer_PlayMusic_SessionNotInit;
+                return new FunctionReturn<string> { Next = ToolAction.DirectResponse, Result = Lang.MusicPlayer_PlayMusic_SessionNotInit, Response = Lang.MusicPlayer_PlayMusic_SessionNotInit };
             }
 
             if (this.CurrentSessionProvider.AudioPlayerClient is null)
             {
-                return Lang.MusicPlayer_PlayMusic_PlayerNotInit;
+                return new FunctionReturn<string> { Next = ToolAction.DirectResponse, Result = Lang.MusicPlayer_PlayMusic_PlayerNotInit, Response = Lang.MusicPlayer_PlayMusic_PlayerNotInit };
             }
 
             if (this._musicProvider is not null)
@@ -80,7 +86,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
                 IReadOnlyDictionary<string, string> musicFiles = this._musicProvider.MusicFiles;
                 if (!this._musicProvider.HasMusicFiles)
                 {
-                    return Lang.MusicPlayer_PlayMusic_NoFiles;
+                    return new FunctionReturn<string> { Next = ToolAction.DirectResponse, Result = Lang.MusicPlayer_PlayMusic_NoFiles, Response = Lang.MusicPlayer_PlayMusic_NoFiles };
                 }
 
                 string musicFilePath = string.Empty;
@@ -97,7 +103,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
                 {
                     if (string.IsNullOrEmpty(musicName))
                     {
-                        return Lang.MusicPlayer_PlayMusic_MusicNameEmpty;
+                        return new FunctionReturn<string> { Next = ToolAction.DirectResponse, Result = Lang.MusicPlayer_PlayMusic_MusicNameEmpty, Response = Lang.MusicPlayer_PlayMusic_MusicNameEmpty };
                     }
                     if (musicFiles.ContainsKey(musicName))
                     {
@@ -108,7 +114,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
 
                 if (string.IsNullOrEmpty(musicFilePath))
                 {
-                    return Lang.MusicPlayer_PlayMusic_FileNotFound;
+                    return new FunctionReturn<string> { Next = ToolAction.DirectResponse, Result = Lang.MusicPlayer_PlayMusic_FileNotFound, Response = Lang.MusicPlayer_PlayMusic_FileNotFound };
                 }
 
                 try
@@ -117,16 +123,20 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Plugins
 
                     this.Logger.LogInformation(Lang.MusicPlayer_PlayMusic_PlayingLog, this.ProviderType, this.ModelName, musicFilePath, this.DeviceId);
 
-                    return string.Format(Lang.MusicPlayer_PlayMusic_SuccessMsg, selectedMusicName);
+                    string response = string.Format(Lang.MusicPlayer_PlayMusic_SuccessMsg, selectedMusicName);
+                    return new FunctionReturn<string> { Next = ToolAction.DirectResponse, Result = response, Response = response };
                 }
                 catch (Exception ex)
                 {
                     this.Logger.LogError(ex, Lang.MusicPlayer_PlayMusic_FailedLog, musicFilePath, this.DeviceId);
-                    return string.Format(Lang.MusicPlayer_PlayMusic_FailedMsg, selectedMusicName, ex.Message);
+                    string response = string.Format(Lang.MusicPlayer_PlayMusic_FailedMsg, selectedMusicName, ex.Message);
+                    return new FunctionReturn<string> { Next = ToolAction.DirectResponse, Result = response, Response = response };
                 }
             }
             else
-                return Lang.MusicPlayer_PlayMusic_ProviderNotInit;
+            {
+                return new FunctionReturn<string> { Next = ToolAction.DirectResponse, Result = Lang.MusicPlayer_PlayMusic_ProviderNotInit, Response = Lang.MusicPlayer_PlayMusic_ProviderNotInit };
+            }
         }
 
         public override void Dispose() { }

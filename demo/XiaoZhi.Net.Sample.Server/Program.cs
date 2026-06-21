@@ -30,8 +30,8 @@ try
     {
         // 开始初始化服务
         serverHost = serverBuilder.Initialize(config)
-            // 添加插件
-            .WithPlugin<GetTime>(nameof(GetTime))
+            // 添加自定义函数工具
+            .WithFunctionTools(new GetTime().GetNowTime)
             // 多媒体文件格式支持
             .WithMedia(useFFmpegAudioMixer: true)
             //.WithManageApi("http://localhost:5118", "your-secret")
