@@ -10,12 +10,13 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
+using XiaoZhi.Net.Server.Abstractions.Common.Contexts;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Providers.MCP
 {

@@ -1,5 +1,5 @@
 using Microsoft.Extensions.AI;
-using XiaoZhi.Net.Server.Abstractions;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Contexts
 {

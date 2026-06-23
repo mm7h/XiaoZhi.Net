@@ -1,4 +1,6 @@
-namespace XiaoZhi.Net.Server.Abstractions
+using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+
+namespace XiaoZhi.Net.Server.Abstractions.Common.Attributes
 {
     /// <summary>
     /// 声明函数工具的默认行为。
@@ -12,7 +14,7 @@ namespace XiaoZhi.Net.Server.Abstractions
 
         public ToolBehaviorAttribute(ToolAction defaultAction)
         {
-            this.DefaultAction = defaultAction;
+            DefaultAction = defaultAction;
         }
 
         /// <summary>

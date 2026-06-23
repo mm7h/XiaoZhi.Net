@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 
-namespace XiaoZhi.Net.Server.Abstractions
+namespace XiaoZhi.Net.Server.Abstractions.Common.Contexts
 {
     /// <summary>
     /// 自定义函数工具的统一返回结构。

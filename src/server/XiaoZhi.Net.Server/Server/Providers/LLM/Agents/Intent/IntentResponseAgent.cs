@@ -10,7 +10,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Abstractions;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Exceptions;

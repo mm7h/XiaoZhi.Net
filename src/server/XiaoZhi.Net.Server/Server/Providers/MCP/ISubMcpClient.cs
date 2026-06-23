@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Abstractions;
+using XiaoZhi.Net.Server.Abstractions.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.MCP

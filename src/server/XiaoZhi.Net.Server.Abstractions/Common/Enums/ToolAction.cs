@@ -1,4 +1,4 @@
-namespace XiaoZhi.Net.Server.Abstractions
+namespace XiaoZhi.Net.Server.Abstractions.Common.Enums
 {
     /// <summary>
     /// 工具执行后的后续动作。

@@ -6,7 +6,8 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
-using XiaoZhi.Net.Server.Abstractions;
+using XiaoZhi.Net.Server.Abstractions.Common.Attributes;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 
 namespace XiaoZhi.Net.Server.Helpers
