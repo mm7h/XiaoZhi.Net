@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Hosting;
 using System.Globalization;
+using XiaoZhi.Net.Server.Abstractions.FunctionTools;
 using XiaoZhi.Net.Server.Abstractions.Store;
 
 namespace XiaoZhi.Net.Server.Abstractions
@@ -28,10 +29,9 @@ namespace XiaoZhi.Net.Server.Abstractions
         /// <summary>
         /// 注册自定义函数工具。
         /// </summary>
-        /// <param name="functions">需要注册的函数委托列表。</param>
+        /// <typeparam name="TFunctionTool">需要注册的函数工具类型。</typeparam>
         /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        IServerBuilder WithFunctionTools(params Delegate[] functions);
+        IServerBuilder WithFunctionTools<TFunctionTool>() where TFunctionTool : class, IFunctionTool;
         /// <summary>
         /// 添加自定义验证
         /// </summary>

@@ -14,11 +14,14 @@ namespace XiaoZhi.Net.Server.Handlers
         private const string DEFAULT_AUDIO_FORMAT = "opus";
         private readonly ProviderManager _providerManager;
         private readonly HandlerManager _handlerManager;
+        private readonly FunctionToolManager _functionToolManager;
         public HelloMessageHandler(ProviderManager providerManager, HandlerManager handlerManager, XiaoZhiConfig config,
+            FunctionToolManager functionToolManager,
             ILogger<HelloMessageHandler> logger) : base(config, logger)
         {
             this._providerManager = providerManager;
             this._handlerManager = handlerManager;
+            this._functionToolManager = functionToolManager;
         }
         public override string HandlerName => nameof(HelloMessageHandler);
 
@@ -53,6 +56,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             if (providerInitResult && handlerInitResult)
             {
+                await this._functionToolManager.InitializeSessionToolsAsync(session);
                 await this.SendOutter.SendAsync(JsonHelper.Serialize(defaultHelloMessage));
 
                 if (helloMessage.TryGetPropertyValue("features", out var features) && features is not null)

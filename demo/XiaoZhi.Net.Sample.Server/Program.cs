@@ -1,4 +1,4 @@
-﻿using XiaoZhi.Net.Sample.Server.Plugins;
+﻿using XiaoZhi.Net.Sample.Server.FunctionTools;
 using Microsoft.Extensions.Hosting;
 using XiaoZhi.Net.Server;
 using XiaoZhi.Net.Server.Abstractions;
@@ -31,7 +31,7 @@ try
         // 开始初始化服务
         serverHost = serverBuilder.Initialize(config)
             // 添加自定义函数工具
-            .WithFunctionTools(new GetTime().GetNowTime)
+            .WithFunctionTools<GetTime>()
             // 多媒体文件格式支持
             .WithMedia(useFFmpegAudioMixer: true)
             //.WithManageApi("http://localhost:5118", "your-secret")

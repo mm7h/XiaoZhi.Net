@@ -4,8 +4,10 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using XiaoZhi.Net.Server.Abstractions;
+using XiaoZhi.Net.Server.Abstractions.FunctionTools;
 using XiaoZhi.Net.Server.Abstractions.Store;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
@@ -19,6 +21,9 @@ namespace XiaoZhi.Net.Server
     internal class ServerBuilder : IServerBuilder
     {
         private static readonly Lazy<IServerBuilder> lazyInstance = new Lazy<IServerBuilder>(() => new ServerBuilder());
+
+        // 记录所有注册的工具类型（Type, IsPrivate）
+        private readonly List<(Type Type, bool IsPrivate)> _functionToolRegistrations = [];
 
         private ServerBuilder()
         {
@@ -57,7 +62,8 @@ namespace XiaoZhi.Net.Server
             .RegisterProviders(config)
             .RegisterHandlers()
             .RegisterObjectPools()
-            .RegisterProtocol(config);
+            .RegisterProtocol(config)
+            .RegisterFunctionTools();
 
 #if DEBUG
             this.HostBuilder.UseEnvironment("Development");
@@ -68,28 +74,25 @@ namespace XiaoZhi.Net.Server
             return this;
         }
 
-        public IServerBuilder WithFunctionTools(params Delegate[] functions)
+        public IServerBuilder WithFunctionTools<TFunctionTool>() where TFunctionTool : class, IFunctionTool
         {
-            if (functions == null || functions.Length == 0)
-            {
-                throw new ArgumentNullException(nameof(functions), Lang.ServerBuilder_WithPlugin_FunctionsNull);
-            }
-
-            foreach (Delegate function in functions)
-            {
-                if (function is null)
-                {
-                    throw new ArgumentNullException(nameof(functions), Lang.ServerBuilder_WithPlugin_FunctionsNull);
-                }
-            }
-
+            this._functionToolRegistrations.Add((typeof(TFunctionTool), false));
             this.HostBuilder.ConfigureServices((context, services) =>
             {
-                foreach (Delegate function in functions)
-                {
-                    services.AddSingleton(function.ToFunctionToolRegistration());
-                }
+                services.AddSingleton<IFunctionTool, TFunctionTool>();
             });
+            
+            return this;
+        }
+
+        public IServerBuilder WithPrivateFunctionTools<TFunctionTool>() where TFunctionTool : class, IPrivateFunctionTool
+        {
+            this._functionToolRegistrations.Add((typeof(TFunctionTool), true));
+            this.HostBuilder.ConfigureServices((context, services) =>
+            {
+                services.AddTransient<IPrivateFunctionTool, TFunctionTool>();
+            });
+
             return this;
         }
 
@@ -170,6 +173,19 @@ namespace XiaoZhi.Net.Server
             {
                 Serilog.Log.CloseAndFlush();
                 throw new ApplicationException(Lang.ServerBuilder_BuildComponents_ProviderBuildFailed);
+            }
+
+            // 初始化 FunctionToolManager
+            FunctionToolManager functionToolManager = serviceProvider.GetRequiredService<FunctionToolManager>();
+            foreach (var (type, isPrivate) in this._functionToolRegistrations)
+            {
+                functionToolManager.RegisterToolType(type, isPrivate);
+            }
+            bool toolsLoaded = functionToolManager.BuildComponent(serviceProvider);
+            if (!toolsLoaded)
+            {
+                Serilog.Log.CloseAndFlush();
+                throw new ApplicationException("Function tool initialization failed.");
             }
         }
     }

@@ -22,6 +22,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.DeviceId = deviceId;
             this.AuthToken = authToken;
             this.EndPoint = userEndPoint;
+            this.LocalEndPoint = new IPEndPoint(IPAddress.Any, 0);
             this.SendOutter = sendOutter;
             this.AudioSetting = new AudioSetting();
             this.AudioPacket = new AudioPacket();
@@ -29,6 +30,8 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.PrivateProvider = new PrivateProvider(this);
             this.CreateCancellationTokenSource();
             this.PrivateProvider.RegisterCancellationToken();
+            this.LoginTime = DateTime.Now;
+            this.LastActivityTime = DateTime.Now;
         }
 
         public event Action<CancellationToken>? SessionCtsTokenChanged;
@@ -36,6 +39,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public string DeviceId { get; }
         public string AuthToken { get; }
         public AudioSetting AudioSetting { get; }
+        public IPEndPoint LocalEndPoint { get; private set; }
         public IPEndPoint EndPoint { get; }
         public ListenMode ListenMode { get; set; }
         public AudioPacket AudioPacket { get; set; }
@@ -45,6 +49,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public PrivateProvider PrivateProvider { get; }
         public bool IsDeviceBinded { get; set; }
         public string? BindCode { get; set; }
+        public DateTime LoginTime { get; }
         public DateTime LastActivityTime { get; private set; }
         public bool CloseAfterChat { get; set; }
         public long TurnId => Interlocked.Read(ref _turnId);
@@ -127,6 +132,11 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public void RefreshLastActivityTime()
         {
             this.LastActivityTime = DateTime.Now;
+        }
+
+        public void SetLocalEndPoint(IPEndPoint localEndPoint)
+        {
+            this.LocalEndPoint = localEndPoint;
         }
 
         public void Release()

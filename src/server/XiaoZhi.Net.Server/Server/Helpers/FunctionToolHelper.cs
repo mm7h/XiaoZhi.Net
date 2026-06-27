@@ -1,13 +1,9 @@
 using Microsoft.Extensions.AI;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
-using System.Reflection;
-using System.Text;
 using System.Text.Json;
-using XiaoZhi.Net.Server.Abstractions.Common.Attributes;
-using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 
 namespace XiaoZhi.Net.Server.Helpers
@@ -17,22 +13,6 @@ namespace XiaoZhi.Net.Server.Helpers
     /// </summary>
     internal static class FunctionToolHelper
     {
-        public static FunctionToolRegistration ToFunctionToolRegistration(this Delegate function)
-        {
-            MethodInfo method = function.Method;
-            string functionName = method.Name;
-            string? description = method.GetCustomAttribute<DescriptionAttribute>()?.Description;
-            ToolBehaviorAttribute? behavior = method.GetCustomAttribute<ToolBehaviorAttribute>();
-
-            AIFunction aiFunction = AIFunctionFactory.Create(function, new AIFunctionFactoryOptions
-            {
-                Name = functionName,
-                Description = description ?? functionName
-            });
-
-            return new FunctionToolRegistration(aiFunction, aiFunction.ToFunctionMetadata(), behavior?.DefaultAction ?? ToolAction.Continue);
-        }
-
         public static FunctionMetadata ToFunctionMetadata(this AIFunction function)
         {
             string? inputJsonSchema = function is AIFunctionDeclaration declaration && declaration.JsonSchema.ValueKind != JsonValueKind.Undefined
@@ -86,6 +66,21 @@ namespace XiaoZhi.Net.Server.Helpers
             }
 
             return metadata;
+        }
+
+        public static void FireHooksSafely(IEnumerable<Task> tasks, string hookName)
+        {
+            Task combined = Task.WhenAll(tasks);
+            _ = combined.ContinueWith(static (t, state) =>
+            {
+                if (t.Exception is not null)
+                {
+                    foreach (Exception ex in t.Exception.InnerExceptions)
+                    {
+                        Serilog.Log.Warning(ex, "工具钩子 {HookName} 执行时发生异常", (string?)state);
+                    }
+                }
+            }, hookName, TaskContinuationOptions.OnlyOnFaulted);
         }
 
         private static string ReadSchemaText(JsonElement element)

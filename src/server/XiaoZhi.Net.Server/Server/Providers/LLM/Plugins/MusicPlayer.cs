@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.Common.Attributes;
 using XiaoZhi.Net.Server.Abstractions.Common.Contexts;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Configs;

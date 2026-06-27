@@ -46,7 +46,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
         private AgentSession? _agentSession;
         private PrivateProvider? _sessionPrivateProvider;
-        private bool _enableFunctionTools;
         private bool _allowFunctionCall;
 
         public ChatAgent(IServiceProvider serviceProvider, ILogger<ChatAgent> logger) : base(SubAgentNames.ChatAgent, serviceProvider, logger)
@@ -74,17 +73,13 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                 string? summaryMemory = agentBuildConfig.AgentSetting.Config.GetValueOrDefault("SummaryMemory");
                 string intentType = agentBuildConfig.AgentSetting.Config.GetConfigValueOrDefault("IntentType", "None");
                 this._allowFunctionCall = string.Compare(FUNCTION_CALL_INTENT_TYPE, intentType, StringComparison.OrdinalIgnoreCase) == 0;
-                this._enableFunctionTools = string.Compare(NONE_INTENT_TYPE, intentType, StringComparison.OrdinalIgnoreCase) != 0;
+                bool enableFunctionTools = string.Compare(NONE_INTENT_TYPE, intentType, StringComparison.OrdinalIgnoreCase) != 0;
                 this._sessionPrivateProvider = agentBuildConfig.SessionPrivateProvider;
 
                 string instructions = this.BuildInstructions(summaryMemory);
                 IChatClient chatClient = this.ServiceProvider.GetRequiredKeyedService<IChatClient>($"LLM_{agentBuildConfig.AgentSetting.ModelName}");
 
-                bool pluginsBuildResult = true;
-                if (this._enableFunctionTools)
-                {
-                    pluginsBuildResult = this.BuildPlugins(agentBuildConfig.SessionPrivateProvider);
-                }
+                bool pluginsBuildResult = !enableFunctionTools || agentBuildConfig.SessionPrivateProvider.FunctionTools is not null;
 
                 ChatClientAgentOptions chatClientAgentOptions = new ChatClientAgentOptions
                 {
@@ -250,33 +245,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             }
         }
 
-        private bool BuildPlugins(PrivateProvider sessionProvider)
-        {
-            IEnumerable<FunctionToolRegistration> customFunctions = this.ServiceProvider.GetServices<FunctionToolRegistration>();
-            foreach (FunctionToolRegistration functionRegistration in customFunctions)
-            {
-                sessionProvider.AddFunctionToolRegistration(functionRegistration);
-            }
-
-            #region LocalMusicPlayer
-            ILLMPlugin musicPlayerPlugin = this.ServiceProvider.GetRequiredService<MusicPlayer>();
-
-            LLMPluginConfig llmPluginConfig = new LLMPluginConfig(sessionProvider);
-
-            if (musicPlayerPlugin.Build(llmPluginConfig))
-            {
-                sessionProvider.FunctionTools.AddRange(musicPlayerPlugin.AsAITools());
-                //todo
-                //this.Logger.LogInformation(Lang.ChatAgent_Build_BuildPluginsBuilt, this.ProviderType, this.ModelName);
-            }
-            else
-            {
-                return false;
-            }
-            #endregion
-
-            return true;
-        }
         public override void Dispose()
         {
         }

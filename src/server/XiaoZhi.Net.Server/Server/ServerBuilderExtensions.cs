@@ -34,6 +34,11 @@ namespace XiaoZhi.Net.Server
             return ProtocolManager.RegisterServices(builder, config);
         }
 
+        public static IHostBuilder RegisterFunctionTools(this IHostBuilder builder)
+        {
+            return FunctionToolManager.RegisterServices(builder);
+        }
+
         public static IHostBuilder RegisterObjectPools(this IHostBuilder builder)
         {
             return builder.ConfigureServices((context, services) =>

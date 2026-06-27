@@ -4,9 +4,8 @@ namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
 {
     public interface IServerInfo
     {
-        string Name { get; }
+        string ServerName { get; }
         XiaoZhiConfig Config { get; }
-        string Path { get; }
         public ServerProtocol Protocol { get; }
     }
 }

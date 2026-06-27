@@ -18,11 +18,13 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
     {
         private readonly HandlerManager _handlerManager;
         private readonly ProviderManager _providerManager;
+        private readonly FunctionToolManager _functionToolManager;
 
-        public SocketSession(HandlerManager handlerManager, ProviderManager providerManager)
+        public SocketSession(HandlerManager handlerManager, ProviderManager providerManager, FunctionToolManager functionToolManager)
         {
             this._handlerManager = handlerManager;
             this._providerManager = providerManager;
+            this._functionToolManager = functionToolManager;
         }
 
         public Session? XiaoZhiSession { get; set; }
@@ -133,7 +135,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         }
         #endregion
 
-        protected override ValueTask OnSessionConnectedAsync()
+        protected override async ValueTask OnSessionConnectedAsync()
         {
             string deviceId = this.HttpHeader.Items.Get("device-id")!;
             string token = this.HttpHeader.Items.Get("authorization")!;
@@ -141,6 +143,10 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
 
 
             Session session = new Session(this.SessionId, deviceId, token, userEndPoint, this);
+            if (this.LocalEndPoint is IPEndPoint localEndPoint)
+            {
+                session.SetLocalEndPoint(localEndPoint);
+            }
 
             this._handlerManager.InitializeHelloMessageHandler(session);
 
@@ -148,7 +154,8 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
 
             this.XiaoZhiSession = session;
 
-            return ValueTask.CompletedTask;
+            await this._functionToolManager.OnSessionConnectedAsync(session);
+
         }
 
         protected override async ValueTask OnSessionClosedAsync(SuperSocket.Connection.CloseEventArgs e)
@@ -156,6 +163,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
             if (this.XiaoZhiSession is not null)
             {
                 await this._providerManager.SaveMemoryAsync(this.XiaoZhiSession);
+                await this._functionToolManager.OnSessionClosedAsync(this.XiaoZhiSession);
 
                 this.XiaoZhiSession.Release();
 
