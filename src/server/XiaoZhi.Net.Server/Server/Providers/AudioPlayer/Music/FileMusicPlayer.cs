@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Media.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.Resources;
 
 namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 {
@@ -15,6 +16,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
     {
         private readonly SemaphoreSlim _audioPlayerSlim = new SemaphoreSlim(1, 1);
         private readonly IUrlAudioPlayer _urlAudioPlayer;
+        private readonly IMusics _musicsResource;
 
         private Channel<string>? _processingChannel;
         private CancellationTokenSource? _processingCts;
@@ -40,9 +42,10 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
         public event Action<float[], bool, bool>? OnAudioData;
 
-        public FileMusicPlayer(IUrlAudioPlayer urlAudioPlayer, ILogger<FileMusicPlayer> logger) : base(logger)
+        public FileMusicPlayer(IUrlAudioPlayer urlAudioPlayer, IMusics musicsResource, ILogger<FileMusicPlayer> logger) : base(logger)
         {
             this._urlAudioPlayer = urlAudioPlayer;
+            this._musicsResource = musicsResource;
             this._urlAudioPlayer.OnAudioDataAvailable += this.FireAudioData;
         }
 
@@ -81,6 +84,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                 this.Logger.LogWarning(Lang.FileMusicPlayer_PlayAsync_NoFiles);
                 return;
             }
+            string[] existingFiles = this._musicsResource.MusicFiles.Keys.Except(files).ToArray();
             try
             {
                 await this._audioPlayerSlim.WaitAsync();
@@ -91,7 +95,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                     this.StopAsync().ConfigureAwait(false);
                 });
 
-                foreach (string file in files)
+                foreach (string file in existingFiles)
                 {
                     await this._processingChannel.Writer.WriteAsync(file);
                 }

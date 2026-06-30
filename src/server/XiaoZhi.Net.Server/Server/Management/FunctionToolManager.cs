@@ -100,13 +100,13 @@ namespace XiaoZhi.Net.Server.Management
             });
         }
 
-        public void RegisterToolType(Type type, bool isPrivate)
+        public static void RegisterToolType(IHostBuilder builder, Type type, bool isPrivate)
         {
-            this._toolTypeRegistrations.Add(new ToolTypeRegistration
-            {
-                Type = type,
-                IsPrivate = isPrivate
-            });
+            // this._toolTypeRegistrations.Add(new ToolTypeRegistration
+            // {
+            //     Type = type,
+            //     IsPrivate = isPrivate
+            // });
         }
 
         #endregion
@@ -230,12 +230,10 @@ namespace XiaoZhi.Net.Server.Management
             if (!this._sessionPrivateTools.TryGetValue(session.SessionId, out List<PrivateFunctionTool>? privateInstances))
                 return Task.CompletedTask;
 
-            IMusics musics = this._serviceProvider.GetRequiredService<IMusics>();
-
             foreach (PrivateFunctionTool instance in privateInstances)
             {
                 instance.SessionContext = new SessionContextAdapter(session);
-                instance.MediaTool = new MediaToolAdapter(session, musics);
+                instance.MediaTool = new MediaToolAdapter(session);
             }
 
             FunctionToolHelper.FireHooksSafely(privateInstances.Select(instance => instance.OnFunctionToolInitializedAsync().AsTask()),
