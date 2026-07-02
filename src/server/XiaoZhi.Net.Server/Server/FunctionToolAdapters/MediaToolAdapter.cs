@@ -8,12 +8,10 @@ namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
     internal sealed class MediaToolAdapter : IMediaTool
     {
         private readonly Session _session;
-        private readonly IMusics _musics;
 
-        public MediaToolAdapter(Session session, IMusics musics)
+        public MediaToolAdapter(Session session)
         {
             this._session = session;
-            this._musics = musics;
         }
 
         public string BasicPath => this._musics is null ? string.Empty : AppContext.BaseDirectory;
@@ -37,12 +35,7 @@ namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
                 throw new InvalidOperationException("Audio player client is not initialized.");
             }
 
-            if (!this._musics.MusicFiles.TryGetValue(musicName, out string? musicFilePath) || string.IsNullOrEmpty(musicFilePath))
-            {
-                throw new InvalidOperationException($"Music file '{musicName}' was not found.");
-            }
-
-            await this._session.PrivateProvider.AudioPlayerClient.MusicPlayer.PlayAsync(this._session.PrivateProvider.Token, musicFilePath);
+            await this._session.PrivateProvider.AudioPlayerClient.MusicPlayer.PlayAsync(this._session.PrivateProvider.Token, musicName);
         }
 
         public async ValueTask PauseAsync()
