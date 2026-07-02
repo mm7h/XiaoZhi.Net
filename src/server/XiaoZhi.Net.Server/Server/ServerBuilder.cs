@@ -22,9 +22,6 @@ namespace XiaoZhi.Net.Server
     {
         private static readonly Lazy<IServerBuilder> lazyInstance = new Lazy<IServerBuilder>(() => new ServerBuilder());
 
-        // 记录所有注册的工具类型（Type, IsPrivate）
-        private readonly List<(Type Type, bool IsPrivate)> _functionToolRegistrations = [];
-
         private ServerBuilder()
         {
             this.HostBuilder = Host.CreateDefaultBuilder();
@@ -74,20 +71,18 @@ namespace XiaoZhi.Net.Server
             return this;
         }
 
-        public IServerBuilder WithFunctionTools<TFunctionTool>() where TFunctionTool : class, IFunctionTool
+        public IServerBuilder WithFunctionTools<TFunctionTool>() where TFunctionTool : class, IFunctionTool, new()
         {
-            this._functionToolRegistrations.Add((typeof(TFunctionTool), false));
             this.HostBuilder.ConfigureServices((context, services) =>
             {
                 services.AddSingleton<IFunctionTool, TFunctionTool>();
             });
-            
+
             return this;
         }
 
-        public IServerBuilder WithPrivateFunctionTools<TFunctionTool>() where TFunctionTool : class, IPrivateFunctionTool
+        public IServerBuilder WithPrivateFunctionTools<TFunctionTool>() where TFunctionTool : class, IPrivateFunctionTool, new()
         {
-            this._functionToolRegistrations.Add((typeof(TFunctionTool), true));
             this.HostBuilder.ConfigureServices((context, services) =>
             {
                 services.AddTransient<IPrivateFunctionTool, TFunctionTool>();
@@ -113,7 +108,7 @@ namespace XiaoZhi.Net.Server
                 services.AddSingleton<IFlurlClientCache>(_ => new FlurlClientCache()
                 .Add("ManageApi", manageApiUrl, builder =>
                 {
-                    builder.WithOAuthBearerToken(secret);   
+                    builder.WithOAuthBearerToken(secret);
                     builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
                 }));
                 services.AddSingleton<ManageApiClient>();
@@ -132,7 +127,7 @@ namespace XiaoZhi.Net.Server
             {
                 Lang.Culture = CultureInfo.CurrentCulture;
             }
-           
+
             return this;
         }
 
@@ -177,10 +172,6 @@ namespace XiaoZhi.Net.Server
 
             // 初始化 FunctionToolManager
             FunctionToolManager functionToolManager = serviceProvider.GetRequiredService<FunctionToolManager>();
-            foreach (var (type, isPrivate) in this._functionToolRegistrations)
-            {
-                functionToolManager.RegisterToolType(type, isPrivate);
-            }
             bool toolsLoaded = functionToolManager.BuildComponent(serviceProvider);
             if (!toolsLoaded)
             {

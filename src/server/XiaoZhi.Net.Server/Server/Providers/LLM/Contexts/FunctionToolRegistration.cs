@@ -8,6 +8,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Contexts
     /// </summary>
     internal sealed class FunctionToolRegistration
     {
+        public FunctionToolRegistration(FunctionMetadata metadata, ToolAction defaultAction)
+        {
+            this.Metadata = metadata;
+            this.DefaultAction = defaultAction;
+        }
+
         public FunctionToolRegistration(AIFunction function, FunctionMetadata metadata, ToolAction defaultAction)
         {
             this.Function = function;
@@ -15,10 +21,15 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Contexts
             this.DefaultAction = defaultAction;
         }
 
-        public AIFunction Function { get; }
+        public AIFunction Function { get; private set; }
 
         public FunctionMetadata Metadata { get; }
 
         public ToolAction DefaultAction { get; }
+
+        public void WithFunction(AIFunction function)
+        {
+            this.Function = function;
+        }
     }
 }
