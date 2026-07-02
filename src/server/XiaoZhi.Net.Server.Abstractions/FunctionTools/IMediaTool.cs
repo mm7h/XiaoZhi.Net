@@ -8,7 +8,6 @@ namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
 {
     public interface IMediaTool
     {
-        string BasicPath { get; }
 
         float Volume { get; set; }
 

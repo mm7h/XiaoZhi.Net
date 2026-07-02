@@ -1,7 +1,6 @@
 using System;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
-using XiaoZhi.Net.Server.Resources;
 
 namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
 {
@@ -13,8 +12,6 @@ namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
         {
             this._session = session;
         }
-
-        public string BasicPath => this._musics is null ? string.Empty : AppContext.BaseDirectory;
 
         public float Volume
         {
