@@ -24,6 +24,8 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification
 
         public PlaybackState PlaybackState => this._streamAudioPlayer.State;
 
+        public bool IsPlaying => this._streamAudioPlayer.State is PlaybackState.Playing or PlaybackState.Buffering;
+
 
         public NotificationPlayer(IStreamAudioPlayer streamAudioPlayer, IDeviceBinding deviceBindingResources, ILogger<NotificationPlayer> logger) : base(logger)
         {
@@ -92,7 +94,14 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification
                 this.Logger.LogInformation(Lang.NotificationPlayer_StopAsync_Skip, PlaybackState);
                 return Task.CompletedTask;
             }
+            // 记录停止前的状态：暂停时播放器已自动发出 isLast=true；
+            // 播放中强制停止时播放器不会发出，需手动触发以正确关闭混音器中的 SystemNotification 流
+            bool wasPlaying = this.PlaybackState is PlaybackState.Playing or PlaybackState.Buffering;
             this._streamAudioPlayer.Stop();
+            if (wasPlaying)
+            {
+                this.FireAudioData(Array.Empty<float>(), false, true);
+            }
             return Task.CompletedTask;
         }
         private void FireAudioData(float[] pcmData, bool isFirst, bool isLast)

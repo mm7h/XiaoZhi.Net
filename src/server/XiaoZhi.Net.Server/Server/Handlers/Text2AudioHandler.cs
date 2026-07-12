@@ -68,7 +68,6 @@ namespace XiaoZhi.Net.Server.Handlers
             if (this._audioPlayerClient is not null)
             {
                 await this._audioPlayerClient.SystemNotification.StopAsync();
-                await this._audioPlayerClient.MusicPlayer.StopAsync();
             }
         }
 
@@ -122,7 +121,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             try
             {
-                if (string.IsNullOrEmpty(workflow.Data.Content))
+                if (string.IsNullOrWhiteSpace(workflow.Data.Content))
                 {
                     this.Logger.LogInformation(Lang.Text2AudioHandler_Handle_NoTtsRequired);
                     return;
@@ -148,7 +147,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
-            if (!string.IsNullOrEmpty(session.BindCode) && session.BindCode.Length == 6)
+            if (!string.IsNullOrWhiteSpace(session.BindCode) && session.BindCode.Length == 6)
             {
                 if (session.BindCode.Length != 6)
                 {
@@ -189,7 +188,7 @@ namespace XiaoZhi.Net.Server.Handlers
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
             Workflow<OutAudioSegment> workflow = this._outAudioSegmentWorkflowPool.Get();
 
-            outAudioSegment.Initialize(pcmData, AudioType.SystemNotification, isFirstFrame: isFirst, isLastFrame: isLast);
+            outAudioSegment.Initialize(pcmData, AudioType.SystemNotification, isFirstFrame: isFirst, isLastFrame: isLast, isLastSegment: isLast);
             workflow.Initialize(session, outAudioSegment);
 
             try
@@ -219,7 +218,7 @@ namespace XiaoZhi.Net.Server.Handlers
             OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
             Workflow<OutAudioSegment> workflow = this._outAudioSegmentWorkflowPool.Get();
 
-            outAudioSegment.Initialize(pcmData, AudioType.Music, isFirstFrame: isFirst, isLastFrame: isLast);
+            outAudioSegment.Initialize(pcmData, AudioType.Music, isFirstFrame: isFirst, isLastFrame: isLast, isLastSegment: isLast);
             workflow.Initialize(session, outAudioSegment);
 
             try

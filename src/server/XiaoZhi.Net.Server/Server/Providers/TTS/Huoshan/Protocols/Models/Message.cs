@@ -161,7 +161,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
                     return;
             }
 
-            var sessionBytes = string.IsNullOrEmpty(SessionId) ? Array.Empty<byte>() : Encoding.UTF8.GetBytes(SessionId!);
+            var sessionBytes = string.IsNullOrWhiteSpace(SessionId) ? Array.Empty<byte>() : Encoding.UTF8.GetBytes(SessionId!);
             var lenBytes = new byte[4];
             BinaryPrimitives.WriteUInt32BigEndian(lenBytes, (uint)sessionBytes.Length);
             stream.Write(lenBytes, 0, 4);

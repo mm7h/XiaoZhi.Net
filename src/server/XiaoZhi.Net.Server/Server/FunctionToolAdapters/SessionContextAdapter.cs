@@ -18,7 +18,7 @@ namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
 
         public string DeviceId => this._session.DeviceId;
 
-        public string SessionID => this._session.SessionId;
+        public string SessionId => this._session.SessionId;
 
         public DateTimeOffset LoginTime => this._session.LoginTime;
 

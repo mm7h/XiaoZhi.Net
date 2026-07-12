@@ -45,7 +45,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 string? resourceId = modelSetting.Config.GetConfigValueOrDefault("ResourceId");
                 string? speaker = modelSetting.Config.GetConfigValueOrDefault("Speaker");
 
-                if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(resourceId) || string.IsNullOrEmpty(speaker))
+                if (string.IsNullOrWhiteSpace(appId) || string.IsNullOrWhiteSpace(accessToken) || string.IsNullOrWhiteSpace(resourceId) || string.IsNullOrWhiteSpace(speaker))
                 {
                     this.Logger.LogWarning(Lang.HuoshanStreamTTS_Build_ConfigIncomplete);
                     return false;
@@ -117,7 +117,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
         protected void StartNewAudioBuffer(string sessionId)
         {
-            if (this.AudioSavingConfig is null || !this.AudioSavingConfig.SaveFile || string.IsNullOrEmpty(sessionId))
+            if (this.AudioSavingConfig is null || !this.AudioSavingConfig.SaveFile || string.IsNullOrWhiteSpace(sessionId))
             {
                 return;
             }
@@ -133,7 +133,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
         protected void AppendAudioPayloadChunk(string sessionId, byte[] audioData)
         {
-            if (this.AudioSavingConfig is null || !this.AudioSavingConfig.SaveFile || string.IsNullOrEmpty(sessionId))
+            if (this.AudioSavingConfig is null || !this.AudioSavingConfig.SaveFile || string.IsNullOrWhiteSpace(sessionId))
             {
                 return;
             }
@@ -387,12 +387,12 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             // Sentence start marker -> push empty first frame
             if (message.MsgType == MsgType.FullServerResponse && message.EventType == EventType.TTSSentenceStart)
             {
-                if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile && !string.IsNullOrEmpty(message.SessionId))
+                if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile && !string.IsNullOrWhiteSpace(message.SessionId))
                 {
                     this.StartNewAudioBuffer(message.SessionId);
                 }
 
-                if (this.StreamingActive && !string.IsNullOrEmpty(message.SessionId))
+                if (this.StreamingActive && !string.IsNullOrWhiteSpace(message.SessionId))
                 {
                     (string sentence, Emotion segmentEmotion) = this.GetSubtitle(message, true);
                     this.TTSEventCallback?.OnSentenceStart(sentence, segmentEmotion, message.SessionId);
@@ -403,7 +403,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             // Audio frame streaming
             if (message.MsgType == MsgType.AudioOnlyServer && message.Payload != null && message.Payload.Length > 0)
             {
-                if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile && !string.IsNullOrEmpty(message.SessionId))
+                if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile && !string.IsNullOrWhiteSpace(message.SessionId))
                 {
                     try
                     {
@@ -426,12 +426,12 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             // Sentence end marker -> seal current producing subtitle so subsequent samples go to next sentence
             if (message.MsgType == MsgType.FullServerResponse && message.EventType == EventType.TTSSentenceEnd)
             {
-                if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile && !string.IsNullOrEmpty(message.SessionId))
+                if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile && !string.IsNullOrWhiteSpace(message.SessionId))
                 {
                     this.FinalizeSessionAudioAsync(message.SessionId, this.DeviceId).ConfigureAwait(false);
                 }
 
-                if (this.StreamingActive && !string.IsNullOrEmpty(message.SessionId))
+                if (this.StreamingActive && !string.IsNullOrWhiteSpace(message.SessionId))
                 {
                     (string sentence, Emotion segmentEmotion) = this.GetSubtitle(message, false);
                     this.TTSEventCallback?.OnSentenceEnd(sentence, segmentEmotion, message.SessionId);

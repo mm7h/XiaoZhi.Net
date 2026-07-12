@@ -125,7 +125,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 this.Logger.LogError(Lang.Audio2TextHandler_OnSpeechTextConverted_ConvertFailed);
                 return;
             }
-            if (string.IsNullOrEmpty(speechText) || string.IsNullOrEmpty(DialogueHelper.GetStringNoPunctuationOrEmoji(speechText)))
+            if (string.IsNullOrWhiteSpace(speechText) || string.IsNullOrWhiteSpace(DialogueHelper.GetStringNoPunctuationOrEmoji(speechText)))
             {
                 session.Reset();
                 this.Logger.LogDebug(Lang.Audio2TextHandler_OnSpeechTextConverted_NoSpeak, session.DeviceId);

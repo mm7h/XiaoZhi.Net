@@ -2,6 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Providers;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 
@@ -15,7 +17,10 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private IAudioPlayerClient? _audioPlayerClient;
         private CancellationTokenSource? _providerCts;
         private readonly Dictionary<string, FunctionToolRegistration> _functionToolRegistrations;
+        private readonly List<PrivateFunctionTool> _privateFunctionTools;
         private Session _session;
+        /// <summary>MCP 客户端工具列表加载完成的异步信号，未启用 MCP 时为 null</summary>
+        private TaskCompletionSource? _mcpClientReadyTcs;
 
         public PrivateProvider(Session session)
         {
@@ -24,6 +29,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.SessionId = session.SessionId;
             this.FunctionTools = new List<AITool>();
             this._functionToolRegistrations = new Dictionary<string, FunctionToolRegistration>(StringComparer.OrdinalIgnoreCase);
+            this._privateFunctionTools = [];
         }
         public string DeviceId { get; }
         public string SessionId { get; }
@@ -46,7 +52,15 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         public IAudioPlayerClient? AudioPlayerClient => this._audioPlayerClient;
 
+        public List<PrivateFunctionTool> PrivateFunctionTools => this._privateFunctionTools;
+
         public CancellationToken Token { get; private set; }
+
+        public void AddFunctionToolRegistration(PrivateFunctionTool privateFunctionTool, FunctionToolRegistration registration)
+        {
+            this._privateFunctionTools.Add(privateFunctionTool);
+            this.AddFunctionToolRegistration(registration);
+        }
 
         public void AddFunctionToolRegistration(FunctionToolRegistration registration)
         {
@@ -120,6 +134,21 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         {
             this._mcpClient = mcpClient;
         }
+
+        /// <summary>在 BuildMCP 启动前调用，标记 MCP 工具列表尚未就绪</summary>
+        public void SetMcpClientPending()
+        {
+            this._mcpClientReadyTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        /// <summary>MCP 工具列表全部加载完毕后调用，放行等待方</summary>
+        public void SetMcpClientReady()
+        {
+            this._mcpClientReadyTcs?.TrySetResult();
+        }
+
+        /// <summary>用于 await 等待 MCP 工具就绪；未启用 MCP 时为 null</summary>
+        public Task? McpClientReadyTask => this._mcpClientReadyTcs?.Task;
 
         public void SetAudioPlayerClient(IAudioPlayerClient audioPlayer)
         {

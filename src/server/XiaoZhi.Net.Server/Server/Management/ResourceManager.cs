@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using XiaoZhi.Net.Server.Resources;
@@ -10,46 +11,44 @@ using XiaoZhi.Net.Server.Resources.OnnxModels.VAD;
 
 namespace XiaoZhi.Net.Server.Management
 {
-    internal class ResourceManager
+    internal class ResourceManager : BaseManager
     {
-        private readonly XiaoZhiConfig _config;
-        public ResourceManager(XiaoZhiConfig config)
+        public ResourceManager(IServiceProvider serviceProvider, XiaoZhiConfig config, ILogger<ResourceManager> logger) : base(serviceProvider, config, logger)
         {
-            this._config = config;
         }
         public static IHostBuilder RegisterServices(IHostBuilder builder)
         {
             return builder.ConfigureServices((context, services) =>
             {
                 services.AddSingleton<IDeviceBinding, DefaultDeviceBinding>();
-                services.AddSingleton<IMusics, MusicProvider>();
+                services.AddSingleton<IMusicFileProvider, MusicProvider>();
                 services.AddSingleton<IVadOnnxModel, SileroOnnx>();
 
                 services.AddSingleton<ResourceManager>();
             });
         }
 
-        public bool BuildComponent(IServiceProvider serviceProvider)
+        public override bool BuildComponent()
         {
             #region DeviceBinding
-            IDeviceBinding deviceBinding = serviceProvider.GetRequiredService<IDeviceBinding>();
-            if (!deviceBinding.Load(this._config.DeviceBindSetting))
+            IDeviceBinding deviceBinding = this.ServiceProvider.GetRequiredService<IDeviceBinding>();
+            if (!deviceBinding.Load(this.Config.DeviceBindSetting))
             {
                 return false;
             }
             #endregion
 
             #region Musics
-            IMusics musics = serviceProvider.GetRequiredService<IMusics>();
-            if (!musics.Load(this._config.MusicProviderSetting))
+            IMusicFileProvider musics = this.ServiceProvider.GetRequiredService<IMusicFileProvider>();
+            if (!musics.Load(this.Config.MusicProviderSetting))
             {
                 return false;
             }
             #endregion
 
             #region Onnx models
-            IVadOnnxModel vadOnnxModel = serviceProvider.GetRequiredService<IVadOnnxModel>();
-            if (!vadOnnxModel.Load(this.GetSelectedSetting("VAD", this._config)))
+            IVadOnnxModel vadOnnxModel = this.ServiceProvider.GetRequiredService<IVadOnnxModel>();
+            if (!vadOnnxModel.Load(this.GetSelectedSetting("VAD", this.Config)))
             {
                 return false;
             }
@@ -71,13 +70,13 @@ namespace XiaoZhi.Net.Server.Management
             return modelSetting;
         }
 
-        public void Dispose(IServiceProvider serviceProvider)
+        public override void Dispose()
         {
             IList<IDisposable> resources = new List<IDisposable>
             {
-                serviceProvider.GetRequiredService<IDeviceBinding>(),
-                serviceProvider.GetRequiredService<IMusics>(),
-                serviceProvider.GetRequiredService<IVadOnnxModel>()
+                this.ServiceProvider.GetRequiredService<IDeviceBinding>(),
+                this.ServiceProvider.GetRequiredService<IMusicFileProvider>(),
+                this.ServiceProvider.GetRequiredService<IVadOnnxModel>()
             };
 
             foreach (IDisposable resource in resources)

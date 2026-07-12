@@ -33,6 +33,12 @@ namespace XiaoZhi.Net.Server.Abstractions
         /// <returns></returns>
         IServerBuilder WithFunctionTools<TFunctionTool>() where TFunctionTool : class, IFunctionTool, new();
         /// <summary>
+        /// 注册自定义函数工具。
+        /// </summary>
+        /// <typeparam name="TFunctionTool">需要注册的函数工具类型。</typeparam>
+        /// <returns></returns>
+        IServerBuilder WithPrivateFunctionTools<TFunctionTool>() where TFunctionTool : class, IPrivateFunctionTool, new ();
+        /// <summary>
         /// 添加自定义验证
         /// </summary>
         /// <returns></returns>

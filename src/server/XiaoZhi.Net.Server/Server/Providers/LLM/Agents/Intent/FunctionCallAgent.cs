@@ -18,7 +18,6 @@ using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
 {
-    /// <summary>IntentLlm 第二步：根据 IntentDetectionAgent 输出的函数名和参数，实际调用工具并返回结果</summary>
     internal sealed class FunctionCallAgent : BaseAgent<FunctionCallAgent>
     {
         private PrivateProvider? _sessionPrivateProvider;
@@ -63,22 +62,24 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                 return;
             }
 
+            FunctionMetadata function = detection.Function!;
+
             // 按名称查找工具（大小写不敏感）
             AIFunction? func = tools
                 .OfType<AIFunction>()
-                .FirstOrDefault(f => string.Equals(f.Name, detection.Function?.Name, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(f => string.Equals(f.Name, function.Name, StringComparison.OrdinalIgnoreCase));
 
-            if (func is null || detection.Function is null)
+            if (func is null)
             {
-                this.Logger.LogWarning("FunctionCallAgent: 未找到工具 '{FunctionName}'，跳过调用。", detection.Function?.Name);
-                await context.SendMessageAsync(new FunctionExecutionResult(detection.Function?.Name ?? string.Empty, null, ToolAction.Silent, detection.UserMessage), token);
+                this.Logger.LogWarning("FunctionCallAgent: 未找到工具 '{FunctionName}'，跳过调用。", function.Name);
+                await context.SendMessageAsync(new FunctionExecutionResult(function.Name, null, ToolAction.Silent, detection.UserMessage), token);
                 return;
             }
 
-            AIFunctionArguments args = this.CreateFunctionArguments(detection.Function);
+            AIFunctionArguments args = this.CreateFunctionArguments(function);
 
             object? result = await func.InvokeAsync(args, token);
-            FunctionExecutionResult executionResult = await this.NormalizeExecutionResultAsync(detection, result);
+            FunctionExecutionResult executionResult = this.NormalizeExecutionResult(detection, result);
 
             this.Logger.LogDebug("FunctionCallAgent: '{FunctionName}' 调用结果：{Result}", detection.Function?.Name, executionResult.Response ?? "(empty)");
             await context.SendMessageAsync(executionResult, token);
@@ -86,18 +87,24 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
 
         private AIFunctionArguments CreateFunctionArguments(FunctionMetadata function)
         {
+            Dictionary<string, object?> arguments = this.BuildArgumentDictionary(function.Parameters);
+            return new AIFunctionArguments(arguments);
+        }
+
+        private Dictionary<string, object?> BuildArgumentDictionary(IList<FunctionParameter>? parameters)
+        {
             Dictionary<string, object?> arguments = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-            if (function.Parameters is null)
+            if (parameters is null)
             {
-                return new AIFunctionArguments(arguments);
+                return arguments;
             }
 
-            foreach (FunctionParameter parameter in function.Parameters)
+            foreach (FunctionParameter parameter in parameters)
             {
                 arguments[parameter.Name] = this.NormalizeParameterValue(parameter.Value);
             }
 
-            return new AIFunctionArguments(arguments);
+            return arguments;
         }
 
         private bool ShouldContinueChat(FunctionMetadata? function)
@@ -127,64 +134,28 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
             return value;
         }
 
-        private async Task<FunctionExecutionResult> NormalizeExecutionResultAsync(IntentDetectionResult detection, object? result)
+        private FunctionExecutionResult NormalizeExecutionResult(IntentDetectionResult detection, object? result)
         {
             if (result is null)
             {
                 return new FunctionExecutionResult(detection.Function?.Name ?? string.Empty, null, ToolAction.Silent, detection.UserMessage);
             }
 
-            object? unwrappedResult = await this.UnwrapTaskLikeResultAsync(result);
-            if (unwrappedResult is null)
-            {
-                return new FunctionExecutionResult(detection.Function?.Name ?? string.Empty, null, ToolAction.Silent, detection.UserMessage);
-            }
-
-            Type resultType = unwrappedResult.GetType();
+            Type resultType = result.GetType();
             if (!resultType.IsGenericType || resultType.GetGenericTypeDefinition() != typeof(FunctionReturn<>))
             {
-                string llmResponse = this.SerializeResultForLlm(unwrappedResult);
+                string llmResponse = this.SerializeResultForLlm(result);
                 return new FunctionExecutionResult(detection.Function?.Name ?? string.Empty, llmResponse, ToolAction.Continue, detection.UserMessage);
             }
 
-            ToolAction action = this.ResolveToolAction(detection.Function?.Name, unwrappedResult);
-            string? response = this.ResolveResponse(unwrappedResult);
+            ToolAction action = this.ResolveToolAction(detection.Function?.Name, result);
+            string? response = this.ResolveResponse(result);
 
             return new FunctionExecutionResult(
                 detection.Function?.Name ?? string.Empty,
                 response,
                 action,
                 detection.UserMessage);
-        }
-
-        private async Task<object?> UnwrapTaskLikeResultAsync(object result)
-        {
-            if (result is Task task)
-            {
-                await task;
-                return task.GetType().GetProperty("Result")?.GetValue(task);
-            }
-
-            Type resultType = result.GetType();
-            if (resultType.IsGenericType && resultType.GetGenericTypeDefinition() == typeof(ValueTask<>))
-            {
-                var asTaskMethod = resultType.GetMethod("AsTask");
-                if (asTaskMethod is null)
-                {
-                    return result;
-                }
-
-                Task? valueTask = asTaskMethod.Invoke(result, null) as Task;
-                if (valueTask is null)
-                {
-                    return result;
-                }
-
-                await valueTask;
-                return valueTask.GetType().GetProperty("Result")?.GetValue(valueTask);
-            }
-
-            return result;
         }
 
         private ToolAction ResolveToolAction(string? functionName, object functionReturn)
@@ -195,7 +166,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                 return next.Value;
             }
 
-            if (!string.IsNullOrEmpty(functionName)
+            if (!string.IsNullOrWhiteSpace(functionName)
                 && this._sessionPrivateProvider is not null
                 && this._sessionPrivateProvider.TryGetFunctionToolRegistration(functionName, out FunctionToolRegistration? registration)
                 && registration is not null)

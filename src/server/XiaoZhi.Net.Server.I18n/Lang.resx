@@ -234,6 +234,9 @@
   <data name="DialogueHandler_Handle_Cancelled" xml:space="preserve">
     <value>LLM dialogue cancelled for device {DeviceId}</value>
   </data>
+  <data name="DialogueHandler_Handle_McpToolsNotReady" xml:space="preserve">
+    <value>MCP tools not ready within timeout for device {deviceId}, proceeding without them.</value>
+  </data>
   <data name="DialogueHandler_OnTokenGenerating_WriteFailed" xml:space="preserve">
     <value>Error writing LLM segment to channel for device {DeviceId}</value>
   </data>
@@ -731,54 +734,6 @@
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailedDetail" xml:space="preserve">
     <value>Failed to invoke the IoT tool function: {0} in plugin: {1}, and the error message is: {2}.</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_SessionNotInit" xml:space="preserve">
-    <value>Failed to get music files, the current session is not initialized.</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_NoFilesLog" xml:space="preserve">
-    <value>{ProviderType} - {ModelName}, Failed to get music files due to no files existing for device {deviceId}.</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_NoFilesMsg" xml:space="preserve">
-    <value>Failed to get music files due to no files existing.</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_SuccessLog" xml:space="preserve">
-    <value>{ProviderType} - {ModelName}, Got {fileCount} music files success for device {deviceId}.</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_SuccessMsg" xml:space="preserve">
-    <value>Get the music files success. Available music files: {0}</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_ProviderNotInit" xml:space="preserve">
-    <value>Failed to get music files, the music provider is not initialized yet.</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_SessionNotInit" xml:space="preserve">
-    <value>Failed to play music, the current session is not initialized.</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_PlayerNotInit" xml:space="preserve">
-    <value>Failed to play music, the player is not initialized.</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_NoFiles" xml:space="preserve">
-    <value>Failed to play music, there's no music files in server.</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_MusicNameEmpty" xml:space="preserve">
-    <value>Failed to play music, the field musicName is empty.</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_FileNotFound" xml:space="preserve">
-    <value>Failed to play music, the specified music file was not found.</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_PlayingLog" xml:space="preserve">
-    <value>{ProviderType} - {ModelName}, Playing the music file {musicFilePath} for device {deviceId}.</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_SuccessMsg" xml:space="preserve">
-    <value>Successfully started playing music: {0}</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_FailedLog" xml:space="preserve">
-    <value>Failed to play music file {musicFilePath} for device {deviceId}.</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_FailedMsg" xml:space="preserve">
-    <value>Failed to play music: {0}. Error: {1}</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_ProviderNotInit" xml:space="preserve">
-    <value>Failed to play music, the music provider is not initialized yet.</value>
   </data>
   <data name="BaseMcpClient_HandleMcpMessageAsync_CallResult" xml:space="preserve">
     <value>Received MCP call result: {result} for message ID {msgId} from device {deviceId}.</value>

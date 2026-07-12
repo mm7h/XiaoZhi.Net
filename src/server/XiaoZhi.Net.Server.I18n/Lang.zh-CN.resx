@@ -234,6 +234,9 @@
   <data name="DialogueHandler_Handle_Cancelled" xml:space="preserve">
     <value>LLM 对话已取消，设备 {DeviceId}</value>
   </data>
+  <data name="DialogueHandler_Handle_McpToolsNotReady" xml:space="preserve">
+    <value>MCP 工具未在超时内就绪（设备 {deviceId}），将跳过工具继续对话。</value>
+  </data>
   <data name="DialogueHandler_OnTokenGenerating_WriteFailed" xml:space="preserve">
     <value>将 LLM 片段写入设备 {DeviceId} 的通道时出错</value>
   </data>
@@ -731,54 +734,6 @@
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailedDetail" xml:space="preserve">
     <value>调用插件 {1} 中的 IoT 工具函数 {0} 失败，错误信息为：{2}。</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_SessionNotInit" xml:space="preserve">
-    <value>获取音乐文件失败，当前会话尚未初始化。</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_NoFilesLog" xml:space="preserve">
-    <value>{ProviderType} - {ModelName}，获取音乐文件失败，设备 {deviceId} 不存在文件。</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_NoFilesMsg" xml:space="preserve">
-    <value>获取音乐文件失败，不存在文件。</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_SuccessLog" xml:space="preserve">
-    <value>{ProviderType} - {ModelName}，成功为设备 {deviceId} 获取了 {fileCount} 个音乐文件。</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_SuccessMsg" xml:space="preserve">
-    <value>获取音乐文件成功。可用音乐文件：{0}</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_ProviderNotInit" xml:space="preserve">
-    <value>获取音乐文件失败，音乐提供程序尚未初始化。</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_SessionNotInit" xml:space="preserve">
-    <value>播放音乐失败，当前会话尚未初始化。</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_PlayerNotInit" xml:space="preserve">
-    <value>播放音乐失败，播放器尚未初始化。</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_NoFiles" xml:space="preserve">
-    <value>播放音乐失败，服务器中没有音乐文件。</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_MusicNameEmpty" xml:space="preserve">
-    <value>播放音乐失败，字段 musicName 为空。</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_FileNotFound" xml:space="preserve">
-    <value>播放音乐失败，未找到指定的音乐文件。</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_PlayingLog" xml:space="preserve">
-    <value>{ProviderType} - {ModelName}，正在为设备 {deviceId} 播放音乐文件 {musicFilePath}。</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_SuccessMsg" xml:space="preserve">
-    <value>成功开始播放音乐：{0}</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_FailedLog" xml:space="preserve">
-    <value>为设备 {deviceId} 播放音乐文件 {musicFilePath} 失败。</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_FailedMsg" xml:space="preserve">
-    <value>播放音乐失败：{0}。错误：{1}</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_ProviderNotInit" xml:space="preserve">
-    <value>播放音乐失败，音乐提供程序尚未初始化。</value>
   </data>
   <data name="BaseMcpClient_HandleMcpMessageAsync_CallResult" xml:space="preserve">
     <value>收到 MCP 调用结果：{result}，消息 ID {msgId}，来自设备 {deviceId}。</value>

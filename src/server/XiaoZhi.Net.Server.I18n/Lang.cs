@@ -66,6 +66,7 @@ namespace XiaoZhi.Net.Server.I18n
         public static string DialogueHandler_OnTokenGenerated_ResponseText => ResourceManager.GetString("DialogueHandler_OnTokenGenerated_ResponseText", resourceCulture) ?? "";
         public static string DialogueHandler_OnBeforeTokenGenerate_Thinking => ResourceManager.GetString("DialogueHandler_OnBeforeTokenGenerate_Thinking", resourceCulture) ?? "";
         public static string DialogueHandler_Handle_Cancelled => ResourceManager.GetString("DialogueHandler_Handle_Cancelled", resourceCulture) ?? "";
+        public static string DialogueHandler_Handle_McpToolsNotReady => ResourceManager.GetString("DialogueHandler_Handle_McpToolsNotReady", resourceCulture) ?? "";
         public static string DialogueHandler_OnTokenGenerating_WriteFailed => ResourceManager.GetString("DialogueHandler_OnTokenGenerating_WriteFailed", resourceCulture) ?? "";
 
         public static string HelloMessageHandler_Handle_InitFailed => ResourceManager.GetString("HelloMessageHandler_Handle_InitFailed", resourceCulture) ?? "";
@@ -315,26 +316,7 @@ namespace XiaoZhi.Net.Server.I18n
         #region BaseMcpClient
         public static string BaseMcpClient_HandleMcpMessageAsync_KernelNotReady => ResourceManager.GetString("BaseMcpClient_HandleMcpMessageAsync_KernelNotReady", resourceCulture) ?? "";
         #endregion
-
-        #region MusicPlayer
-        public static string MusicPlayer_GetMusicFilesAsync_SessionNotInit => ResourceManager.GetString("MusicPlayer_GetMusicFilesAsync_SessionNotInit", resourceCulture) ?? "";
-        public static string MusicPlayer_GetMusicFilesAsync_NoFilesLog => ResourceManager.GetString("MusicPlayer_GetMusicFilesAsync_NoFilesLog", resourceCulture) ?? "";
-        public static string MusicPlayer_GetMusicFilesAsync_NoFilesMsg => ResourceManager.GetString("MusicPlayer_GetMusicFilesAsync_NoFilesMsg", resourceCulture) ?? "";
-        public static string MusicPlayer_GetMusicFilesAsync_SuccessLog => ResourceManager.GetString("MusicPlayer_GetMusicFilesAsync_SuccessLog", resourceCulture) ?? "";
-        public static string MusicPlayer_GetMusicFilesAsync_SuccessMsg => ResourceManager.GetString("MusicPlayer_GetMusicFilesAsync_SuccessMsg", resourceCulture) ?? "";
-        public static string MusicPlayer_GetMusicFilesAsync_ProviderNotInit => ResourceManager.GetString("MusicPlayer_GetMusicFilesAsync_ProviderNotInit", resourceCulture) ?? "";
-
-        public static string MusicPlayer_PlayMusic_SessionNotInit => ResourceManager.GetString("MusicPlayer_PlayMusic_SessionNotInit", resourceCulture) ?? "";
-        public static string MusicPlayer_PlayMusic_PlayerNotInit => ResourceManager.GetString("MusicPlayer_PlayMusic_PlayerNotInit", resourceCulture) ?? "";
-        public static string MusicPlayer_PlayMusic_NoFiles => ResourceManager.GetString("MusicPlayer_PlayMusic_NoFiles", resourceCulture) ?? "";
-        public static string MusicPlayer_PlayMusic_MusicNameEmpty => ResourceManager.GetString("MusicPlayer_PlayMusic_MusicNameEmpty", resourceCulture) ?? "";
-        public static string MusicPlayer_PlayMusic_FileNotFound => ResourceManager.GetString("MusicPlayer_PlayMusic_FileNotFound", resourceCulture) ?? "";
-        public static string MusicPlayer_PlayMusic_PlayingLog => ResourceManager.GetString("MusicPlayer_PlayMusic_PlayingLog", resourceCulture) ?? "";
-        public static string MusicPlayer_PlayMusic_SuccessMsg => ResourceManager.GetString("MusicPlayer_PlayMusic_SuccessMsg", resourceCulture) ?? "";
-        public static string MusicPlayer_PlayMusic_FailedLog => ResourceManager.GetString("MusicPlayer_PlayMusic_FailedLog", resourceCulture) ?? "";
-        public static string MusicPlayer_PlayMusic_FailedMsg => ResourceManager.GetString("MusicPlayer_PlayMusic_FailedMsg", resourceCulture) ?? "";
-        public static string MusicPlayer_PlayMusic_ProviderNotInit => ResourceManager.GetString("MusicPlayer_PlayMusic_ProviderNotInit", resourceCulture) ?? "";
-
+        
         #region BaseMcpClient
         public static string BaseMcpClient_HandleMcpMessageAsync_CallResult => ResourceManager.GetString("BaseMcpClient_HandleMcpMessageAsync_CallResult", resourceCulture) ?? "";
         public static string BaseMcpClient_HandleMcpMessageAsync_InitMessage => ResourceManager.GetString("BaseMcpClient_HandleMcpMessageAsync_InitMessage", resourceCulture) ?? "";
@@ -544,6 +526,5 @@ namespace XiaoZhi.Net.Server.I18n
         public static string ManageApiClient_LoadConfigFromApi_UnknownException => ResourceManager.GetString("ManageApiClient_LoadConfigFromApi_UnknownException", resourceCulture) ?? "";
         #endregion
 
-        #endregion
     }
 }

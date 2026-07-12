@@ -8,7 +8,6 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -50,9 +49,10 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
 
     返回示例：
     1. 普通聊天：{"detected":false,"function":null,"userMessage":"今天我遇到了烦心事，伤透了"}
-    2. 命中函数：{"detected":true,"function":{"name":"set_volume","parameters":[{"name":"level","value":50,"type":"integer"}]},"userMessage":"把音量调到50"}
+    2. 命中有参函数：{"detected":true,"function":{"name":"set_volume","parameters":[{"name":"level","value":50,"type":"integer"}]},"userMessage":"把音量调到50"}
+    3. 命中无参函数：{"detected":true,"function":{"name":"get_files","parameters":[]},"userMessage":"获取一下文件列表"}
     
-    可用函数如下：
+    可用的函数列表如下：
 
     """;
 
@@ -79,7 +79,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                 }
 
                 string? selectedLLMModel = buildConfig.AgentSetting.Config.GetValueOrDefault("LLM");
-                if (string.IsNullOrEmpty(selectedLLMModel))
+                if (string.IsNullOrWhiteSpace(selectedLLMModel))
                 {
                     this.Logger.LogError("IntentDetectionAgent: 未配置 LLM 模型。");
                     return false;
@@ -179,7 +179,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
         private string BuildToolDescriptions(IList<AITool> tools)
         {
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine("可用的函数列表：");
             foreach (AITool tool in tools)
             {
                 FunctionMetadata metadata = tool is AIFunction aiFunction
@@ -209,6 +208,10 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                         }
                         sb.AppendLine();
                     }
+                }
+                else
+                { 
+                    sb.AppendLine("参数: 不需要参数");
                 }
 
                 sb.AppendLine("---");

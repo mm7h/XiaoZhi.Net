@@ -9,6 +9,7 @@ using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Protocol.WebSocket;
 using XiaoZhi.Net.Server.Protocol.WebSocket.Contexts;
 using XiaoZhi.Net.Server.Protocol.WebSocket.Handlers;
+using XiaoZhi.Net.Server.Server.Common.Constants;
 
 namespace XiaoZhi.Net.Server.Management
 {
@@ -30,7 +31,7 @@ namespace XiaoZhi.Net.Server.Management
                     }).AsWebSocketHostBuilder()
                     .ConfigureSuperSocket(options =>
                     {
-                        options.Name = "Xiao Zhi .Net Server";
+                        options.Name = GlobalVariables.ServerName;
 
                         ListenOptions listenOptions = new ListenOptions
                         {

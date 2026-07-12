@@ -48,14 +48,10 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
-#if DEBUG
-            this.Logger.LogDebug(Lang.TextHandler_Handle_ReceivedText, jsonObject?.ToJsonString());
-#endif
-
             if (jsonObject is JsonObject jsonObj)
             {
                 string? type = jsonObj["type"]?.GetValue<string>()?.ToLower();
-                if (string.IsNullOrEmpty(type))
+                if (string.IsNullOrWhiteSpace(type))
                 {
                     this.Logger.LogError(Lang.TextHandler_Handle_InvalidType);
                     return;
@@ -64,9 +60,15 @@ namespace XiaoZhi.Net.Server.Handlers
                 switch (type)
                 {
                     case "abort":
+#if DEBUG
+                        this.Logger.LogDebug(Lang.TextHandler_Handle_ReceivedText, jsonObject?.ToJsonString());
+#endif
                         await this.HandleAbortMessage();
                         break;
                     case "listen":
+#if DEBUG
+                        this.Logger.LogDebug(Lang.TextHandler_Handle_ReceivedText, jsonObject?.ToJsonString());
+#endif
                         this.HandleListen(jsonObj);
                         break;
                     case "iot":
@@ -96,14 +98,14 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             Session session = this.SendOutter.GetSession();
             string? mode = jsonObject["mode"]?.GetValue<string>()?.ToLower();
-            if (!string.IsNullOrEmpty(mode))
+            if (!string.IsNullOrWhiteSpace(mode))
             {
                 session.SetListenMode(mode);
                 this.Logger.LogInformation(Lang.TextHandler_HandleListen_ModeSetting, mode);
             }
 
             string? state = jsonObject["state"]?.GetValue<string>()?.ToLower();
-            if (!string.IsNullOrEmpty(state))
+            if (!string.IsNullOrWhiteSpace(state))
             {
                 if (state == "start")
                 {
@@ -117,7 +119,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 else if (state == "detect")
                 {
                     string? text = jsonObject["text"]?.GetValue<string>()?.ToLower();
-                    if (!string.IsNullOrEmpty(text))
+                    if (!string.IsNullOrWhiteSpace(text))
                     {
                         var workflow = this._workflowPool.Get();
                         workflow.Initialize(session, text);

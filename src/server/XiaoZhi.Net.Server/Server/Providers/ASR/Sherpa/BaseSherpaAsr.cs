@@ -48,7 +48,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
             offlineRecognizerConfig.ModelConfig.Tokens = Path.Combine(this.ModelFileFoler, "tokens.txt");
 
             string? hotwordsFile = modelSetting.Config.GetConfigValueOrDefault("HotwordsFile");
-            if (!string.IsNullOrEmpty(hotwordsFile))
+            if (!string.IsNullOrWhiteSpace(hotwordsFile))
             {
                 offlineRecognizerConfig.HotwordsFile = Path.Combine(this.ModelFileFoler, hotwordsFile);
                 offlineRecognizerConfig.HotwordsScore = modelSetting.Config.GetConfigValueOrDefault("HotwordsScore", 1.5F);

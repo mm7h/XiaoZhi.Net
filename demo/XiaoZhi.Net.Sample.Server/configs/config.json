@@ -25,8 +25,7 @@
   "SelectedSettings": {
     "VAD": "SileroNative",
     "ASR": "SenseVoice",
-    "EmotionLLM": "Chatglm",
-    "Intent": "None",
+    "Intent": "IntentLlm",
     "LLM": "Chatglm",
     "TTS": "HuoshanBidirection",
     "Memory": "FlashMemory"
@@ -87,10 +86,11 @@
         "ApiKey": "to your llm api key",
         "ModelName": "glm-4-flash"
       },
+      // Deepseek对json序列化的结果无法支持
       "Deepseek": {
-        "BaseUrl": "https://api.deepseek.com/v1",
+        "BaseUrl": "https://api.deepseek.com",
         "ApiKey": "to your llm api key",
-        "ModelName": "deepseek-chat"
+        "ModelName": "deepseek-v4-flash"
       },
       "Doubao": {
         "BaseUrl": "https://ark.cn-beijing.volces.com/api/v3",
@@ -100,7 +100,7 @@
       "Qwen": {
         "BaseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "ApiKey": "to your llm api key",
-        "ModelName": "qwen-max"
+        "ModelName": "qwen-flash"
       }
     },
     "TTS": {
@@ -173,16 +173,10 @@
       },
       "IntentLlm": {
         "Type": "IntentLlm",
-        "LLM": "Chatglm",
-        "FunctionTools": [
-
-        ]
+        "LLM": "Qwen"
       },
       "FunctionCall": {
-        "Type": "FunctionCall",
-        "FunctionTools": [
-
-        ]
+        "Type": "FunctionCall"
       }
     },
     "Memory": {

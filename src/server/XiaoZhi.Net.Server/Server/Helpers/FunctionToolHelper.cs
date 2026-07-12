@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 
 namespace XiaoZhi.Net.Server.Helpers
@@ -66,21 +65,6 @@ namespace XiaoZhi.Net.Server.Helpers
             }
 
             return metadata;
-        }
-
-        public static void FireHooksSafely(IEnumerable<Task> tasks, string hookName)
-        {
-            Task combined = Task.WhenAll(tasks);
-            _ = combined.ContinueWith(static (t, state) =>
-            {
-                if (t.Exception is not null)
-                {
-                    foreach (Exception ex in t.Exception.InnerExceptions)
-                    {
-                        Serilog.Log.Warning(ex, "工具钩子 {HookName} 执行时发生异常", (string?)state);
-                    }
-                }
-            }, hookName, TaskContinuationOptions.OnlyOnFaulted);
         }
 
         private static string ReadSchemaText(JsonElement element)

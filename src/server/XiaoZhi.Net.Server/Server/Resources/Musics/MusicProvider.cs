@@ -6,7 +6,7 @@ using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Resources.Musics
 {
-    internal class MusicProvider : BaseResource<MusicProvider, MusicProviderSetting>, IMusics
+    internal class MusicProvider : BaseResource<MusicProvider, MusicProviderSetting>, IMusicFileProvider
     {
         private MusicProviderSetting? _setting;
         private readonly IDictionary<string, string> _musicFiles;
@@ -18,24 +18,31 @@ namespace XiaoZhi.Net.Server.Resources.Musics
         }
         public override string ResourceName => "MusicProvider";
 
+        public string MusicFolderPath => this._setting?.MusicFolderPath ?? string.Empty;
         public bool HasMusicFiles { get; private set; }
         public IReadOnlyDictionary<string, string> MusicFiles { get; private set; }
 
         public override bool Load(MusicProviderSetting settings)
         {
-            if (string.IsNullOrEmpty(settings.MusicFolderPath))
+            this._setting = settings;
+            return this.Load(settings.MusicFolderPath);
+        }
+
+        private bool Load(string musicFolderPath)
+        {
+            if (string.IsNullOrWhiteSpace(musicFolderPath))
             {
                 this.Logger.LogError(Lang.MusicProvider_Load_PathNotSet);
                 return false;
             }
 
-            if (!Directory.Exists(settings.MusicFolderPath))
+            if (!Directory.Exists(musicFolderPath))
             {
-                this.Logger.LogWarning(Lang.MusicProvider_Load_PathNotExist, settings.MusicFolderPath);
-                return true;
+                this.Logger.LogWarning(Lang.MusicProvider_Load_PathNotExist, musicFolderPath);
+                return false;
             }
 
-            string[] musicFiles = Directory.GetFiles(settings.MusicFolderPath);
+            string[] musicFiles = Directory.GetFiles(musicFolderPath);
 
             this.HasMusicFiles = musicFiles.Any();
 
@@ -48,8 +55,7 @@ namespace XiaoZhi.Net.Server.Resources.Musics
                 }
             }
             this.MusicFiles = this._musicFiles.AsReadOnly();
-            this._setting = settings;
-
+            
             return true;
         }
 
@@ -63,7 +69,17 @@ namespace XiaoZhi.Net.Server.Resources.Musics
             this._musicFiles.Clear();
             return this.Load(this._setting);
         }
-
+        public bool UpdateMusicFiles(string newMusicFolderPath)
+        {
+            if (this._setting is null)
+            {
+                this.Logger.LogWarning(Lang.MusicProvider_UpdateMusicFiles_SettingsNotInitialized);
+                return false;
+            }
+            this._setting.MusicFolderPath = newMusicFolderPath;
+            this._musicFiles.Clear();
+            return this.Load(newMusicFolderPath);
+        }
         public override void Dispose()
         {
             this._musicFiles.Clear();

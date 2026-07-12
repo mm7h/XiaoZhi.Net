@@ -51,26 +51,17 @@ namespace XiaoZhi.Net.Server.Handlers
                 session.AudioSetting.Channels = channels;
                 session.AudioSetting.FrameDuration = frameDuration;
             }
-            bool providerInitResult = await this._providerManager.InitializePrivateConfigAsync(session);
-            bool handlerInitResult = this._handlerManager.InitializePrivateConfig(session);
 
-            if (providerInitResult && handlerInitResult)
+            bool providerInitResult = await this._providerManager.OnSessionPropertyInitializingAsync(session);
+            bool handlerInitResult = await this._handlerManager.OnSessionPropertyInitializingAsync(session);
+            bool functionToolInitResult = await this._functionToolManager.OnSessionPropertyInitializingAsync(session);
+
+            if (providerInitResult && handlerInitResult && functionToolInitResult)
             {
-                await this._functionToolManager.InitializeSessionToolsAsync(session);
+                await this._handlerManager.OnSessionPropertyInitializedAsync(session, helloMessage);
+                await this._providerManager.OnSessionPropertyInitializedAsync(session, helloMessage);
+                await this._functionToolManager.OnSessionPropertyInitializedAsync(session, helloMessage);
                 await this.SendOutter.SendAsync(JsonHelper.Serialize(defaultHelloMessage));
-
-                if (helloMessage.TryGetPropertyValue("features", out var features) && features is not null)
-                {
-                    JsonObject featuresObj = features.AsObject();
-                    if (featuresObj.TryGetPropertyValue("mcp", out var mcp) && mcp is not null)
-                    {
-                        bool isSupportMCP = mcp.GetValue<bool>();
-                        if (isSupportMCP)
-                        {
-                            this._providerManager.BuildMCP(session);
-                        }
-                    }
-                }
             }
             else
             {

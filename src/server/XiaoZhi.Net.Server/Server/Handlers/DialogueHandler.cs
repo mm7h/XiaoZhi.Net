@@ -118,6 +118,21 @@ namespace XiaoZhi.Net.Server.Handlers
 
             try
             {
+                // 若 MCP 已启用但工具列表尚未加载完毕，等待就绪信号（最多 5 秒）
+                // 避免首次对话因竞态而拿到空工具列表
+                Task? mcpReadyTask = session.PrivateProvider.McpClientReadyTask;
+                if (mcpReadyTask is not null && !mcpReadyTask.IsCompleted)
+                {
+                    try
+                    {
+                        await mcpReadyTask.WaitAsync(TimeSpan.FromSeconds(5), this.HandlerToken);
+                    }
+                    catch (TimeoutException)
+                    {
+                        this.Logger.LogWarning(Lang.DialogueHandler_Handle_McpToolsNotReady, session.DeviceId);
+                    }
+                }
+
                 using (CodeTimer timer = CodeTimer.Create(Lang.DialogueHandler_Handle_LlmCallTime, this.Logger))
                 {
                     await this._llm.StartDialogueAsync(workflow.Data, this.HandlerToken);

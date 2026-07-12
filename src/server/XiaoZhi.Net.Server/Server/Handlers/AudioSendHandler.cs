@@ -18,6 +18,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private IAudioProcessor? _audioProcessor;
         private IAudioEncoder? _audioEncoder;
+        private IAudioPlayerClient? _audioPlayerClient;
 
         public AudioSendHandler(ObjectPool<MixedAudioPacket> mixedAudioPacketPool, ObjectPool<Workflow<MixedAudioPacket>> mixedAudioPacketWorkflowPool, XiaoZhiConfig config, ILogger<AudioSendHandler> logger) : base(config, logger)
         {
@@ -47,6 +48,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             this._audioProcessor = privateProvider.AudioProcessor;
             this._audioEncoder = privateProvider.AudioEncoder;
+            this._audioPlayerClient = privateProvider.AudioPlayerClient;
             this.RegisterCancellationToken();
             this.Builded = true;
             return true;
@@ -95,7 +97,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 MixedAudioPacket audioPacket = workflow.Data;
 
-                if (!string.IsNullOrEmpty(audioPacket.SentenceId) && this._audioProcessor.GetSubtitle(audioPacket.SentenceId, out AudioSubtitle subtitle))
+                if (!string.IsNullOrWhiteSpace(audioPacket.SentenceId) && this._audioProcessor.GetSubtitle(audioPacket.SentenceId, out AudioSubtitle subtitle))
                 {
                     await this.SendOutter.SendTtsMessageAsync(subtitle.TtsStatus, subtitle.SubtitleText);
                     await this.SendOutter.SendLlmMessageAsync(subtitle.Emotion);
@@ -115,11 +117,18 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 if (audioPacket.IsLastFrame)
                 {
-                    await this.SendOutter.SendTtsMessageAsync(TtsStatus.Stop);
-                    this.Logger.LogDebug(Lang.AudioSendHandler_Handle_LastFrame, session.DeviceId);
-                    if (session.CloseAfterChat)
+                    if (this._audioPlayerClient is null || !this._audioPlayerClient.IsPlaying)
                     {
-                        await this.SendOutter.CloseSessionAsync("Close Chat");
+                        await this.SendOutter.SendTtsMessageAsync(TtsStatus.Stop);
+                        this.Logger.LogDebug(Lang.AudioSendHandler_Handle_LastFrame, session.DeviceId);
+                        if (session.CloseAfterChat)
+                        {
+                            await this.SendOutter.CloseSessionAsync("Close Chat");
+                        }
+                    }
+                    else
+                    {
+                        this.Logger.LogDebug(Lang.AudioSendHandler_Handle_LastFrame, session.DeviceId);
                     }
                 }
             }

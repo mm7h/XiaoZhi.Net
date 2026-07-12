@@ -16,7 +16,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
     {
         private readonly SemaphoreSlim _audioPlayerSlim = new SemaphoreSlim(1, 1);
         private readonly IUrlAudioPlayer _urlAudioPlayer;
-        private readonly IMusics _musicsResource;
+        private readonly IMusicFileProvider _musicsResource;
 
         private Channel<string>? _processingChannel;
         private CancellationTokenSource? _processingCts;
@@ -42,7 +42,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
         public event Action<float[], bool, bool>? OnAudioData;
 
-        public FileMusicPlayer(IUrlAudioPlayer urlAudioPlayer, IMusics musicsResource, ILogger<FileMusicPlayer> logger) : base(logger)
+        public FileMusicPlayer(IUrlAudioPlayer urlAudioPlayer, IMusicFileProvider musicsResource, ILogger<FileMusicPlayer> logger) : base(logger)
         {
             this._urlAudioPlayer = urlAudioPlayer;
             this._musicsResource = musicsResource;
@@ -84,18 +84,23 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                 this.Logger.LogWarning(Lang.FileMusicPlayer_PlayAsync_NoFiles);
                 return;
             }
-            string[] existingFiles = this._musicsResource.MusicFiles.Keys.Except(files).ToArray();
+            // 若当前处于播放中或暂停状态，先完全停止当前播放，
+            // 因为 UrlAudioPlayer.LoadAsync 要求 State == Idle 才能加载新曲目
+            if (this.PlaybackState != PlaybackState.Idle)
+            {
+                await this.StopAsync();
+            }
             try
             {
                 await this._audioPlayerSlim.WaitAsync();
 
-                this._cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                this._cancellationTokenSource.Token.Register(() =>
-                {
-                    this.StopAsync().ConfigureAwait(false);
-                });
+                // 使用独立 CTS，不链接 ProviderToken。
+                // ProviderToken 在每次用户说话（session.Abort）时都会取消，若链接则会在
+                // LLM 处理"暂停"/"继续"等指令之前意外停止音乐。
+                // 音乐生命周期只由明确的 StopAsync() 指令和 Dispose() 管控。
+                this._cancellationTokenSource = new CancellationTokenSource();
 
-                foreach (string file in existingFiles)
+                foreach (string file in files)
                 {
                     await this._processingChannel.Writer.WriteAsync(file);
                 }
@@ -146,15 +151,21 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
         {
             if (this.PlaybackState == PlaybackState.Idle)
             {
-                this.Logger.LogInformation(Lang.FileMusicPlayer_StopAsync_Skip, PlaybackState);
+                this.Logger.LogInformation(Lang.FileMusicPlayer_StopAsync_Skip, this.PlaybackState);
                 return;
             }
+            // 记录停止前的状态：暂停状态已由播放器内部发出 isLast=true；
+            // 播放中强制停止时播放器不会自动发完成帧，需手动触发以正确关闭混音器中的 Music 流
+            bool wasPlaying = this.PlaybackState is PlaybackState.Playing or PlaybackState.Buffering;
             try
             {
                 await this._audioPlayerSlim.WaitAsync();
                 this._urlAudioPlayer.Stop();
                 this._cancellationTokenSource?.Cancel();
-
+                if (wasPlaying)
+                {
+                    this.FireAudioData(Array.Empty<float>(), false, true);
+                }
             }
             finally
             {
@@ -240,7 +251,11 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             finally
             {
                 this.PlayingMusicName = null;
-                this._cancellationTokenSource?.Dispose();
+                // 使用原子交换置空字段，避免与 StopAsync 的 Cancel() 产生竞态：
+                // Stop() 解除 Play(true) 阻塞后，内层 finally 与 StopAsync 并行执行，
+                // 直接 Dispose 会导致 StopAsync 随后的 Cancel() 抛出 ObjectDisposedException
+                var cts = Interlocked.Exchange(ref this._cancellationTokenSource, null);
+                cts?.Dispose();
             }
         }
         private void FireAudioData(float[] pcmData, bool isFirst, bool isLast)

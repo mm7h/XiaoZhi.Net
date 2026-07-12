@@ -43,7 +43,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 string? cluster = modelSetting.Config.GetConfigValueOrDefault("Cluster");
                 string? speaker = modelSetting.Config.GetConfigValueOrDefault("Speaker");
 
-                if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(cluster) || string.IsNullOrEmpty(speaker))
+                if (string.IsNullOrWhiteSpace(appId) || string.IsNullOrWhiteSpace(accessToken) || string.IsNullOrWhiteSpace(cluster) || string.IsNullOrWhiteSpace(speaker))
                 {
                     this.Logger.LogWarning(Lang.HuoshanHttpTTS_Build_ConfigIncomplete);
                     return false;
@@ -72,7 +72,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
         public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
         {
-            if (string.IsNullOrEmpty(this._appId) || string.IsNullOrEmpty(this._accessToken) || string.IsNullOrEmpty(this._cluster))
+            if (string.IsNullOrWhiteSpace(this._appId) || string.IsNullOrWhiteSpace(this._accessToken) || string.IsNullOrWhiteSpace(this._cluster))
             {
                 throw new InvalidOperationException(Lang.HuoshanHttpTTS_SynthesisAsync_ModelNotBuilt);
             }
@@ -83,7 +83,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             }
 
             OutSegment seg = workflow.Data;
-            if (string.IsNullOrEmpty(seg.SentenceId))
+            if (string.IsNullOrWhiteSpace(seg.SentenceId))
             {
                 this.Logger.LogWarning(Lang.HuoshanHttpTTS_SynthesisAsync_MissingSentenceId);
                 return;
@@ -154,7 +154,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
                 TTSHttpResponse ttsHttpResponse = await response.GetJsonAsync<TTSHttpResponse>().ConfigureAwait(false);
 
-                if (ttsHttpResponse.Code == 3000 && !string.IsNullOrEmpty(ttsHttpResponse.Data))
+                if (ttsHttpResponse.Code == 3000 && !string.IsNullOrWhiteSpace(ttsHttpResponse.Data))
                 {
                     this.TTSEventCallback?.OnSentenceStart(seg.Content, seg.Emotion, seg.SentenceId);
                     byte[] audioData = Convert.FromBase64String(ttsHttpResponse.Data);

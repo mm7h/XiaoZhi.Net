@@ -35,10 +35,16 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Middlewares
         public override void Shutdown(IServer server)
         {
             ResourceManager resourceManager = server.ServiceProvider.GetRequiredService<ResourceManager>();
-            resourceManager.Dispose(server.ServiceProvider);
+            resourceManager.Dispose();
+
+            HandlerManager handlerManager = server.ServiceProvider.GetRequiredService<HandlerManager>();
+            handlerManager.Dispose();
 
             ProviderManager providerManager = server.ServiceProvider.GetRequiredService<ProviderManager>();
-            providerManager.Dispose(server.ServiceProvider);
+            providerManager.Dispose();
+
+            FunctionToolManager functionToolManager = server.ServiceProvider.GetRequiredService<FunctionToolManager>();
+            functionToolManager.Dispose();
 
             this._logger.LogInformation(Lang.ServerStatusMiddleware_Shutdown_ShuttingDown);
             Serilog.Log.CloseAndFlush();

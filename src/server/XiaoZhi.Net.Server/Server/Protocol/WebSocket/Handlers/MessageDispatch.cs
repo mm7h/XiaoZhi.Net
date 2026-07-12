@@ -25,7 +25,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
                     case OpCode.Text:
                         JsonNode? jsonObject = JsonNode.Parse(package.Message);
                         string? type = jsonObject?["type"]?.GetValue<string>()?.ToLower();
-                        if (jsonObject is JsonObject jsonObj && !string.IsNullOrEmpty(type) && type == "hello")
+                        if (jsonObject is JsonObject jsonObj && !string.IsNullOrWhiteSpace(type) && type == "hello")
                         {
                             await session.XiaoZhiSession.HandlerPipeline.HandleHelloMessage(jsonObj);
                         }

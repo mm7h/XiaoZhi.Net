@@ -118,7 +118,7 @@ namespace XiaoZhi.Net.Server
 
         public IServerBuilder WithCulture(string culture = "zh-CN")
         {
-            if (!string.IsNullOrEmpty(culture))
+            if (!string.IsNullOrWhiteSpace(culture))
             {
                 CultureInfo cultureInfo = new CultureInfo(culture);
                 Lang.Culture = cultureInfo;
@@ -157,22 +157,21 @@ namespace XiaoZhi.Net.Server
         {
             ResourceManager resourceManager = serviceProvider.GetRequiredService<ResourceManager>();
             ProviderManager providerManager = serviceProvider.GetRequiredService<ProviderManager>();
-            bool loaded = resourceManager.BuildComponent(serviceProvider);
+            FunctionToolManager functionToolManager = serviceProvider.GetRequiredService<FunctionToolManager>();
+
+            bool loaded = resourceManager.BuildComponent();
             if (!loaded)
             {
                 Serilog.Log.CloseAndFlush();
                 throw new ApplicationException(Lang.ServerBuilder_BuildComponents_ResourceLoadFailed);
             }
-            bool builded = providerManager.BuildComponent(serviceProvider);
+            bool builded = providerManager.BuildComponent();
             if (!builded)
             {
                 Serilog.Log.CloseAndFlush();
                 throw new ApplicationException(Lang.ServerBuilder_BuildComponents_ProviderBuildFailed);
             }
-
-            // 初始化 FunctionToolManager
-            FunctionToolManager functionToolManager = serviceProvider.GetRequiredService<FunctionToolManager>();
-            bool toolsLoaded = functionToolManager.BuildComponent(serviceProvider);
+            bool toolsLoaded = functionToolManager.BuildComponent();
             if (!toolsLoaded)
             {
                 Serilog.Log.CloseAndFlush();

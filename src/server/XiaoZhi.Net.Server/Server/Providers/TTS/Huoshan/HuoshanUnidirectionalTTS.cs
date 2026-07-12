@@ -49,7 +49,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
             OutSegment seg = workflow.Data;
 
-            if (string.IsNullOrEmpty(seg.ParagraphId) || string.IsNullOrEmpty(seg.SentenceId))
+            if (string.IsNullOrWhiteSpace(seg.ParagraphId) || string.IsNullOrWhiteSpace(seg.SentenceId))
             {
                 this.Logger.LogWarning("Failed to process segment due to missing paragraph id or sentence id.");
                 return;

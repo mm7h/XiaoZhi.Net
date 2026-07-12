@@ -17,7 +17,6 @@ using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
-using XiaoZhi.Net.Server.Providers.LLM.Plugins;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
@@ -73,13 +72,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                 string? summaryMemory = agentBuildConfig.AgentSetting.Config.GetValueOrDefault("SummaryMemory");
                 string intentType = agentBuildConfig.AgentSetting.Config.GetConfigValueOrDefault("IntentType", "None");
                 this._allowFunctionCall = string.Compare(FUNCTION_CALL_INTENT_TYPE, intentType, StringComparison.OrdinalIgnoreCase) == 0;
-                bool enableFunctionTools = string.Compare(NONE_INTENT_TYPE, intentType, StringComparison.OrdinalIgnoreCase) != 0;
+                
                 this._sessionPrivateProvider = agentBuildConfig.SessionPrivateProvider;
 
                 string instructions = this.BuildInstructions(summaryMemory);
                 IChatClient chatClient = this.ServiceProvider.GetRequiredKeyedService<IChatClient>($"LLM_{agentBuildConfig.AgentSetting.ModelName}");
 
-                bool pluginsBuildResult = !enableFunctionTools || agentBuildConfig.SessionPrivateProvider.FunctionTools is not null;
 
                 ChatClientAgentOptions chatClientAgentOptions = new ChatClientAgentOptions
                 {
@@ -102,20 +100,21 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
                 this._agentSession = this._chatClientAgent.CreateSessionAsync(agentBuildConfig.SessionPrivateProvider.Token).GetAwaiter().GetResult();
 
-                if (pluginsBuildResult)
-                {
-                    //todo
-                    //this.Logger.LogInformation(Lang.ChatAgent_Build_BuildPluginsBuilt, this.ProviderType, this.ModelName);
-                    //this.Logger.LogInformation(Lang.ChatAgent_Build_Built, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
-                    return true;
-                }
-                else
-                {
-                    //todo
-                    //this.Logger.LogError(Lang.ChatAgent_Build_BuiltFailed, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
-                    //this.Logger.LogError(Lang.ChatAgent_Build_BuildPluginsFailed, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
-                    return false;
-                }
+                return true;
+                //if (pluginsBuildResult)
+                //{
+                //    //todo
+                //    //this.Logger.LogInformation(Lang.ChatAgent_Build_BuildPluginsBuilt, this.ProviderType, this.ModelName);
+                //    //this.Logger.LogInformation(Lang.ChatAgent_Build_Built, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
+                //    return true;
+                //}
+                //else
+                //{
+                //    //todo
+                //    //this.Logger.LogError(Lang.ChatAgent_Build_BuiltFailed, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
+                //    //this.Logger.LogError(Lang.ChatAgent_Build_BuildPluginsFailed, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
+                //    return false;
+                //}
             }
             catch (Exception)
             {

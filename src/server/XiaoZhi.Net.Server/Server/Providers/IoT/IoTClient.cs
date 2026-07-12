@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -121,7 +120,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
 
                 string iotDeviceComponentName = descriptor["name"]?.GetValue<string>() ?? "";
 
-                if (string.IsNullOrEmpty(iotDeviceComponentName))
+                if (string.IsNullOrWhiteSpace(iotDeviceComponentName))
                 {
                     continue;
                 }
@@ -182,7 +181,6 @@ namespace XiaoZhi.Net.Server.Providers.IoT
 
                         List<IoTParameterInfo> methodParameters = new List<IoTParameterInfo>();
                         JsonObject parameters = methodObj["parameters"] as JsonObject ?? new JsonObject();
-                        StringBuilder paramDescBuilder = new StringBuilder();
                         foreach (var parameter in parameters)
                         {
                             if (parameter.Value is JsonObject paramObj)
@@ -196,7 +194,6 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                                     paramDescription,
                                     IoTTypeMappingHelper.GetIoTType(paramType));
                                 methodParameters.Add(paramInfo);
-                                paramDescBuilder.AppendLine($"- {paramName} ({paramType}): {paramDescription}");
                             }
                         }
 
@@ -204,31 +201,22 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                         string capturedMethod = methodName;
                         List<IoTParameterInfo> capturedParams = new List<IoTParameterInfo>(methodParameters);
                         IoTClient capturedClient = this;
-                        string fullDescription = methodParameters.Count > 0
-                            ? $"{methodDescription}\n参数格式为 JSON 对象，字段如下:\n{paramDescBuilder}"
-                            : methodDescription;
 
-                        AIFunction methodFunc = AIFunctionFactory.Create(
-                            async (string arguments_json, CancellationToken ct) =>
-                            {
-                                Dictionary<string, object?> dict = string.IsNullOrEmpty(arguments_json)
-                                    ? new Dictionary<string, object?>()
-                                    : JsonSerializer.Deserialize<Dictionary<string, object?>>(
-                                        arguments_json,
-                                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-                                      ?? new Dictionary<string, object?>();
-                                return await capturedClient.ExecuteIoTCommandAsync(capturedComponent, capturedMethod, dict, capturedParams, ct);
-                            },
-                            methodName,
-                            fullDescription);
-
-                        string normalizedMethodSchema = new JsonObject
+                        string inputJsonSchema = new JsonObject
                         {
                             ["type"] = "object",
                             ["properties"] = parameters,
                             ["required"] = new JsonArray()
                         }.ToJsonString(JsonHelper.OPTIONS);
-                        FunctionMetadata methodMetadata = methodFunc.ToFunctionMetadata(normalizedMethodSchema, methodDescription);
+
+                        ProxyAIFunction methodFunc = new ProxyAIFunction(
+                            methodName,
+                            methodDescription,
+                            JsonHelper.ToJsonElement(inputJsonSchema),
+                            async (AIFunctionArguments args, CancellationToken ct) =>
+                                await capturedClient.ExecuteIoTCommandAsync(capturedComponent, capturedMethod, args, capturedParams, ct));
+
+                        FunctionMetadata methodMetadata = methodFunc.ToFunctionMetadata();
                         this.CurrentSession.PrivateProvider.AddFunctionToolRegistration(new FunctionToolRegistration(methodFunc, methodMetadata, ToolAction.Continue));
                     }
                 }
@@ -246,7 +234,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
 
                 string iotDeviceComponentName = status["name"]?.GetValue<string>() ?? "";
 
-                if (string.IsNullOrEmpty(iotDeviceComponentName))
+                if (string.IsNullOrWhiteSpace(iotDeviceComponentName))
                 {
                     continue;
                 }

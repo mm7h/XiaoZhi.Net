@@ -21,7 +21,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
 
                 string? deviceId = session.HttpHeader.Items.Get("device-id");
 
-                if (string.IsNullOrEmpty(deviceId))
+                if (string.IsNullOrWhiteSpace(deviceId))
                 {
                     session.Logger.LogError(Lang.AuthenticationVerification_VerifyAsync_DeviceIdNotFound, ip);
                     return ValueTask.FromResult(false);

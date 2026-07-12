@@ -32,6 +32,8 @@ try
         serverHost = serverBuilder.Initialize(config)
             // 添加自定义函数工具
             .WithFunctionTools<GetTime>()
+            .WithPrivateFunctionTools<GetWeather>()
+            .WithPrivateFunctionTools<MusicPlayer>()
             // 多媒体文件格式支持
             .WithMedia(useFFmpegAudioMixer: true)
             //.WithManageApi("http://localhost:5118", "your-secret")

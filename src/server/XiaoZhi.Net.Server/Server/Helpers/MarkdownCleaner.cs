@@ -37,7 +37,7 @@ namespace XiaoZhi.Net.Server.Helpers
         /// <returns>清理后的文本</returns>
         public static string CleanMarkdown(string text)
         {
-            if (string.IsNullOrEmpty(text))
+            if (string.IsNullOrWhiteSpace(text))
             {
                 return string.Empty;
             }

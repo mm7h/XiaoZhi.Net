@@ -43,9 +43,9 @@ namespace XiaoZhi.Net.Server.Providers
 
         public virtual bool CheckDeviceRegistered(string deviceId, string sessionId)
         {
-            if (string.IsNullOrEmpty(this.DeviceId) || string.IsNullOrEmpty(this.SessionId))
+            if (string.IsNullOrWhiteSpace(this.DeviceId) || string.IsNullOrWhiteSpace(this.SessionId))
             {
-                this.Logger.LogError(Lang.BaseProvider_CheckDeviceRegistered_NotRegistered, string.IsNullOrEmpty(this.DeviceId) ? "unkonwn" : this.DeviceId, string.IsNullOrEmpty(this.SessionId) ? "unkonwn" : this.SessionId, this.ProviderType);
+                this.Logger.LogError(Lang.BaseProvider_CheckDeviceRegistered_NotRegistered, string.IsNullOrWhiteSpace(this.DeviceId) ? "unkonwn" : this.DeviceId, string.IsNullOrWhiteSpace(this.SessionId) ? "unkonwn" : this.SessionId, this.ProviderType);
                 return false;
             }
             return true;
@@ -92,7 +92,7 @@ namespace XiaoZhi.Net.Server.Providers
 
         private string ConvertToKebabCase(string input)
         {
-            if (string.IsNullOrEmpty(input))
+            if (string.IsNullOrWhiteSpace(input))
                 return input;
 
             return Regex.Replace(input, "(?<!^)([A-Z])", "-$1").ToLower();

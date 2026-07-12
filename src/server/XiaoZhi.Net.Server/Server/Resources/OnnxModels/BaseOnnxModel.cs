@@ -29,7 +29,7 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels
         }
         private string ConvertToKebabCase(string input)
         {
-            if (string.IsNullOrEmpty(input))
+            if (string.IsNullOrWhiteSpace(input))
                 return input;
 
             return Regex.Replace(input, "(?<!^)([A-Z])", "-$1").ToLower();

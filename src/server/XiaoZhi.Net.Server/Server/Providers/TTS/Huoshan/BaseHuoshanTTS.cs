@@ -81,7 +81,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
         protected string ConvertEmotion(Emotion emotion, string? lang = LANG_ZH)
         {
-            bool isZh = !string.IsNullOrEmpty(lang) && lang == LANG_ZH;
+            bool isZh = !string.IsNullOrWhiteSpace(lang) && lang == LANG_ZH;
 
             return (isZh, emotion) switch
             {

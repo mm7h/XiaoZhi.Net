@@ -46,7 +46,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
             OutSegment seg = workflow.Data;
 
-            if (string.IsNullOrEmpty(seg.ParagraphId) || string.IsNullOrEmpty(seg.SentenceId))
+            if (string.IsNullOrWhiteSpace(seg.ParagraphId) || string.IsNullOrWhiteSpace(seg.SentenceId))
             {
                 this.Logger.LogWarning(Lang.HuoshanBidirectionTTS_SynthesisAsync_MissingIds);
                 return;

@@ -25,7 +25,7 @@ namespace XiaoZhi.Net.Server.Store
 
         public bool Add<T>(string key, T value)
         {
-            if (string.IsNullOrEmpty(key) || value == null)
+            if (string.IsNullOrWhiteSpace(key) || value == null)
             {
                 throw new ArgumentNullException(nameof(key));
             }
@@ -34,7 +34,7 @@ namespace XiaoZhi.Net.Server.Store
 
         public bool Contains(string key)
         {
-            if (string.IsNullOrEmpty(key))
+            if (string.IsNullOrWhiteSpace(key))
             {
                 throw new ArgumentNullException(nameof(key));
             }
@@ -45,7 +45,7 @@ namespace XiaoZhi.Net.Server.Store
         {
             try
             {
-                if (string.IsNullOrEmpty(key))
+                if (string.IsNullOrWhiteSpace(key))
                 {
                     throw new ArgumentNullException(nameof(key));
                 }
@@ -73,7 +73,7 @@ namespace XiaoZhi.Net.Server.Store
 
         public int Remove(string key)
         {
-            if (string.IsNullOrEmpty(key))
+            if (string.IsNullOrWhiteSpace(key))
             {
                 throw new ArgumentNullException(nameof(key));
             }
@@ -89,7 +89,7 @@ namespace XiaoZhi.Net.Server.Store
                 throw new ArgumentNullException(nameof(keys));
             }
             int removedCount = 0;
-            var shardGroups = keys.Where(k => !string.IsNullOrEmpty(k))
+            var shardGroups = keys.Where(k => !string.IsNullOrWhiteSpace(k))
                                   .GroupBy(GetShardIndex);
 
             foreach (var group in shardGroups)
@@ -106,7 +106,7 @@ namespace XiaoZhi.Net.Server.Store
 
         public bool Update<T>(string key, T value)
         {
-            if (string.IsNullOrEmpty(key) || value == null)
+            if (string.IsNullOrWhiteSpace(key) || value == null)
             {
                 throw new ArgumentNullException(nameof(key));
             }

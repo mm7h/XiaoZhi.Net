@@ -126,7 +126,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 this.HandlerToken.ThrowIfCancellationRequested();
 
-                if (!string.IsNullOrEmpty(s.SentenceId))
+                if (!string.IsNullOrWhiteSpace(s.SentenceId))
                 {
                     this._audioProcessor.RegisterSubtitle(s.SentenceId, s.AudioType, s.IsFirstFrame ? TtsStatus.SentenceStart : TtsStatus.SentenceEnd, s.Content, s.Emotion);
                 }

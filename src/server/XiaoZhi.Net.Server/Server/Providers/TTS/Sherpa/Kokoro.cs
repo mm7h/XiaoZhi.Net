@@ -35,7 +35,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
                 config.Model.Kokoro.DictDir = Path.Combine(this.ModelFileFoler, "dict");
 
                 string? lexicons = modelSetting.Config.GetConfigValueOrDefault("Lexicons");
-                if (!string.IsNullOrEmpty(lexicons))
+                if (!string.IsNullOrWhiteSpace(lexicons))
                 {
                     string lexiconPath = string.Join(',', lexicons.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(l => Path.Combine(this.ModelFileFoler, l)));
                     config.Model.Kokoro.Lexicon = lexiconPath;

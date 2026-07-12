@@ -1,16 +1,20 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Resources;
 
 namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
 {
     internal sealed class MediaToolAdapter : IMediaTool
     {
         private readonly Session _session;
+        private readonly IMusicFileProvider _musicFileProvider;
 
-        public MediaToolAdapter(Session session)
+        public MediaToolAdapter(Session session, IMusicFileProvider musicFileProvider)
         {
             this._session = session;
+            this._musicFileProvider = musicFileProvider;
         }
 
         public float Volume
@@ -24,6 +28,14 @@ namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
                 }
             }
         }
+        public bool HasMusicFiles => this._musicFileProvider.HasMusicFiles;
+        public IReadOnlyDictionary<string, string> MusicFiles => this._musicFileProvider.MusicFiles;
+        public string MusicFolderPath => this._musicFileProvider.MusicFolderPath;
+        public bool IsPlaying => this._session.PrivateProvider.AudioPlayerClient?.MusicPlayer.IsPlaying ?? false;
+        public bool IsPaused => this._session.PrivateProvider.AudioPlayerClient?.MusicPlayer.PlaybackState == Media.Abstractions.Common.Enums.PlaybackState.Paused;
+        public string? PlayingMusicName => this._session.PrivateProvider.AudioPlayerClient?.MusicPlayer.PlayingMusicName;
+        public bool UpdateMusicFiles() => this._musicFileProvider.UpdateMusicFiles();
+        public bool UpdateMusicFiles(string newMusicFolderPath) => this._musicFileProvider.UpdateMusicFiles(newMusicFolderPath);
 
         public async ValueTask PlayAsync(string musicName)
         {

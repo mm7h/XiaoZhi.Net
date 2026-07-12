@@ -27,7 +27,7 @@ namespace XiaoZhi.Net.Server.Helpers
 
         public void Dispose()
         {
-            if (!string.IsNullOrEmpty(this._template))
+            if (!string.IsNullOrWhiteSpace(this._template))
                 this._logger.LogDebug(this._template, this.ElapsedMilliseconds);
             else
                 this._logger.LogDebug(Lang.CodeTimer_Dispose_JobFinished, this.ElapsedMilliseconds);

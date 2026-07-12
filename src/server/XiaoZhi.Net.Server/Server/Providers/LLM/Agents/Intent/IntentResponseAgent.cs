@@ -63,7 +63,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                 }
 
                 string? selectedLLMModel = buildConfig.AgentSetting.Config.GetValueOrDefault("LLM");
-                if (string.IsNullOrEmpty(selectedLLMModel))
+                if (string.IsNullOrWhiteSpace(selectedLLMModel))
                 {
                     this.Logger.LogError("IntentDetectionAgent: 未配置 LLM 模型。");
                     return false;
@@ -184,7 +184,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
 
             // 流结束后，将剩余文本（不以标点结尾的尾句）也发出
             string tail = segmentResponse.ToString().Trim();
-            if (!string.IsNullOrEmpty(tail))
+            if (!string.IsNullOrWhiteSpace(tail))
             {
                 yield return tail;
             }

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System.ComponentModel;
 using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Abstractions.Common.Attributes;
@@ -8,9 +9,16 @@ namespace XiaoZhi.Net.Sample.Server.FunctionTools
 {
     public class GetTime : FunctionTool
     {
-        public override async ValueTask OnFunctionToolInitializedAsync()
+        public override ValueTask OnFunctionToolInitializedAsync()
         {
-            await Console.Out.WriteLineAsync("GetTime 插件已初始化");
+            this.Logger.LogInformation("GetTime function tool initialized.");
+            return ValueTask.CompletedTask;
+        }
+
+        public override ValueTask OnFunctionToolReleasedAsync()
+        {
+            this.Logger.LogInformation("GetTime function tool released.");
+            return ValueTask.CompletedTask;
         }
 
         [Description("获取当前的日期和时间")]

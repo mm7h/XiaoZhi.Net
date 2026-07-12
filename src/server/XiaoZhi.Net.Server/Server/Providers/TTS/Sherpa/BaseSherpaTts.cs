@@ -87,7 +87,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
             {
                 OutSegment segment = workflow.Data;
 
-                if (string.IsNullOrEmpty(segment.ParagraphId) || string.IsNullOrEmpty(segment.SentenceId))
+                if (string.IsNullOrWhiteSpace(segment.ParagraphId) || string.IsNullOrWhiteSpace(segment.SentenceId))
                 {
                     this.Logger.LogWarning(Lang.BaseSherpaTts_SynthesisAsync_MissingIds);
                     return;

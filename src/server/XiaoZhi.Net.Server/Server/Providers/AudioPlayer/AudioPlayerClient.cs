@@ -19,6 +19,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
 
         public IMusicPlayer MusicPlayer => this._musicPlayer;
         public ISystemNotification SystemNotification => this._systemNotification;
+        public bool IsPlaying => this._musicPlayer.IsPlaying || this._systemNotification.IsPlaying;
 
         public override bool Build(AudioSetting audioSetting)
         {

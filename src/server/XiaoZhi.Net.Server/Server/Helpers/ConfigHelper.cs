@@ -7,7 +7,7 @@ namespace XiaoZhi.Net.Server.Helpers
     {
         public static string? GetConfigValueOrDefault(this IDictionary<string, string> config, string key)
         {
-            if (config == null || string.IsNullOrEmpty(key) || !config.TryGetValue(key, out string? value))
+            if (config == null || string.IsNullOrWhiteSpace(key) || !config.TryGetValue(key, out string? value))
             {
                 return default;
             }
@@ -16,12 +16,12 @@ namespace XiaoZhi.Net.Server.Helpers
 
         public static TValue? GetConfigValueOrDefault<TValue>(this IDictionary<string, string> config, string key)
         {
-            if (config == null || string.IsNullOrEmpty(key) || !config.TryGetValue(key, out string? value))
+            if (config == null || string.IsNullOrWhiteSpace(key) || !config.TryGetValue(key, out string? value))
             {
                 return default;
             }
 
-            if (string.IsNullOrEmpty(value))
+            if (string.IsNullOrWhiteSpace(value))
             {
                 return default;
             }
@@ -36,12 +36,12 @@ namespace XiaoZhi.Net.Server.Helpers
 
         public static TValue GetConfigValueOrDefault<TValue>(this IDictionary<string, string> config, string key, TValue defaultValue)
         {
-            if (config == null || string.IsNullOrEmpty(key) || !config.TryGetValue(key, out string? value))
+            if (config == null || string.IsNullOrWhiteSpace(key) || !config.TryGetValue(key, out string? value))
             {
                 return defaultValue;
             }
 
-            if (string.IsNullOrEmpty(value))
+            if (string.IsNullOrWhiteSpace(value))
             {
                 return defaultValue;
             }
@@ -56,7 +56,7 @@ namespace XiaoZhi.Net.Server.Helpers
 
         public static void SetConfigValue<TValue>(this IDictionary<string, string> config, string key, TValue? configValue)
         { 
-            if (config == null || string.IsNullOrEmpty(key))
+            if (config == null || string.IsNullOrWhiteSpace(key))
             {
                 return;
             }

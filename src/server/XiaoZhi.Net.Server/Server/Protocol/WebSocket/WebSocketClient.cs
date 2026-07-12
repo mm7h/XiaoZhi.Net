@@ -71,7 +71,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
 
                     this._socket.MessageReceived
                         .Where(msg => msg.MessageType == WebSocketMessageType.Text)
-                        .Where(msg => !string.IsNullOrEmpty(msg.Text))
+                        .Where(msg => !string.IsNullOrWhiteSpace(msg.Text))
                         .Subscribe(msg => this.OnTextMessage?.Invoke(msg.Text!));
 
                     this._socket.MessageReceived

@@ -8,9 +8,10 @@ using System;
 using System.ClientModel;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Dtos;
+using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
@@ -28,7 +29,6 @@ using XiaoZhi.Net.Server.Providers.IoT;
 using XiaoZhi.Net.Server.Providers.LLM;
 using XiaoZhi.Net.Server.Providers.LLM.Agents;
 using XiaoZhi.Net.Server.Providers.LLM.Agents.Intent;
-using XiaoZhi.Net.Server.Providers.LLM.Plugins;
 using XiaoZhi.Net.Server.Providers.MCP;
 using XiaoZhi.Net.Server.Providers.MCP.DeviceMcp;
 using XiaoZhi.Net.Server.Providers.MCP.McpEndpoint;
@@ -39,23 +39,15 @@ using XiaoZhi.Net.Server.Providers.TTS.Huoshan;
 using XiaoZhi.Net.Server.Providers.TTS.Sherpa;
 using XiaoZhi.Net.Server.Providers.VAD.Native;
 using XiaoZhi.Net.Server.Providers.VAD.Sherpa;
-using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Services;
 
 namespace XiaoZhi.Net.Server.Management
 {
-    internal class ProviderManager
+    internal class ProviderManager : BaseManager
     {
-        private readonly IServiceProvider _serviceProvider;
-        private readonly XiaoZhiConfig _config;
-        private readonly ILogger<ProviderManager> _logger;
 
-
-        public ProviderManager(IServiceProvider serviceProvider, XiaoZhiConfig config, ILogger<ProviderManager> logger)
+        public ProviderManager(IServiceProvider serviceProvider, XiaoZhiConfig config, ILogger<ProviderManager> logger) : base(serviceProvider, config, logger)
         {
-            this._serviceProvider = serviceProvider;
-            this._config = config;
-            this._logger = logger;
         }
 
         public static IHostBuilder RegisterServices(IHostBuilder builder, XiaoZhiConfig config)
@@ -74,49 +66,48 @@ namespace XiaoZhi.Net.Server.Management
                 RegisterAudioMixer(services);
                 RegisterIoT(services);
                 RegisterMCP(services);
-                RegisterLLMPlugins(services);
                 RegisterAudioPlayer(services);
 
                 services.AddSingleton<ProviderManager>();
             });
         }
 
-        public bool BuildComponent(IServiceProvider serviceProvider)
+        public override bool BuildComponent()
         {
             try
             {
                 #region Vad
-                IVad vad = serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
-                if (vad.IsSherpaModel && !vad.Build(this.GetSelectedSetting("VAD", this._config)))
+                IVad vad = this.ServiceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
+                if (vad.IsSherpaModel && !vad.Build(this.GetSelectedSetting("VAD", this.Config)))
                 {
-                    this._logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, vad.ModelName);
+                    this.Logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, vad.ModelName);
                     return false;
                 }
                 #endregion
 
                 #region Asr
-                IAsr asr = serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
-                if (asr.IsSherpaModel && !asr.Build(this.GetSelectedSetting("ASR", this._config)))
+                IAsr asr = this.ServiceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
+                if (asr.IsSherpaModel && !asr.Build(this.GetSelectedSetting("ASR", this.Config)))
                 {
-                    this._logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, asr.ModelName);
+                    this.Logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, asr.ModelName);
                     return false;
                 }
                 #endregion
 
                 #region Memory
-                IMemory memory = serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY);
-                if (!memory.Build(this.GetSelectedSetting("Memory", this._config)))
+                IMemory memory = this.ServiceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY);
+                if (!memory.Build(this.GetSelectedSetting("Memory", this.Config)))
                 {
-                    this._logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, memory.ModelName);
+                    this.Logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, memory.ModelName);
                     return false;
                 }
                 #endregion
 
                 #region Tts
-                ITts tts = serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
-                if (tts.IsSherpaModel && !tts.Build(this.GetSelectedSetting("TTS", this._config)))
+                ITts tts = this.ServiceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
+                if (tts.IsSherpaModel && !tts.Build(this.GetSelectedSetting("TTS", this.Config)))
                 {
-                    this._logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, tts.ModelName);
+                    this.Logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, tts.ModelName);
                     return false;
                 }
                 #endregion
@@ -124,11 +115,11 @@ namespace XiaoZhi.Net.Server.Management
                 #region FFmpeg
                 if (MediaFactory.CheckFFmpegInstalled(out string ffmpegVersion))
                 {
-                    this._logger.LogInformation(Lang.ProviderManager_BuildComponent_FFmpegInstalled, ffmpegVersion);
+                    this.Logger.LogInformation(Lang.ProviderManager_BuildComponent_FFmpegInstalled, ffmpegVersion);
                 }
                 else
                 {
-                    this._logger.LogWarning(Lang.ProviderManager_BuildComponent_FFmpegNotFound);
+                    this.Logger.LogWarning(Lang.ProviderManager_BuildComponent_FFmpegNotFound);
                     return false;
                 }
                 #endregion
@@ -137,7 +128,7 @@ namespace XiaoZhi.Net.Server.Management
             }
             catch (Exception ex)
             {
-                this._logger.LogError(ex, Lang.ProviderManager_BuildComponent_BuildComponentsFailed);
+                this.Logger.LogError(ex, Lang.ProviderManager_BuildComponent_BuildComponentsFailed);
                 return false;
             }
         }
@@ -155,16 +146,45 @@ namespace XiaoZhi.Net.Server.Management
 
             return modelSetting;
         }
+        public override async Task OnSessionClosedAsync(Session session)
+        {
+            if (session.PrivateProvider.Llm is null)
+            {
+                this.Logger.LogWarning(Lang.ProviderManager_SaveMemory_LlmNotInitialized, session.DeviceId);
+                return;
+            }
 
-        public async Task<bool> InitializePrivateConfigAsync(Session session)
+            if (session.PrivateProvider.Llm.GetChatHistory().Any())
+            {
+                ManageApiClient? manageApiClient = this.ServiceProvider.GetService<ManageApiClient>();
+                if (manageApiClient is not null)
+                {
+                    try
+                    {
+                        await manageApiClient.SaveMemoryAsync(session.DeviceId, session.SessionId, session.PrivateProvider.Llm.GetChatHistory());
+                        this.Logger.LogInformation(Lang.ProviderManager_SaveMemory_MemorySaved, session.DeviceId, session.SessionId);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.Logger.LogError(ex, Lang.ProviderManager_SaveMemory_SaveMemoryFailed, session.DeviceId, session.SessionId);
+                    }
+                }
+                else
+                {
+                    this.Logger.LogWarning(Lang.ProviderManager_SaveMemory_ApiClientNotAvailable, session.DeviceId, session.SessionId);
+                }
+            }
+        }
+
+        public override async Task<bool> OnSessionPropertyInitializingAsync(Session session)
         {
             try
             {
-                ManageApiClient? manageApiClient = this._serviceProvider.GetService<ManageApiClient>();
+                ManageApiClient? manageApiClient = this.ServiceProvider.GetService<ManageApiClient>();
 
                 if (manageApiClient is null)
                 {
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_RemoteServiceUnavailable, session.DeviceId);
+                    this.Logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_RemoteServiceUnavailable, session.DeviceId);
 
                     session.IsDeviceBinded = true; // Assume device is binded if manage API is not available
 
@@ -175,22 +195,22 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig is null)
                 {
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_NoPrivateConfig, session.DeviceId);
+                    this.Logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_NoPrivateConfig, session.DeviceId);
 
                     return this.RegisterGlobalProviders(session);
                 }
 
                 if (privateModelsConfig.VadSetting is not null)
                 {
-                    IVad privateVad = this._serviceProvider.GetRequiredKeyedService<IVad>(privateModelsConfig.VadSetting.ModelName);
+                    IVad privateVad = this.ServiceProvider.GetRequiredKeyedService<IVad>(privateModelsConfig.VadSetting.ModelName);
                     if (!privateVad.Build(privateModelsConfig.VadSetting))
                     {
-                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateVadBuildFailed, session.DeviceId);
+                        this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateVadBuildFailed, session.DeviceId);
                         return false;
                     }
                     session.PrivateProvider.SetVad(privateVad);
 
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateVadInitialized, privateModelsConfig.VadSetting.ModelName, session.DeviceId);
+                    this.Logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateVadInitialized, privateModelsConfig.VadSetting.ModelName, session.DeviceId);
                 }
                 else
                 {
@@ -203,15 +223,15 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig.AsrSetting is not null)
                 {
-                    IAsr privateAsr = this._serviceProvider.GetRequiredKeyedService<IAsr>(privateModelsConfig.AsrSetting.ModelName);
+                    IAsr privateAsr = this.ServiceProvider.GetRequiredKeyedService<IAsr>(privateModelsConfig.AsrSetting.ModelName);
                     if (!privateAsr.Build(privateModelsConfig.AsrSetting))
                     {
-                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateAsrBuildFailed, session.DeviceId);
+                        this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateAsrBuildFailed, session.DeviceId);
                         return false;
                     }
                     session.PrivateProvider.SetAsr(privateAsr);
 
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateAsrInitialized, privateModelsConfig.AsrSetting.ModelName, session.DeviceId);
+                    this.Logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateAsrInitialized, privateModelsConfig.AsrSetting.ModelName, session.DeviceId);
                 }
                 else
                 {
@@ -224,7 +244,7 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig.AgentSettings.Any())
                 {
-                    ILlm privateLlm = this._serviceProvider.GetRequiredService<ILlm>();
+                    ILlm privateLlm = this.ServiceProvider.GetRequiredService<ILlm>();
 
                     LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
                         privateModelsConfig.AgentSettings,
@@ -232,12 +252,12 @@ namespace XiaoZhi.Net.Server.Management
 
                     if (!privateLlm.Build(llmBuildConfig))
                     {
-                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateLlmBuildFailed, session.DeviceId);
+                        this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateLlmBuildFailed, session.DeviceId);
                         return false;
                     }
                     session.PrivateProvider.SetLlm(privateLlm);
 
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateLlmInitialized, session.DeviceId);
+                    this.Logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateLlmInitialized, session.DeviceId);
                 }
                 else
                 {
@@ -250,15 +270,15 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig.TtsSetting is not null)
                 {
-                    ITts privateTts = this._serviceProvider.GetRequiredKeyedService<ITts>(privateModelsConfig.TtsSetting.ModelName);
+                    ITts privateTts = this.ServiceProvider.GetRequiredKeyedService<ITts>(privateModelsConfig.TtsSetting.ModelName);
                     if (!privateTts.Build(privateModelsConfig.TtsSetting))
                     {
-                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateTtsBuildFailed, session.DeviceId);
+                        this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateTtsBuildFailed, session.DeviceId);
                         return false;
                     }
                     session.PrivateProvider.SetTts(privateTts);
 
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateTtsInitialized, privateModelsConfig.TtsSetting.ModelName, session.DeviceId);
+                    this.Logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateTtsInitialized, privateModelsConfig.TtsSetting.ModelName, session.DeviceId);
                 }
                 else
                 {
@@ -274,20 +294,20 @@ namespace XiaoZhi.Net.Server.Management
             catch (DeviceNotFoundException)
             {
                 session.IsDeviceBinded = false;
-                this._logger.LogWarning(Lang.ProviderManager_InitializePrivateConfig_DeviceNotFound, session.DeviceId);
+                this.Logger.LogWarning(Lang.ProviderManager_InitializePrivateConfig_DeviceNotFound, session.DeviceId);
                 return true;
             }
             catch (DeviceBindException deviceBindException)
             {
                 session.IsDeviceBinded = false;
                 session.BindCode = deviceBindException.BindCode;
-                this._logger.LogWarning(Lang.ProviderManager_InitializePrivateConfig_DeviceNotBinded, session.DeviceId, session.BindCode);
+                this.Logger.LogWarning(Lang.ProviderManager_InitializePrivateConfig_DeviceNotBinded, session.DeviceId, session.BindCode);
                 return true;
             }
             catch (Exception ex)
             {
                 session.IsDeviceBinded = false;
-                this._logger.LogError(ex, Lang.ProviderManager_InitializePrivateConfig_LoadPrivateConfigFailed, session.DeviceId, session.SessionId);
+                this.Logger.LogError(ex, Lang.ProviderManager_InitializePrivateConfig_LoadPrivateConfigFailed, session.DeviceId, session.SessionId);
                 return false;
             }
             finally
@@ -300,43 +320,31 @@ namespace XiaoZhi.Net.Server.Management
             }
         }
 
-        public async Task SaveMemoryAsync(Session session)
-        {
-            if (session.PrivateProvider.Llm is null)
-            {
-                this._logger.LogWarning(Lang.ProviderManager_SaveMemory_LlmNotInitialized, session.DeviceId);
-                return;
-            }
 
-            if (session.PrivateProvider.Llm.GetChatHistory().Any())
+        public override Task OnSessionPropertyInitializedAsync(Session session, JsonObject helloMessage)
+        {
+            if (helloMessage.TryGetPropertyValue("features", out var features) && features is not null)
             {
-                ManageApiClient? manageApiClient = this._serviceProvider.GetService<ManageApiClient>();
-                if (manageApiClient is not null)
+                JsonObject featuresObj = features.AsObject();
+                if (featuresObj.TryGetPropertyValue("mcp", out var mcp) && mcp is not null)
                 {
-                    try
+                    bool isSupportMCP = mcp.GetValue<bool>();
+                    if (isSupportMCP)
                     {
-                        await manageApiClient.SaveMemoryAsync(session.DeviceId, session.SessionId, session.PrivateProvider.Llm.GetChatHistory());
-                        this._logger.LogInformation(Lang.ProviderManager_SaveMemory_MemorySaved, session.DeviceId, session.SessionId);
+                        this.BuildMCP(session);
                     }
-                    catch (Exception ex)
-                    {
-                        this._logger.LogError(ex, Lang.ProviderManager_SaveMemory_SaveMemoryFailed, session.DeviceId, session.SessionId);
-                    }
-                }
-                else
-                {
-                    this._logger.LogWarning(Lang.ProviderManager_SaveMemory_ApiClientNotAvailable, session.DeviceId, session.SessionId);
                 }
             }
+            return Task.CompletedTask;
         }
 
-        public void Dispose(IServiceProvider serviceProvider)
+        public override void Dispose()
         {
             IList<IDisposable> providers = new List<IDisposable>
             {
-                serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR),
-                serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD),
-                serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY)
+                this.ServiceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR),
+                this.ServiceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD),
+                this.ServiceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY)
             };
 
             foreach (IDisposable provider in providers)
@@ -355,10 +363,10 @@ namespace XiaoZhi.Net.Server.Management
 
         public void BuildAudioDecoder(Session session)
         {
-            IAudioDecoder audioDecoder = this._serviceProvider.GetRequiredService<IAudioDecoder>();
+            IAudioDecoder audioDecoder = this.ServiceProvider.GetRequiredService<IAudioDecoder>();
             if (!audioDecoder.Build(session.AudioSetting))
             {
-                this._logger.LogWarning(Lang.ProviderManager_BuildAudioDecoder_BuildFailed, session.SessionId);
+                this.Logger.LogWarning(Lang.ProviderManager_BuildAudioDecoder_BuildFailed, session.SessionId);
             }
             session.PrivateProvider.SetAudioDecoder(audioDecoder);
         }
@@ -371,20 +379,20 @@ namespace XiaoZhi.Net.Server.Management
         }
         public void BuildAudioResampler(Session session)
         {
-            int ttsSampleRate = session.PrivateProvider.Tts?.GetTtsSampleRate() ?? this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS).GetTtsSampleRate();
+            int ttsSampleRate = session.PrivateProvider.Tts?.GetTtsSampleRate() ?? this.ServiceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS).GetTtsSampleRate();
 
-            if (ttsSampleRate == this._config.AudioSetting.SampleRate)
+            if (ttsSampleRate == this.Config.AudioSetting.SampleRate)
             {
                 return;
             }
 
-            this._logger.LogInformation(Lang.ProviderManager_BuildAudioResampler_ResamplingRequired, session.DeviceId, ttsSampleRate, this._config.AudioSetting.SampleRate);
+            this.Logger.LogInformation(Lang.ProviderManager_BuildAudioResampler_ResamplingRequired, session.DeviceId, ttsSampleRate, this.Config.AudioSetting.SampleRate);
 
-            ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, ttsSampleRate, this._config.AudioSetting.SampleRate);
-            IAudioResampler audioResampler = this._serviceProvider.GetRequiredService<IAudioResampler>();
+            ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, ttsSampleRate, this.Config.AudioSetting.SampleRate);
+            IAudioResampler audioResampler = this.ServiceProvider.GetRequiredService<IAudioResampler>();
             if (!audioResampler.Build(resamplerBuildConfig))
             {
-                this._logger.LogWarning(Lang.ProviderManager_BuildAudioResampler_BuildFailed, session.SessionId);
+                this.Logger.LogWarning(Lang.ProviderManager_BuildAudioResampler_BuildFailed, session.SessionId);
             }
             else
             {
@@ -401,10 +409,10 @@ namespace XiaoZhi.Net.Server.Management
 
         public void BuildAudioEncoder(Session session)
         {
-            IAudioEncoder audioEncoder = this._serviceProvider.GetRequiredService<IAudioEncoder>();
-            if (!audioEncoder.Build(this._config.AudioSetting))
+            IAudioEncoder audioEncoder = this.ServiceProvider.GetRequiredService<IAudioEncoder>();
+            if (!audioEncoder.Build(this.Config.AudioSetting))
             {
-                this._logger.LogWarning(Lang.ProviderManager_BuildAudioEncoder_BuildFailed, session.SessionId);
+                this.Logger.LogWarning(Lang.ProviderManager_BuildAudioEncoder_BuildFailed, session.SessionId);
             }
             session.PrivateProvider.SetAudioEncoder(audioEncoder);
         }
@@ -456,7 +464,7 @@ namespace XiaoZhi.Net.Server.Management
                 string? apiKey = llmSettingItem.Value.GetConfigValueOrDefault("ApiKey");
                 string? modelId = llmSettingItem.Value.GetConfigValueOrDefault("ModelName");
 
-                if (string.IsNullOrEmpty(endPoint) || string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(modelId))
+                if (string.IsNullOrWhiteSpace(endPoint) || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(modelId))
                 {
                     throw new ModelBuildException($"Invalid llm model setting, endPoint: {endPoint}, apiKey: {apiKey}, modelId: {modelId}.");
                 }
@@ -480,13 +488,6 @@ namespace XiaoZhi.Net.Server.Management
             services.AddKeyedTransient<IAgent, ChatAgent>(SubAgentNames.ChatAgent);
             services.AddKeyedTransient<IAgent, OutputAgent>(SubAgentNames.OutputAgent);
             services.AddTransient<ILlm, GenericOpenAI>();
-        }
-        #endregion
-
-        #region LLMPlugins
-        private static void RegisterLLMPlugins(IServiceCollection services)
-        {
-            services.AddTransient<MusicPlayer>();
         }
         #endregion
 
@@ -558,10 +559,10 @@ namespace XiaoZhi.Net.Server.Management
         }
         public void BuildIoT(Session session)
         {
-            IIoTClient iotClient = this._serviceProvider.GetRequiredService<IIoTClient>();
+            IIoTClient iotClient = this.ServiceProvider.GetRequiredService<IIoTClient>();
             if (!iotClient.Build(session))
             {
-                this._logger.LogWarning(Lang.ProviderManager_BuildIoT_BuildFailed, session.SessionId);
+                this.Logger.LogWarning(Lang.ProviderManager_BuildIoT_BuildFailed, session.SessionId);
             }
             else
             {
@@ -580,23 +581,26 @@ namespace XiaoZhi.Net.Server.Management
         }
         public void BuildMCP(Session session)
         {
-            IMcpClient mcpClient = this._serviceProvider.GetRequiredService<IMcpClient>();
+            // 在发起 MCP 握手前先标记"等待工具列表加载"，防止对话提前使用空工具列表
+            session.PrivateProvider.SetMcpClientPending();
+
+            IMcpClient mcpClient = this.ServiceProvider.GetRequiredService<IMcpClient>();
 
             Dictionary<string, MCPClientBuildConfig> mcpBuildConfigs = new Dictionary<string, MCPClientBuildConfig>();
-            if (this._config.McpSettings is null || !this._config.McpSettings.Any())
+            if (this.Config.McpSettings is null || !this.Config.McpSettings.Any())
             {
                 mcpBuildConfigs.Add(SubMCPClientTypeNames.DeviceMcpClient, new MCPClientBuildConfig
                 (session, new ModelSetting()));
             }
             else
             {
-                mcpBuildConfigs = this._config.McpSettings.ToDictionary(
+                mcpBuildConfigs = this.Config.McpSettings.ToDictionary(
                     kvp => kvp.Key,
                     kvp => new MCPClientBuildConfig(session, kvp.Value));
             }
             if (!mcpClient.Build(mcpBuildConfigs))
             {
-                this._logger.LogWarning(Lang.ProviderManager_BuildMCP_BuildFailed, session.SessionId);
+                this.Logger.LogWarning(Lang.ProviderManager_BuildMCP_BuildFailed, session.SessionId);
             }
             else
             {
@@ -615,10 +619,10 @@ namespace XiaoZhi.Net.Server.Management
 
         public void BuildAudioPlayer(Session session)
         {
-            IAudioPlayerClient audioPlayerClient = this._serviceProvider.GetRequiredService<IAudioPlayerClient>();
-            if (!audioPlayerClient.Build(this._config.AudioSetting))
+            IAudioPlayerClient audioPlayerClient = this.ServiceProvider.GetRequiredService<IAudioPlayerClient>();
+            if (!audioPlayerClient.Build(this.Config.AudioSetting))
             {
-                this._logger.LogWarning(Lang.ProviderManager_BuildAudioPlayer_BuildFailed, session.SessionId);
+                this.Logger.LogWarning(Lang.ProviderManager_BuildAudioPlayer_BuildFailed, session.SessionId);
             }
             else
             {
@@ -635,10 +639,10 @@ namespace XiaoZhi.Net.Server.Management
 
         public void BuildAudioProcessor(Session session)
         {
-            IAudioProcessor audioProcessor = this._serviceProvider.GetRequiredService<IAudioProcessor>();
-            if (!audioProcessor.Build(this._config.AudioSetting))
+            IAudioProcessor audioProcessor = this.ServiceProvider.GetRequiredService<IAudioProcessor>();
+            if (!audioProcessor.Build(this.Config.AudioSetting))
             {
-                this._logger.LogWarning(Lang.ProviderManager_BuildAudioProcessor_BuildFailed, session.SessionId);
+                this.Logger.LogWarning(Lang.ProviderManager_BuildAudioProcessor_BuildFailed, session.SessionId);
             }
             else
             {
@@ -660,39 +664,39 @@ namespace XiaoZhi.Net.Server.Management
 
         private bool RegisterGlobalVadProviders(Session session)
         {
-            IVad genericVad = this._serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
-            if (!genericVad.IsSherpaModel && !genericVad.Build(this.GetSelectedSetting("VAD", this._config)))
+            IVad genericVad = this.ServiceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
+            if (!genericVad.IsSherpaModel && !genericVad.Build(this.GetSelectedSetting("VAD", this.Config)))
             {
-                this._logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_VadBuildFailed, genericVad.ModelName);
+                this.Logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_VadBuildFailed, genericVad.ModelName);
                 return false;
             }
             session.PrivateProvider.SetVad(genericVad);
-            this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_VadInitialized, genericVad.ModelName, session.DeviceId);
+            this.Logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_VadInitialized, genericVad.ModelName, session.DeviceId);
             return true;
         }
 
         private bool RegisterGlobalAsrProviders(Session session)
         {
-            IAsr genericAsr = this._serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
-            if (!genericAsr.IsSherpaModel && !genericAsr.Build(this.GetSelectedSetting("ASR", this._config)))
+            IAsr genericAsr = this.ServiceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
+            if (!genericAsr.IsSherpaModel && !genericAsr.Build(this.GetSelectedSetting("ASR", this.Config)))
             {
-                this._logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_AsrBuildFailed, genericAsr.ModelName);
+                this.Logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_AsrBuildFailed, genericAsr.ModelName);
                 return false;
             }
             session.PrivateProvider.SetAsr(genericAsr);
-            this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_AsrInitialized, genericAsr.ModelName, session.DeviceId);
+            this.Logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_AsrInitialized, genericAsr.ModelName, session.DeviceId);
             return true;
         }
 
         private bool RegisterGlobalLlmProviders(Session session)
         {
-            ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
+            ILlm genericLlm = this.ServiceProvider.GetRequiredService<ILlm>();
 
-            ModelSetting selectedIntentLLMModelSetting = this.GetSelectedSetting("Intent", this._config);
+            ModelSetting selectedIntentLLMModelSetting = this.GetSelectedSetting("Intent", this.Config);
             string intentType = selectedIntentLLMModelSetting.Config.GetConfigValueOrDefault("Type", "None");
 
-            ModelSetting selectedChatLLMModelSetting = this.GetSelectedSetting("LLM", this._config);
-            selectedChatLLMModelSetting.Config.SetConfigValue("Prompt", this._config.Prompt);
+            ModelSetting selectedChatLLMModelSetting = this.GetSelectedSetting("LLM", this.Config);
+            selectedChatLLMModelSetting.Config.SetConfigValue("Prompt", this.Config.Prompt);
             selectedChatLLMModelSetting.Config.SetConfigValue("IntentType", intentType);
 
             ModelSetting intentResponseAgentSetting = new ModelSetting
@@ -732,34 +736,26 @@ namespace XiaoZhi.Net.Server.Management
 
             if (!genericLlm.Build(llmBuildConfig))
             {
-                this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericLlmBuildFailed, session.DeviceId);
+                this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericLlmBuildFailed, session.DeviceId);
                 return false;
             }
             session.PrivateProvider.SetLlm(genericLlm);
 
-            this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericLlmInitialized, session.DeviceId);
+            this.Logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericLlmInitialized, session.DeviceId);
             return true;
         }
 
         private bool RegisterGlobalTtsProviders(Session session)
         {
-            ITts genericTts = this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
-            if (!genericTts.IsSherpaModel && !genericTts.Build(this.GetSelectedSetting("TTS", this._config)))
+            ITts genericTts = this.ServiceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
+            if (!genericTts.IsSherpaModel && !genericTts.Build(this.GetSelectedSetting("TTS", this.Config)))
             {
-                this._logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_TtsBuildFailed, genericTts.ModelName);
+                this.Logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_TtsBuildFailed, genericTts.ModelName);
                 return false;
             }
             session.PrivateProvider.SetTts(genericTts);
-            this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_TtsInitialized, genericTts.ModelName, session.DeviceId);
+            this.Logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_TtsInitialized, genericTts.ModelName, session.DeviceId);
             return true;
-        }
-
-        private static string ConvertToKebabCase(string input)
-        {
-            if (string.IsNullOrEmpty(input))
-                return input;
-
-            return Regex.Replace(input, "(?<!^)([A-Z])", "-$1").ToLower();
         }
     }
 }

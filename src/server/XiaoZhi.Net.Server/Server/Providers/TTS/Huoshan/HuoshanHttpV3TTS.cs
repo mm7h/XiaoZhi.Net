@@ -40,7 +40,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 string? resourceId = modelSetting.Config.GetConfigValueOrDefault("ResourceId");
                 string? speaker = modelSetting.Config.GetConfigValueOrDefault("Speaker");
 
-                if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(resourceId) || string.IsNullOrEmpty(speaker))
+                if (string.IsNullOrWhiteSpace(appId) || string.IsNullOrWhiteSpace(accessToken) || string.IsNullOrWhiteSpace(resourceId) || string.IsNullOrWhiteSpace(speaker))
                 {
                     this.Logger.LogWarning(Lang.HuoshanHttpV3TTS_Build_ConfigIncomplete);
                     return false;
@@ -75,7 +75,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             }
 
             OutSegment seg = workflow.Data;
-            if (string.IsNullOrEmpty(seg.SentenceId))
+            if (string.IsNullOrWhiteSpace(seg.SentenceId))
             {
                 this.Logger.LogWarning(Lang.HuoshanHttpV3TTS_SynthesisAsync_MissingSentenceId);
                 return;
@@ -145,7 +145,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 {
                     token.ThrowIfCancellationRequested();
                     string? line = await reader.ReadLineAsync().ConfigureAwait(false);
-                    if (string.IsNullOrEmpty(line))
+                    if (string.IsNullOrWhiteSpace(line))
                         continue;
 
                     TTSHttpResponseChunk? message = JsonHelper.Deserialize<TTSHttpResponseChunk>(line);
@@ -161,7 +161,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                             continue;
                         }
 
-                        if (!string.IsNullOrEmpty(message.Data))
+                        if (!string.IsNullOrWhiteSpace(message.Data))
                         {
                             byte[] bytes = Convert.FromBase64String(message.Data);
                             audioBuffer.AddRange(bytes);

@@ -91,7 +91,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                     {
                         string? name = serverInfo["name"]?.GetValue<string>();
                         string? version = serverInfo["version"]?.GetValue<string>();
-                        if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(version))
+                        if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(version))
                         {
                             this.Logger.LogInformation(Lang.BaseMcpClient_HandleMcpMessageAsync_ServerInfo, name, version);
                         }
@@ -126,41 +126,19 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                                 ["required"] = new JsonArray()
                             };
 
-                            JsonObject properties = inputSchema["properties"] as JsonObject ?? new JsonObject();
-                            JsonArray requiredProperties = inputSchema["required"] as JsonArray ?? new JsonArray();
-
-                            List<string> paramDescs = new List<string>();
-                            foreach (var property in properties)
-                            {
-                                if (property.Value is JsonObject propObj)
-                                {
-                                    string propName = property.Key;
-                                    string propDescription = propObj["description"]?.GetValue<string>() ?? string.Empty;
-                                    bool isRequired = requiredProperties.Any(r => r?.GetValue<string>() == propName);
-                                    paramDescs.Add($"- {propName}{(isRequired ? " (required)" : "(optional)")}: {propDescription}");
-                                }
-                            }
-
                             string capturedToolName = toolName;
                             BaseMcpClient<TLogger> capturedClient = this;
-                            string fullDescription = paramDescs.Count > 0
-                                ? $"{toolDescription}\n参数格式为 JSON 对象，字段如下:\n{string.Join("\n", paramDescs)}"
-                                : toolDescription;
-
-                            AIFunction toolFunc = AIFunctionFactory.Create(
-                                async (string argumentsJson, CancellationToken ct) =>
-                                {
-                                    var argDict = string.IsNullOrEmpty(argumentsJson)
-                                        ? new Dictionary<string, object?>()
-                                        : JsonHelper.Deserialize<Dictionary<string, object?>>(argumentsJson) ?? new Dictionary<string, object?>();
-                                    return await capturedClient.CallMcpToolAsync(capturedToolName, argDict);
-                                },
-                                this.SanitizeToolName(toolName),
-                                fullDescription,
-                                JsonHelper.OPTIONS);
-
+                            string sanitizedName = this.SanitizeToolName(toolName);
                             string inputJsonSchema = inputSchema.ToJsonString(JsonHelper.OPTIONS);
-                            FunctionMetadata metadata = toolFunc.ToFunctionMetadata(inputJsonSchema, toolDescription);
+
+                            ProxyAIFunction toolFunc = new ProxyAIFunction(
+                                sanitizedName,
+                                toolDescription,
+                                JsonHelper.ToJsonElement(inputJsonSchema),
+                                async (AIFunctionArguments args, CancellationToken ct) =>
+                                    await capturedClient.CallMcpToolAsync(capturedToolName, args));
+
+                            FunctionMetadata metadata = toolFunc.ToFunctionMetadata();
                             FunctionToolRegistration registration = new FunctionToolRegistration(toolFunc, metadata, ToolAction.Continue);
 
                             this.AddTool(toolName, registration);
@@ -168,7 +146,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                         }
 
                         string nextCursor = resultObj["nextCursor"]?.GetValue<string>() ?? string.Empty;
-                        if (!string.IsNullOrEmpty(nextCursor))
+                        if (!string.IsNullOrWhiteSpace(nextCursor))
                         {
                             this.Logger.LogInformation(Lang.BaseMcpClient_HandleMcpMessageAsync_MoreTools, nextCursor);
                             await this.RequestToolsListAsync(nextCursor);
@@ -183,6 +161,8 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                             }
                             this.Logger.LogInformation(Lang.BaseMcpClient_HandleMcpMessageAsync_ClientReady);
                             this.Logger.LogInformation(Lang.BaseMcpClient_HandleMcpMessageAsync_ToolCount, this._mcpToolRegistrations.Values.Count);
+                            // 通知等待方（DialogueHandler）MCP 工具已全部就绪
+                            this.CurrentSession.PrivateProvider.SetMcpClientReady();
                         }
 
                         return;
@@ -297,7 +277,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
         public async virtual Task<FunctionReturn<string>> CallMcpToolAsync(string toolName, IReadOnlyDictionary<string, object?> arguments, int timeout = 30)
         {
-            if (string.IsNullOrEmpty(toolName))
+            if (string.IsNullOrWhiteSpace(toolName))
             {
                 throw new Exception("Invalid and empty tool name.");
             }
@@ -312,7 +292,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             int toolCallId = this.NextId;
             Task<JsonObject> resultTask = this.RegisterCallResultAsync(toolCallId);
 
-            string argJson = System.Text.Json.JsonSerializer.Serialize(arguments);
+            string argJson = JsonHelper.Serialize(arguments);
 
             if (this._mcpTools.TryGetValue(toolName, out AIFunction? mcpTool))
             {

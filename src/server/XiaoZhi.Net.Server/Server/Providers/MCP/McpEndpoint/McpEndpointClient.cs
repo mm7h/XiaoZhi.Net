@@ -33,7 +33,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
 
                 this._endpointUrl = modelSetting.Config.GetConfigValueOrDefault("EndpointUrl");
 
-                if (string.IsNullOrEmpty(this._endpointUrl))
+                if (string.IsNullOrWhiteSpace(this._endpointUrl))
                 {
                     this.Logger.LogWarning(Lang.McpEndpointClient_Build_UrlEmpty);
                     return true;

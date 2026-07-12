@@ -177,7 +177,7 @@ namespace XiaoZhi.Net.Server.Helpers
 
         public static IEnumerable<string> SplitContentByPunctuations(string content)
         {
-            if (string.IsNullOrEmpty(content)) yield break;
+            if (string.IsNullOrWhiteSpace(content)) yield break;
 
             StringBuilder sb = new StringBuilder();
             foreach (char ch in content)
