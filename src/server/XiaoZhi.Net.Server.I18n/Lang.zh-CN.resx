@@ -391,7 +391,7 @@
     <value>无法为设备 {deviceId} 构建通用 LLM 模型。</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericLlmInitialized" xml:space="preserve">
-    <value>设备 {deviceId} 的通用情感 LLM {emotionLLMName} 和聊天 LLM {chatLLMName} 模型已初始化。</value>
+    <value>设备 {deviceId} 的通用 LLM 模型已初始化。</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateTtsBuildFailed" xml:space="preserve">
     <value>无法为设备 {deviceId} 构建私有 TTS 模型。</value>
@@ -892,7 +892,7 @@
     <value>已将 TTS 音频文件保存到 {audioPath}，设备 {deviceId}。</value>
   </data>
   <data name="BaseHuoshanTTS_SaveAudioFile_SaveFailed" xml:space="preserve">
-    <value>保存设备 {deviceId} 的音频文件失败。</value>
+    <value>保存音频文件 {fileName} 失败，设备 Id {deviceId}。</value>
   </data>
   <data name="HuoshanHttpTTS_SynthesisAsync_ApiError" xml:space="preserve">
     <value>火山 HTTP TTS 错误：代码={code} 消息={message}</value>

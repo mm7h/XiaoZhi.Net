@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
-using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models;
 
@@ -42,7 +41,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
                 if (string.IsNullOrWhiteSpace(appId) || string.IsNullOrWhiteSpace(accessToken) || string.IsNullOrWhiteSpace(resourceId) || string.IsNullOrWhiteSpace(speaker))
                 {
-                    this.Logger.LogWarning(Lang.HuoshanHttpV3TTS_Build_ConfigIncomplete);
+                    this.Logger.LogWarning("火山 HTTP V3 TTS 配置不完整，请检查 AppId、AccessToken、ResourceId 和 speaker。");
                     return false;
                 }
 
@@ -57,12 +56,12 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 this._headers.Add("X-Api-Request-Id", Guid.NewGuid().ToString());
                 this._headers.Add("Content-Type", "application/json");
 
-                this.Logger.LogInformation(Lang.HuoshanHttpV3TTS_Build_Built, this.ProviderType, this.ModelName);
+                this.Logger.LogInformation("已构建 {providerType} 模型：{modelName}", this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, Lang.HuoshanHttpV3TTS_Build_Failed, this.ModelName);
+                this.Logger.LogError(ex, "构建 {modelName} 失败。", this.ModelName);
                 return false;
             }
         }
@@ -71,13 +70,13 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         {
             if (!this.CheckDeviceRegistered(workflow.DeviceId, workflow.SessionId))
             {
-                throw new InvalidOperationException(Lang.HuoshanHttpV3TTS_SynthesisAsync_DevNotReg);
+                throw new InvalidOperationException("设备/会话未注册。");
             }
 
             OutSegment seg = workflow.Data;
             if (string.IsNullOrWhiteSpace(seg.SentenceId))
             {
-                this.Logger.LogWarning(Lang.HuoshanHttpV3TTS_SynthesisAsync_MissingSentenceId);
+                this.Logger.LogWarning("由于缺少句子 ID，处理片段失败。");
                 return;
             }
 
@@ -130,7 +129,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 if (!response.ResponseMessage.IsSuccessStatusCode)
                 {
                     string err = await response.GetStringAsync().ConfigureAwait(false);
-                    this.Logger.LogError(Lang.HuoshanHttpV3TTS_SynthesisAsync_RequestFailed, response.StatusCode, err);
+                    this.Logger.LogError("火山 HTTP TTS 失败：状态={status} 正文={body}", response.StatusCode, err);
                     this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Failed);
                     return;
                 }
@@ -190,7 +189,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
                     if (message.Code.HasValue && message.Code > 0)
                     {
-                        this.Logger.LogError(Lang.HuoshanHttpV3TTS_SynthesisAsync_ApiError, message.Code, message.Message);
+                        this.Logger.LogError("火山 HTTP TTS 错误：代码={code} 消息={message}", message.Code, message.Message);
                         this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Failed);
                         return;
                     }
@@ -203,7 +202,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, Lang.HuoshanHttpV3TTS_SynthesisAsync_GeneralFailed);
+                this.Logger.LogError(ex, "火山 HTTP TTS 合成失败。");
                 this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Failed);
                 throw;
             }

@@ -671,7 +671,7 @@ namespace XiaoZhi.Net.Server.Management
                 return false;
             }
             session.PrivateProvider.SetVad(genericVad);
-            this.Logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_VadInitialized, genericVad.ModelName, session.DeviceId);
+            this.Logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_VadInitialized, session.DeviceId, genericVad.ModelName);
             return true;
         }
 
@@ -684,7 +684,7 @@ namespace XiaoZhi.Net.Server.Management
                 return false;
             }
             session.PrivateProvider.SetAsr(genericAsr);
-            this.Logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_AsrInitialized, genericAsr.ModelName, session.DeviceId);
+            this.Logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_AsrInitialized, session.DeviceId, genericAsr.ModelName);
             return true;
         }
 
@@ -754,7 +754,7 @@ namespace XiaoZhi.Net.Server.Management
                 return false;
             }
             session.PrivateProvider.SetTts(genericTts);
-            this.Logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_TtsInitialized, genericTts.ModelName, session.DeviceId);
+            this.Logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_TtsInitialized, session.DeviceId, genericTts.ModelName);
             return true;
         }
     }

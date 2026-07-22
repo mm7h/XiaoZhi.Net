@@ -391,7 +391,7 @@
     <value>Failed to build generic LLM model per device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericLlmInitialized" xml:space="preserve">
-    <value>Generic emotion LLM {emotionLLMName} and chat LLM {chatLLMName} model initialized for device: {deviceId}.</value>
+    <value>Generic emotion LLM model initialized for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateTtsBuildFailed" xml:space="preserve">
     <value>Failed to build private TTS model for device: {deviceId}.</value>
@@ -892,7 +892,7 @@
     <value>Saved TTS audio file to {audioPath} for the device {deviceId}.</value>
   </data>
   <data name="BaseHuoshanTTS_SaveAudioFile_SaveFailed" xml:space="preserve">
-    <value>Failed to save audio file for the device {deviceId}.</value>
+    <value>Failed to save audio file {fileName} for the device {deviceId}.</value>
   </data>
   <data name="HuoshanHttpTTS_SynthesisAsync_ApiError" xml:space="preserve">
     <value>Huoshan HTTP TTS error: code={code} message={message}</value>
