@@ -1,0 +1,300 @@
+# To learn more about .editorconfig see https://aka.ms/editorconfigdocs
+###############################
+# Core EditorConfig Options   #
+###############################
+root = true
+# All files
+[*]
+indent_style = space
+end_of_line = lf
+
+# XML project files
+[*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj}]
+indent_size = 2
+
+# XML config files
+[*.{props,targets,ruleset,config,nuspec,resx,vsixmanifest,vsct}]
+indent_size = 2
+
+# YAML config files
+[*.{yml,yaml}]
+tab_width = 2
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# JSON config files
+[*.json]
+tab_width = 2
+indent_size = 2
+insert_final_newline = false
+trim_trailing_whitespace = true
+
+# Typescript files
+[*.{ts,tsx}]
+insert_final_newline = true
+trim_trailing_whitespace = true
+tab_width = 4
+indent_size = 4
+file_header_template = Copyright (c) Microsoft. All rights reserved.
+
+# Stylesheet files
+[*.{css,scss,sass,less}]
+insert_final_newline = true
+trim_trailing_whitespace = true
+tab_width = 4
+indent_size = 4
+
+# Code files
+[*.{cs,csx,vb,vbx}]
+tab_width = 4
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+charset = utf-8-bom
+file_header_template = Copyright (c) Microsoft. All rights reserved.
+
+###############################
+# .NET Coding Conventions     #
+###############################
+[*.{cs,vb}]
+# Organize usings
+dotnet_sort_system_directives_first = true
+# this. preferences
+dotnet_style_qualification_for_field = true:error
+dotnet_style_qualification_for_property = true:error
+dotnet_style_qualification_for_method = true:error
+dotnet_style_qualification_for_event = true:error
+# Language keywords vs BCL types preferences
+dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
+dotnet_style_predefined_type_for_member_access = true:suggestion
+# Parentheses preferences
+dotnet_style_parentheses_in_arithmetic_binary_operators = always_for_clarity:suggestion
+dotnet_style_parentheses_in_relational_binary_operators = always_for_clarity:suggestion
+dotnet_style_parentheses_in_other_binary_operators = always_for_clarity:silent
+dotnet_style_parentheses_in_other_operators = never_if_unnecessary:silent
+# Modifier preferences
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:error
+dotnet_style_readonly_field = true:warning
+# Expression-level preferences
+dotnet_style_object_initializer = true:suggestion
+dotnet_style_collection_initializer = true:suggestion
+dotnet_style_explicit_tuple_names = true:suggestion
+dotnet_style_null_propagation = true:suggestion
+dotnet_style_coalesce_expression = true:suggestion
+dotnet_style_prefer_is_null_check_over_reference_equality_method = true:suggestion
+dotnet_style_prefer_inferred_tuple_names = true:suggestion
+dotnet_style_prefer_inferred_anonymous_type_member_names = true:silent
+dotnet_style_prefer_auto_properties = true:suggestion
+dotnet_style_prefer_conditional_expression_over_assignment = true:silent
+dotnet_style_prefer_conditional_expression_over_return = true:silent
+dotnet_style_prefer_simplified_interpolation = true:suggestion
+dotnet_style_operator_placement_when_wrapping = beginning_of_line
+dotnet_style_prefer_simplified_boolean_expressions = true:suggestion
+dotnet_style_prefer_compound_assignment = true:suggestion
+# Code quality rules
+dotnet_code_quality_unused_parameters = all:suggestion
+
+[*.cs]
+# Note: these settings cause "dotnet format" to fix the code. You should review each change if you uses "dotnet format".
+dotnet_diagnostic.RCS1036.severity = warning # Remove unnecessary blank line.
+dotnet_diagnostic.RCS1037.severity = warning # Remove trailing white-space.
+dotnet_diagnostic.RCS1097.severity = warning # Remove redundant 'ToString' call.
+dotnet_diagnostic.RCS1138.severity = warning # Add summary to documentation comment.
+dotnet_diagnostic.RCS1139.severity = warning # Add summary element to documentation comment.
+dotnet_diagnostic.RCS1168.severity = warning # Parameter name 'foo' differs from base name 'bar'.
+dotnet_diagnostic.RCS1175.severity = warning # Unused 'this' parameter 'operation'.
+dotnet_diagnostic.RCS1192.severity = warning # Unnecessary usage of verbatim string literal.
+dotnet_diagnostic.RCS1194.severity = warning # Implement exception constructors.
+dotnet_diagnostic.RCS1211.severity = warning # Remove unnecessary else clause.
+dotnet_diagnostic.RCS1214.severity = warning # Unnecessary interpolated string.
+dotnet_diagnostic.RCS1225.severity = warning # Make class sealed.
+dotnet_diagnostic.RCS1232.severity = warning # Order elements in documentation comment.
+
+# Commented out because `dotnet format` change can be disruptive.
+# dotnet_diagnostic.RCS1085.severity = warning # Use auto-implemented property.
+
+# Commented out because `dotnet format` removes the xmldoc element, while we should add the missing documentation instead.
+# dotnet_diagnostic.RCS1228.severity = warning # Unused element in documentation comment.
+
+# Testing
+dotnet_diagnostic.Moq1400.severity = none # Explicitly choose a mocking behavior instead of relying on the default (Loose) behavior
+
+# Resharper disabled rules: https://www.jetbrains.com/help/resharper/Reference__Code_Inspections_CSHARP.html#CodeSmell
+resharper_not_resolved_in_text_highlighting = none # Disable Resharper's "Not resolved in text" highlighting
+resharper_check_namespace_highlighting = none # Disable Resharper's "Check namespace" highlighting
+resharper_object_creation_as_statement_highlighting = none # Disable Resharper's "Object creation as statement" highlighting
+
+###############################
+# Naming Conventions          #
+###############################
+
+# Styles
+
+dotnet_naming_style.pascal_case_style.capitalization = pascal_case
+
+dotnet_naming_style.camel_case_style.capitalization = camel_case
+
+dotnet_naming_style.static_underscored.capitalization = camel_case
+dotnet_naming_style.static_underscored.required_prefix = s_
+
+dotnet_naming_style.underscored.capitalization = camel_case
+dotnet_naming_style.underscored.required_prefix = _
+
+dotnet_naming_style.uppercase_with_underscore_separator.capitalization = all_upper
+dotnet_naming_style.uppercase_with_underscore_separator.word_separator = _
+
+dotnet_naming_style.end_in_async.required_prefix =
+dotnet_naming_style.end_in_async.required_suffix = Async
+dotnet_naming_style.end_in_async.capitalization = pascal_case
+dotnet_naming_style.end_in_async.word_separator =
+
+# Symbols
+
+dotnet_naming_symbols.constant_fields.applicable_kinds = field
+dotnet_naming_symbols.constant_fields.applicable_accessibilities  = *
+dotnet_naming_symbols.constant_fields.required_modifiers = const
+
+dotnet_naming_symbols.local_constant.applicable_kinds = local
+dotnet_naming_symbols.local_constant.applicable_accessibilities  = *
+dotnet_naming_symbols.local_constant.required_modifiers = const
+
+dotnet_naming_symbols.private_static_fields.applicable_kinds = field
+dotnet_naming_symbols.private_static_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_static_fields.required_modifiers = static
+
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+
+dotnet_naming_symbols.any_async_methods.applicable_kinds = method
+dotnet_naming_symbols.any_async_methods.applicable_accessibilities = *
+dotnet_naming_symbols.any_async_methods.required_modifiers = async
+
+# Rules
+
+dotnet_naming_rule.constant_fields_should_be_pascal_case.symbols = constant_fields
+dotnet_naming_rule.constant_fields_should_be_pascal_case.style = pascal_case_style
+dotnet_naming_rule.constant_fields_should_be_pascal_case.severity = error
+
+dotnet_naming_rule.local_constant_should_be_pascal_case.symbols = local_constant
+dotnet_naming_rule.local_constant_should_be_pascal_case.style = pascal_case_style
+dotnet_naming_rule.local_constant_should_be_pascal_case.severity = error
+
+dotnet_naming_rule.private_static_fields_underscored.symbols = private_static_fields
+dotnet_naming_rule.private_static_fields_underscored.style = static_underscored
+dotnet_naming_rule.private_static_fields_underscored.severity = error
+
+dotnet_naming_rule.private_fields_underscored.symbols = private_fields
+dotnet_naming_rule.private_fields_underscored.style = underscored
+dotnet_naming_rule.private_fields_underscored.severity = error
+
+dotnet_naming_rule.async_methods_end_in_async.symbols = any_async_methods
+dotnet_naming_rule.async_methods_end_in_async.style = end_in_async
+dotnet_naming_rule.async_methods_end_in_async.severity = error
+
+###############################
+# C# Coding Conventions       #
+###############################
+
+# var preferences
+csharp_style_var_for_built_in_types = false:none
+csharp_style_var_when_type_is_apparent = false:none
+csharp_style_var_elsewhere = false:none
+# Expression-bodied members
+csharp_style_expression_bodied_methods = false:silent
+csharp_style_expression_bodied_constructors = false:silent
+csharp_style_expression_bodied_operators = false:silent
+csharp_style_expression_bodied_properties = true:silent
+csharp_style_expression_bodied_indexers = true:silent
+csharp_style_expression_bodied_accessors = true:silent
+# Pattern matching preferences
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+# Null-checking preferences
+csharp_style_throw_expression = true:suggestion
+csharp_style_conditional_delegate_call = true:suggestion
+# Modifier preferences
+csharp_preferred_modifier_order = public,private,protected,internal,static,extern,new,virtual,abstract,sealed,override,readonly,unsafe,volatile,async:suggestion
+# Expression-level preferences
+csharp_prefer_braces = true:error
+csharp_style_deconstructed_variable_declaration = true:suggestion
+csharp_prefer_simple_default_expression = true:suggestion
+csharp_style_prefer_local_over_anonymous_function = true:error
+csharp_style_inlined_variable_declaration = true:suggestion
+
+###############################
+# C# Formatting Rules         #
+###############################
+
+# New line preferences
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = false # Does not work with resharper, forcing code to be on long lines instead of wrapping
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_new_line_between_query_expression_clauses = true
+# Indentation preferences
+csharp_indent_braces = false
+csharp_indent_case_contents = true
+csharp_indent_case_contents_when_block = false
+csharp_indent_switch_labels = true
+csharp_indent_labels = flush_left
+# Space preferences
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_parentheses = false
+csharp_space_before_colon_in_inheritance_clause = true
+csharp_space_after_colon_in_inheritance_clause = true
+csharp_space_around_binary_operators = before_and_after
+csharp_space_between_method_declaration_empty_parameter_list_parentheses = false
+csharp_space_between_method_call_name_and_opening_parenthesis = false
+csharp_space_between_method_call_empty_parameter_list_parentheses = false
+# Wrapping preferences
+csharp_preserve_single_line_statements = true
+csharp_preserve_single_line_blocks = true
+csharp_using_directive_placement = outside_namespace:warning
+csharp_prefer_simple_using_statement = true:suggestion
+csharp_style_prefer_method_group_conversion = true:silent
+csharp_style_prefer_top_level_statements = true:silent
+csharp_style_expression_bodied_lambdas = true:silent
+csharp_style_expression_bodied_local_functions = false:silent
+
+###############################
+# Resharper Rules             #
+###############################
+
+# Resharper disabled rules: https://www.jetbrains.com/help/resharper/Reference__Code_Inspections_CSHARP.html#CodeSmell
+resharper_redundant_linebreak_highlighting = none # Disable Resharper's "Redundant line break" highlighting
+resharper_missing_linebreak_highlighting = none # Disable Resharper's "Missing line break" highlighting
+resharper_bad_empty_braces_line_breaks_highlighting = none # Disable Resharper's "Bad empty braces line breaks" highlighting
+resharper_missing_indent_highlighting = none # Disable Resharper's "Missing indent" highlighting
+resharper_missing_blank_lines_highlighting = none # Disable Resharper's "Missing blank lines" highlighting
+resharper_wrong_indent_size_highlighting = none # Disable Resharper's "Wrong indent size" highlighting
+resharper_bad_indent_highlighting = none # Disable Resharper's "Bad indent" highlighting
+resharper_bad_expression_braces_line_breaks_highlighting = none # Disable Resharper's "Bad expression braces line breaks" highlighting
+resharper_multiple_spaces_highlighting = none # Disable Resharper's "Multiple spaces" highlighting
+resharper_bad_expression_braces_indent_highlighting = none # Disable Resharper's "Bad expression braces indent" highlighting
+resharper_bad_control_braces_indent_highlighting = none # Disable Resharper's "Bad control braces indent" highlighting
+resharper_bad_preprocessor_indent_highlighting = none # Disable Resharper's "Bad preprocessor indent" highlighting
+resharper_redundant_blank_lines_highlighting = none # Disable Resharper's "Redundant blank lines" highlighting
+resharper_multiple_statements_on_one_line_highlighting = none # Disable Resharper's "Multiple statements on one line" highlighting
+resharper_bad_braces_spaces_highlighting = none # Disable Resharper's "Bad braces spaces" highlighting
+resharper_outdent_is_off_prev_level_highlighting = none # Disable Resharper's "Outdent is off previous level" highlighting
+resharper_bad_symbol_spaces_highlighting = none # Disable Resharper's "Bad symbol spaces" highlighting
+resharper_bad_colon_spaces_highlighting = none # Disable Resharper's "Bad colon spaces" highlighting
+resharper_bad_semicolon_spaces_highlighting = none # Disable Resharper's "Bad semicolon spaces" highlighting
+resharper_bad_square_brackets_spaces_highlighting = none # Disable Resharper's "Bad square brackets spaces" highlighting
+resharper_bad_parens_spaces_highlighting = none # Disable Resharper's "Bad parens spaces" highlighting
+
+# Resharper enabled rules: https://www.jetbrains.com/help/resharper/Reference__Code_Inspections_CSHARP.html#CodeSmell
+resharper_comment_typo_highlighting = suggestion # Resharper's "Comment typo" highlighting
+resharper_redundant_using_directive_highlighting = warning # Resharper's "Redundant using directive" highlighting
+resharper_inconsistent_naming_highlighting = warning # Resharper's "Inconsistent naming" highlighting
+resharper_redundant_this_qualifier_highlighting = warning # Resharper's "Redundant 'this' qualifier" highlighting
+resharper_arrange_this_qualifier_highlighting = warning # Resharper's "Arrange 'this' qualifier" highlighting
+csharp_style_prefer_primary_constructors = true:suggestion
+csharp_prefer_system_threading_lock = true:suggestion
+csharp_style_prefer_simple_property_accessors = true:suggestion

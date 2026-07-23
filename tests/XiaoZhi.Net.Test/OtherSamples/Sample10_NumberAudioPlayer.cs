@@ -6,36 +6,36 @@ namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample10_NumberAudioPlayer
     {
-        // Êı×ÖÒôÆµÎÄ¼şÄ¿Â¼
+        // æ•°å­—éŸ³é¢‘æ–‡ä»¶ç›®å½•
         const string DIGIT_AUDIO_DIRECTORY = "./audioFile/digits/";
         
-        // Ö§³ÖµÄÒôÆµÎÄ¼şÀ©Õ¹Ãû
+        // æ”¯æŒçš„éŸ³é¢‘æ–‡ä»¶æ‰©å±•å
         private static readonly string[] SupportedAudioExtensions = { ".wav", ".mp3", ".aac", ".flac", ".ogg", ".m4a", ".wma" };
         
-        // Ô¤¼ÓÔØµÄÊı×ÖÒôÆµÎÄ¼şÁ÷
+        // é¢„åŠ è½½çš„æ•°å­—éŸ³é¢‘æ–‡ä»¶æµ
         private static readonly Dictionary<int, byte[]> _digitAudioCache = new();
         
-        // ´æ´¢¼ì²âµ½µÄÒôÆµ¸ñÊ½
+        // å­˜å‚¨æ£€æµ‹åˆ°çš„éŸ³é¢‘æ ¼å¼
         private static readonly Dictionary<int, string> _digitAudioFormats = new();
         
         public static async Task Run()
         {
-            // ³õÊ¼»¯Êı×ÖÒôÆµÎÄ¼ş»º´æ
+            // åˆå§‹åŒ–æ•°å­—éŸ³é¢‘æ–‡ä»¶ç¼“å­˜
             await InitializeDigitAudioCache();
             
-            // ²âÊÔ²¥·Åµ¥¸öÊı×Ö
+            // æµ‹è¯•æ’­æ”¾å•ä¸ªæ•°å­—
             await TestPlaySingleDigit(5);
             
-            // ²âÊÔ²¥·Å¶àÎ»Êı×Ö
+            // æµ‹è¯•æ’­æ”¾å¤šä½æ•°å­—
             await TestPlayMultipleDigits(123456);
             
-            // ²âÊÔ²¥·ÅÁíÒ»¸öÊı×Ö
+            // æµ‹è¯•æ’­æ”¾å¦ä¸€ä¸ªæ•°å­—
             await TestPlayMultipleDigits(897098);
         }
 
         /// <summary>
-        /// ³õÊ¼»¯Êı×ÖÒôÆµÎÄ¼ş»º´æ£¬½«0-9µÄÒôÆµÎÄ¼şÔ¤¼ÓÔØµ½ÄÚ´æ
-        /// Ö§³Ö¶àÖÖÒôÆµ¸ñÊ½£ºWAV, MP3, AAC, FLAC, OGG, M4A, WMA
+        /// åˆå§‹åŒ–æ•°å­—éŸ³é¢‘æ–‡ä»¶ç¼“å­˜ï¼Œå°†0-9çš„éŸ³é¢‘æ–‡ä»¶é¢„åŠ è½½åˆ°å†…å­˜
+        /// æ”¯æŒå¤šç§éŸ³é¢‘æ ¼å¼ï¼šWAV, MP3, AAC, FLAC, OGG, M4A, WMA
         /// </summary>
         private static async Task InitializeDigitAudioCache()
         {
@@ -47,7 +47,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 string? foundFilePath = null;
                 string foundFormat = "";
                 
-                // °´ÓÅÏÈ¼¶²éÕÒÒôÆµÎÄ¼ş£¨WAVÓÅÏÈ£¬È»ºóÊÇÆäËû¸ñÊ½£©
+                // æŒ‰ä¼˜å…ˆçº§æŸ¥æ‰¾éŸ³é¢‘æ–‡ä»¶ï¼ˆWAVä¼˜å…ˆï¼Œç„¶åæ˜¯å…¶ä»–æ ¼å¼ï¼‰
                 foreach (var extension in SupportedAudioExtensions)
                 {
                     string audioFilePath = Path.Combine(DIGIT_AUDIO_DIRECTORY, $"{digit}{extension}");
@@ -82,7 +82,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             
             Console.WriteLine($"Digit audio cache initialized with {_digitAudioCache.Count} files");
             
-            // ÏÔÊ¾¼ÓÔØµÄ¸ñÊ½Í³¼Æ
+            // æ˜¾ç¤ºåŠ è½½çš„æ ¼å¼ç»Ÿè®¡
             var formatStats = _digitAudioFormats.GroupBy(x => x.Value)
                                                .ToDictionary(g => g.Key, g => g.Count());
             
@@ -94,7 +94,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
         }
 
         /// <summary>
-        /// ²¥·Åµ¥¸öÊı×Ö
+        /// æ’­æ”¾å•ä¸ªæ•°å­—
         /// </summary>
         private static async Task TestPlaySingleDigit(int digit)
         {
@@ -114,26 +114,26 @@ namespace XiaoZhi.Net.Test.OtherSamples
         }
 
         /// <summary>
-        /// ²¥·Å¶àÎ»Êı×Ö£¨Ö§³Ö»ìºÏ¸ñÊ½£©
+        /// æ’­æ”¾å¤šä½æ•°å­—ï¼ˆæ”¯æŒæ··åˆæ ¼å¼ï¼‰
         /// </summary>
         private static async Task TestPlayMultipleDigits(int number)
         {
             Console.WriteLine($"\n=== Testing multiple digits: {number} ===");
             
-            // ½«Êı×Ö×ª»»ÎªÊı×ÖÁĞ±í
+            // å°†æ•°å­—è½¬æ¢ä¸ºæ•°å­—åˆ—è¡¨
             var digits = GetDigits(number);
             Console.WriteLine($"Digits: [{string.Join(", ", digits)}]");
             
-            // ÏÔÊ¾Ã¿¸öÊı×ÖµÄ¸ñÊ½
+            // æ˜¾ç¤ºæ¯ä¸ªæ•°å­—çš„æ ¼å¼
             var digitFormats = digits.Select(d => $"{d}({_digitAudioFormats.GetValueOrDefault(d, "?")})");
             Console.WriteLine($"Formats: [{string.Join(", ", digitFormats)}]");
             
-            // ¼ì²éÊÇ·ñËùÓĞÎÄ¼ş¶¼ÊÇWAV¸ñÊ½
+            // æ£€æŸ¥æ˜¯å¦æ‰€æœ‰æ–‡ä»¶éƒ½æ˜¯WAVæ ¼å¼
             bool allWav = digits.All(d => _digitAudioFormats.GetValueOrDefault(d, "") == "WAV");
             
             if (allWav)
             {
-                // Èç¹û¶¼ÊÇWAV¸ñÊ½£¬Ê¹ÓÃWAVºÏ²¢·½Ê½
+                // å¦‚æœéƒ½æ˜¯WAVæ ¼å¼ï¼Œä½¿ç”¨WAVåˆå¹¶æ–¹å¼
                 Console.WriteLine("All files are WAV format - using optimized WAV merging");
                 using var combinedStream = CreateCombinedWavStream(digits);
                 
@@ -147,14 +147,14 @@ namespace XiaoZhi.Net.Test.OtherSamples
             }
             else
             {
-                // »ìºÏ¸ñÊ½£¬ĞèÒªÖğ¸ö²¥·Å
+                // æ··åˆæ ¼å¼ï¼Œéœ€è¦é€ä¸ªæ’­æ”¾
                 Console.WriteLine("Mixed formats detected - playing sequentially");
                 await PlayDigitsSequentially(digits, $"number_{number}_mixed");
             }
         }
 
         /// <summary>
-        /// Öğ¸ö²¥·ÅÊı×Ö£¨ÓÃÓÚ»ìºÏ¸ñÊ½£©
+        /// é€ä¸ªæ’­æ”¾æ•°å­—ï¼ˆç”¨äºæ··åˆæ ¼å¼ï¼‰
         /// </summary>
         private static async Task PlayDigitsSequentially(List<int> digits, string description)
         {
@@ -172,10 +172,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     using var stream = new MemoryStream(_digitAudioCache[digit]);
                     await PlayAudioStream(stream, $"{description}_digit_{digit}");
                     
-                    // ÔÚÊı×ÖÖ®¼äÌí¼Ó¶ÌÔİ¼ä¸ô£¨¿ÉÑ¡£©
+                    // åœ¨æ•°å­—ä¹‹é—´æ·»åŠ çŸ­æš‚é—´éš”ï¼ˆå¯é€‰ï¼‰
                     if (i < digits.Count - 1)
                     {
-                        await Task.Delay(100); // 100ms¼ä¸ô
+                        await Task.Delay(100); // 100msé—´éš”
                     }
                 }
                 else
@@ -189,7 +189,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
         }
 
         /// <summary>
-        /// ½«Êı×Ö·Ö½âÎªÊı×ÖÁĞ±í
+        /// å°†æ•°å­—åˆ†è§£ä¸ºæ•°å­—åˆ—è¡¨
         /// </summary>
         private static List<int> GetDigits(int number)
         {
@@ -209,7 +209,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
         }
 
         /// <summary>
-        /// ´´½¨ºÏ²¢µÄWAVÒôÆµÁ÷£¨½öÊÊÓÃÓÚWAV¸ñÊ½£©
+        /// åˆ›å»ºåˆå¹¶çš„WAVéŸ³é¢‘æµï¼ˆä»…é€‚ç”¨äºWAVæ ¼å¼ï¼‰
         /// </summary>
         private static Stream? CreateCombinedWavStream(List<int> digits)
         {
@@ -219,7 +219,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             {
                 if (_digitAudioCache.ContainsKey(digit))
                 {
-                    // ÑéÖ¤ÊÇ·ñÎªWAV¸ñÊ½
+                    // éªŒè¯æ˜¯å¦ä¸ºWAVæ ¼å¼
                     if (_digitAudioFormats.GetValueOrDefault(digit, "") != "WAV")
                     {
                         Console.WriteLine($"Digit {digit} is not in WAV format, cannot use WAV merging");
@@ -241,7 +241,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
         }
 
         /// <summary>
-        /// Ê¹ÓÃStreamAudioPlayer²¥·ÅÒôÆµÁ÷£¨Ö§³ÖËùÓĞFFmpegÖ§³ÖµÄ¸ñÊ½£©
+        /// ä½¿ç”¨StreamAudioPlayeræ’­æ”¾éŸ³é¢‘æµï¼ˆæ”¯æŒæ‰€æœ‰FFmpegæ”¯æŒçš„æ ¼å¼ï¼‰
         /// </summary>
         private static async Task PlayAudioStream(Stream audioStream, string description)
         {
@@ -310,7 +310,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     Console.WriteLine($"[{description}] Starting playback...");
                     
                     var startTime = DateTime.Now;
-                    audioPlayer.Play(true); // ×èÈû²¥·ÅÖ±µ½Íê³É
+                    audioPlayer.Play(true); // é˜»å¡æ’­æ”¾ç›´åˆ°å®Œæˆ
                     var endTime = DateTime.Now;
                     
                     Console.WriteLine($"[{description}] Playback completed after {(endTime - startTime).TotalSeconds:F2} seconds");
@@ -324,7 +324,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
     }
 
     /// <summary>
-    /// ×¨ÃÅÓÃÓÚºÏ²¢WAVÎÄ¼şµÄÁ÷Àà£¬ÕıÈ·´¦ÀíWAVÎÄ¼şÍ·ºÍÊı¾İ²¿·Ö
+    /// ä¸“é—¨ç”¨äºåˆå¹¶WAVæ–‡ä»¶çš„æµç±»ï¼Œæ­£ç¡®å¤„ç†WAVæ–‡ä»¶å¤´å’Œæ•°æ®éƒ¨åˆ†
     /// </summary>
     public class CombinedWavStream : Stream
     {
@@ -345,58 +345,58 @@ namespace XiaoZhi.Net.Test.OtherSamples
             if (wavFiles.Count == 1)
                 return wavFiles[0];
 
-            // »ñÈ¡µÚÒ»¸öÎÄ¼ş×÷Îª»ù´¡
+            // è·å–ç¬¬ä¸€ä¸ªæ–‡ä»¶ä½œä¸ºåŸºç¡€
             var firstFile = wavFiles[0];
             
-            // ÑéÖ¤ÊÇ·ñÎªÓĞĞ§µÄWAVÎÄ¼ş
+            // éªŒè¯æ˜¯å¦ä¸ºæœ‰æ•ˆçš„WAVæ–‡ä»¶
             if (firstFile.Length < 44 || 
                 !firstFile.Take(4).SequenceEqual(new byte[] { 0x52, 0x49, 0x46, 0x46 })) // "RIFF"
             {
                 throw new ArgumentException("First file is not a valid WAV file");
             }
 
-            // ÌáÈ¡µÚÒ»¸öÎÄ¼şµÄÍ·²¿ĞÅÏ¢£¨Ç°44×Ö½Ú£©
+            // æå–ç¬¬ä¸€ä¸ªæ–‡ä»¶çš„å¤´éƒ¨ä¿¡æ¯ï¼ˆå‰44å­—èŠ‚ï¼‰
             var header = new byte[44];
             Array.Copy(firstFile, 0, header, 0, 44);
 
-            // ¼ÆËãËùÓĞÎÄ¼şµÄPCMÊı¾İ×Ü³¤¶È
+            // è®¡ç®—æ‰€æœ‰æ–‡ä»¶çš„PCMæ•°æ®æ€»é•¿åº¦
             long totalPcmDataLength = 0;
             var pcmDataChunks = new List<byte[]>();
 
             foreach (var wavFile in wavFiles)
             {
-                // ÑéÖ¤WAVÎÄ¼ş¸ñÊ½
+                // éªŒè¯WAVæ–‡ä»¶æ ¼å¼
                 if (wavFile.Length < 44 || 
                     !wavFile.Take(4).SequenceEqual(new byte[] { 0x52, 0x49, 0x46, 0x46 }))
                 {
                     throw new ArgumentException("One of the files is not a valid WAV file");
                 }
 
-                // ÌáÈ¡PCMÊı¾İ£¨Ìø¹ı44×Ö½ÚÍ·²¿£©
+                // æå–PCMæ•°æ®ï¼ˆè·³è¿‡44å­—èŠ‚å¤´éƒ¨ï¼‰
                 var pcmData = new byte[wavFile.Length - 44];
                 Array.Copy(wavFile, 44, pcmData, 0, pcmData.Length);
                 pcmDataChunks.Add(pcmData);
                 totalPcmDataLength += pcmData.Length;
             }
 
-            // ´´½¨ĞÂµÄWAVÎÄ¼ş
+            // åˆ›å»ºæ–°çš„WAVæ–‡ä»¶
             var totalFileSize = 44 + totalPcmDataLength;
             var result = new byte[totalFileSize];
 
-            // ¸´ÖÆÍ·²¿
+            // å¤åˆ¶å¤´éƒ¨
             Array.Copy(header, 0, result, 0, 44);
 
-            // ¸üĞÂÎÄ¼ş´óĞ¡ĞÅÏ¢£¨RIFF chunk size = ×ÜÎÄ¼ş´óĞ¡ - 8£©
+            // æ›´æ–°æ–‡ä»¶å¤§å°ä¿¡æ¯ï¼ˆRIFF chunk size = æ€»æ–‡ä»¶å¤§å° - 8ï¼‰
             var riffChunkSize = (uint)(totalFileSize - 8);
             var riffChunkSizeBytes = BitConverter.GetBytes(riffChunkSize);
             Array.Copy(riffChunkSizeBytes, 0, result, 4, 4);
 
-            // ¸üĞÂÊı¾İ¿é´óĞ¡ĞÅÏ¢£¨Î»ÖÃ40-43ÊÇdata chunk size£©
+            // æ›´æ–°æ•°æ®å—å¤§å°ä¿¡æ¯ï¼ˆä½ç½®40-43æ˜¯data chunk sizeï¼‰
             var dataChunkSize = (uint)totalPcmDataLength;
             var dataChunkSizeBytes = BitConverter.GetBytes(dataChunkSize);
             Array.Copy(dataChunkSizeBytes, 0, result, 40, 4);
 
-            // ºÏ²¢ËùÓĞPCMÊı¾İ
+            // åˆå¹¶æ‰€æœ‰PCMæ•°æ®
             long offset = 44;
             foreach (var pcmData in pcmDataChunks)
             {
@@ -472,12 +472,12 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
         public override void Flush()
         {
-            // ²»ĞèÒªÊµÏÖ£¬ÒòÎªÕâÊÇÖ»¶ÁÁ÷
+            // ä¸éœ€è¦å®ç°ï¼Œå› ä¸ºè¿™æ˜¯åªè¯»æµ
         }
     }
 
     /// <summary>
-    /// Ô­ÓĞµÄºÏ²¢ÒôÆµÁ÷Àà£¨±£ÁôÒÔ¹©²Î¿¼£¬µ«²»ÍÆ¼öÓÃÓÚWAVÎÄ¼ş£©
+    /// åŸæœ‰çš„åˆå¹¶éŸ³é¢‘æµç±»ï¼ˆä¿ç•™ä»¥ä¾›å‚è€ƒï¼Œä½†ä¸æ¨èç”¨äºWAVæ–‡ä»¶ï¼‰
     /// </summary>
     public class CombinedAudioStream : Stream
     {
@@ -524,18 +524,18 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 var currentAudioData = _audioDataList[_currentStreamIndex];
                 long positionInCurrentStream = _currentPosition - GetStreamStartPosition(_currentStreamIndex);
                 
-                // Èç¹ûµ±Ç°Á÷ÒÑ¾­¶ÁÍê£¬ÒÆ¶¯µ½ÏÂÒ»¸öÁ÷
+                // å¦‚æœå½“å‰æµå·²ç»è¯»å®Œï¼Œç§»åŠ¨åˆ°ä¸‹ä¸€ä¸ªæµ
                 if (positionInCurrentStream >= currentAudioData.Length)
                 {
                     _currentStreamIndex++;
                     continue;
                 }
 
-                // ¼ÆËãµ±Ç°Á÷ÖĞ¿É¶ÁÈ¡µÄ×Ö½ÚÊı
+                // è®¡ç®—å½“å‰æµä¸­å¯è¯»å–çš„å­—èŠ‚æ•°
                 int availableBytesInCurrentStream = (int)(currentAudioData.Length - positionInCurrentStream);
                 int bytesToRead = Math.Min(remainingBytes, availableBytesInCurrentStream);
 
-                // ´Óµ±Ç°Á÷ÖĞ¶ÁÈ¡Êı¾İ
+                // ä»å½“å‰æµä¸­è¯»å–æ•°æ®
                 Array.Copy(currentAudioData, positionInCurrentStream, buffer, offset + totalBytesRead, bytesToRead);
 
                 totalBytesRead += bytesToRead;
@@ -563,7 +563,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
             _currentPosition = newPosition;
             
-            // ¸üĞÂµ±Ç°Á÷Ë÷Òı
+            // æ›´æ–°å½“å‰æµç´¢å¼•
             _currentStreamIndex = 0;
             long accumulatedLength = 0;
             
@@ -602,7 +602,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
         public override void Flush()
         {
-            // ²»ĞèÒªÊµÏÖ£¬ÒòÎªÕâÊÇÖ»¶ÁÁ÷
+            // ä¸éœ€è¦å®ç°ï¼Œå› ä¸ºè¿™æ˜¯åªè¯»æµ
         }
     }
 }
