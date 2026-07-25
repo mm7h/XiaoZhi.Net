@@ -421,18 +421,21 @@ namespace XiaoZhi.Net.Server.Management
         #region VAD
         private static void RegisterVad(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            string modelName = ConvertToKebabCase(config.SelectedSettings["VAD"]);
-            switch (modelName)
+            foreach (var vadSettingItem in config.ConfiguredSettings["VAD"])
             {
-                case "silero":
-                    services.AddKeyedSingleton<IVad, Silero>(key);
-                    break;
-                case "silero-native":
-                    services.AddKeyedTransient<IVad, SileroNative>(modelName);
-                    services.AddKeyedTransient<IVad, SileroNative>(key);
-                    break;
-                default:
-                    throw new ModelBuildException("Invalid vad model.");
+                string modelName = ConvertToKebabCase(vadSettingItem.Key);
+                switch (modelName)
+                {
+                    case "silero":
+                        services.AddKeyedSingleton<IVad, Silero>(key);
+                        break;
+                    case "silero-native":
+                        services.AddKeyedTransient<IVad, SileroNative>(modelName);
+                        services.AddKeyedTransient<IVad, SileroNative>(key);
+                        break;
+                    default:
+                        throw new ModelBuildException("Invalid vad model.");
+                }
             }
         }
         #endregion
@@ -440,17 +443,20 @@ namespace XiaoZhi.Net.Server.Management
         #region ASR
         private static void RegisterAsr(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            string modelName = ConvertToKebabCase(config.SelectedSettings["ASR"]);
-            switch (modelName)
+            foreach (var asrSettingItem in config.ConfiguredSettings["ASR"])
             {
-                case "sense-voice":
-                    services.AddKeyedSingleton<IAsr, SenseVoice>(key);
-                    break;
-                case "paraformer":
-                    services.AddKeyedSingleton<IAsr, Paraformer>(key);
-                    break;
-                default:
-                    throw new ModelBuildException("Invalid asr model.");
+                string modelName = ConvertToKebabCase(asrSettingItem.Key);
+                switch (modelName)
+                {
+                    case "sense-voice":
+                        services.AddKeyedSingleton<IAsr, SenseVoice>(modelName);
+                        break;
+                    case "paraformer":
+                        services.AddKeyedSingleton<IAsr, Paraformer>(modelName);
+                        break;
+                    default:
+                        throw new ModelBuildException("Invalid asr model.");
+                }
             }
         }
         #endregion
@@ -494,19 +500,22 @@ namespace XiaoZhi.Net.Server.Management
         #region Memory
         private static void RegisterMemory(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            string modelName = ConvertToKebabCase(config.SelectedSettings["Memory"]);
-            switch (modelName)
+            foreach (var memorySettingItem in config.ConfiguredSettings["Memory"])
             {
-                case "flash-memory":
-                    services.AddKeyedTransient<IMemory, FlashMemory>(modelName);
-                    services.AddKeyedSingleton<IMemory, FlashMemory>(key);
-                    break;
-                case "database":
-                    services.AddKeyedTransient<IMemory, Database>(modelName);
-                    services.AddKeyedSingleton<IMemory, Database>(key);
-                    break;
-                default:
-                    throw new ModelBuildException("Invalid memory model.");
+                string modelName = ConvertToKebabCase(memorySettingItem.Key);
+                switch (modelName)
+                {
+                    case "flash-memory":
+                        services.AddKeyedTransient<IMemory, FlashMemory>(modelName);
+                        services.AddKeyedSingleton<IMemory, FlashMemory>(key);
+                        break;
+                    case "database":
+                        services.AddKeyedTransient<IMemory, Database>(modelName);
+                        services.AddKeyedSingleton<IMemory, Database>(key);
+                        break;
+                    default:
+                        throw new ModelBuildException("Invalid memory model.");
+                }
             }
         }
         #endregion
@@ -514,40 +523,45 @@ namespace XiaoZhi.Net.Server.Management
         #region TTS
         private static void RegisterTts(IServiceCollection services, XiaoZhiConfig config, string key)
         {
-            string modelName = ConvertToKebabCase(config.SelectedSettings["TTS"]);
-            switch (modelName)
+            foreach (var ttsSettingItem in config.ConfiguredSettings["TTS"])
             {
-                case "kokoro":
-                    services.AddKeyedSingleton<ITts, Kokoro>(key);
-                    break;
-                case "huoshan-bidirection":
-                    services.AddKeyedTransient<ITts, HuoshanBidirectionTTS>(modelName);
-                    services.AddKeyedTransient<ITts, HuoshanBidirectionTTS>(key);
-                    break;
-                case "huoshan-unidirectional":
-                    services.AddKeyedTransient<ITts, HuoshanUnidirectionalTTS>(modelName);
-                    services.AddKeyedTransient<ITts, HuoshanUnidirectionalTTS>(key);
-                    break;
-                case "huoshan-http":
-                    services.AddSingleton(_ => new FlurlClientCache()
-                    .Add(nameof(HuoshanHttpTTS), configure: builder =>
-                    {
-                        builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
-                    }));
-                    services.AddKeyedTransient<ITts, HuoshanHttpTTS>(modelName);
-                    services.AddKeyedTransient<ITts, HuoshanHttpTTS>(key);
-                    break;
-                case "huoshan-http-v3":
-                    services.AddSingleton(_ => new FlurlClientCache()
-                    .Add(nameof(HuoshanHttpV3TTS), configure: builder =>
-                    {
-                        builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
-                    }));
-                    services.AddKeyedTransient<ITts, HuoshanHttpV3TTS>(modelName);
-                    services.AddKeyedTransient<ITts, HuoshanHttpV3TTS>(key);
-                    break;
-                default:
-                    throw new ModelBuildException("Invalid tts model.");
+                string modelName = ConvertToKebabCase(config.SelectedSettings["TTS"]);
+                switch (modelName)
+                {
+                    case "kokoro":
+                        services.AddKeyedSingleton<ITts, Kokoro>(key);
+                        break;
+                    case "huoshan-bidirection":
+                        services.AddKeyedTransient<ITts, HuoshanBidirectionTTS>(modelName);
+                        services.AddKeyedTransient<ITts, HuoshanBidirectionTTS>(key);
+                        break;
+                    /*
+                    case "huoshan-unidirectional":
+                        services.AddKeyedTransient<ITts, HuoshanUnidirectionalTTS>(modelName);
+                        services.AddKeyedTransient<ITts, HuoshanUnidirectionalTTS>(key);
+                        break;
+                    */
+                    case "huoshan-http":
+                        services.AddSingleton(_ => new FlurlClientCache()
+                        .Add(nameof(HuoshanHttpTTS), configure: builder =>
+                        {
+                            builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
+                        }));
+                        services.AddKeyedTransient<ITts, HuoshanHttpTTS>(modelName);
+                        services.AddKeyedTransient<ITts, HuoshanHttpTTS>(key);
+                        break;
+                    case "huoshan-http-v3":
+                        services.AddSingleton(_ => new FlurlClientCache()
+                        .Add(nameof(HuoshanHttpV3TTS), configure: builder =>
+                        {
+                            builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
+                        }));
+                        services.AddKeyedTransient<ITts, HuoshanHttpV3TTS>(modelName);
+                        services.AddKeyedTransient<ITts, HuoshanHttpV3TTS>(key);
+                        break;
+                    default:
+                        throw new ModelBuildException("Invalid tts model.");
+                }
             }
         }
         #endregion
