@@ -1,4 +1,4 @@
-﻿namespace XiaoZhi.Net.Server.Server.Common.Constants
+﻿namespace XiaoZhi.Net.Server.Common.Constants
 {
     internal static class GlobalVariables
     {

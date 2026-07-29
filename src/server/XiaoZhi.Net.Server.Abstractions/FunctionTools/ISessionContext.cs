@@ -11,7 +11,5 @@ namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
         DateTimeOffset LastActiveTime { get; }
         EndPoint LocalEndPoint { get; }
         EndPoint RemoteEndPoint { get; }
-        ValueTask SendAsync(string textMessage, CancellationToken cancellationToken);
-        ValueTask SendAsync(ReadOnlySequence<byte> pcmData, CancellationToken cancellationToken);
     }
 }

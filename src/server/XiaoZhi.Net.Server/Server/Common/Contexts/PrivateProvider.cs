@@ -18,7 +18,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private CancellationTokenSource? _providerCts;
         private readonly Dictionary<string, FunctionToolRegistration> _functionToolRegistrations;
         private readonly List<PrivateFunctionTool> _privateFunctionTools;
-        private Session _session;
+        private readonly Session _session;
         /// <summary>MCP 客户端工具列表加载完成的异步信号，未启用 MCP 时为 null</summary>
         private TaskCompletionSource? _mcpClientReadyTcs;
 
@@ -193,6 +193,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._audioProcessor?.Dispose();
             this.FunctionTools.Clear();
             this._functionToolRegistrations.Clear();
+            this._privateFunctionTools.Clear();
         }
     }
 }

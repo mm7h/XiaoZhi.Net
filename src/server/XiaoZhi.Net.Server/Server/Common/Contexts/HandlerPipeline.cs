@@ -30,7 +30,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         {
             if (this._helloMessageHandler is not null)
             {
-                await this._helloMessageHandler.Handle(helloMessage);
+                await this._helloMessageHandler.HandleAsync(helloMessage);
             }
             else
             {
@@ -42,7 +42,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         {
             if (this._textHandler is not null)
             {
-                this._textHandler.Handle(data);
+                this._textHandler.HandleAsync(data);
             }
             else
             {
@@ -54,7 +54,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         {
             if (this._audioReceiveHandler is not null)
             {
-                await this._audioReceiveHandler.Handle(data);
+                await this._audioReceiveHandler.HandleAsync(data);
             }
             else
             {

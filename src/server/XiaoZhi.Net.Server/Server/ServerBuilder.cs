@@ -1,18 +1,16 @@
-﻿using Flurl.Http;
+﻿using System;
+using System.Globalization;
+using Flurl.Http;
 using Flurl.Http.Configuration;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System;
-using System.Collections.Generic;
-using System.Globalization;
 using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Abstractions.FunctionTools;
 using XiaoZhi.Net.Server.Abstractions.Store;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Management;
-using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 using XiaoZhi.Net.Server.Services;
 using XiaoZhi.Net.Server.Store;
 
@@ -20,7 +18,7 @@ namespace XiaoZhi.Net.Server
 {
     internal class ServerBuilder : IServerBuilder
     {
-        private static readonly Lazy<IServerBuilder> lazyInstance = new Lazy<IServerBuilder>(() => new ServerBuilder());
+        private static readonly Lazy<IServerBuilder> s_lazyInstance = new Lazy<IServerBuilder>(() => new ServerBuilder());
 
         private ServerBuilder()
         {
@@ -32,7 +30,7 @@ namespace XiaoZhi.Net.Server
             this.HostBuilder = hostBuilder;
         }
 
-        public static IServerBuilder CreateServerBuilder() => lazyInstance.Value;
+        public static IServerBuilder CreateServerBuilder() => s_lazyInstance.Value;
         public static IServerBuilder CreateServerBuilder(IHostBuilder hostBuilder) => new ServerBuilder(hostBuilder);
 
         public IHostBuilder HostBuilder { get; private set; }

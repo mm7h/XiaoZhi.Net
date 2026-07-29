@@ -37,7 +37,7 @@ namespace XiaoZhi.Net.Server.Handlers
             return true;
         }
 
-        public async void Handle(string data)
+        public async void HandleAsync(string data)
         {
             JsonNode? jsonObject = JsonNode.Parse(data);
 
@@ -63,13 +63,13 @@ namespace XiaoZhi.Net.Server.Handlers
 #if DEBUG
                         this.Logger.LogDebug(Lang.TextHandler_Handle_ReceivedText, jsonObject?.ToJsonString());
 #endif
-                        await this.HandleAbortMessage();
+                        await this.HandleAbortMessageAsync();
                         break;
                     case "listen":
 #if DEBUG
                         this.Logger.LogDebug(Lang.TextHandler_Handle_ReceivedText, jsonObject?.ToJsonString());
 #endif
-                        this.HandleListen(jsonObj);
+                        this.HandleListenAsync(jsonObj);
                         break;
                     case "iot":
                         this.HandleIotDescriptors(jsonObj);
@@ -77,7 +77,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     case "mcp":
                         await Task.Run(() =>
                         {
-                            this.HandleMcp(jsonObj);
+                            this.HandleMcpAsync(jsonObj);
                         }).ConfigureAwait(false);
 
                         break;
@@ -85,7 +85,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        private async Task HandleAbortMessage()
+        private async Task HandleAbortMessageAsync()
         {
             Session session = this.SendOutter.GetSession();
             this.Logger.LogInformation(Lang.TextHandler_HandleAbortMessage_Received);
@@ -94,7 +94,7 @@ namespace XiaoZhi.Net.Server.Handlers
             this.Logger.LogInformation(Lang.TextHandler_HandleAbortMessage_Cancelled);
         }
 
-        private async void HandleListen(JsonObject jsonObject)
+        private async void HandleListenAsync(JsonObject jsonObject)
         {
             Session session = this.SendOutter.GetSession();
             string? mode = jsonObject["mode"]?.GetValue<string>()?.ToLower();
@@ -145,7 +145,7 @@ namespace XiaoZhi.Net.Server.Handlers
             session.PrivateProvider.IoTClient.HandleIoTMessage(jsonObject);
         }
 
-        private async void HandleMcp(JsonObject jsonObject)
+        private async void HandleMcpAsync(JsonObject jsonObject)
         {
             if (jsonObject.TryGetPropertyValue("payload", out var payload) && payload is not null && payload is JsonObject payloadObj)
             {

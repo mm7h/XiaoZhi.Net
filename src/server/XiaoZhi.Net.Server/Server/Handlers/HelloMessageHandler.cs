@@ -32,7 +32,7 @@ namespace XiaoZhi.Net.Server.Handlers
             return true;
         }
 
-        public async Task Handle(JsonObject helloMessage)
+        public async Task HandleAsync(JsonObject helloMessage)
         {
             Session session = this.SendOutter.GetSession();
 

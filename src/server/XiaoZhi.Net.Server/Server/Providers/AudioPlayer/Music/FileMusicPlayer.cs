@@ -16,7 +16,6 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
     {
         private readonly SemaphoreSlim _audioPlayerSlim = new SemaphoreSlim(1, 1);
         private readonly IUrlAudioPlayer _urlAudioPlayer;
-        private readonly IMusicFileProvider _musicsResource;
 
         private Channel<string>? _processingChannel;
         private CancellationTokenSource? _processingCts;
@@ -42,10 +41,9 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
         public event Action<float[], bool, bool>? OnAudioData;
 
-        public FileMusicPlayer(IUrlAudioPlayer urlAudioPlayer, IMusicFileProvider musicsResource, ILogger<FileMusicPlayer> logger) : base(logger)
+        public FileMusicPlayer(IUrlAudioPlayer urlAudioPlayer, ILogger<FileMusicPlayer> logger) : base(logger)
         {
             this._urlAudioPlayer = urlAudioPlayer;
-            this._musicsResource = musicsResource;
             this._urlAudioPlayer.OnAudioDataAvailable += this.FireAudioData;
         }
 
@@ -133,7 +131,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
         {
             if (this.PlaybackState == PlaybackState.Idle)
             {
-                this.Logger.LogInformation(Lang.FileMusicPlayer_ResumeAsync_Skip, PlaybackState);
+                this.Logger.LogInformation(Lang.FileMusicPlayer_ResumeAsync_Skip, this.PlaybackState);
                 return;
             }
             try
@@ -195,7 +193,10 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
         private async Task AudioFileProcessingAsync(CancellationToken cancellationToken)
         {
-            if (this._processingChannel is null) return;
+            if (this._processingChannel is null)
+            {
+                return;
+            }
             try
             {
                 await foreach (string file in this._processingChannel.Reader.ReadAllAsync(cancellationToken))

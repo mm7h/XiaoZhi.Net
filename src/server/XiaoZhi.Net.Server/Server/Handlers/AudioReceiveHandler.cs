@@ -57,7 +57,7 @@ namespace XiaoZhi.Net.Server.Handlers
             return true;
         }
 
-        public async Task Handle(byte[] opusData)
+        public async Task HandleAsync(byte[] opusData)
         {
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
@@ -115,7 +115,7 @@ namespace XiaoZhi.Net.Server.Handlers
             session.RejectIncomingAudio();
             session.AudioPacket.ResetAudioBuffer();
             session.AudioPacket.VoiceStop = true;
-            this.HandleVoiceDetected(session, audioData);
+            this.HandleVoiceDetectedAsync(session, audioData);
         }
 
         public void OnVoiceSilence()
@@ -158,7 +158,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        private async void HandleVoiceDetected(Session session, float[] audioData)
+        private async void HandleVoiceDetectedAsync(Session session, float[] audioData)
         {
             if (this.HandlerToken.IsCancellationRequested)
             {
@@ -195,7 +195,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
-            this.HandleVoiceDetected(session, session.AudioPacket.GetAllAudio());
+            this.HandleVoiceDetectedAsync(session, session.AudioPacket.GetAllAudio());
         }
 
         public override void Dispose()

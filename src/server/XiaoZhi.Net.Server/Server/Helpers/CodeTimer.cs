@@ -11,7 +11,7 @@ namespace XiaoZhi.Net.Server.Helpers
         private readonly string _template;
         private readonly ILogger _logger;
 
-        public long ElapsedMilliseconds => _stopwatch.ElapsedMilliseconds;
+        public long ElapsedMilliseconds => this._stopwatch.ElapsedMilliseconds;
 
         private CodeTimer(string template, ILogger logger)
         {
@@ -28,9 +28,13 @@ namespace XiaoZhi.Net.Server.Helpers
         public void Dispose()
         {
             if (!string.IsNullOrWhiteSpace(this._template))
+            {
                 this._logger.LogDebug(this._template, this.ElapsedMilliseconds);
+            }
             else
+            {
                 this._logger.LogDebug(Lang.CodeTimer_Dispose_JobFinished, this.ElapsedMilliseconds);
+            }
             this._stopwatch.Stop();
         }
     }

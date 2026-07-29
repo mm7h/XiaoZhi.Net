@@ -1,4 +1,4 @@
-using Microsoft.Extensions.AI;
+﻿using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -19,7 +19,7 @@ using XiaoZhi.Net.Server.Common.Models;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 using XiaoZhi.Net.Server.Resources;
-using XiaoZhi.Net.Server.Server.Common.Constants;
+using XiaoZhi.Net.Server.Common.Constants;
 
 namespace XiaoZhi.Net.Server.Management
 {
@@ -132,6 +132,7 @@ namespace XiaoZhi.Net.Server.Management
             }
 
             Dictionary<Type, IPrivateFunctionTool> privateFunctionTools = this.ServiceProvider.GetServices<IPrivateFunctionTool>().ToDictionary(i => i.GetType());
+            List<Exception> functionExceptions = [];
 
             foreach (var item in privateFunctionTools)
             {
@@ -155,8 +156,21 @@ namespace XiaoZhi.Net.Server.Management
                     instance.SessionContext = new SessionContextAdapter(session);
                     instance.MediaTool = new MediaToolAdapter(session, this._musicFileProvider);
 
-                    _ = instance.OnFunctionToolInitializedAsync().AsTask();
+                    try
+                    {
+                        _ = instance.OnFunctionToolInitializedAsync().AsTask();
+                    }
+                    catch (Exception ex)
+                    {
+                        functionExceptions.Add(ex);
+                    }
                 }
+            }
+
+            if (functionExceptions.Any())
+            {
+                AggregateException aggregateException = new AggregateException(functionExceptions);
+                this.Logger.LogError(aggregateException, "FunctionToolManager.OnSessionConnectedAsync 处理函数工具时发生异常");
             }
 
             return Task.CompletedTask;
@@ -167,17 +181,30 @@ namespace XiaoZhi.Net.Server.Management
         public override Task OnSessionClosedAsync(Session session)
         {
             if (!session.PrivateProvider.PrivateFunctionTools.Any())
-                return Task.CompletedTask;
-
-            Parallel.ForEach(session.PrivateProvider.PrivateFunctionTools, instance =>
             {
-                _ = instance.OnSessionClosedAsync().AsTask();
-                _ = instance.OnFunctionToolReleasedAsync().AsTask();
-                if (instance is IDisposable disposable)
+                return Task.CompletedTask;
+            }
+
+            try
+            {
+                Parallel.ForEach(session.PrivateProvider.PrivateFunctionTools, instance =>
                 {
-                    disposable.Dispose();
-                }
-            });
+                    _ = instance.OnSessionClosedAsync().AsTask();
+                    _ = instance.OnFunctionToolReleasedAsync().AsTask();
+                    if (instance is IDisposable disposable)
+                    {
+                        disposable.Dispose();
+                    }
+                });
+            }
+            catch (AggregateException ae)
+            {
+                this.Logger.LogError(ae, "FunctionToolManager.OnSessionClosedAsync 处理函数工具时发生异常");
+            }
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, "FunctionToolManager.OnSessionClosedAsync 处理函数工具时发生异常");
+            }
 
             return Task.CompletedTask;
         }

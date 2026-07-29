@@ -56,7 +56,9 @@ namespace XiaoZhi.Net.Server.Helpers
         public static float[] Pcm16BytesToFloat(this byte[] pcmBytes)
         {
             if (pcmBytes == null || pcmBytes.Length == 0)
+            {
                 return Array.Empty<float>();
+            }
 
             int sampleCount = pcmBytes.Length / 2;
             float[] floats = new float[sampleCount];
@@ -72,7 +74,9 @@ namespace XiaoZhi.Net.Server.Helpers
         public static float[] PcmBytesToFloat(this byte[] pcmBytes, int bitDepth)
         {
             if (pcmBytes == null || pcmBytes.Length == 0)
+            {
                 return Array.Empty<float>();
+            }
 
             return bitDepth switch
             {
@@ -92,7 +96,9 @@ namespace XiaoZhi.Net.Server.Helpers
                     int value = bytes[index] | (bytes[index + 1] << 8) | (bytes[index + 2] << 16);
                     // 24-bit有符号：如果最高位(第23位)为1，需要符号扩展
                     if ((value & 0x800000) != 0)
+                    {
                         value |= unchecked((int)0xFF000000);
+                    }
                     floats[i] = value / 8388608f; // 2^23
                 }
                 return floats;
@@ -114,9 +120,13 @@ namespace XiaoZhi.Net.Server.Helpers
         public static byte[] Float2PcmBytes(this float[] audioData, int bitDepth = 16, int channels = 1)
         {
             if (audioData == null || audioData.Length == 0)
+            {
                 throw new ArgumentException(nameof(audioData));
+            }
             if (bitDepth is not (16 or 24 or 32))
+            {
                 throw new ArgumentException(Lang.AudioPacketHelper_Float2PcmBytes_UnsupportedFormat);
+            }
 
             int sampleCount = audioData.Length / channels;
             int bytesPerSample = bitDepth / 8;

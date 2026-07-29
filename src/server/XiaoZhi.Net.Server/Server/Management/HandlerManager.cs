@@ -76,7 +76,7 @@ namespace XiaoZhi.Net.Server.Management
             };
 
             textHandler.OnManualStop += audioReceiveHandler.HandleManualStop;
-            audioReceiveHandler.OnNoVoiceCloseConnect += dialogueHandler.NoVoiceCloseConnect;
+            audioReceiveHandler.OnNoVoiceCloseConnect += dialogueHandler.NoVoiceCloseConnectAsync;
 
             this.InitializeSendOutter(session, audioReceiveHandler);
             this.InitializeSendOutter(session, audio2TextHandler);
@@ -133,7 +133,7 @@ namespace XiaoZhi.Net.Server.Management
             previous.NextWriter = channel.Writer;
             next.PreviousReader = channel.Reader;
 
-            Task.Run(next.Handle);
+            Task.Run(next.HandleAsync);
             this.Logger?.LogDebug(Lang.HandlerManager_BuildHandlersWorkflow_BuiltWorkflow, previous.GetType().Name, next.GetType().Name);
         }
 
@@ -148,17 +148,17 @@ namespace XiaoZhi.Net.Server.Management
             Channel<Workflow<T1>> channel = Channel.CreateBounded<Workflow<T1>>(boundedChannelOptions);
             previous.NextWriter = channel.Writer;
             next.PreviousReader = channel.Reader;
-            Task.Run(next.Handle);
+            Task.Run(next.HandleAsync);
 
             Channel<Workflow<T2>> channel2 = Channel.CreateBounded<Workflow<T2>>(boundedChannelOptions);
             previous.NextWriter2 = channel2.Writer;
             next.PreviousReader2 = channel2.Reader;
-            Task.Run(next.Handle2);
+            Task.Run(next.Handle2Async);
 
             Channel<Workflow<T3>> channel3 = Channel.CreateBounded<Workflow<T3>>(boundedChannelOptions);
             previous.NextWriter3 = channel3.Writer;
             next.PreviousReader3 = channel3.Reader;
-            Task.Run(next.Handle3);
+            Task.Run(next.Handle3Async);
 
             this.Logger?.LogDebug(Lang.HandlerManager_BuildHandlersWorkflow_BuiltWorkflow, previous.GetType().Name, next.GetType().Name);
         }
@@ -174,12 +174,12 @@ namespace XiaoZhi.Net.Server.Management
             Channel<Workflow<T>> channel1 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous1.NextWriter = channel1.Writer;
             next.PreviousReader = channel1.Reader;
-            Task.Run(next.Handle);
+            Task.Run(next.HandleAsync);
 
             Channel<Workflow<T>> channel2 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous2.NextWriter = channel2.Writer;
             next.PreviousReader2 = channel2.Reader;
-            Task.Run(next.Handle2);
+            Task.Run(next.Handle2Async);
 
             this.Logger?.LogDebug(Lang.HandlerManager_BuildHandlersWorkflow_BuiltWorkflow, previous1.GetType().Name, next.GetType().Name);
             this.Logger?.LogDebug(Lang.HandlerManager_BuildHandlersWorkflow_BuiltWorkflow, previous2.GetType().Name, next.GetType().Name);

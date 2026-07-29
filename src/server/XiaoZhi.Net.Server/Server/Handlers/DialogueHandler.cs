@@ -48,7 +48,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             this._llm = privateProvider.Llm;
             this._llm.OnBeforeTokenGenerate += this.OnBeforeTokenGenerate;
-            this._llm.OnTokenGenerating += this.OnTokenGenerating;
+            this._llm.OnTokenGenerating += this.OnTokenGeneratingAsync;
             this._llm.OnTokenGenerated += this.OnTokenGenerated;
             this._llm.RegisterDevice(session.DeviceId, session.SessionId);
             this.RegisterCancellationToken();
@@ -56,13 +56,13 @@ namespace XiaoZhi.Net.Server.Handlers
             return true;
         }
 
-        public async Task Handle()
+        public async Task HandleAsync()
         {
             await foreach (var workflow in this.PreviousReader.ReadAllAsync())
             {
                 try
                 {
-                    await this.Handle(workflow);
+                    await this.HandleAsync(workflow);
                 }
                 finally
                 {
@@ -71,13 +71,13 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        public async Task Handle2()
+        public async Task Handle2Async()
         {
             await foreach (var workflow in this.PreviousReader2.ReadAllAsync())
             {
                 try
                 {
-                    await this.Handle(workflow);
+                    await this.HandleAsync(workflow);
                 }
                 finally
                 {
@@ -86,7 +86,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        public async Task Handle(Workflow<string> workflow)
+        public async Task HandleAsync(Workflow<string> workflow)
         {
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
@@ -148,9 +148,9 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        public async void NoVoiceCloseConnect(Workflow<string> workflow)
+        public async void NoVoiceCloseConnectAsync(Workflow<string> workflow)
         {
-            await this.Handle(workflow);
+            await this.HandleAsync(workflow);
         }
 
         private void OnBeforeTokenGenerate()
@@ -159,7 +159,7 @@ namespace XiaoZhi.Net.Server.Handlers
             this.SendOutter.SendSttMessageAsync(Lang.DialogueHandler_OnBeforeTokenGenerate_Thinking);
         }
 
-        private async void OnTokenGenerating(OutSegment outSegment)
+        private async void OnTokenGeneratingAsync(OutSegment outSegment)
         {
             if (this.HandlerToken.IsCancellationRequested)
             {
@@ -229,7 +229,7 @@ namespace XiaoZhi.Net.Server.Handlers
             if (this._llm is not null)
             {
                 this._llm.OnBeforeTokenGenerate -= this.OnBeforeTokenGenerate;
-                this._llm.OnTokenGenerating -= this.OnTokenGenerating;
+                this._llm.OnTokenGenerating -= this.OnTokenGeneratingAsync;
                 this._llm.OnTokenGenerated -= this.OnTokenGenerated;
                 Session session = this.SendOutter.GetSession();
                 if (session is not null)

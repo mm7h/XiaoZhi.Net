@@ -77,13 +77,13 @@ namespace XiaoZhi.Net.Server.Handlers
         public ChannelWriter<Workflow<OutAudioSegment>> NextWriter2 { get; set; } = null!;
         public ChannelWriter<Workflow<OutAudioSegment>> NextWriter3 { get; set; } = null!;
 
-        public async Task Handle()
+        public async Task HandleAsync()
         {
             await foreach (var workflow in this.PreviousReader.ReadAllAsync())
             {
                 try
                 {
-                    await this.Handle(workflow);
+                    await this.HandleAsync(workflow);
                 }
                 finally
                 {
@@ -93,7 +93,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        public async Task Handle(Workflow<OutSegment> workflow)
+        public async Task HandleAsync(Workflow<OutSegment> workflow)
         {
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
@@ -115,7 +115,7 @@ namespace XiaoZhi.Net.Server.Handlers
             if (!session.IsDeviceBinded)
             {
                 session.PrivateProvider.AudioProcessor?.ClearAllBuffers();
-                await this.CheckBindDevice(session);
+                await this.CheckBindDeviceAsync(session);
                 return;
             }
 
@@ -139,7 +139,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        private async Task CheckBindDevice(Session session)
+        private async Task CheckBindDeviceAsync(Session session)
         {
             if (this._audioPlayerClient is null)
             {

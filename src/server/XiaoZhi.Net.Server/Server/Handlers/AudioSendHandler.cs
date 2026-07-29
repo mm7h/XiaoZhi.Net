@@ -54,13 +54,13 @@ namespace XiaoZhi.Net.Server.Handlers
             return true;
         }
 
-        public async Task Handle()
+        public async Task HandleAsync()
         {
             await foreach (var workflow in this.PreviousReader.ReadAllAsync())
             {
                 try
                 {
-                    await this.Handle(workflow);
+                    await this.HandleAsync(workflow);
                 }
                 finally
                 {
@@ -70,7 +70,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        public async Task Handle(Workflow<MixedAudioPacket> workflow)
+        public async Task HandleAsync(Workflow<MixedAudioPacket> workflow)
         {
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
