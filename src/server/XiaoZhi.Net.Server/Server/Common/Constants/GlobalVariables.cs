@@ -3,5 +3,6 @@
     internal static class GlobalVariables
     {
         public const string ServerName = "Xiao Zhi .Net Server";
+        public const int MaxFunctionCallDepth = 5;
     }
 }

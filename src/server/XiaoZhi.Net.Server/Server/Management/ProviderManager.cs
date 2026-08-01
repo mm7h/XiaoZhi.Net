@@ -1,15 +1,15 @@
-﻿using Flurl.Http.Configuration;
-using Microsoft.Extensions.AI;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using OpenAI;
-using System;
+﻿using System;
 using System.ClientModel;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using Flurl.Http.Configuration;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using OpenAI;
 using XiaoZhi.Net.Server.Abstractions.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
@@ -29,6 +29,7 @@ using XiaoZhi.Net.Server.Providers.IoT;
 using XiaoZhi.Net.Server.Providers.LLM;
 using XiaoZhi.Net.Server.Providers.LLM.Agents;
 using XiaoZhi.Net.Server.Providers.LLM.Agents.Intent;
+using XiaoZhi.Net.Server.Providers.LLM.Utils;
 using XiaoZhi.Net.Server.Providers.MCP;
 using XiaoZhi.Net.Server.Providers.MCP.DeviceMcp;
 using XiaoZhi.Net.Server.Providers.MCP.McpEndpoint;
@@ -154,14 +155,15 @@ namespace XiaoZhi.Net.Server.Management
                 return;
             }
 
-            if (session.PrivateProvider.Llm.GetChatHistory().Any())
+            IReadOnlyList<ChatMessage> chatHistory = session.PrivateProvider.Llm.GetChatHistory();
+            if (chatHistory.Any())
             {
                 ManageApiClient? manageApiClient = this.ServiceProvider.GetService<ManageApiClient>();
                 if (manageApiClient is not null)
                 {
                     try
                     {
-                        await manageApiClient.SaveMemoryAsync(session.DeviceId, session.SessionId, session.PrivateProvider.Llm.GetChatHistory());
+                        await manageApiClient.SaveMemoryAsync(session.DeviceId, session.SessionId, chatHistory);
                         this.Logger.LogInformation(Lang.ProviderManager_SaveMemory_MemorySaved, session.DeviceId, session.SessionId);
                     }
                     catch (Exception ex)
@@ -517,6 +519,7 @@ namespace XiaoZhi.Net.Server.Management
             services.AddKeyedTransient<IAgent, ChatAgent>(SubAgentNames.ChatAgent);
             services.AddKeyedTransient<IAgent, OutputAgent>(SubAgentNames.OutputAgent);
             services.AddTransient<ILlm, GenericOpenAI>();
+            services.AddTransient<ChatHistorySequence>();
         }
         #endregion
 
