@@ -27,9 +27,9 @@ namespace XiaoZhi.Net.Server.Providers.MCP
         private bool _isReady = false;
         private int _nextId = 1;
 
-        private IDictionary<string, AIFunction> _mcpTools = new ConcurrentDictionary<string, AIFunction>();
-    private IDictionary<string, FunctionToolRegistration> _mcpToolRegistrations = new ConcurrentDictionary<string, FunctionToolRegistration>();
-        private IDictionary<int, TaskCompletionSource<JsonObject>> _callResults = new ConcurrentDictionary<int, TaskCompletionSource<JsonObject>>();
+        private readonly IDictionary<string, AIFunction> _mcpTools = new ConcurrentDictionary<string, AIFunction>();
+        private readonly IDictionary<string, FunctionToolRegistration> _mcpToolRegistrations = new ConcurrentDictionary<string, FunctionToolRegistration>();
+        private readonly IDictionary<int, TaskCompletionSource<JsonObject>> _callResults = new ConcurrentDictionary<int, TaskCompletionSource<JsonObject>>();
 
         public BaseMcpClient(ILogger<TLogger> logger) : base(logger)
         {
@@ -114,7 +114,9 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                         foreach (JsonNode? item in toolsJson)
                         {
                             if (item is not JsonObject itemObj)
+                            {
                                 continue;
+                            }
 
                             string toolName = item["name"]?.GetValue<string>() ?? "";
                             string toolDescription = item["description"]?.GetValue<string>() ?? "";
@@ -196,11 +198,6 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             McpClientOptions mcpClientOptions = new McpClientOptions
             {
                 ProtocolVersion = "2024-11-05",
-                Capabilities = new ClientCapabilities
-                {
-                    Roots = new RootsCapability { ListChanged = true },
-                    Sampling = new SamplingCapability { }
-                },
                 ClientInfo = new Implementation
                 {
                     Name = this.ModelName,

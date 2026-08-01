@@ -21,13 +21,16 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.SemanticKernel" Version="1.77.0" />
+    <PackageReference Include="Microsoft.Agents.AI" Version="1.16.0" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.8.3" />
     <PackageReference Include="MP3Sharp" Version="1.0.5" />
     <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="OpenAI" Version="2.12.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\server\XiaoZhi.Net.Server\XiaoZhi.Net.Server.csproj" />
-    <ProjectReference Include="..\..\src\server\XiaoZhi.Net.Server.Media\XiaoZhi.Net.Server.Media.csproj" />
+    <ProjectReference Include="..\..\src\server\media\XiaoZhi.Net.Server.Media\XiaoZhi.Net.Server.Media.csproj" />
   </ItemGroup>
 
 </Project>

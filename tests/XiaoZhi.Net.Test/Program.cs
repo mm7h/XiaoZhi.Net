@@ -6,23 +6,24 @@ namespace XiaoZhi.Net.Test
 {
     internal class Program
     {
-        static async Task Main(string[] args)
+        private static async Task Main(string[] args)
         {
             //await Sample09_MP3Player.Run();
             //await Sample10_NumberAudioPlayer.Run();
             //await Sample11_AudioMixer.Run();
             //await Sample12_AudioMixerWithTTS.Run();
             //await Sample13_AudioSubtitleSyncTracker.Run();
-            await Sample14_HuoshanBidirection.Run();
+            //await Sample14_HuoshanBidirection.Run();
             //await Sample15_BatchAsr.Run();
             //await Sample17_HuoshanUnidirectional.Run();
             //await Sample18_HuoshanHttp.Run();
             //await Sample19_SaveAudioFile.Run();
+            await Sample20_RAG.RunAsync();
             //ModelsInit();
         }
 
 
-        static void ModelsInit()
+        private static void ModelsInit()
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
             OfflineRecognizerConfig offlineRecognizerConfig = new OfflineRecognizerConfig();
