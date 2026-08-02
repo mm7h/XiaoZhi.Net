@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 
 namespace XiaoZhi.Net.Server.Resources
 {

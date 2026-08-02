@@ -10,6 +10,7 @@ using XiaoZhi.Net.Server.Protocol.WebSocket;
 using XiaoZhi.Net.Server.Protocol.WebSocket.Contexts;
 using XiaoZhi.Net.Server.Protocol.WebSocket.Handlers;
 using XiaoZhi.Net.Server.Common.Constants;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 
 namespace XiaoZhi.Net.Server.Management
 {

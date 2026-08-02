@@ -1,8 +1,10 @@
-﻿namespace XiaoZhi.Net.Server.Resources
+﻿using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
+
+namespace XiaoZhi.Net.Server.Resources
 {
     internal interface IOnnxModel : IResource<ModelSetting>
     {
-        public string ModelType { get; }
-        public string ModelName { get; }
+        string ModelType { get; }
+        string ModelName { get; }
     }
 }

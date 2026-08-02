@@ -7,6 +7,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
@@ -25,7 +26,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         private readonly Dictionary<string, List<float>> _sessionAudioBuffers = new();
         private readonly List<PendingWait> _waits = new();
         private readonly object _waitsLock = new();
-        private static readonly TimeSpan DefaultWaitTimeout = TimeSpan.FromSeconds(15);
+        private static readonly TimeSpan s_defaultWaitTimeout = TimeSpan.FromSeconds(15);
 
         public HuoshanStreamTTS(IAudioEditor audioEditor, ILogger<TLogger> logger) : base(audioEditor, logger)
         {
@@ -93,7 +94,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         {
             var message = Message.Create(MsgType.FullClientRequest, MsgTypeFlagBits.NoSeq);
             message.Payload = JsonHelper.SerializeToUtf8Bytes(ttsReq);
-            await this.SendMessage(message);
+            await this.SendMessageAsync(message);
         }
 
         protected async Task TaskRequestAsync(string sessionId, byte[] payload)
@@ -102,10 +103,10 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             message.EventType = EventType.TaskRequest;
             message.SessionId = sessionId;
             message.Payload = payload;
-            await this.SendMessage(message);
+            await this.SendMessageAsync(message);
         }
 
-        protected async Task SendMessage(Message message)
+        protected async Task SendMessageAsync(Message message)
         {
             if (this.WebSocketClient is null)
             {
@@ -162,7 +163,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             message.Payload = JsonHelper.SerializeToUtf8Bytes(new { });
 
             var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.ConnectionStarted, cancellationToken, null);
-            await this.SendMessage(message);
+            await this.SendMessageAsync(message);
             return await waitTask.ConfigureAwait(false);
         }
 
@@ -176,7 +177,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             message.Payload = payload;
 
             var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.SessionStarted, cancellationToken, null);
-            await this.SendMessage(message);
+            await this.SendMessageAsync(message);
             return await waitTask.ConfigureAwait(false);
         }
 
@@ -188,7 +189,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             message.Payload = JsonHelper.SerializeToUtf8Bytes(new { });
 
             var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.SessionFinished, cancellationToken, null);
-            await this.SendMessage(message);
+            await this.SendMessageAsync(message);
             try
             {
                 return await waitTask.ConfigureAwait(false);
@@ -207,7 +208,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             message.Payload = JsonHelper.SerializeToUtf8Bytes(new { });
 
             var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.ConnectionFinished, cancellationToken, null);
-            await this.SendMessage(message);
+            await this.SendMessageAsync(message);
             return await waitTask.ConfigureAwait(false);
         }
 
@@ -253,7 +254,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             message.Payload = JsonHelper.SerializeToUtf8Bytes(new { });
 
             var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.SessionCanceled, cancellationToken, null);
-            await this.SendMessage(message);
+            await this.SendMessageAsync(message);
             return await waitTask.ConfigureAwait(false);
         }
 
@@ -290,14 +291,14 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 });
             }
 
-            var effectiveTimeout = timeout ?? DefaultWaitTimeout;
+            var effectiveTimeout = timeout ?? s_defaultWaitTimeout;
             timeoutCts = new CancellationTokenSource();
             _ = Task.Delay(effectiveTimeout, timeoutCts.Token).ContinueWith(_ =>
             {
                 bool removed;
                 lock (this._waitsLock)
                 {
-                    removed = _waits.Remove(pw);
+                    removed = this._waits.Remove(pw);
                 }
                 if (removed)
                 {
@@ -442,7 +443,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             bool matched = false;
             lock (this._waitsLock)
             {
-                for (int i = 0; i < _waits.Count; i++)
+                for (int i = 0; i < this._waits.Count; i++)
                 {
                     var pw = this._waits[i];
                     if (pw.Match(message))

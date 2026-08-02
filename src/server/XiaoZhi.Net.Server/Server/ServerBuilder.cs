@@ -4,6 +4,7 @@ using Flurl.Http;
 using Flurl.Http.Configuration;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Abstractions.FunctionTools;
@@ -13,6 +14,7 @@ using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Management;
 using XiaoZhi.Net.Server.Services;
 using XiaoZhi.Net.Server.Store;
+using XiaoZhi.Net.Server.RAG.Abstractions;
 
 namespace XiaoZhi.Net.Server
 {
@@ -53,7 +55,7 @@ namespace XiaoZhi.Net.Server
                 services.AddSingleton(connectionStore);
             })
             .RegisterLogger(config)
-            .RegisterResources()
+            .RegisterResources(config)
             .RegisterProviders(config)
             .RegisterHandlers()
             .RegisterObjectPools()
@@ -110,6 +112,24 @@ namespace XiaoZhi.Net.Server
                     builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
                 }));
                 services.AddSingleton<ManageApiClient>();
+            });
+            return this;
+        }
+
+        public IServerBuilder WithRagVectorStore<TVectorStore>() where TVectorStore : class, IVectorStore
+        {
+            this.HostBuilder.ConfigureServices((context, services) =>
+            {
+                services.Replace(ServiceDescriptor.Singleton<IVectorStore, TVectorStore>());
+            });
+            return this;
+        }
+
+        public IServerBuilder WithRagVectorStore(IVectorStore vectorStore)
+        {
+            this.HostBuilder.ConfigureServices((context, services) =>
+            {
+                services.Replace(ServiceDescriptor.Singleton<IVectorStore>(vectorStore));
             });
             return this;
         }

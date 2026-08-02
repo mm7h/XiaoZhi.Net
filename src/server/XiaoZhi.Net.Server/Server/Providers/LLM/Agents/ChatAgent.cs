@@ -1,9 +1,4 @@
-﻿using Microsoft.Agents.AI;
-using Microsoft.Agents.AI.Workflows;
-using Microsoft.Extensions.AI;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -11,6 +6,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Agents.AI;
+using Microsoft.Agents.AI.Workflows;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -19,6 +19,7 @@ using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 using XiaoZhi.Net.Server.Providers.LLM.Utils;
+using XiaoZhi.Net.Server.Resources;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
@@ -43,18 +44,23 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 [Thinking] 这个问题我先替你理一下，结论其实不复杂。
 """;
 
+        private readonly object _chatHistoryLock = new object();
+        private readonly List<AgentChatHistoryItem> _chatHistory = [];
+        private readonly IRag _rag;
+
         private ChatClientAgent? _chatClientAgent;
 
         private AgentSession? _agentSession;
         private PrivateProvider? _sessionPrivateProvider;
         private bool _allowFunctionCall;
-        private readonly object _chatHistoryLock = new object();
-        private readonly List<AgentChatHistoryItem> _chatHistory = [];
         private ChatHistorySequence? _chatHistorySequence;
 
-        public ChatAgent(IServiceProvider serviceProvider, ILogger<ChatAgent> logger) : base(SubAgentNames.ChatAgent, serviceProvider, logger)
+        public ChatAgent(
+            IRag rag,
+            IServiceProvider serviceProvider,
+            ILogger<ChatAgent> logger) : base(SubAgentNames.ChatAgent, serviceProvider, logger)
         {
-
+            this._rag = rag;
         }
 
         public override int Order => 10;
@@ -107,6 +113,16 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                     UseProvidedChatClientAsIs = true,
                     RequirePerServiceCallChatHistoryPersistence = true
                 };
+
+                if (this._rag.IsReady)
+                {
+                    TextSearchProvider? textSearchProvider = this._rag.Create();
+                    if (textSearchProvider is not null)
+                    {
+                        chatClientAgentOptions.AIContextProviders = [textSearchProvider];
+                    }
+                }
+                
 
                 this._chatClientAgent = new ChatClientAgent(
                     chatClient: configuredChatClient,

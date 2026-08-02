@@ -2,6 +2,7 @@
 using System.Globalization;
 using XiaoZhi.Net.Server.Abstractions.FunctionTools;
 using XiaoZhi.Net.Server.Abstractions.Store;
+using XiaoZhi.Net.Server.RAG.Abstractions;
 
 namespace XiaoZhi.Net.Server.Abstractions
 {
@@ -50,6 +51,15 @@ namespace XiaoZhi.Net.Server.Abstractions
         /// <param name="secret">密钥</param>
         /// <returns></returns>
         IServerBuilder WithManageApi(string manageApiUrl, string secret);
+        /// <summary>
+        /// 为 RAG 配置注册自定义向量存储
+        /// </summary>
+        IServerBuilder WithRagVectorStore<TVectorStore>() where TVectorStore : class, IVectorStore;
+
+        /// <summary>
+        /// 为 RAG 配置注册自定义向量存储
+        /// </summary>
+        IServerBuilder WithRagVectorStore(IVectorStore vectorStore);
         /// <summary>
         /// 设置默认语言信息
         /// 这会涉及到日志输出、错误信息等的本地化

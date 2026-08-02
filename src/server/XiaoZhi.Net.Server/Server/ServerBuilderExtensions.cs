@@ -14,9 +14,9 @@ namespace XiaoZhi.Net.Server
             return LoggerManager.RegisterServices(builder, config);
         }
 
-        public static IHostBuilder RegisterResources(this IHostBuilder builder)
+        public static IHostBuilder RegisterResources(this IHostBuilder builder, XiaoZhiConfig config)
         {
-            return ResourceManager.RegisterServices(builder);
+            return ResourceManager.RegisterServices(builder, config);
         }
 
         public static IHostBuilder RegisterProviders(this IHostBuilder builder, XiaoZhiConfig config)

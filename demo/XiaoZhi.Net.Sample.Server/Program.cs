@@ -1,10 +1,11 @@
-﻿using XiaoZhi.Net.Sample.Server.FunctionTools;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Hosting;
+using XiaoZhi.Net.Sample.Server.FunctionTools;
 using XiaoZhi.Net.Server;
 using XiaoZhi.Net.Server.Abstractions;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
+using XiaoZhi.Net.Server.RAG.Abstractions;
 
 Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", "Development");
 
@@ -39,10 +40,15 @@ try
             //.WithManageApi("http://localhost:5118", "your-secret")
             // 设置日志输出语言
             .WithCulture("zh-CN")
+            //使用 RAG
+            //.WithRagVectorStore(KnowledgeBaseBuilder.VectorStore)
             // 构建服务引擎
             .Build();
 
-        await serverHost.RunAsync();
+        await serverHost
+            // 构建示例知识库 
+            //.BuildKnowledgeBase(config, Path.Combine(Environment.CurrentDirectory, "document"))
+            .RunAsync();
     }
     else
     {
@@ -73,8 +79,14 @@ public class LenientStringConverter : JsonConverter<string>
             using var doc = JsonDocument.ParseValue(ref reader);
             return doc.RootElement.ToString();
         }
-        if (reader.TokenType is JsonTokenType.True) return "true";
-        if (reader.TokenType is JsonTokenType.False) return "false";
+        if (reader.TokenType is JsonTokenType.True)
+        {
+            return "true";
+        }
+        if (reader.TokenType is JsonTokenType.False)
+        {
+            return "false";
+        }
         if (reader.TokenType is JsonTokenType.StartObject || reader.TokenType is JsonTokenType.StartArray)
         {
             using var doc = JsonDocument.ParseValue(ref reader);

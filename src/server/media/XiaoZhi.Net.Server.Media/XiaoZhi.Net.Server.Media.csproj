@@ -7,14 +7,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	<Version>0.0.1</Version>
 	<Authors>mm7h</Authors>
-	<Title>XiaoZhi.Net.FFmpeg</Title>
+	<Title>XiaoZhi.Net.Server.Media</Title>
 	<RepositoryUrl>https://github.com/mm7h/XiaoZhi.Net</RepositoryUrl>
     <PackageProjectUrl>https://github.com/mm7h/XiaoZhi.Net</PackageProjectUrl>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="FFmpeg.AutoGen" Version="7.1.1" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
   </ItemGroup>
 
   <ItemGroup>

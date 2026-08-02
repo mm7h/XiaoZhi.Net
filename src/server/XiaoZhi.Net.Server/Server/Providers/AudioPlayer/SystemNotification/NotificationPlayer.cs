@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Media.Abstractions.Common.Enums;
@@ -91,7 +92,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification
         {
             if (this.PlaybackState == PlaybackState.Idle)
             {
-                this.Logger.LogInformation(Lang.NotificationPlayer_StopAsync_Skip, PlaybackState);
+                this.Logger.LogInformation(Lang.NotificationPlayer_StopAsync_Skip, this.PlaybackState);
                 return Task.CompletedTask;
             }
             // 记录停止前的状态：暂停时播放器已自动发出 isLast=true；

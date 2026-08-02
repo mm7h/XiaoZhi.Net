@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 
 namespace XiaoZhi.Net.Server.Providers.AudioPlayer
 {

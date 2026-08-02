@@ -7,6 +7,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
@@ -145,12 +146,16 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                     token.ThrowIfCancellationRequested();
                     string? line = await reader.ReadLineAsync().ConfigureAwait(false);
                     if (string.IsNullOrWhiteSpace(line))
+                    {
                         continue;
+                    }
 
                     TTSHttpResponseChunk? message = JsonHelper.Deserialize<TTSHttpResponseChunk>(line);
 
                     if (message is null || !message.Code.HasValue)
+                    {
                         continue;
+                    }
 
                     if (message.Code == 0)
                     {

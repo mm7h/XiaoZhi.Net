@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Text.RegularExpressions;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Resources.OnnxModels
@@ -30,7 +31,9 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels
         private string ConvertToKebabCase(string input)
         {
             if (string.IsNullOrWhiteSpace(input))
+            {
                 return input;
+            }
 
             return Regex.Replace(input, "(?<!^)([A-Z])", "-$1").ToLower();
         }

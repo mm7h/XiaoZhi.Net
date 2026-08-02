@@ -1,4 +1,6 @@
-﻿namespace XiaoZhi.Net.Server.Common.Models
+﻿using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
+
+namespace XiaoZhi.Net.Server.Common.Models
 {
     internal class HelloMessage
     {

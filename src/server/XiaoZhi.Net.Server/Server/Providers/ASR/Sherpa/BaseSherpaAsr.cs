@@ -15,6 +15,7 @@ using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.ASR.Contexts;
 using XiaoZhi.Net.Server.Media.Abstractions;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 
 namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 {
@@ -69,7 +70,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                 Directory.CreateDirectory(this.AudioSavingConfig.SavePath);
             }
             this._offlineRecognizer = new OfflineRecognizer(offlineRecognizerConfig);
-            this._backgroudProcessingTask = Task.Run(this.Processing);
+            this._backgroudProcessingTask = Task.Run(this.ProcessingAsync);
         }
 
         public void RegisterDevice(string deviceId, string sessionId, IAsrEventCallback callback)
@@ -159,7 +160,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
             return $"{devicePart}_{sessionPart}_{workflow.TurnId}";
         }
 
-        private async Task Processing()
+        private async Task ProcessingAsync()
         {
             if (this._offlineRecognizer == null)
             {

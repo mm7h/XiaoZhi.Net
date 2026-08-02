@@ -27,6 +27,7 @@
     "ASR": "SenseVoice",
     "Intent": "IntentLlm",
     "LLM": "Chatglm",
+    "RAG": "QwenEmbedding",
     "TTS": "HuoshanBidirection",
     "Memory": "FlashMemory"
   },
@@ -84,23 +85,39 @@
       "Chatglm": {
         "BaseUrl": "https://open.bigmodel.cn/api/paas/v4/",
         "ApiKey": "to your llm api key",
-        "ModelName": "glm-4.7-flash"
+        "ModelName": "glm-4.7-flash",
+        "Type": "chat"
       },
       // Deepseek对json序列化的结果无法支持
       "Deepseek": {
         "BaseUrl": "https://api.deepseek.com",
         "ApiKey": "to your llm api key",
-        "ModelName": "deepseek-v4-flash"
+        "ModelName": "deepseek-v4-flash",
+        "Type": "chat"
       },
       "Doubao": {
         "BaseUrl": "https://ark.cn-beijing.volces.com/api/v3",
         "ApiKey": "to your llm api key",
-        "ModelName": "doubao-1-5-pro-32k-250115"
+        "ModelName": "doubao-1-5-pro-32k-250115",
+        "Type": "chat"
       },
       "Qwen": {
         "BaseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "ApiKey": "to your llm api key",
-        "ModelName": "qwen-flash"
+        "ModelName": "qwen-flash",
+        "Type": "chat"
+      },
+      "ChatglmEmbedding": {
+        "BaseUrl": "https://open.bigmodel.cn/api/paas/v4/embeddings",
+        "ApiKey": "to your llm api key",
+        "ModelName": "embedding-3",
+        "Type": "rag"
+      },
+      "QwenEmbedding": {
+        "BaseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "ApiKey": "to your llm api key",
+        "ModelName": "qwen3.7-text-embedding",
+        "Type": "rag"
       }
     },
     "TTS": {

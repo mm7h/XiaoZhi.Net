@@ -1,4 +1,5 @@
-﻿using XiaoZhi.Net.Server.Providers.AudioPlayer;
+﻿using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
+using XiaoZhi.Net.Server.Providers.AudioPlayer;
 
 namespace XiaoZhi.Net.Server.Providers
 {

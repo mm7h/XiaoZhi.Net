@@ -11,6 +11,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenAI;
 using XiaoZhi.Net.Server.Abstractions.Common.Dtos;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -134,19 +135,6 @@ namespace XiaoZhi.Net.Server.Management
             }
         }
 
-        private ModelSetting GetSelectedSetting(string selectedModelType, XiaoZhiConfig config)
-        {
-            string selectedModel = config.SelectedSettings[selectedModelType];
-            Dictionary<string, string> setting = config.ConfiguredSettings[selectedModelType][selectedModel];
-
-            ModelSetting modelSetting = new ModelSetting
-            {
-                ModelName = selectedModel,
-                Config = new Dictionary<string, string>(setting)
-            };
-
-            return modelSetting;
-        }
         public override async Task OnSessionClosedAsync(Session session)
         {
             if (session.PrivateProvider.Llm is null)
@@ -491,6 +479,16 @@ namespace XiaoZhi.Net.Server.Management
         {
             foreach (var llmSettingItem in config.ConfiguredSettings["LLM"])
             {
+                string? type = llmSettingItem.Value.GetConfigValueOrDefault("Type");
+                if (string.IsNullOrWhiteSpace(type))
+                {
+                    continue;
+                }
+                if (!type.Equals(GlobalVariables.ChatAgentType, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 string? endPoint = llmSettingItem.Value.GetConfigValueOrDefault("BaseUrl");
                 string? apiKey = llmSettingItem.Value.GetConfigValueOrDefault("ApiKey");
                 string? modelId = llmSettingItem.Value.GetConfigValueOrDefault("ModelName");

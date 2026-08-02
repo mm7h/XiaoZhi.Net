@@ -6,9 +6,9 @@ namespace XiaoZhi.Net.Server.Providers
 {
     internal interface IAudioResampler : IProvider<ResamplerBuildConfig>
     {
-        public int Channels { get; }
-        public int InSampleRate { get; }
-        public int OutSampleRate { get; }
+        int Channels { get; }
+        int InSampleRate { get; }
+        int OutSampleRate { get; }
         Task<(float[], int)> ResampleAsync(float[] inputData, CancellationToken token);
     }
 }

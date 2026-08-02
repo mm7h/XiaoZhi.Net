@@ -1,5 +1,7 @@
 ﻿namespace XiaoZhi.Net.Server.Abstractions.Common.Dtos
 {
+    using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
+
     public class PrivateModelsConfig
     {
         public PrivateModelsConfig()

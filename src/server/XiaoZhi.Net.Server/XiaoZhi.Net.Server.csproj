@@ -47,7 +47,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\rag\XiaoZhi.Net.Server.RAG.Abstractions\XiaoZhi.Net.Server.RAG.Abstractions.csproj" />
-      <ProjectReference Include="..\rag\XiaoZhi.Net.Server.RAG\XiaoZhi.Net.Server.RAG.csproj" />
       <ProjectReference Include="..\XiaoZhi.Net.Server.Abstractions\XiaoZhi.Net.Server.Abstractions.csproj" />
       <ProjectReference Include="..\XiaoZhi.Net.Server.I18n\XiaoZhi.Net.Server.I18n.csproj" />
       <ProjectReference Include="..\media\XiaoZhi.Net.Server.Media.Abstractions\XiaoZhi.Net.Server.Media.Abstractions.csproj" />

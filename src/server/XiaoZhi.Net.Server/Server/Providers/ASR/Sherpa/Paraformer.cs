@@ -2,6 +2,7 @@
 using SherpaOnnx;
 using System;
 using System.IO;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media.Abstractions;
 
@@ -24,7 +25,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                     return false;
                 }
                 OfflineRecognizerConfig offlineRecognizerConfig = new OfflineRecognizerConfig();
-                offlineRecognizerConfig.ModelConfig.Paraformer.Model = Path.Combine(ModelFileFoler, "model.onnx");
+                offlineRecognizerConfig.ModelConfig.Paraformer.Model = Path.Combine(this.ModelFileFoler, "model.onnx");
 
                 this.Build(offlineRecognizerConfig, modelSetting);
 

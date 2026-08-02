@@ -6,6 +6,7 @@ using XiaoZhi.Net.Server.Abstractions.Store;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Common.Models;
 using XiaoZhi.Net.Server.Store;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 
 namespace XiaoZhi.Net.Server.Providers.Memory
 {

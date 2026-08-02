@@ -9,6 +9,7 @@ using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Protocol.WebSocket;
 using XiaoZhi.Net.Server.Common.Configs;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 
 namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
 {
@@ -41,8 +42,8 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
 
                 Dictionary<string, string>? headers = modelSetting.Config.GetConfigValueOrDefault<Dictionary<string, string>>("Headers");
                 this._webSocketClient = new WebSocketClient(headers);
-                this._webSocketClient.OnOpen += this.WebSocketClientEngine_OnOpen;
-                this._webSocketClient.OnTextMessage += this.WebSocketClient_OnMessage;
+                this._webSocketClient.OnOpen += this.WebSocketClientEngine_OnOpenAsync;
+                this._webSocketClient.OnTextMessage += this.WebSocketClient_OnMessageAsync;
 
                 this._webSocketClient.ConnectAsync(this._endpointUrl).ConfigureAwait(false);
                 return true;
@@ -79,7 +80,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
             }
             this._webSocketClient.CloseAsync().ConfigureAwait(false);
         }
-        private async void WebSocketClientEngine_OnOpen()
+        private async void WebSocketClientEngine_OnOpenAsync()
         {
             await this.SendMcpInitializeAsync();
             await this.SendMcpNotificationAsync(NotificationMethods.InitializedNotification);
@@ -88,12 +89,12 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
             this.Logger.LogInformation(Lang.McpEndpointClient_OnOpen_Connected);
         }
 
-        private async void WebSocketClient_OnMessage(string data)
+        private async void WebSocketClient_OnMessageAsync(string data)
         {
-            await this.HandleMcpEndpointMessage(data);
+            await this.HandleMcpEndpointMessageAsync(data);
         }
 
-        private async Task HandleMcpEndpointMessage(string data)
+        private async Task HandleMcpEndpointMessageAsync(string data)
         {
             try
             {

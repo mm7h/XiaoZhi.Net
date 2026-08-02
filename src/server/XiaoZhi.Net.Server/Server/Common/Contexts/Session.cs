@@ -2,6 +2,7 @@
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Protocol;
 
@@ -52,9 +53,9 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public DateTime LoginTime { get; }
         public DateTime LastActivityTime { get; private set; }
         public bool CloseAfterChat { get; set; }
-        public long TurnId => Interlocked.Read(ref _turnId);
+        public long TurnId => Interlocked.Read(ref this._turnId);
 
-        public bool IsAudioProcessing => Interlocked.Read(ref _isAudioProcessing) == 1;
+        public bool IsAudioProcessing => Interlocked.Read(ref this._isAudioProcessing) == 1;
 
         public bool ShouldIgnore() => this._isReseting;
 
@@ -105,7 +106,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         }
         public void Abort()
         {
-            lock (_lock)
+            lock (this._lock)
             {
                 if (this._isReseting)
                 {
@@ -119,7 +120,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             }
             catch (ObjectDisposedException)
             {
-                lock (_lock)
+                lock (this._lock)
                 {
                     this.Reset();
                     this._isReseting = false;
@@ -156,7 +157,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             {
                 await Task.Yield();
                 
-                lock (_lock)
+                lock (this._lock)
                 {
                     this.Reset();
                     this._isReseting = false;

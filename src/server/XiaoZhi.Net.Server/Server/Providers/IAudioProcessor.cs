@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Media.Abstractions.Dtos;
 
 namespace XiaoZhi.Net.Server.Providers

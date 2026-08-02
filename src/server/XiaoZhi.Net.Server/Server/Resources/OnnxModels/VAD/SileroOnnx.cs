@@ -1,10 +1,11 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.VAD.Native;
 using XiaoZhi.Net.Server.Resources.OnnxModels.VAD.Models;
@@ -105,13 +106,13 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels.VAD
             }
 
             int stateSize = sampleRate == 16000 ? 64 : 128;
-            const int batchSize = 1;
+            const int BatchSize = 1;
 
             // Prepare input tensors
-            var inputTensor = new DenseTensor<float>(audioSamples, new int[] { batchSize, audioSamples.Length });
+            var inputTensor = new DenseTensor<float>(audioSamples, new int[] { BatchSize, audioSamples.Length });
             var srTensor = new DenseTensor<long>(new long[] { sampleRate }, new int[] { 1 });
-            var hTensor = new DenseTensor<float>(modelState.HiddenState, new int[] { 2, batchSize, stateSize });
-            var cTensor = new DenseTensor<float>(modelState.CellState, new int[] { 2, batchSize, stateSize });
+            var hTensor = new DenseTensor<float>(modelState.HiddenState, new int[] { 2, BatchSize, stateSize });
+            var cTensor = new DenseTensor<float>(modelState.CellState, new int[] { 2, BatchSize, stateSize });
 
             var inputs = new List<NamedOnnxValue>
             {
@@ -123,7 +124,7 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels.VAD
 
             // Run inference (session.Run is thread-safe for reading, but we lock to be extra safe)
             IDisposableReadOnlyCollection<DisposableNamedOnnxValue> outputs;
-            lock (_sessionLock)
+            lock (this._sessionLock)
             {
                 outputs = this._session.Run(inputs);
             }
@@ -136,14 +137,14 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels.VAD
 
                 // Extract and update hidden state
                 var hnTensor = outputs.First(o => o.Name == "hn").AsTensor<float>();
-                float[] newHiddenState = new float[2 * batchSize * stateSize];
+                float[] newHiddenState = new float[2 * BatchSize * stateSize];
                 for (int i = 0; i < 2; i++)
                 {
-                    for (int j = 0; j < batchSize; j++)
+                    for (int j = 0; j < BatchSize; j++)
                     {
                         for (int k = 0; k < stateSize; k++)
                         {
-                            newHiddenState[i * batchSize * stateSize + j * stateSize + k] = hnTensor[i, j, k];
+                            newHiddenState[i * BatchSize * stateSize + j * stateSize + k] = hnTensor[i, j, k];
                         }
                     }
                 }
@@ -151,14 +152,14 @@ namespace XiaoZhi.Net.Server.Resources.OnnxModels.VAD
 
                 // Extract and update cell state
                 var cnTensor = outputs.First(o => o.Name == "cn").AsTensor<float>();
-                float[] newCellState = new float[2 * batchSize * stateSize];
+                float[] newCellState = new float[2 * BatchSize * stateSize];
                 for (int i = 0; i < 2; i++)
                 {
-                    for (int j = 0; j < batchSize; j++)
+                    for (int j = 0; j < BatchSize; j++)
                     {
                         for (int k = 0; k < stateSize; k++)
                         {
-                            newCellState[i * batchSize * stateSize + j * stateSize + k] = cnTensor[i, j, k];
+                            newCellState[i * BatchSize * stateSize + j * stateSize + k] = cnTensor[i, j, k];
                         }
                     }
                 }

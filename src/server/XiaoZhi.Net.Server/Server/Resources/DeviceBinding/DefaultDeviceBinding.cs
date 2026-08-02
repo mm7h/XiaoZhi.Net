@@ -1,16 +1,17 @@
-﻿using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Resources.DeviceBinding
 {
     internal class DefaultDeviceBinding : BaseResource<DefaultDeviceBinding, DeviceBindSetting>, IDeviceBinding
     {
-        private const string BIND_CODE_PROMPT = "BindCodePrompt";
-        private const string BIND_NOT_FOUND = "BindNotFound";
+        private const string BindCodePrompt = "BindCodePrompt";
+        private const string BindNotFound = "BindNotFound";
 
         private readonly IDictionary<string, byte[]> _audioFilesCache;
         private bool _isAllWavFormat = true;
@@ -30,7 +31,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
                 if (File.Exists(bindCodePromptFilePath))
                 {
                     byte[] fileData = File.ReadAllBytes(bindCodePromptFilePath);
-                    this._audioFilesCache[BIND_CODE_PROMPT] = fileData;
+                    this._audioFilesCache[BindCodePrompt] = fileData;
                 }
                 else
                 {
@@ -42,7 +43,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
                 if (File.Exists(bindNotFoundFilePath))
                 {
                     byte[] fileData = File.ReadAllBytes(bindNotFoundFilePath);
-                    this._audioFilesCache[BIND_NOT_FOUND] = fileData;
+                    this._audioFilesCache[BindNotFound] = fileData;
                 }
                 else
                 {
@@ -84,7 +85,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
 
         public Stream? GetDeviceNotFoundAudioStream()
         {
-            if (this._audioFilesCache.TryGetValue(BIND_NOT_FOUND, out byte[]? audioData))
+            if (this._audioFilesCache.TryGetValue(BindNotFound, out byte[]? audioData))
             {
                 return new CombinedAudioStream([audioData]);
             }
@@ -103,7 +104,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
                 return null;
             }
             List<byte[]> audioDataList = new();
-            if (this._audioFilesCache.TryGetValue(BIND_CODE_PROMPT, out byte[]? promptData))
+            if (this._audioFilesCache.TryGetValue(BindCodePrompt, out byte[]? promptData))
             {
                 audioDataList.Add(promptData);
             }
@@ -151,16 +152,20 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
         public CombinedWavStream(List<byte[]> wavFiles)
         {
             if (wavFiles == null || wavFiles.Count == 0)
+            {
                 throw new ArgumentException(Lang.DefaultDeviceBinding_CombinedStream_ListEmpty);
+            }
 
-            _combinedWavData = CombineWavFiles(wavFiles);
-            _position = 0;
+            this._combinedWavData = this.CombineWavFiles(wavFiles);
+            this._position = 0;
         }
 
         private byte[] CombineWavFiles(List<byte[]> wavFiles)
         {
             if (wavFiles.Count == 1)
+            {
                 return wavFiles[0];
+            }
 
             // 获取第一个文件作为基础
             var firstFile = wavFiles[0];
@@ -227,31 +232,41 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
         public override bool CanRead => true;
         public override bool CanSeek => true;
         public override bool CanWrite => false;
-        public override long Length => _combinedWavData.Length;
+        public override long Length => this._combinedWavData.Length;
 
         public override long Position
         {
-            get => _position;
-            set => Seek(value, SeekOrigin.Begin);
+            get => this._position;
+            set => this.Seek(value, SeekOrigin.Begin);
         }
 
         public override int Read(byte[] buffer, int offset, int count)
         {
             if (buffer == null)
+            {
                 throw new ArgumentNullException(nameof(buffer));
+            }
             if (offset < 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(offset));
+            }
             if (count < 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(count));
+            }
             if (offset + count > buffer.Length)
+            {
                 throw new ArgumentException(Lang.DefaultDeviceBinding_CombinedStream_BufferOverflow);
+            }
 
-            if (_position >= _combinedWavData.Length)
+            if (this._position >= this._combinedWavData.Length)
+            {
                 return 0;
+            }
 
-            var bytesToRead = (int)Math.Min(count, _combinedWavData.Length - _position);
-            Array.Copy(_combinedWavData, _position, buffer, offset, bytesToRead);
-            _position += bytesToRead;
+            var bytesToRead = (int)Math.Min(count, this._combinedWavData.Length - this._position);
+            Array.Copy(this._combinedWavData, this._position, buffer, offset, bytesToRead);
+            this._position += bytesToRead;
 
             return bytesToRead;
         }
@@ -261,18 +276,22 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
             long newPosition = origin switch
             {
                 SeekOrigin.Begin => offset,
-                SeekOrigin.Current => _position + offset,
-                SeekOrigin.End => _combinedWavData.Length + offset,
+                SeekOrigin.Current => this._position + offset,
+                SeekOrigin.End => this._combinedWavData.Length + offset,
                 _ => throw new ArgumentException(Lang.DefaultDeviceBinding_CombinedStream_InvalidOrigin, nameof(origin))
             };
 
             if (newPosition < 0)
+            {
                 newPosition = 0;
-            else if (newPosition > _combinedWavData.Length)
-                newPosition = _combinedWavData.Length;
+            }
+            else if (newPosition > this._combinedWavData.Length)
+            {
+                newPosition = this._combinedWavData.Length;
+            }
 
-            _position = newPosition;
-            return _position;
+            this._position = newPosition;
+            return this._position;
         }
 
         public override void SetLength(long value)
@@ -299,50 +318,58 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
         private readonly List<byte[]> _audioDataList;
         private int _currentStreamIndex;
         private long _currentPosition;
-        private long _totalLength;
+        private readonly long _totalLength;
 
         public CombinedAudioStream(List<byte[]> audioDataList)
         {
-            _audioDataList = audioDataList ?? throw new ArgumentNullException(nameof(audioDataList));
-            _currentStreamIndex = 0;
-            _currentPosition = 0;
-            _totalLength = audioDataList.Sum(data => (long)data.Length);
+            this._audioDataList = audioDataList ?? throw new ArgumentNullException(nameof(audioDataList));
+            this._currentStreamIndex = 0;
+            this._currentPosition = 0;
+            this._totalLength = audioDataList.Sum(data => (long)data.Length);
         }
 
         public override bool CanRead => true;
         public override bool CanSeek => true;
         public override bool CanWrite => false;
-        public override long Length => _totalLength;
+        public override long Length => this._totalLength;
 
         public override long Position
         {
-            get => _currentPosition;
-            set => Seek(value, SeekOrigin.Begin);
+            get => this._currentPosition;
+            set => this.Seek(value, SeekOrigin.Begin);
         }
 
         public override int Read(byte[] buffer, int offset, int count)
         {
             if (buffer == null)
+            {
                 throw new ArgumentNullException(nameof(buffer));
+            }
             if (offset < 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(offset));
+            }
             if (count < 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(count));
+            }
             if (offset + count > buffer.Length)
+            {
                 throw new ArgumentException(Lang.DefaultDeviceBinding_CombinedStream_BufferOverflow);
+            }
 
             int totalBytesRead = 0;
             int remainingBytes = count;
 
-            while (remainingBytes > 0 && _currentStreamIndex < _audioDataList.Count)
+            while (remainingBytes > 0 && this._currentStreamIndex < this._audioDataList.Count)
             {
-                var currentAudioData = _audioDataList[_currentStreamIndex];
-                long positionInCurrentStream = _currentPosition - GetStreamStartPosition(_currentStreamIndex);
+                var currentAudioData = this._audioDataList[this._currentStreamIndex];
+                long positionInCurrentStream = this._currentPosition - this.GetStreamStartPosition(this._currentStreamIndex);
 
                 // 如果当前流已经读完，移动到下一个流
                 if (positionInCurrentStream >= currentAudioData.Length)
                 {
-                    _currentStreamIndex++;
+                    this._currentStreamIndex++;
                     continue;
                 }
 
@@ -355,7 +382,7 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
 
                 totalBytesRead += bytesToRead;
                 remainingBytes -= bytesToRead;
-                _currentPosition += bytesToRead;
+                this._currentPosition += bytesToRead;
             }
 
             return totalBytesRead;
@@ -366,41 +393,45 @@ namespace XiaoZhi.Net.Server.Resources.DeviceBinding
             long newPosition = origin switch
             {
                 SeekOrigin.Begin => offset,
-                SeekOrigin.Current => _currentPosition + offset,
-                SeekOrigin.End => _totalLength + offset,
+                SeekOrigin.Current => this._currentPosition + offset,
+                SeekOrigin.End => this._totalLength + offset,
                 _ => throw new ArgumentException(Lang.DefaultDeviceBinding_CombinedStream_InvalidOrigin, nameof(origin))
             };
 
             if (newPosition < 0)
-                newPosition = 0;
-            else if (newPosition > _totalLength)
-                newPosition = _totalLength;
-
-            _currentPosition = newPosition;
-
-            // 更新当前流索引
-            _currentStreamIndex = 0;
-            long accumulatedLength = 0;
-
-            for (int i = 0; i < _audioDataList.Count; i++)
             {
-                if (newPosition <= accumulatedLength + _audioDataList[i].Length)
-                {
-                    _currentStreamIndex = i;
-                    break;
-                }
-                accumulatedLength += _audioDataList[i].Length;
+                newPosition = 0;
+            }
+            else if (newPosition > this._totalLength)
+            {
+                newPosition = this._totalLength;
             }
 
-            return _currentPosition;
+            this._currentPosition = newPosition;
+
+            // 更新当前流索引
+            this._currentStreamIndex = 0;
+            long accumulatedLength = 0;
+
+            for (int i = 0; i < this._audioDataList.Count; i++)
+            {
+                if (newPosition <= accumulatedLength + this._audioDataList[i].Length)
+                {
+                    this._currentStreamIndex = i;
+                    break;
+                }
+                accumulatedLength += this._audioDataList[i].Length;
+            }
+
+            return this._currentPosition;
         }
 
         private long GetStreamStartPosition(int streamIndex)
         {
             long position = 0;
-            for (int i = 0; i < streamIndex && i < _audioDataList.Count; i++)
+            for (int i = 0; i < streamIndex && i < this._audioDataList.Count; i++)
             {
-                position += _audioDataList[i].Length;
+                position += this._audioDataList[i].Length;
             }
             return position;
         }
