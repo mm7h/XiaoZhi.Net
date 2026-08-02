@@ -271,7 +271,7 @@
     <value>AudioPlayerClient 尚未为设备 {deviceId} 构建。</value>
   </data>
   <data name="Text2AudioHandler_CheckBindDevice_InvalidBindCode" xml:space="preserve">
-    <value>设备 {deviceId} 的绑定码 {code} 无效。</value>
+    <value>绑定码 {code} 对设备 {deviceId} 无效。</value>
   </data>
   <data name="Text2AudioHandler_CheckBindDevice_BindCodeFormatError" xml:space="preserve">
     <value>绑定码格式错误，请检查配置。</value>
@@ -361,7 +361,7 @@
     <value>无法为设备 {deviceId} 构建私有 VAD 模型。</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateVadInitialized" xml:space="preserve">
-    <value>设备 {deviceId} 的私有 VAD {modeName} 模型已初始化。</value>
+    <value>私有 VAD {modelName} 模型已为设备 {deviceId} 初始化。</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericVadBuildFailed" xml:space="preserve">
     <value>无法构建 {modelName} 提供程序。</value>
@@ -373,7 +373,7 @@
     <value>无法为设备 {deviceId} 构建私有 ASR 模型。</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateAsrInitialized" xml:space="preserve">
-    <value>设备 {deviceId} 的私有 ASR {modeName} 模型已初始化。</value>
+    <value>私有 ASR {modelName} 模型已为设备 {deviceId} 初始化。</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericAsrBuildFailed" xml:space="preserve">
     <value>无法构建 {modelName} 提供程序。</value>
@@ -397,7 +397,7 @@
     <value>无法为设备 {deviceId} 构建私有 TTS 模型。</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateTtsInitialized" xml:space="preserve">
-    <value>设备 {deviceId} 的私有 TTS {modeName} 模型已初始化。</value>
+    <value>私有 TTS {modelName} 模型已为设备 {deviceId} 初始化。</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericTtsBuildFailed" xml:space="preserve">
     <value>无法构建 {modelName} 提供程序。</value>
@@ -454,13 +454,13 @@
     <value>无法构建 {modelName} 提供程序。</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_VadInitialized" xml:space="preserve">
-    <value>设备 {deviceId} 的通用 VAD {modeName} 模型已初始化。</value>
+    <value>设备 {deviceId} 的通用 VAD {modelName} 模型已初始化。</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_AsrBuildFailed" xml:space="preserve">
     <value>无法构建 {modelName} 提供程序。</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_AsrInitialized" xml:space="preserve">
-    <value>设备 {deviceId} 的通用 ASR {modeName} 模型已初始化。</value>
+    <value>设备 {deviceId} 的通用 ASR {modelName} 模型已初始化。</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_LlmInitialized" xml:space="preserve">
     <value>设备 {deviceId} 的通用情感 LLM {emotionLLMName} 和聊天 LLM {chatLLMName} 模型已初始化。</value>
@@ -469,7 +469,7 @@
     <value>无法构建 {modelName} 提供程序。</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_TtsInitialized" xml:space="preserve">
-    <value>设备 {deviceId} 的通用 TTS {modeName} 模型已初始化。</value>
+    <value>设备 {deviceId} 的通用 TTS {modelName} 模型已初始化。</value>
   </data>
   <data name="SocketSession_SendAsync_SendingJson" xml:space="preserve">
     <value>向设备 {deviceId} 发送 JSON: {json}</value>
@@ -496,7 +496,7 @@
     <value>新设备: {deviceId} 已连接，IP: {ip}</value>
   </data>
   <data name="AuthenticationVerification_VerifyAsync_AuthFailed" xml:space="preserve">
-    <value>来自 IP: {ip} 的设备 {deviceId} 认证失败。</value>
+    <value>设备 {deviceId}（IP：{ip}）认证失败。</value>
   </data>
   <data name="AuthenticationVerification_VerifyAsync_IpNotFound" xml:space="preserve">
     <value>无法从会话: {sessionId} 获取 IP 信息。</value>
@@ -679,7 +679,7 @@
     <value>音频播放器状态为 {status}，跳过停止。</value>
   </data>
   <data name="ChatAgent_Build_Built" xml:space="preserve">
-    <value>已构建 {providerType} - {modelName}，模型名称：{chatLLMName}</value>
+    <value>聊天代理 {agentName} 已使用模型 {modelName} 构建。</value>
   </data>
   <data name="ChatAgent_Build_BuildPluginsBuilt" xml:space="preserve">
     <value>已构建 {providerType} - {modelName}的插件。</value>
@@ -796,7 +796,7 @@
     <value>设备 {deviceId} 调用 MCP 工具：{toolName}，参数：{args}</value>
   </data>
   <data name="BaseMcpClient_CallMcpToolAsync_Timeout" xml:space="preserve">
-    <value>调用工具 {toolName} 响应超时，{timeout} 秒。</value>
+    <value>工具调用在 {timeout} 秒后响应超时：{toolName}。</value>
   </data>
   <data name="BaseMcpClient_CallMcpToolAsync_CallSuccess" xml:space="preserve">
     <value>成功获取设备 {deviceId} 的 MCP 工具调用结果，结果：{result}</value>
@@ -824,6 +824,9 @@
   </data>
   <data name="GenericOpenAI_Build_InvalidSettings" xml:space="preserve">
     <value>{providerType} 配置无效：{modelName}</value>
+  </data>
+  <data name="GenericOpenAI_Build_AgentSettingMissing" xml:space="preserve">
+    <value>缺少代理 {agentName} 的配置。</value>
   </data>
   <data name="GenericOpenAI_StartDialogueAsync_NotBuilt" xml:space="preserve">
     <value>{providerType} 模型：{modelName} 未构建。</value>
@@ -937,7 +940,7 @@
     <value>用户取消了 {providerType} 任务。</value>
   </data>
   <data name="SileroNative_AnalysisVoiceAsync_UnexpectedError" xml:space="preserve">
-    <value>设备 {deviceId} 的 {providerType} 发生意外错误</value>
+    <value>{providerType} 在设备 {deviceId} 上发生意外错误。</value>
   </data>
   <data name="SileroNative_CheckLongTermSilence_Detected" xml:space="preserve">
     <value>检测到设备 {deviceId} 的长期静默，持续时间：{silenceDuration}ms</value>
@@ -1165,7 +1168,16 @@
     <value>已构建 {providerType} - {modelName}，模型名称：{emotionLLMName}</value>
   </data>
   <data name="ChatAgent_Build_BuiltFailed" xml:space="preserve">
-    <value>构建{providerType} - {modelName}失败，模型名称：{chatLLMName}</value>
+    <value>聊天代理 {agentName} 使用模型 {modelName} 构建失败。</value>
+  </data>
+  <data name="BaseAgent_RegisterDevice_Registered" xml:space="preserve">
+    <value>代理 {agentName} 已为设备 {deviceId}、会话 {sessionId} 注册。</value>
+  </data>
+  <data name="BaseAgent_UnregisterDevice_Unregistered" xml:space="preserve">
+    <value>代理 {agentName} 已从设备 {deviceId}、会话 {sessionId} 注销。</value>
+  </data>
+  <data name="BaseAgent_CheckDeviceRegistered_NotRegistered" xml:space="preserve">
+    <value>代理 {agentName} 未为设备 {deviceId}、会话 {sessionId} 注册。</value>
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_FunctionCancelled" xml:space="preserve">
     <value>函数调用已取消：{FunctionName}</value>

@@ -361,7 +361,7 @@
     <value>Failed to build private VAD model for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateVadInitialized" xml:space="preserve">
-    <value>Private VAD {modeName} model initialized for device: {deviceId}.</value>
+    <value>Private VAD {modelName} model initialized for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericVadBuildFailed" xml:space="preserve">
     <value>Failed to build {modelName} provider.</value>
@@ -373,7 +373,7 @@
     <value>Failed to build private ASR model for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateAsrInitialized" xml:space="preserve">
-    <value>Private ASR {modeName} model initialized for device: {deviceId}.</value>
+    <value>Private ASR {modelName} model initialized for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericAsrBuildFailed" xml:space="preserve">
     <value>Failed to build {modelName} provider.</value>
@@ -397,7 +397,7 @@
     <value>Failed to build private TTS model for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateTtsInitialized" xml:space="preserve">
-    <value>Private TTS {modeName} model initialized for device: {deviceId}.</value>
+    <value>Private TTS {modelName} model initialized for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericTtsBuildFailed" xml:space="preserve">
     <value>Failed to build {modelName} provider.</value>
@@ -454,13 +454,13 @@
     <value>Failed to build {modelName} provider.</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_VadInitialized" xml:space="preserve">
-    <value>Generic VAD {modeName} model initialized for device: {deviceId}.</value>
+    <value>Device {deviceId}: generic VAD {modelName} model initialized.</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_AsrBuildFailed" xml:space="preserve">
     <value>Failed to build {modelName} provider.</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_AsrInitialized" xml:space="preserve">
-    <value>Generic ASR {modeName} model initialized for device: {deviceId}.</value>
+    <value>Device {deviceId}: generic ASR {modelName} model initialized.</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_LlmInitialized" xml:space="preserve">
     <value>Generic emotion LLM {emotionLLMName} and chat LLM {chatLLMName} model initialized for device: {deviceId}.</value>
@@ -469,7 +469,7 @@
     <value>Failed to build {modelName} provider.</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_TtsInitialized" xml:space="preserve">
-    <value>Generic TTS {modeName} model initialized for device: {deviceId}.</value>
+    <value>Device {deviceId}: generic TTS {modelName} model initialized.</value>
   </data>
   <data name="SocketSession_SendAsync_SendingJson" xml:space="preserve">
     <value>Sending json to device {deviceId}: {json}</value>
@@ -679,7 +679,7 @@
     <value>The audio player status is {status}, skip the stopping.</value>
   </data>
   <data name="ChatAgent_Build_Built" xml:space="preserve">
-    <value>Built {providerType} - {modelName}, model name: {chatLLMName}</value>
+    <value>Built chat agent {agentName} using model {modelName}.</value>
   </data>
   <data name="ChatAgent_Build_BuildPluginsBuilt" xml:space="preserve">
     <value>Built the plugins for {providerType} - {modelName}.</value>
@@ -824,6 +824,9 @@
   </data>
   <data name="GenericOpenAI_Build_InvalidSettings" xml:space="preserve">
     <value>Invalid model settings for {providerType}: {modelName}</value>
+  </data>
+  <data name="GenericOpenAI_Build_AgentSettingMissing" xml:space="preserve">
+    <value>Configuration for agent {agentName} is missing.</value>
   </data>
   <data name="GenericOpenAI_StartDialogueAsync_NotBuilt" xml:space="preserve">
     <value>The {providerType} model: {modelName} is not built.</value>
@@ -1021,10 +1024,10 @@
     <value>Server error: {0}</value>
   </data>
   <data name="BaseProvider_RegisterDevice_Registered" xml:space="preserve">
-    <value>Registered device [{deviceId}] with session id: {sessionId} to the provider {providerType}.</value>
+    <value>Registered device [{deviceId}] with provider {providerType} and session id: {sessionId}.</value>
   </data>
   <data name="BaseProvider_UnregisterDevice_Unregistered" xml:space="preserve">
-    <value>Unregistered device [{deviceId}] with session id: {sessionId} from the provider {providerType}.</value>
+    <value>Unregistered device [{deviceId}] from provider {providerType} with session id: {sessionId}.</value>
   </data>
   <data name="BaseProvider_CheckDeviceRegistered_NotRegistered" xml:space="preserve">
     <value>The device [{deviceId}] with session id: {sessionId} is not registered to the provider {providerType}.</value>
@@ -1165,7 +1168,16 @@
     <value>Built {providerType} - {modelName}, model name: {emotionLLMName}</value>
   </data>
   <data name="ChatAgent_Build_BuiltFailed" xml:space="preserve">
-    <value>Faild to built {providerType} - {modelName}, model name: {chatLLMName}</value>
+    <value>Failed to build chat agent {agentName} using model {modelName}.</value>
+  </data>
+  <data name="BaseAgent_RegisterDevice_Registered" xml:space="preserve">
+    <value>Agent {agentName} registered for device {deviceId}, session {sessionId}.</value>
+  </data>
+  <data name="BaseAgent_UnregisterDevice_Unregistered" xml:space="preserve">
+    <value>Agent {agentName} unregistered from device {deviceId}, session {sessionId}.</value>
+  </data>
+  <data name="BaseAgent_CheckDeviceRegistered_NotRegistered" xml:space="preserve">
+    <value>Agent {agentName} is not registered for device {deviceId}, session {sessionId}.</value>
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_FunctionCancelled" xml:space="preserve">
     <value>Function invocation cancelled for {FunctionName}</value>

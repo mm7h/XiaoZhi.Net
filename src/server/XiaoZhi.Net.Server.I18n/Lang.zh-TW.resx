@@ -271,7 +271,7 @@
     <value>AudioPlayerClient 尚未為裝置 {deviceId} 建置。</value>
   </data>
   <data name="Text2AudioHandler_CheckBindDevice_InvalidBindCode" xml:space="preserve">
-    <value>裝置 {deviceId} 的綁定碼 {code} 無效。</value>
+    <value>綁定碼 {code} 對裝置 {deviceId} 無效。</value>
   </data>
   <data name="Text2AudioHandler_CheckBindDevice_BindCodeFormatError" xml:space="preserve">
     <value>綁定碼格式錯誤，請檢查配置。</value>
@@ -361,7 +361,7 @@
     <value>無法為裝置 {deviceId} 建置私有 VAD 模型。</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateVadInitialized" xml:space="preserve">
-    <value>裝置 {deviceId} 的私有 VAD {modeName} 模型已初始化。</value>
+    <value>私有 VAD {modelName} 模型已為裝置 {deviceId} 初始化。</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericVadBuildFailed" xml:space="preserve">
     <value>無法建置 {modelName} 提供者。</value>
@@ -373,7 +373,7 @@
     <value>無法為裝置 {deviceId} 建置私有 ASR 模型。</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateAsrInitialized" xml:space="preserve">
-    <value>裝置 {deviceId} 的私有 ASR {modeName} 模型已初始化。</value>
+    <value>私有 ASR {modelName} 模型已為裝置 {deviceId} 初始化。</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericAsrBuildFailed" xml:space="preserve">
     <value>無法建置 {modelName} 提供者。</value>
@@ -397,7 +397,7 @@
     <value>無法為裝置 {deviceId} 建置私有 TTS 模型。</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateTtsInitialized" xml:space="preserve">
-    <value>裝置 {deviceId} 的私有 TTS {modeName} 模型已初始化。</value>
+    <value>私有 TTS {modelName} 模型已為裝置 {deviceId} 初始化。</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericTtsBuildFailed" xml:space="preserve">
     <value>無法建置 {modelName} 提供者。</value>
@@ -454,13 +454,13 @@
     <value>無法建置 {modelName} 提供者。</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_VadInitialized" xml:space="preserve">
-    <value>裝置 {deviceId} 的通用 VAD {modeName} 模型已初始化。</value>
+    <value>裝置 {deviceId} 的通用 VAD {modelName} 模型已初始化。</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_AsrBuildFailed" xml:space="preserve">
     <value>無法建置 {modelName} 提供者。</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_AsrInitialized" xml:space="preserve">
-    <value>裝置 {deviceId} 的通用 ASR {modeName} 模型已初始化。</value>
+    <value>裝置 {deviceId} 的通用 ASR {modelName} 模型已初始化。</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_LlmInitialized" xml:space="preserve">
     <value>裝置 {deviceId} 的通用情感 LLM {emotionLLMName} 和聊天 LLM {chatLLMName} 模型已初始化。</value>
@@ -469,7 +469,7 @@
     <value>無法建置 {modelName} 提供者。</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_TtsInitialized" xml:space="preserve">
-    <value>裝置 {deviceId} 的通用 TTS {modeName} 模型已初始化。</value>
+    <value>裝置 {deviceId} 的通用 TTS {modelName} 模型已初始化。</value>
   </data>
   <data name="SocketSession_SendAsync_SendingJson" xml:space="preserve">
     <value>向裝置 {deviceId} 發送 JSON: {json}</value>
@@ -496,7 +496,7 @@
     <value>新裝置: {deviceId} 已連線，IP: {ip}</value>
   </data>
   <data name="AuthenticationVerification_VerifyAsync_AuthFailed" xml:space="preserve">
-    <value>來自 IP: {ip} 的裝置 {deviceId} 認證失敗。</value>
+    <value>裝置 {deviceId}（IP：{ip}）認證失敗。</value>
   </data>
   <data name="AuthenticationVerification_VerifyAsync_IpNotFound" xml:space="preserve">
     <value>無法從工作階段: {sessionId} 獲取 IP 資訊。</value>
@@ -679,7 +679,7 @@
     <value>音訊播放器狀態為 {status}，跳過停止。</value>
   </data>
   <data name="ChatAgent_Build_Built" xml:space="preserve">
-    <value>已建置 {providerType} - {modelName}，模型名稱：{chatLLMName}</value>
+    <value>聊天代理 {agentName} 已使用模型 {modelName} 建置。</value>
   </data>
   <data name="ChatAgent_Build_BuildPluginsBuilt" xml:space="preserve">
     <value>已建置 {providerType} - {modelName}的外掛程式。</value>
@@ -796,7 +796,7 @@
     <value>裝置 {deviceId} ID 用 MCP 工具：{toolName}，參數：{args}</value>
   </data>
   <data name="BaseMcpClient_CallMcpToolAsync_Timeout" xml:space="preserve">
-    <value>呼叫工具 {toolName} 回應超時，{timeout} 秒。</value>
+    <value>工具呼叫在 {timeout} 秒後回應超時：{toolName}。</value>
   </data>
   <data name="BaseMcpClient_CallMcpToolAsync_CallSuccess" xml:space="preserve">
     <value>成功取得裝置 {deviceId} 的 MCP 工具呼叫結果，結果：{result}</value>
@@ -824,6 +824,9 @@
   </data>
   <data name="GenericOpenAI_Build_InvalidSettings" xml:space="preserve">
     <value>{providerType} 設定無效：{modelName}</value>
+  </data>
+  <data name="GenericOpenAI_Build_AgentSettingMissing" xml:space="preserve">
+    <value>缺少代理 {agentName} 的設定。</value>
   </data>
   <data name="GenericOpenAI_StartDialogueAsync_NotBuilt" xml:space="preserve">
     <value>{providerType} 模型：{modelName} 未建置。</value>
@@ -937,7 +940,7 @@
     <value>使用者取消了 {providerType} 任務。</value>
   </data>
   <data name="SileroNative_AnalysisVoiceAsync_UnexpectedError" xml:space="preserve">
-    <value>裝置 {deviceId} 的 {providerType} 發生意外錯誤</value>
+    <value>{providerType} 在裝置 {deviceId} 上發生意外錯誤。</value>
   </data>
   <data name="SileroNative_CheckLongTermSilence_Detected" xml:space="preserve">
     <value>偵測到裝置 {deviceId} 的長期靜默，持續時間：{silenceDuration}ms</value>
@@ -1165,7 +1168,16 @@
     <value>已建置 {providerType} - {modelName}，模型名稱：{emotionLLMName}</value>
   </data>
   <data name="ChatAgent_Build_BuiltFailed" xml:space="preserve">
-    <value>構建{providerType} - {modelName}失敗，模型名稱：{chatLLMName}</value>
+    <value>聊天代理 {agentName} 使用模型 {modelName} 建置失敗。</value>
+  </data>
+  <data name="BaseAgent_RegisterDevice_Registered" xml:space="preserve">
+    <value>代理 {agentName} 已為裝置 {deviceId}、工作階段 {sessionId} 註冊。</value>
+  </data>
+  <data name="BaseAgent_UnregisterDevice_Unregistered" xml:space="preserve">
+    <value>代理 {agentName} 已從裝置 {deviceId}、工作階段 {sessionId} 註銷。</value>
+  </data>
+  <data name="BaseAgent_CheckDeviceRegistered_NotRegistered" xml:space="preserve">
+    <value>代理 {agentName} 尚未為裝置 {deviceId}、工作階段 {sessionId} 註冊。</value>
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_FunctionCancelled" xml:space="preserve">
     <value>函數調用已取消：{FunctionName}</value>

@@ -131,14 +131,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                 );
 
                 this._agentSession = this._chatClientAgent.CreateSessionAsync(agentBuildConfig.SessionPrivateProvider.Token).GetAwaiter().GetResult();
-
+                this.Logger.LogInformation(Lang.ChatAgent_Build_Built, this.AgentName, agentBuildConfig.AgentSetting.ModelName);
                 return true;
-                //this.Logger.LogInformation(Lang.ChatAgent_Build_Built, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                //todo
-                //this.Logger.LogError(ex, Lang.ChatAgent_Build_BuiltFailed, this.ProviderType, this.ModelName, agentBuildConfig.AgentSetting.ModelName);
+                this.Logger.LogError(ex, Lang.ChatAgent_Build_BuiltFailed, this.AgentName, agentBuildConfig.AgentSetting.ModelName);
                 return false;
             }
         }

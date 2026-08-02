@@ -41,14 +41,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
         {
             this.DeviceId = deviceId;
             this.SessionId = sessionId;
-            //todo
-            //this.Logger.LogInformation(Lang.BaseProvider_RegisterDevice_Registered, this.DeviceId, this.SessionId, this.ProviderType);
+            this.Logger.LogInformation(Lang.BaseAgent_RegisterDevice_Registered, this.AgentName, this.DeviceId, this.SessionId);
         }
 
         public virtual void UnregisterDevice(string deviceId, string sessionId)
         {
-            //todo
-            //this.Logger.LogInformation(Lang.BaseProvider_UnregisterDevice_Unregistered, this.DeviceId, this.SessionId, this.ProviderType);
+            this.Logger.LogInformation(Lang.BaseAgent_UnregisterDevice_Unregistered, this.AgentName, this.DeviceId, this.SessionId);
             this.DeviceId = string.Empty;
             this.SessionId = string.Empty;
         }
@@ -57,27 +55,14 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
         {
             if (string.IsNullOrWhiteSpace(this.DeviceId) || string.IsNullOrWhiteSpace(this.SessionId))
             {
-                //todo
-                //this.Logger.LogError(Lang.BaseProvider_CheckDeviceRegistered_NotRegistered, string.IsNullOrWhiteSpace(this.DeviceId) ? "unkonwn" : this.DeviceId, string.IsNullOrWhiteSpace(this.SessionId) ? "unkonwn" : this.SessionId, this.ProviderType);
+                this.Logger.LogError(
+                    Lang.BaseAgent_CheckDeviceRegistered_NotRegistered,
+                    this.AgentName,
+                    string.IsNullOrWhiteSpace(deviceId) ? "unknown" : deviceId,
+                    string.IsNullOrWhiteSpace(sessionId) ? "unknown" : sessionId);
                 return false;
             }
             return true;
-        }
-
-        protected virtual string GenerateId()
-        {
-            return Guid.NewGuid().ToString("N");
-        }
-
-        protected string ReplaceMacDelimiters(string deviceId, string newDelimiter = "")
-        {
-            if (string.IsNullOrWhiteSpace(deviceId))
-            {
-                //todo
-                throw new ArgumentException("", nameof(deviceId));
-            }
-
-            return Regex.Replace(deviceId, @"[^a-fA-F0-9]", newDelimiter);
         }
     }
 }

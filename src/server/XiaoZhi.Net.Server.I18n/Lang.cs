@@ -289,6 +289,12 @@ namespace XiaoZhi.Net.Server.I18n
         public static string ChatAgent_GenerateChatResponseAsync_AgentNotBuilt => ResourceManager.GetString("ChatAgent_GenerateChatResponseAsync_AgentNotBuilt", resourceCulture) ?? "";
         #endregion
 
+        #region BaseAgent
+        public static string BaseAgent_RegisterDevice_Registered => ResourceManager.GetString("BaseAgent_RegisterDevice_Registered", resourceCulture) ?? "";
+        public static string BaseAgent_UnregisterDevice_Unregistered => ResourceManager.GetString("BaseAgent_UnregisterDevice_Unregistered", resourceCulture) ?? "";
+        public static string BaseAgent_CheckDeviceRegistered_NotRegistered => ResourceManager.GetString("BaseAgent_CheckDeviceRegistered_NotRegistered", resourceCulture) ?? "";
+        #endregion
+
         #region EmotionAgent
         public static string EmotionAgent_Build_Built => ResourceManager.GetString("EmotionAgent_Build_Built", resourceCulture) ?? "";
         public static string EmotionAgent_Build_BuildFailed => ResourceManager.GetString("EmotionAgent_Build_BuildFailed", resourceCulture) ?? "";
@@ -358,6 +364,7 @@ namespace XiaoZhi.Net.Server.I18n
 
         #region GenericOpenAI
         public static string GenericOpenAI_Build_InvalidSettings => ResourceManager.GetString("GenericOpenAI_Build_InvalidSettings", resourceCulture) ?? "";
+        public static string GenericOpenAI_Build_AgentSettingMissing => ResourceManager.GetString("GenericOpenAI_Build_AgentSettingMissing", resourceCulture) ?? "";
         public static string GenericOpenAI_StartDialogueAsync_NotBuilt => ResourceManager.GetString("GenericOpenAI_StartDialogueAsync_NotBuilt", resourceCulture) ?? "";
         public static string GenericOpenAI_ChatAsync_EmotionDetected => ResourceManager.GetString("GenericOpenAI_ChatAsync_EmotionDetected", resourceCulture) ?? "";
         public static string GenericOpenAI_ChatAsync_UnexpectedError => ResourceManager.GetString("GenericOpenAI_ChatAsync_UnexpectedError", resourceCulture) ?? "";

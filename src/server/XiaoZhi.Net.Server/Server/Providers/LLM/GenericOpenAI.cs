@@ -80,7 +80,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                         }
                         else
                         {
-                            //todo: log
+                            this.Logger.LogError(Lang.GenericOpenAI_Build_AgentSettingMissing, agent.AgentName);
                             return false;
                         }
                     })
