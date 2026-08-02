@@ -843,6 +843,30 @@
   <data name="GenericOpenAI_ChatByStreamingAsync_Cancelled" xml:space="preserve">
     <value>LLM streaming chat cancelled, cleaning up {Count} segments</value>
   </data>
+  <data name="DefaultRag_Load_EmbeddingModelMissing" xml:space="preserve">
+    <value>RAG embedding model configuration is missing.</value>
+  </data>
+  <data name="DefaultRag_Load_DocumentDirectoryInvalid" xml:space="preserve">
+    <value>RAG document directory is not configured or does not exist: {documentDirectory}.</value>
+  </data>
+  <data name="DefaultRag_Load_Loaded" xml:space="preserve">
+    <value>RAG knowledge base {knowledgeBaseId} loaded with embedding model {embeddingModelName}, top K {topK}, and minimum score {minimumScore}.</value>
+  </data>
+  <data name="DefaultRag_Load_LoadFailed" xml:space="preserve">
+    <value>Failed to load the RAG knowledge base.</value>
+  </data>
+  <data name="DefaultRag_Create_NotReady" xml:space="preserve">
+    <value>Cannot create a RAG search provider because the RAG resource is not ready.</value>
+  </data>
+  <data name="DefaultRag_SearchAsync_QueryReceived" xml:space="preserve">
+    <value>Searching RAG knowledge base {knowledgeBaseId} for a query with {queryLength} characters.</value>
+  </data>
+  <data name="DefaultRag_RetrieveAsync_EmbeddingGeneratorNotInitialized" xml:space="preserve">
+    <value>RAG embedding generator has not been initialized.</value>
+  </data>
+  <data name="DefaultRag_RetrieveAsync_EmbeddingCountInvalid" xml:space="preserve">
+    <value>Expected exactly one query embedding but received {embeddingCount}.</value>
+  </data>
   <data name="FlashMemory_Build_Built" xml:space="preserve">
     <value>Builded the default {providerType}: {flashMemory}</value>
   </data>

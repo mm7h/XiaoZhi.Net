@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.RAG.Abstractions;
 using XiaoZhi.Net.Server.RAG.Abstractions.Common.Models;
 
@@ -45,6 +46,7 @@ namespace XiaoZhi.Net.Server.Resources.Rag
 
                 if (string.IsNullOrWhiteSpace(embeddingModelName))
                 {
+                    this.Logger.LogError(Lang.DefaultRag_Load_EmbeddingModelMissing);
                     return false;
                 }
 
@@ -53,6 +55,7 @@ namespace XiaoZhi.Net.Server.Resources.Rag
                 string? documentDirectory = settings.Config.GetConfigValueOrDefault("DocumentDirectory");
                 if (string.IsNullOrWhiteSpace(documentDirectory) || !Directory.Exists(documentDirectory))
                 {
+                    this.Logger.LogError(Lang.DefaultRag_Load_DocumentDirectoryInvalid, documentDirectory ?? string.Empty);
                     return false;
                 }
 
@@ -62,11 +65,18 @@ namespace XiaoZhi.Net.Server.Resources.Rag
 
                 this.IsReady = true;
 
+                this.Logger.LogInformation(
+                    Lang.DefaultRag_Load_Loaded,
+                    this._knowledgeBaseId,
+                    embeddingModelName,
+                    this._topK,
+                    this._minimumScore);
                 return true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 this.IsReady = false;
+                this.Logger.LogError(ex, Lang.DefaultRag_Load_LoadFailed);
                 throw;
             }
         }
@@ -74,6 +84,7 @@ namespace XiaoZhi.Net.Server.Resources.Rag
         {
             if (!this.IsReady)
             {
+                this.Logger.LogWarning(Lang.DefaultRag_Create_NotReady);
                 return null;
             }
 
@@ -85,6 +96,7 @@ namespace XiaoZhi.Net.Server.Resources.Rag
 
         private async Task<IEnumerable<TextSearchProvider.TextSearchResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
         {
+            this.Logger.LogDebug(Lang.DefaultRag_SearchAsync_QueryReceived, this._knowledgeBaseId, query.Length);
             RagContext context = await this.RetrieveAsync(
                     new RagRequest(query, this._knowledgeBaseId, this._topK, this._minimumScore), cancellationToken).ConfigureAwait(false);
 
@@ -101,13 +113,15 @@ namespace XiaoZhi.Net.Server.Resources.Rag
         {
             if (this._embeddingGenerator is null)
             {
-                throw new InvalidOperationException("The embedding generator has not been initialized.");
+                this.Logger.LogError(Lang.DefaultRag_RetrieveAsync_EmbeddingGeneratorNotInitialized);
+                throw new InvalidOperationException(Lang.DefaultRag_RetrieveAsync_EmbeddingGeneratorNotInitialized);
             }
 
             GeneratedEmbeddings<Embedding<float>> embeddings = await this._embeddingGenerator.GenerateAsync(
             [request.Query], cancellationToken: cancellationToken).ConfigureAwait(false);
             if (embeddings.Count != 1)
             {
+                this.Logger.LogError(Lang.DefaultRag_RetrieveAsync_EmbeddingCountInvalid, embeddings.Count);
                 throw new InvalidOperationException("The embedding generator did not return a query embedding.");
             }
 

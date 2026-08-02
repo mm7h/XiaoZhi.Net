@@ -372,6 +372,17 @@ namespace XiaoZhi.Net.Server.I18n
         public static string GenericOpenAI_ChatByStreamingAsync_Cancelled => ResourceManager.GetString("GenericOpenAI_ChatByStreamingAsync_Cancelled", resourceCulture) ?? "";
         #endregion
 
+        #region DefaultRag
+        public static string DefaultRag_Load_EmbeddingModelMissing => ResourceManager.GetString("DefaultRag_Load_EmbeddingModelMissing", resourceCulture) ?? "";
+        public static string DefaultRag_Load_DocumentDirectoryInvalid => ResourceManager.GetString("DefaultRag_Load_DocumentDirectoryInvalid", resourceCulture) ?? "";
+        public static string DefaultRag_Load_Loaded => ResourceManager.GetString("DefaultRag_Load_Loaded", resourceCulture) ?? "";
+        public static string DefaultRag_Load_LoadFailed => ResourceManager.GetString("DefaultRag_Load_LoadFailed", resourceCulture) ?? "";
+        public static string DefaultRag_Create_NotReady => ResourceManager.GetString("DefaultRag_Create_NotReady", resourceCulture) ?? "";
+        public static string DefaultRag_SearchAsync_QueryReceived => ResourceManager.GetString("DefaultRag_SearchAsync_QueryReceived", resourceCulture) ?? "";
+        public static string DefaultRag_RetrieveAsync_EmbeddingGeneratorNotInitialized => ResourceManager.GetString("DefaultRag_RetrieveAsync_EmbeddingGeneratorNotInitialized", resourceCulture) ?? "";
+        public static string DefaultRag_RetrieveAsync_EmbeddingCountInvalid => ResourceManager.GetString("DefaultRag_RetrieveAsync_EmbeddingCountInvalid", resourceCulture) ?? "";
+        #endregion
+
         #region FlashMemory
         public static string FlashMemory_Build_Built => ResourceManager.GetString("FlashMemory_Build_Built", resourceCulture) ?? "";
         #endregion

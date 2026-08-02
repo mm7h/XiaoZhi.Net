@@ -843,6 +843,30 @@
   <data name="GenericOpenAI_ChatByStreamingAsync_Cancelled" xml:space="preserve">
     <value>LLM 串流對話已取消，清理 {Count} 個片段</value>
   </data>
+  <data name="DefaultRag_Load_EmbeddingModelMissing" xml:space="preserve">
+    <value>缺少 RAG 嵌入模型設定。</value>
+  </data>
+  <data name="DefaultRag_Load_DocumentDirectoryInvalid" xml:space="preserve">
+    <value>RAG 文件目錄未設定或不存在：{documentDirectory}。</value>
+  </data>
+  <data name="DefaultRag_Load_Loaded" xml:space="preserve">
+    <value>RAG 知識庫 {knowledgeBaseId} 已載入，嵌入模型：{embeddingModelName}，Top K：{topK}，最低分數：{minimumScore}。</value>
+  </data>
+  <data name="DefaultRag_Load_LoadFailed" xml:space="preserve">
+    <value>載入 RAG 知識庫失敗。</value>
+  </data>
+  <data name="DefaultRag_Create_NotReady" xml:space="preserve">
+    <value>RAG 資源尚未就緒，無法建立搜尋提供者。</value>
+  </data>
+  <data name="DefaultRag_SearchAsync_QueryReceived" xml:space="preserve">
+    <value>正在搜尋 RAG 知識庫 {knowledgeBaseId}，查詢長度為 {queryLength} 個字元。</value>
+  </data>
+  <data name="DefaultRag_RetrieveAsync_EmbeddingGeneratorNotInitialized" xml:space="preserve">
+    <value>RAG 嵌入產生器尚未初始化。</value>
+  </data>
+  <data name="DefaultRag_RetrieveAsync_EmbeddingCountInvalid" xml:space="preserve">
+    <value>預期恰好取得一個查詢嵌入，實際取得 {embeddingCount} 個。</value>
+  </data>
   <data name="FlashMemory_Build_Built" xml:space="preserve">
     <value>已建置 {providerType}：{flashMemory}</value>
   </data>
