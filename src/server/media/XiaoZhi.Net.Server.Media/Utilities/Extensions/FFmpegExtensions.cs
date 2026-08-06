@@ -1,5 +1,5 @@
-﻿using FFmpeg.AutoGen;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
+using FFmpeg.AutoGen;
 using XiaoZhi.Net.Server.Media.Exceptions;
 
 namespace XiaoZhi.Net.Server.Media.Utilities.Extensions;

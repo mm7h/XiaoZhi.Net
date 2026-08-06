@@ -4,8 +4,8 @@ namespace XiaoZhi.Net.Server.Media.Utilities
 {
     internal static class FFmpegStartup
     {
-        private static readonly object _syncLock = new();
-        private static Lazy<(bool Success, string Message)> _initializer = CreateInitializer();
+        private static readonly object s_syncLock = new();
+        private static Lazy<(bool Success, string Message)> s_initializer = CreateInitializer();
 
         internal static string FFmpegRootPath = "./ffmpeg/";
 
@@ -16,7 +16,7 @@ namespace XiaoZhi.Net.Server.Media.Utilities
         {
             get
             {
-                var lazy = Volatile.Read(ref _initializer);
+                var lazy = Volatile.Read(ref s_initializer);
                 return lazy.IsValueCreated && lazy.Value.Success;
             }
         }
@@ -28,19 +28,19 @@ namespace XiaoZhi.Net.Server.Media.Utilities
                 throw new ArgumentNullException(nameof(ffmpegBinariesPath), "FFmpeg binaries path must not be null or empty.");
             }
 
-            lock (_syncLock)
+            lock (s_syncLock)
             {
                 ffmpeg.RootPath = FFmpegRootPath = ffmpegBinariesPath;
-                Volatile.Write(ref _initializer, CreateInitializer());
+                Volatile.Write(ref s_initializer, CreateInitializer());
             }
         }
 
         public static bool CheckFFmpegInstalled(out string message)
         {
-            var lazy = Volatile.Read(ref _initializer);
-            var result = lazy.Value;
-            message = result.Message;
-            return result.Success;
+            var lazy = Volatile.Read(ref s_initializer);
+            var (Success, Message) = lazy.Value;
+            message = Message;
+            return Success;
         }
 
         private static Lazy<(bool Success, string Message)> CreateInitializer()

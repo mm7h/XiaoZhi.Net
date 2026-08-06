@@ -9,6 +9,7 @@ using XiaoZhi.Net.Server.Media.Players;
 using XiaoZhi.Net.Server.Media.Subtitle;
 using XiaoZhi.Net.Server.Media.Utilities;
 
+#pragma warning disable IDE0130 // 保持 WithMedia 扩展方法的公开命名空间。
 namespace XiaoZhi.Net.Server
 {
     public static class MediaExtension
@@ -110,3 +111,4 @@ namespace XiaoZhi.Net.Server
         }
     }
 }
+#pragma warning restore IDE0130

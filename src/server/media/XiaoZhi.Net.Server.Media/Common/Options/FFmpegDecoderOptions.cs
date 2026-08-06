@@ -1,4 +1,4 @@
-﻿namespace XiaoZhi.Net.Server.Media.Common.Dtos;
+﻿namespace XiaoZhi.Net.Server.Media.Common.Options;
 
 /// <summary>
 /// Options for decoding (and, or) resampling specified audio source that can be passed

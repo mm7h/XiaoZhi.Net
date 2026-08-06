@@ -1,20 +1,11 @@
 ﻿namespace XiaoZhi.Net.Server.Media.Common.Models
 {
-    internal struct OutputBufferFrame
+    internal struct OutputBufferFrame(float[] data, bool isFirst, bool isLast, string? sentenceId)
     {
-        public float[] Data;
-        public bool IsFirst;
-        public bool IsLast;
-        public string? SentenceId;
-
-        public OutputBufferFrame(float[] data, bool isFirst, bool isLast, string? sentenceId)
-        {
-            Data = data;
-            IsFirst = isFirst;
-            IsLast = isLast;
-            SentenceId = sentenceId;
-        }
-
+        public float[] Data = data;
+        public bool IsFirst = isFirst;
+        public bool IsLast = isLast;
+        public string? SentenceId = sentenceId;
     }
 }
 

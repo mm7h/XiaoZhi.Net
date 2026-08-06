@@ -1,7 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Media.Abstractions.Common.Enums;
-using XiaoZhi.Net.Server.Media.Common.Dtos;
+using XiaoZhi.Net.Server.Media.Common.Models;
+using XiaoZhi.Net.Server.Media.Common.Options;
 using XiaoZhi.Net.Server.Media.Decoders;
 using XiaoZhi.Net.Server.Media.Decoders.FFmpeg;
 
@@ -11,25 +12,20 @@ namespace XiaoZhi.Net.Server.Media.Players;
 /// A class that provides functionalities for loading and controlling audio playback.
 /// <para>Implements: <see cref="IAudioPlayer"/></para>
 /// </summary>
-internal class UrlAudioPlayer : AudioPlayerBase<string, UrlAudioPlayer>, IUrlAudioPlayer
+/// <remarks>
+/// Initializes <see cref="UrlAudioPlayer"/> instance by providing <see cref="FFmpegDecoderOptions"/> instance.
+/// The audio engine will be automatically configured to match the decoder output format.
+/// </remarks>
+internal class UrlAudioPlayer(ILogger<UrlAudioPlayer> logger) : AudioPlayerBase<string, UrlAudioPlayer>(logger), IUrlAudioPlayer
 {
     private FFmpegDecoderOptions? _decoderOptions;
-
-    /// <summary>
-    /// Initializes <see cref="UrlAudioPlayer"/> instance by providing <see cref="FFmpegDecoderOptions"/> instance.
-    /// The audio engine will be automatically configured to match the decoder output format.
-    /// </summary>
-    public UrlAudioPlayer(ILogger<UrlAudioPlayer> logger) : base(logger)
-    {
-        CurrentUrl = string.Empty;
-    }
 
     public override string AudioPlayerName => nameof(UrlAudioPlayer);
 
     /// <summary>
     /// Gets or sets current specified audio URL.
     /// </summary>
-    public string CurrentUrl { get; private set; }
+    public string CurrentUrl { get; private set; } = string.Empty;
 
     /// <inheritdoc />
     /// <exception cref="ArgumentNullException">Thrown when given url is null.</exception>
@@ -39,22 +35,22 @@ internal class UrlAudioPlayer : AudioPlayerBase<string, UrlAudioPlayer>, IUrlAud
         {
             return Task.FromResult(false);
         }
-        if (State != PlaybackState.Idle)
+        if (this.State != PlaybackState.Idle)
         {
             // Playback thread is currently running.
             return Task.FromResult(false);
         }
         FFmpegDecoderOptions decoderOptions = new(outputSampleRate, outputChannels, frameDuration);
-        _decoderOptions = decoderOptions;
+        this._decoderOptions = decoderOptions;
 
-        LoadInternal(() => CreateDecoder(url));
+        this.LoadInternal(() => this.CreateDecoder(url));
 
-        if (IsLoaded)
+        if (this.IsLoaded)
         {
-            CurrentUrl = url;
+            this.CurrentUrl = url;
         }
 
-        return Task.FromResult(IsLoaded);
+        return Task.FromResult(this.IsLoaded);
     }
 
     /// <summary>
@@ -65,11 +61,11 @@ internal class UrlAudioPlayer : AudioPlayerBase<string, UrlAudioPlayer>, IUrlAud
     /// <returns>A new <see cref="FFmpegDecoder"/> instance.</returns>
     protected override IAudioDecoder CreateDecoder(string url)
     {
-        if (_decoderOptions is null)
+        if (this._decoderOptions is null)
         {
             throw new InvalidOperationException("Decoder options is not set.");
         }
-        return new FFmpegUrlDecoder(url, _decoderOptions);
+        return new FFmpegUrlDecoder(url, this._decoderOptions);
     }
 
     /// <summary>
@@ -81,34 +77,34 @@ internal class UrlAudioPlayer : AudioPlayerBase<string, UrlAudioPlayer>, IUrlAud
     /// <returns><c>true</c> will continue decoder thread, <c>false</c> will break the thread.</returns>
     protected override bool HandleDecoderError(AudioDecoderResult result)
     {
-        Queue.Clear();
-        Logger?.LogDebug("Failed to decode audio frame, retrying: {resultErrorMessage}", result.ErrorMessage);
+        this.Queue.Clear();
+        this.Logger?.LogDebug("Failed to decode audio frame, retrying: {resultErrorMessage}", result.ErrorMessage);
 
-        CurrentDecoder?.Dispose();
-        CurrentDecoder = null;
+        this.CurrentDecoder?.Dispose();
+        this.CurrentDecoder = null;
 
-        while (CurrentDecoder is null)
+        while (this.CurrentDecoder is null)
         {
-            if (State == PlaybackState.Idle)
+            if (this.State == PlaybackState.Idle)
             {
-                IsLoaded = false;
+                this.IsLoaded = false;
                 return false;
             }
 
             try
             {
-                CurrentDecoder = CreateDecoder(CurrentUrl);
+                this.CurrentDecoder = this.CreateDecoder(this.CurrentUrl);
                 break;
             }
             catch (Exception ex)
             {
-                Logger?.LogDebug("Unable to recreate audio decoder, retrying: {exMessage}", ex.Message);
+                this.Logger?.LogDebug("Unable to recreate audio decoder, retrying: {exMessage}", ex.Message);
                 Thread.Sleep(1000);
             }
         }
 
-        Logger?.LogDebug("Audio decoder has been recreated, seeking to the last position ({Position}).", Position);
-        Seek(Position);
+        this.Logger?.LogDebug("Audio decoder has been recreated, seeking to the last position ({Position}).", this.Position);
+        this.Seek(this.Position);
 
         return true;
     }

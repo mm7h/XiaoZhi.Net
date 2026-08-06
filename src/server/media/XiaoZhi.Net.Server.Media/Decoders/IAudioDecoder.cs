@@ -1,4 +1,4 @@
-﻿using XiaoZhi.Net.Server.Media.Common.Dtos;
+﻿using XiaoZhi.Net.Server.Media.Common.Models;
 
 namespace XiaoZhi.Net.Server.Media.Decoders;
 

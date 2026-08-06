@@ -3,17 +3,12 @@ using XiaoZhi.Net.Server.Media.Encoders;
 
 namespace XiaoZhi.Net.Server.Media.Editors
 {
-    internal class AudioEditor : IAudioEditor
+    internal class AudioEditor(IAudioEncoder audioEncoder) : IAudioEditor
     {
-        private readonly IAudioEncoder _audioEncoder;
+        private readonly IAudioEncoder _audioEncoder = audioEncoder;
         private const int DefaultSampleRate = 16000;
         private const int DefaultChannels = 1;
         private const int DefaultBitRate = 128000;
-
-        public AudioEditor(IAudioEncoder audioEncoder)
-        {
-            this._audioEncoder = audioEncoder;
-        }
 
         public async Task<bool> SaveAudioFileAsync(string filePath, float[] data)
         {
@@ -82,7 +77,7 @@ namespace XiaoZhi.Net.Server.Media.Editors
 
             for (int i = 0; i < sampleCount; i++)
             {
-                short sample = (short)(pcmBytes[i * 2] | (pcmBytes[i * 2 + 1] << 8));
+                short sample = (short)(pcmBytes[i * 2] | (pcmBytes[(i * 2) + 1] << 8));
                 floatData[i] = sample / 32768f;
             }
 

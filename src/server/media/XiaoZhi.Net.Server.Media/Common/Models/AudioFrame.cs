@@ -1,4 +1,4 @@
-﻿namespace XiaoZhi.Net.Server.Media.Common.Dtos;
+﻿namespace XiaoZhi.Net.Server.Media.Common.Models;
 
 /// <summary>
 /// Represents audio frame object. Each audio frames contains their own presentation time
@@ -14,8 +14,8 @@ internal sealed record AudioFrame
     /// <param name="data">Audio samples in <c>Float32</c> format that can be written to output device.</param>
     public AudioFrame(double presentationTime, byte[] data)
     {
-        PresentationTime = presentationTime;
-        Data = data;
+        this.PresentationTime = presentationTime;
+        this.Data = data;
     }
 
     /// <summary>

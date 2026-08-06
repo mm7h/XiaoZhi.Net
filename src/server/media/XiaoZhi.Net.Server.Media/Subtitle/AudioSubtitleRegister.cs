@@ -1,6 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using System.Collections.Concurrent;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Media.Abstractions.Dtos;
@@ -10,23 +10,20 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
     /// <summary>
     /// 音频字幕注册器
     /// </summary>
-    internal class AudioSubtitleRegister : IAudioSubtitleRegister
+    internal class AudioSubtitleRegister(ILogger<AudioSubtitleRegister>? logger = null) : IAudioSubtitleRegister
     {
-        private readonly ILogger<AudioSubtitleRegister> _logger;
-        private readonly ConcurrentDictionary<string, AudioSubtitle> _subtitlesCache;
+        private readonly ILogger<AudioSubtitleRegister> _logger = logger ?? NullLogger<AudioSubtitleRegister>.Instance;
+        private readonly ConcurrentDictionary<string, AudioSubtitle> _subtitlesCache = new();
         private bool _disposed = false;
-
-        public AudioSubtitleRegister(ILogger<AudioSubtitleRegister>? logger = null)
-        {
-            this._logger = logger ?? NullLogger<AudioSubtitleRegister>.Instance;
-            this._subtitlesCache = new ConcurrentDictionary<string, AudioSubtitle>();
-        }
 
         public void Register(string sentenceId, AudioType audioType, TtsStatus ttsStatus, string subtitleText, Emotion emotion)
         {
-            if (string.IsNullOrEmpty(subtitleText) || string.IsNullOrEmpty(sentenceId)) return;
+            if (string.IsNullOrEmpty(subtitleText) || string.IsNullOrEmpty(sentenceId))
+            {
+                return;
+            }
 
-            AudioSubtitle subtitleTrackingInfo = new AudioSubtitle(sentenceId, audioType, subtitleText, emotion, ttsStatus, DateTime.UtcNow);
+            AudioSubtitle subtitleTrackingInfo = new(sentenceId, audioType, subtitleText, emotion, ttsStatus, DateTime.UtcNow);
 
             if (this._subtitlesCache.TryAdd(sentenceId, subtitleTrackingInfo))
             {
@@ -52,7 +49,11 @@ namespace XiaoZhi.Net.Server.Media.Subtitle
 
         public void Dispose()
         {
-            if (this._disposed) return;
+            if (this._disposed)
+            {
+                return;
+            }
+
             this._disposed = true;
             this.ClearAll();
             this._logger.LogDebug("AudioSubtitleRegister disposed");

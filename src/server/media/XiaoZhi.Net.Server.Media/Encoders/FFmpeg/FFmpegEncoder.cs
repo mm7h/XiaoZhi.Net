@@ -4,14 +4,9 @@ using XiaoZhi.Net.Server.Media.Utilities.Extensions;
 
 namespace XiaoZhi.Net.Server.Media.Encoders.FFmpeg
 {
-    internal class FFmpegEncoder : IAudioEncoder
+    internal class FFmpegEncoder(ILogger<FFmpegEncoder> logger) : IAudioEncoder
     {
-        private readonly ILogger _logger;
-
-        public FFmpegEncoder(ILogger<FFmpegEncoder> logger)
-        {
-            this._logger = logger;
-        }
+        private readonly ILogger _logger = logger;
 
         public Task<bool> EncodeAsync(string outputPath, float[] audioData, int sampleRate, int channels, int bitRate = 128000)
         {
@@ -109,8 +104,8 @@ namespace XiaoZhi.Net.Server.Media.Encoders.FFmpeg
                     throw new InvalidOperationException("Failed to allocate SwrContext");
                 }
 
-                AVChannelLayout srcLayout = new AVChannelLayout();
-                AVChannelLayout dstLayout = new AVChannelLayout();
+                AVChannelLayout srcLayout = new();
+                AVChannelLayout dstLayout = new();
 
                 ffmpeg.av_channel_layout_default(&srcLayout, channels);
                 ffmpeg.av_channel_layout_copy(&dstLayout, &codecContext->ch_layout);
@@ -155,7 +150,7 @@ namespace XiaoZhi.Net.Server.Media.Encoders.FFmpeg
                     float* frameData = (float*)frame->data[0];
                     for (int i = 0; i < currentFrameSize * channels; i++)
                     {
-                        frameData[i] = audioData[processedSamples * channels + i];
+                        frameData[i] = audioData[(processedSamples * channels) + i];
                     }
 
                     AVFrame* convertedFrame = ffmpeg.av_frame_alloc();
