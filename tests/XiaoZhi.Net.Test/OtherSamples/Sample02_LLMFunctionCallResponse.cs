@@ -1,19 +1,18 @@
-﻿using OpenAI;
-using OpenAI.Chat;
-using System.ClientModel;
+﻿using System.ClientModel;
 using System.Text.Json;
+using OpenAI;
+using OpenAI.Chat;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample02_LLMFunctionCallResponse
     {
-        public static async Task Run()
+        public static async Task RunAsync()
         {
-            await TestLLMFunctionResponse();
+            await TestLLMFunctionResponseAsync();
         }
 
-
-        static async Task TestLLMFunctionResponse()
+        private static async Task TestLLMFunctionResponseAsync()
         {
             try
             {
@@ -26,7 +25,6 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     ProjectId = "Xiao Zhi Test"
                 };
                 OpenAIClient openAIClient = new OpenAIClient(new ApiKeyCredential(apiKey), options);
-
 
                 ChatTool getMusicNameTool = ChatTool.CreateFunctionTool(
                     functionName: nameof(GetMusicName),
@@ -44,7 +42,6 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     }
                     """u8.ToArray()));
 
-
                 var chatCompletionOptions = new ChatCompletionOptions
                 {
                     Temperature = 0.5f,
@@ -55,10 +52,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
                 var chatClient = openAIClient.GetChatClient(chatModel);
 
-                List<ChatMessage> chatMessages = new List<ChatMessage>
-                {
+                List<ChatMessage> chatMessages =
+                [
                     ChatMessage.CreateUserMessage("Hello, 来点音乐")
-                };
+                ];
 
                 bool requiresAction;
 
@@ -70,47 +67,47 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     switch (completion.FinishReason)
                     {
                         case ChatFinishReason.Stop:
-                            {
-                                // Add the assistant message to the conversation history.
-                                chatMessages.Add(new AssistantChatMessage(completion));
-                                break;
-                            }
+                        {
+                            // Add the assistant message to the conversation history.
+                            chatMessages.Add(new AssistantChatMessage(completion));
+                            break;
+                        }
 
                         case ChatFinishReason.ToolCalls:
+                        {
+                            // First, add the assistant message with tool calls to the conversation history.
+                            chatMessages.Add(new AssistantChatMessage(completion));
+
+                            // Then, add a new tool message for each tool call that is resolved.
+                            foreach (ChatToolCall toolCall in completion.ToolCalls)
                             {
-                                // First, add the assistant message with tool calls to the conversation history.
-                                chatMessages.Add(new AssistantChatMessage(completion));
-
-                                // Then, add a new tool message for each tool call that is resolved.
-                                foreach (ChatToolCall toolCall in completion.ToolCalls)
+                                switch (toolCall.FunctionName)
                                 {
-                                    switch (toolCall.FunctionName)
+
+                                    case nameof(GetMusicName):
                                     {
+                                        // The arguments that the model wants to use to call the function are specified as a
+                                        // stringified JSON object based on the schema defined in the tool definition. Note that
+                                        // the model may hallucinate arguments too. Consequently, it is important to do the
+                                        // appropriate parsing and validation before calling the function.
+                                        using JsonDocument argumentsJson = JsonDocument.Parse(toolCall.FunctionArguments);
+                                        bool hasLocation = argumentsJson.RootElement.TryGetProperty("songName", out JsonElement songName);
 
-                                        case nameof(GetMusicName):
-                                            {
-                                                // The arguments that the model wants to use to call the function are specified as a
-                                                // stringified JSON object based on the schema defined in the tool definition. Note that
-                                                // the model may hallucinate arguments too. Consequently, it is important to do the
-                                                // appropriate parsing and validation before calling the function.
-                                                using JsonDocument argumentsJson = JsonDocument.Parse(toolCall.FunctionArguments);
-                                                bool hasLocation = argumentsJson.RootElement.TryGetProperty("songName", out JsonElement songName);
+                                        GetMusicName(songName.GetString());
+                                        break;
+                                    }
 
-                                                GetMusicName(songName.GetString());
-                                                break;
-                                            }
-
-                                        default:
-                                            {
-                                                // Handle other unexpected calls.
-                                                throw new NotImplementedException();
-                                            }
+                                    default:
+                                    {
+                                        // Handle other unexpected calls.
+                                        throw new NotImplementedException();
                                     }
                                 }
-
-                                requiresAction = true;
-                                break;
                             }
+
+                            requiresAction = true;
+                            break;
+                        }
 
                         case ChatFinishReason.Length:
                             throw new NotImplementedException("Incomplete model output due to MaxTokens parameter or token limit exceeded.");
@@ -126,20 +123,18 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     }
                 } while (requiresAction);
 
-
-
                 foreach (ChatMessage message in chatMessages)
                 {
                     switch (message)
                     {
                         case UserChatMessage userMessage:
-                            Console.WriteLine($"[USER]:");
+                            Console.WriteLine("[USER]:");
                             Console.WriteLine($"{userMessage.Content[0].Text}");
                             Console.WriteLine();
                             break;
 
                         case AssistantChatMessage assistantMessage when assistantMessage.Content.Count > 0:
-                            Console.WriteLine($"[ASSISTANT]:");
+                            Console.WriteLine("[ASSISTANT]:");
                             Console.WriteLine($"{assistantMessage.Content[0].Text}");
                             Console.WriteLine();
                             break;
@@ -152,17 +147,14 @@ namespace XiaoZhi.Net.Test.OtherSamples
                             break;
                     }
                 }
-
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
             }
-
         }
 
-
-        static void GetMusicName(string songName)
+        private static void GetMusicName(string songName)
         {
             Console.WriteLine("songName: " + songName);
         }

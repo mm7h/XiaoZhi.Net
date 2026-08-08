@@ -1,11 +1,11 @@
-﻿using Microsoft.SemanticKernel;
+﻿using System.ClientModel;
+using System.Text;
+using System.Text.RegularExpressions;
+using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using OpenAI;
 using OpenAI.Chat;
-using System.ClientModel;
-using System.Text;
-using System.Text.RegularExpressions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Test.Plugins;
 
@@ -13,12 +13,12 @@ namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample05_ConversationSummary
     {
-        public static async Task Run()
+        public static async Task RunAsync()
         {
-            await TestConversationSummary();
+            await TestConversationSummaryAsync();
         }
 
-        static async Task TestConversationSummary()
+        private static async Task TestConversationSummaryAsync()
         {
             string endPoint = "https://open.bigmodel.cn/api/paas/v4/";
             string apiKey = Environment.GetEnvironmentVariable("OPEN_AI_API_KEY", EnvironmentVariableTarget.User)!;
@@ -38,7 +38,6 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
             var plugin = kernel.ImportPluginFromType<ConversationSummaryPlugin>("ConversationSummary");
 
-
             var chatCompletionOptions = new OpenAIPromptExecutionSettings
             {
                 Temperature = 0.5f,
@@ -47,11 +46,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(plugin)
             };
 
-
             IChatCompletionService chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
 
             #region ChatHistory
-            ChatHistory chatHistory = new ChatHistory();
+            ChatHistory chatHistory = [];
             chatHistory.AddUserMessage("我最近想去四川旅游，能推荐一些好玩的地方吗？");
             chatHistory.AddAssistantMessage("当然可以！四川有很多著名的旅游景点，比如成都的宽窄巷子、都江堰、乐山大佛、九寨沟和峨眉山等。你对自然风光还是历史文化更感兴趣呢？");
             chatHistory.AddUserMessage("我两个都感兴趣，另外我还想品尝一些四川的特色美食。");
@@ -100,7 +98,6 @@ namespace XiaoZhi.Net.Test.OtherSamples
             chatHistory.AddAssistantMessage("稻城亚丁、四姑娘山、九寨沟等都是徒步爱好者的天堂。");
             #endregion
 
-
             //FunctionResult summary = await kernel.InvokeAsync(
             //    plugin["SummarizeConversation"], new() { ["input"] = ConvertChatTranscript(chatHistory) });
 
@@ -108,12 +105,12 @@ namespace XiaoZhi.Net.Test.OtherSamples
             //Console.WriteLine(summary.GetValue<string>());
 
             var clientResult = await chatCompletionService.GetChatMessageContentAsync("Please summarize this conversation in Chinese below: " + ConvertChatTranscript(chatHistory), chatCompletionOptions, kernel);
-            string result = MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(clientResult.Content), @"<think>.*?</think>", "", RegexOptions.Singleline));
+            string result = MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(clientResult.Content), "<think>.*?</think>", "", RegexOptions.Singleline));
             Console.WriteLine("Generated Summary:");
             Console.WriteLine(result);
         }
 
-        static string ConvertChatTranscript(ChatHistory chatHistory)
+        private static string ConvertChatTranscript(ChatHistory chatHistory)
         {
             StringBuilder builder = new StringBuilder();
             foreach (var item in chatHistory)

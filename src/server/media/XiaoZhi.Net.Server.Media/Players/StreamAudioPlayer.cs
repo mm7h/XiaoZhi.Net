@@ -5,117 +5,106 @@ using XiaoZhi.Net.Server.Media.Common.Models;
 using XiaoZhi.Net.Server.Media.Common.Options;
 using XiaoZhi.Net.Server.Media.Decoders;
 using XiaoZhi.Net.Server.Media.Decoders.FFmpeg;
+using XiaoZhi.Net.Server.Media.Players.WorkPool;
 
 namespace XiaoZhi.Net.Server.Media.Players;
 
 /// <summary>
-/// A class that provides functionalities for loading and controlling audio playback.
-/// <para>Implements: <see cref="IAudioPlayer"/></para>
+/// 表示提供音频加载和播放控制功能的类。
+/// <para>实现：<see cref="IAudioPlayer"/>。</para>
 /// </summary>
 /// <remarks>
-/// Initializes <see cref="StreamAudioPlayer"/> instance by providing <see cref="FFmpegDecoderOptions"/> instance.
-/// The audio engine will be automatically configured to match the decoder output format.
+/// 通过提供 <see cref="FFmpegDecoderOptions"/> 实例初始化 <see cref="StreamAudioPlayer"/>。
+/// 音频引擎将自动配置为与解码器输出格式匹配。
 /// </remarks>
-internal class StreamAudioPlayer(ILogger<StreamAudioPlayer> logger) : AudioPlayerBase<Stream, StreamAudioPlayer>(logger), IStreamAudioPlayer
+internal class StreamAudioPlayer(IAudioDecoderWorkPool decoderWorkPool, ILogger<StreamAudioPlayer> logger)
+    : AudioPlayerBase<Stream, StreamAudioPlayer>(decoderWorkPool, logger), IStreamAudioPlayer
 {
     private FFmpegDecoderOptions? _decoderOptions;
 
     public override string AudioPlayerName => nameof(StreamAudioPlayer);
 
     /// <summary>
-    /// Gets or sets current specified audio stream.
+    /// 获取或设置当前指定的音频流。
     /// </summary>
     protected Stream? CurrentStream { get; set; }
 
     /// <inheritdoc />
-    /// <exception cref="ArgumentNullException">Thrown when given stream is null.</exception>
-    public Task<bool> LoadAsync(Stream stream, int outputSampleRate, int outputChannels, int frameDuration)
+    /// <exception cref="ArgumentNullException">指定的流为 null 时引发。</exception>
+    public async Task<bool> LoadAsync(Stream stream, int outputSampleRate, int outputChannels, int frameDuration, CancellationToken cancellationToken = default)
     {
         if (stream is null)
         {
-
-            return Task.FromResult(false);
+            return false;
         }
         if (this.State != PlaybackState.Idle)
         {
-            // Playback thread is currently running.
-            return Task.FromResult(false);
+            return false;
         }
         FFmpegDecoderOptions decoderOptions = new(outputSampleRate, outputChannels, frameDuration);
         this._decoderOptions = decoderOptions;
 
-        this.LoadInternal(() => this.CreateDecoder(stream));
+        bool loaded = await this.LoadInternalAsync(
+            workerCancellationToken => this.CreateDecoder(stream, workerCancellationToken),
+            cancellationToken).ConfigureAwait(false);
 
-        if (this.IsLoaded)
+        if (loaded)
         {
             this.CurrentStream = stream;
         }
 
-        return Task.FromResult(this.IsLoaded);
+        return loaded;
     }
 
 
     /// <summary>
-    /// Creates an <see cref="IAudioDecoder"/> instance.
-    /// By default, it will returns a new <see cref="FFmpegDecoder"/> instance.
+    /// 创建 <see cref="IAudioDecoder"/> 实例。
+    /// 默认返回新的 <see cref="FFmpegDecoder"/> 实例。
     /// </summary>
-    /// <param name="stream">Audio stream to be loaded.</param>
-    /// <param name="decoderOptions">A <see cref="FFmpegDecoderOptions"/> instance.</param>
-    /// <returns>A new <see cref="FFmpegDecoder"/> instance.</returns>
-    protected override IAudioDecoder CreateDecoder(Stream stream)
+    /// <param name="stream">要加载的音频流。</param>
+    /// <param name="decoderOptions"><see cref="FFmpegDecoderOptions"/> 实例。</param>
+    /// <returns>新的 <see cref="FFmpegDecoder"/> 实例。</returns>
+    protected override IAudioDecoder CreateDecoder(Stream stream, CancellationToken cancellationToken)
     {
         if (this._decoderOptions is null)
         {
             throw new InvalidOperationException("Decoder options is not set.");
         }
 
-        return new FFmpegStreamDecoder(stream, this._decoderOptions);
+        return new FFmpegStreamDecoder(stream, this._decoderOptions, cancellationToken);
     }
 
     /// <summary>
-    /// Handles audio decoder error, returns <c>true</c> to continue decoder thread, <c>false</c> will
-    /// break the thread. By default, this will try to re-initializes <see cref="CurrentDecoder"/>
-    /// and seeks to the last position.
+    /// 处理音频解码器错误。返回 <c>true</c> 时继续解码线程，返回 <c>false</c> 时中断该线程。
+    /// 默认情况下会尝试重新初始化 <see cref="CurrentDecoder"/>，并定位到上次的位置。
     /// </summary>
-    /// <param name="result">Failed audio decoder result.</param>
-    /// <returns><c>true</c> will continue decoder thread, <c>false</c> will break the thread.</returns>
-    protected override bool HandleDecoderError(AudioDecoderResult result)
+    /// <param name="result">失败的音频解码器结果。</param>
+    /// <returns>返回 <c>true</c> 时继续解码线程，返回 <c>false</c> 时中断该线程。</returns>
+    protected override IAudioDecoder? CreateRecoveryDecoder(AudioDecoderResult result, CancellationToken cancellationToken)
     {
-        this.Queue.Clear();
         this.Logger?.LogDebug("Failed to decode audio frame, retrying: {resultErrorMessage}", result.ErrorMessage);
-
-        this.CurrentDecoder?.Dispose();
-        this.CurrentDecoder = null;
 
         if (this.CurrentStream is null)
         {
-            this.IsLoaded = false;
-            return false;
+            return null;
         }
 
-        while (this.CurrentDecoder is null)
+        while (true)
         {
-            if (this.State == PlaybackState.Idle)
-            {
-                this.IsLoaded = false;
-                return false;
-            }
+            cancellationToken.ThrowIfCancellationRequested();
 
             try
             {
-                this.CurrentDecoder = this.CreateDecoder(this.CurrentStream);
-                break;
+                return this.CreateDecoder(this.CurrentStream, cancellationToken);
             }
             catch (Exception ex)
             {
                 this.Logger?.LogDebug("Unable to recreate audio decoder, retrying: {exMessage}", ex.Message);
-                Thread.Sleep(1000);
+                if (cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(1)))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
             }
         }
-
-        this.Logger?.LogDebug("Audio decoder has been recreated, seeking to the last position ({Position}).", this.Position);
-        this.Seek(this.Position);
-
-        return true;
     }
 }

@@ -1,17 +1,16 @@
 ﻿namespace XiaoZhi.Net.Server.Media.Common.Models;
 
 /// <summary>
-/// Represents audio frame object. Each audio frames contains their own presentation time
-/// and raw of audio that can be written into output device.
-/// This class cannot be inherited.
+/// 表示音频帧对象。每个音频帧都包含其呈现时间以及可写入输出设备的原始音频数据。
+/// 此类不能被继承。
 /// </summary>
 internal sealed record AudioFrame
 {
     /// <summary>
-    /// Initializes <see cref="AudioFrame"/> object.
+    /// 初始化 <see cref="AudioFrame"/> 对象。
     /// </summary>
-    /// <param name="presentationTime">Presentation time of audio frame in milliseconds.</param>
-    /// <param name="data">Audio samples in <c>Float32</c> format that can be written to output device.</param>
+    /// <param name="presentationTime">以毫秒为单位的音频帧呈现时间。</param>
+    /// <param name="data">可写入输出设备的 <c>Float32</c> 格式音频采样数据。</param>
     public AudioFrame(double presentationTime, byte[] data)
     {
         this.PresentationTime = presentationTime;
@@ -19,12 +18,12 @@ internal sealed record AudioFrame
     }
 
     /// <summary>
-    /// Gets frame presentation time in milliseconds.
+    /// 获取以毫秒为单位的帧呈现时间。
     /// </summary>
     public double PresentationTime { get; }
 
     /// <summary>
-    /// Gets audio samples in <c>Float32</c> format that can be written to output device.
+    /// 获取可写入输出设备的 <c>Float32</c> 格式音频采样数据。
     /// </summary>
     public byte[] Data { get; }
 }

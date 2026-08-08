@@ -1,5 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using FFmpeg.AutoGen;
+using XiaoZhi.Net.Server.Media.Common.Buffers;
 using XiaoZhi.Net.Server.Media.Common.Models;
 using XiaoZhi.Net.Server.Media.Common.Options;
 using XiaoZhi.Net.Server.Media.Utilities.Extensions;
@@ -7,9 +8,9 @@ using XiaoZhi.Net.Server.Media.Utilities.Extensions;
 namespace XiaoZhi.Net.Server.Media.Decoders.FFmpeg;
 
 /// <summary>
-/// A class that uses FFmpeg for decoding and demuxing specified audio source.
-/// This class cannot be inherited.
-/// <para>Implements: <see cref="IAudioDecoder"/>.</para>
+/// 表示使用 FFmpeg 解码和解复用指定音频源的类。
+/// 此类不能被继承。
+/// <para>实现：<see cref="IAudioDecoder"/>。</para>
 /// </summary>
 internal unsafe class FFmpegStreamDecoder : IAudioDecoder
 {
@@ -21,6 +22,7 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
     private readonly AVPacket* _currentPacket;
     private readonly AVFrame* _currentFrame;
     private readonly FFmpegResampler _resampler;
+    private AVIOContext* _avioContext;
     private avio_alloc_context_read_packet? _reads;
     private avio_alloc_context_seek? _seeks;
     private readonly int _streamIndex;
@@ -30,18 +32,20 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
     private readonly int _outputChannels;
     private readonly int _outputSampleRate;
     private readonly int _frameDurationMs;
-    private readonly List<byte> _sampleBuffer = [];
-    private volatile bool _disposed;
-    private volatile bool _interrupted;
+    private readonly CancellationToken _initializationCancellationToken;
+    private readonly PooledByteBufferWriter _sampleBuffer = new PooledByteBufferWriter();
+    private int _disposed;
+    private int _interruptRequested;
 
     /// <summary>
-    /// Initializes <see cref="FFmpegDecoder"/> by providing source audio stream.
+    /// 通过提供源音频流初始化 <see cref="FFmpegDecoder"/>。
     /// </summary>
-    /// <param name="stream">Source of audio stream to decode.</param>
-    /// <param name="options">An optional FFmpeg decoder options.</param>
-    /// <exception cref="ArgumentNullException">Thrown when the given stream is <c>null</c>.</exception>
-    public FFmpegStreamDecoder(Stream stream, FFmpegDecoderOptions options)
+    /// <param name="stream">要解码的源音频流。</param>
+    /// <param name="options">可选的 FFmpeg 解码器选项。</param>
+    /// <exception cref="ArgumentNullException">指定的流为 <c>null</c> 时引发。</exception>
+    public FFmpegStreamDecoder(Stream stream, FFmpegDecoderOptions options, CancellationToken cancellationToken = default)
     {
+        this._initializationCancellationToken = cancellationToken;
         this._formatCtx = ffmpeg.avformat_alloc_context();
 
         this._reads = this.ReadsImpl;
@@ -50,74 +54,98 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
         this._inputStream = stream;
         this._inputStreamBuffer = new byte[StreamBufferSize];
 
-        var buffer = (byte*)ffmpeg.av_malloc(StreamBufferSize);
-        var avio = ffmpeg.avio_alloc_context(buffer, StreamBufferSize, 0, null, this._reads, null, this._seeks);
-
-        if (avio is null)
+        try
         {
-            throw new ArgumentException("Unable to allocate avio context.");
-        }
-
-        this._formatCtx->pb = avio;
-
-        // Open and read operations (like av_read_frame) are blocked by default.
-        // We need to set http, udp and rstp read timeout, in case connection interrupted.
-        AVDictionary* dict = null;
-        ffmpeg.av_dict_set_int(&dict, "stimeout", 10, 0);
-        ffmpeg.av_dict_set_int(&dict, "timeout", 10, 0);
-
-        var formatCtx = this._formatCtx;
-        ffmpeg.avformat_open_input(&formatCtx, null, null, &dict).FFGuard();
-        ffmpeg.av_dict_free(&dict);
-
-        ffmpeg.avformat_find_stream_info(this._formatCtx, null).FFGuard();
-
-        AVCodec* codec = null;
-        this._streamIndex = ffmpeg.av_find_best_stream(this._formatCtx, MediaType, -1, -1, &codec, 0).FFGuard();
-
-        // The given source can be a video or contains multiple streams.
-        // Since we will only work with audio stream, let's discard other streams.
-        for (var i = 0; i < this._formatCtx->nb_streams; i++)
-        {
-            if (i != this._streamIndex)
+            if (this._formatCtx is null)
             {
-                this._formatCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
+                throw new InvalidOperationException("Unable to allocate FFmpeg format context.");
             }
+
+            var buffer = (byte*)ffmpeg.av_malloc(StreamBufferSize);
+            var avio = ffmpeg.avio_alloc_context(buffer, StreamBufferSize, 0, null, this._reads, null, this._seeks);
+
+            if (avio is null)
+            {
+                ffmpeg.av_free(buffer);
+                throw new ArgumentException("Unable to allocate avio context.");
+            }
+
+            this._avioContext = avio;
+            this._formatCtx->pb = avio;
+
+            // 打开和读取操作（如 av_read_frame）默认会阻塞。
+            // 需要设置 HTTP、UDP 和 RTSP 的读取超时，以防连接中断。
+            AVDictionary* dict = null;
+            try
+            {
+                ffmpeg.av_dict_set_int(&dict, "stimeout", 10, 0);
+                ffmpeg.av_dict_set_int(&dict, "timeout", 10, 0);
+
+                var formatCtx = this._formatCtx;
+                int openResult = ffmpeg.avformat_open_input(&formatCtx, null, null, &dict);
+                this._formatCtx = formatCtx;
+                openResult.FFGuard();
+            }
+            finally
+            {
+                ffmpeg.av_dict_free(&dict);
+            }
+
+            ffmpeg.avformat_find_stream_info(this._formatCtx, null).FFGuard();
+
+            AVCodec* codec = null;
+            this._streamIndex = ffmpeg.av_find_best_stream(this._formatCtx, MediaType, -1, -1, &codec, 0).FFGuard();
+
+            // 指定的源可能是视频或包含多个流。
+            // 由于只处理音频流，丢弃其他流。
+            for (var i = 0; i < this._formatCtx->nb_streams; i++)
+            {
+                if (i != this._streamIndex)
+                {
+                    this._formatCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
+                }
+            }
+
+            this._codecCtx = ffmpeg.avcodec_alloc_context3(codec);
+
+            ffmpeg.avcodec_parameters_to_context(this._codecCtx, this._formatCtx->streams[this._streamIndex]->codecpar).FFGuard();
+            ffmpeg.avcodec_open2(this._codecCtx, codec, null).FFGuard();
+
+            options ??= new FFmpegDecoderOptions();
+
+            var srcChannelLayout = this._codecCtx->ch_layout;
+            if (srcChannelLayout.nb_channels == 0)
+            {
+                ffmpeg.av_channel_layout_default(&srcChannelLayout, this._codecCtx->ch_layout.nb_channels);
+            }
+
+            this._resampler = new FFmpegResampler(
+                srcChannelLayout,
+                this._codecCtx->sample_rate,
+                this._codecCtx->sample_fmt,
+                options.Channels,
+                options.SampleRate);
+
+            this._outputChannels = options.Channels;
+            this._outputSampleRate = options.SampleRate;
+            this._frameDurationMs = options.FrameDuration;
+            this._frameSampleCount = this._outputSampleRate * this._frameDurationMs / 1000 * this._outputChannels;
+
+            var rational = ffmpeg.av_q2d(this._formatCtx->streams[this._streamIndex]->time_base);
+            var duration = this._formatCtx->streams[this._streamIndex]->duration * rational * 1000.00;
+            duration = duration > 0 ? duration : this._formatCtx->duration / 1000.00;
+
+            this.StreamInfo = new AudioStreamInfo(this._codecCtx->ch_layout.nb_channels, this._codecCtx->sample_rate, TimeSpan.FromMicroseconds(duration));
+
+            this._currentPacket = ffmpeg.av_packet_alloc();
+            this._currentFrame = ffmpeg.av_frame_alloc();
+            this._initializationCancellationToken = default;
         }
-
-        this._codecCtx = ffmpeg.avcodec_alloc_context3(codec);
-
-        ffmpeg.avcodec_parameters_to_context(this._codecCtx, this._formatCtx->streams[this._streamIndex]->codecpar).FFGuard();
-        ffmpeg.avcodec_open2(this._codecCtx, codec, null).FFGuard();
-
-        options ??= new FFmpegDecoderOptions();
-
-        var srcChannelLayout = this._codecCtx->ch_layout;
-        if (srcChannelLayout.nb_channels == 0)
+        catch
         {
-            ffmpeg.av_channel_layout_default(&srcChannelLayout, this._codecCtx->ch_layout.nb_channels);
+            this.Dispose();
+            throw;
         }
-
-        this._resampler = new FFmpegResampler(
-            srcChannelLayout,
-            this._codecCtx->sample_rate,
-            this._codecCtx->sample_fmt,
-            options.Channels,
-            options.SampleRate);
-
-        this._outputChannels = options.Channels;
-        this._outputSampleRate = options.SampleRate;
-        this._frameDurationMs = options.FrameDuration;
-        this._frameSampleCount = this._outputSampleRate * this._frameDurationMs / 1000 * this._outputChannels;
-
-        var rational = ffmpeg.av_q2d(this._formatCtx->streams[this._streamIndex]->time_base);
-        var duration = this._formatCtx->streams[this._streamIndex]->duration * rational * 1000.00;
-        duration = duration > 0 ? duration : this._formatCtx->duration / 1000.00;
-
-        this.StreamInfo = new AudioStreamInfo(this._codecCtx->ch_layout.nb_channels, this._codecCtx->sample_rate, TimeSpan.FromMicroseconds(duration));
-
-        this._currentPacket = ffmpeg.av_packet_alloc();
-        this._currentFrame = ffmpeg.av_frame_alloc();
     }
 
     /// <inheritdoc />
@@ -128,14 +156,18 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
     {
         lock (this._syncLock)
         {
-            if (this._disposed || this._interrupted)
+            if (Volatile.Read(ref this._disposed) != 0
+                || Volatile.Read(ref this._interruptRequested) != 0
+                || this._initializationCancellationToken.IsCancellationRequested)
             {
                 return new AudioDecoderResult(null, false, true, "Decoder has been disposed or interrupted");
             }
 
             while (this._sampleBuffer.Count < this._frameSampleCount * sizeof(float))
             {
-                if (this._disposed || this._interrupted)
+                if (Volatile.Read(ref this._disposed) != 0
+                    || Volatile.Read(ref this._interruptRequested) != 0
+                    || this._initializationCancellationToken.IsCancellationRequested)
                 {
                     break;
                 }
@@ -143,7 +175,9 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
                 ffmpeg.av_frame_unref(this._currentFrame);
                 while (true)
                 {
-                    if (this._disposed || this._interrupted)
+                    if (Volatile.Read(ref this._disposed) != 0
+                        || Volatile.Read(ref this._interruptRequested) != 0
+                        || this._initializationCancellationToken.IsCancellationRequested)
                     {
                         return new AudioDecoderResult(null, false, true, "Decoder has been disposed or interrupted");
                     }
@@ -158,8 +192,7 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
                             ffmpeg.av_packet_unref(this._currentPacket);
                             if (this._sampleBuffer.Count > 0)
                             {
-                                var lastData = this._sampleBuffer.ToArray();
-                                this._sampleBuffer.Clear();
+                                byte[] lastData = this._sampleBuffer.ReadRemaining();
                                 return new AudioDecoderResult(new AudioFrame(0, lastData), true, true);
                             }
                             return new AudioDecoderResult(null, false, code.FFIsEOF(), code.FFErrorToText());
@@ -183,29 +216,26 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
                     }
                     ffmpeg.av_channel_layout_default(&this._currentFrame->ch_layout, channelCount);
                 }
-                if (!this._resampler.TryConvert(*this._currentFrame, out byte[]? data, out string? error))
+                if (!this._resampler.TryConvert(*this._currentFrame, this._sampleBuffer, out string? error))
                 {
                     return new AudioDecoderResult(null, false, false, error);
                 }
-                if (data != null && data.Length > 0)
-                {
-                    this._sampleBuffer.AddRange(data);
-                }
             }
 
-            if (this._disposed || this._interrupted)
+            if (Volatile.Read(ref this._disposed) != 0
+                || Volatile.Read(ref this._interruptRequested) != 0
+                || this._initializationCancellationToken.IsCancellationRequested)
             {
                 return new AudioDecoderResult(null, false, true, "Decoder has been disposed or interrupted");
             }
 
-            // output frame
-            var frameData = this._sampleBuffer.GetRange(0, this._frameSampleCount * sizeof(float)).ToArray();
-            this._sampleBuffer.RemoveRange(0, this._frameSampleCount * sizeof(float));
+            // 输出帧。
+            byte[] frameData = this._sampleBuffer.Read(this._frameSampleCount * sizeof(float));
 
-            // Retrieve the best or most accurate presentation timestamp
+            // 获取最佳或最准确的呈现时间戳。
             long pts = this._currentFrame->best_effort_timestamp >= 0 ? this._currentFrame->best_effort_timestamp : this._currentFrame->pts >= 0 ? this._currentFrame->pts : 0;
 
-            // Calculate FFmpeg's presentation timestamp in milliseconds value
+            // 计算 FFmpeg 呈现时间戳的毫秒值。
             var rational = ffmpeg.av_q2d(this._formatCtx->streams[this._streamIndex]->time_base);
             var presentationTime = Math.Round(pts * rational * 1000.0, 2);
 
@@ -218,7 +248,9 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
     {
         lock (this._syncLock)
         {
-            if (this._disposed || this._interrupted)
+            if (Volatile.Read(ref this._disposed) != 0
+                || Volatile.Read(ref this._interruptRequested) != 0
+                || this._initializationCancellationToken.IsCancellationRequested)
             {
                 error = "Decoder has been disposed or interrupted";
                 return false;
@@ -242,27 +274,38 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
     }
 
     /// <summary>
-    /// Interrupts the decoder operations. 
-    /// This will cause any blocking FFmpeg operations to return with an error.
+    /// 请求中断解码操作。
+    /// 这会使所有阻塞的 FFmpeg 操作以错误形式返回。
     /// </summary>
-    public void Interrupt()
+    public void RequestInterrupt()
     {
-        this._interrupted = true;
+        Interlocked.Exchange(ref this._interruptRequested, 1);
+    }
+
+    /// <inheritdoc />
+    public void ResetInterrupt()
+    {
+        if (Volatile.Read(ref this._disposed) == 0)
+        {
+            Interlocked.Exchange(ref this._interruptRequested, 0);
+        }
     }
 
     private int ReadsImpl(void* opaque, byte* buf, int buf_size)
     {
-        if (this._disposed || this._interrupted)
+        if (Volatile.Read(ref this._disposed) != 0
+            || Volatile.Read(ref this._interruptRequested) != 0
+            || this._initializationCancellationToken.IsCancellationRequested)
         {
-            return ffmpeg.AVERROR_EOF;
+            return ffmpeg.AVERROR_EXIT;
         }
 
         try
         {
             buf_size = Math.Min(buf_size, StreamBufferSize);
 
-            // Use a shorter read if possible to make interruption more responsive
-            // For network streams, this helps reduce blocking time
+            // 尽可能使用较短的读取长度，以提高中断响应速度。
+            // 对网络流而言，这有助于减少阻塞时间。
             var actualReadSize = Math.Min(buf_size, StreamBufferSize / 4);
 
             var length = this._inputStream.Read(this._inputStreamBuffer, 0, actualReadSize);
@@ -273,7 +316,7 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
             }
             else if (length == 0)
             {
-                // End of stream
+                // 流结束。
                 return ffmpeg.AVERROR_EOF;
             }
 
@@ -281,14 +324,16 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
         }
         catch
         {
-            // Return EOF on any error to allow graceful termination
+            // 发生任何错误时返回 EOF，以便正常结束。
             return ffmpeg.AVERROR_EOF;
         }
     }
 
     private long SeeksImpl(void* opaque, long offset, int whence)
     {
-        if (this._disposed || this._interrupted)
+        if (Volatile.Read(ref this._disposed) != 0
+            || Volatile.Read(ref this._interruptRequested) != 0
+            || this._initializationCancellationToken.IsCancellationRequested)
         {
             return -1;
         }
@@ -311,13 +356,12 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
     /// <inheritdoc />
     public void Dispose()
     {
-        if (this._disposed)
+        if (Interlocked.Exchange(ref this._disposed, 1) != 0)
         {
             return;
         }
 
-        this._disposed = true;
-        this._interrupted = true;
+        this.RequestInterrupt();
 
         lock (this._syncLock)
         {
@@ -328,17 +372,28 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
             ffmpeg.av_frame_free(&frame);
 
             var formatCtx = this._formatCtx;
-            if (this._inputStream != null)
+            var avioContext = this._avioContext;
+            if (avioContext is not null)
             {
-                ffmpeg.av_freep(&formatCtx->pb->buffer);
-                ffmpeg.avio_context_free(&formatCtx->pb);
+                ffmpeg.av_freep(&avioContext->buffer);
+                ffmpeg.avio_context_free(&avioContext);
+                this._avioContext = null;
+
+                if (formatCtx is not null)
+                {
+                    formatCtx->pb = null;
+                }
             }
 
-            ffmpeg.avformat_close_input(&formatCtx);
+            if (formatCtx is not null)
+            {
+                ffmpeg.avformat_close_input(&formatCtx);
+            }
             var codecCtx = this._codecCtx;
             ffmpeg.avcodec_free_context(&codecCtx);
 
             this._resampler?.Dispose();
+            this._sampleBuffer.Dispose();
             this._reads = null;
             this._seeks = null;
         }

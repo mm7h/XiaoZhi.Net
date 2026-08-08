@@ -5,10 +5,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample19_SaveAudioFile
     {
-        const string INPUT_PCM_FILE_PATH = @".\data\asr-cache\test.pcm";
-        const string OUTPUT_AUDIO_FILE_PATH = @".\data\asr-cache\test.wav";
+        private const string InputPcmFilePath = @".\data\asr-cache\test.pcm";
+        private const string OutputAudioFilePath = @".\data\asr-cache\test.wav";
 
-        public static async Task Run()
+        public static async Task RunAsync()
         {
             MediaFactory.InitializeFFmpeg();
             bool checkResult = MediaFactory.CheckFFmpegInstalled(out string ffmpegVersion);
@@ -24,8 +24,8 @@ namespace XiaoZhi.Net.Test.OtherSamples
             {
                 IAudioEditor audioEditor = MediaFactory.CreateAudioEditor();
 
-                byte[] pcmBytes = File.ReadAllBytes(INPUT_PCM_FILE_PATH);
-                bool result = await audioEditor.SaveAudioFileAsync(OUTPUT_AUDIO_FILE_PATH, pcmBytes, 16000, 1, 128000);
+                byte[] pcmBytes = File.ReadAllBytes(InputPcmFilePath);
+                bool result = await audioEditor.SaveAudioFileAsync(OutputAudioFilePath, pcmBytes, 16000, 1, 128000);
                 Console.WriteLine($"Audio file saved: {result}");
             }
             catch (Exception ex)

@@ -3,16 +3,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using XiaoZhi.Test.OtherSamples.Huoshan;
-using XiaoZhi.Net.Test.Socket;
 using XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Enums;
 using XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Models;
+using XiaoZhi.Net.Test.Socket;
+using XiaoZhi.Test.OtherSamples.Huoshan;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample17_HuoshanUnidirectional
     {
-        public static async Task Run()
+        public static async Task RunAsync()
         {
             HuoshanUnidirectionalTTS tts = new();
 
@@ -32,29 +32,32 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
     file class HuoshanUnidirectionalTTS
     {
-        private const string SERVICE_END_POINT = "wss://openspeech.bytedance.com/api/v3/tts/unidirectional/stream";
-        private const int SAMPLE_RATE = 24000;
-        private static readonly TimeSpan DefaultWaitTimeout = TimeSpan.FromSeconds(15);
+        private const string ServiceEndPoint = "wss://openspeech.bytedance.com/api/v3/tts/unidirectional/stream";
+        private const int SampleRate = 24000;
+        private static readonly TimeSpan s_defaultWaitTimeout = TimeSpan.FromSeconds(15);
 
         private TaskCompletionSource _sessionFinishedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private readonly List<byte> _audio = new();
+        private readonly List<byte> _audio = [];
         private readonly object _audioLock = new();
 
         private bool _saveFile = false;
         private string? _savePath;
         private string? _speaker;
-        private string _audioFormat = "wav";
-        private bool _enableTimestamp = true;
+        private readonly string _audioFormat = "wav";
+        private readonly bool _enableTimestamp = true;
 
         private string? _connectId;
 
         protected WebSocketClient? WebSocketClient { get; set; }
-        public int GetTtsSampleRate() => SAMPLE_RATE;
+        public int GetTtsSampleRate()
+        {
+            return SampleRate;
+        }
+
         public bool Build(string appId, string accessToken, string resourceId)
         {
             try
             {
-
                 this._speaker = "zh_female_cancan_mars_bigtts";
                 this._connectId = Guid.NewGuid().ToString();
 
@@ -64,7 +67,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 {
                     this._savePath = Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
                     if (!Directory.Exists(this._savePath))
+                    {
                         Directory.CreateDirectory(this._savePath);
+                    }
                 }
 
                 IDictionary<string, string> headers = new Dictionary<string, string>
@@ -97,7 +102,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
             if (!this.WebSocketClient.IsConnected)
             {
-                await this.ConnectAsync(SERVICE_END_POINT, token);
+                await this.ConnectAsync(ServiceEndPoint, token);
             }
 
             // reset per request state
@@ -122,7 +127,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     ["audio_params"] = new Dictionary<string, object>
                     {
                         ["format"] = this._audioFormat,
-                        ["sample_rate"] = SAMPLE_RATE,
+                        ["sample_rate"] = SampleRate,
                         ["enable_timestamp"] = this._enableTimestamp,
                     },
                     ["additions"] = JsonHelper.Serialize(new Dictionary<string, object>
@@ -135,10 +140,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
             var sendBytes = JsonHelper.SerializeToUtf8Bytes(request);
             var message = Message.Create(MsgType.FullClientRequest, MsgTypeFlagBits.NoSeq);
             message.Payload = sendBytes;
-            await this.SendMessage(message);
+            await this.SendMessageAsync(message);
 
             using var finishedCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-            finishedCts.CancelAfter(DefaultWaitTimeout);
+            finishedCts.CancelAfter(s_defaultWaitTimeout);
 
             try
             {
@@ -191,7 +196,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
         private void WebSocketClient_OnClose(System.Net.WebSockets.WebSocketCloseStatus? status, string? desc)
         {
-            ResetSessionFinishedWithException(new OperationCanceledException($"WebSocket closed: {status} {desc}"));
+            this.ResetSessionFinishedWithException(new OperationCanceledException($"WebSocket closed: {status} {desc}"));
         }
 
         private void WebSocketClient_OnBinaryMessage(byte[] data)
@@ -240,10 +245,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
         private void WebSocketClient_OnError(System.Net.WebSockets.WebSocketError error, string message)
         {
-            ResetSessionFinishedWithException(new Exception($"WebSocket error: {error} {message}"));
+            this.ResetSessionFinishedWithException(new Exception($"WebSocket error: {error} {message}"));
         }
 
-        private async Task SendMessage(Message message)
+        private async Task SendMessageAsync(Message message)
         {
             if (this.WebSocketClient is null)
             {

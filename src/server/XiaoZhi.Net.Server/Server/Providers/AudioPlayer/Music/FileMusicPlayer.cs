@@ -49,7 +49,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
         public override bool Build(AudioSetting audioSetting)
         {
-            if (!this._urlAudioPlayer.CheckFFmpegInstalled())
+            if (!this._urlAudioPlayer.CheckFFmpegInstalledAsync().GetAwaiter().GetResult())
             {
                 this.Logger.LogError(Lang.FileMusicPlayer_Build_FFmpegInitFailed);
                 return false;
@@ -119,7 +119,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             try
             {
                 await this._audioPlayerSlim.WaitAsync();
-                this._urlAudioPlayer.Pause();
+                await this._urlAudioPlayer.PauseAsync();
             }
             finally
             {
@@ -134,15 +134,17 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                 this.Logger.LogInformation(Lang.FileMusicPlayer_ResumeAsync_Skip, this.PlaybackState);
                 return;
             }
+            Task playbackTask;
             try
             {
                 await this._audioPlayerSlim.WaitAsync();
-                this._urlAudioPlayer.Play();
+                playbackTask = this._urlAudioPlayer.PlayAsync();
             }
             finally
             {
                 this._audioPlayerSlim.Release();
             }
+            await playbackTask;
         }
 
         public async Task StopAsync()
@@ -152,18 +154,11 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                 this.Logger.LogInformation(Lang.FileMusicPlayer_StopAsync_Skip, this.PlaybackState);
                 return;
             }
-            // 记录停止前的状态：暂停状态已由播放器内部发出 isLast=true；
-            // 播放中强制停止时播放器不会自动发完成帧，需手动触发以正确关闭混音器中的 Music 流
-            bool wasPlaying = this.PlaybackState is PlaybackState.Playing or PlaybackState.Buffering;
             try
             {
                 await this._audioPlayerSlim.WaitAsync();
-                this._urlAudioPlayer.Stop();
+                await this._urlAudioPlayer.StopAsync();
                 this._cancellationTokenSource?.Cancel();
-                if (wasPlaying)
-                {
-                    this.FireAudioData(Array.Empty<float>(), false, true);
-                }
             }
             finally
             {
@@ -181,9 +176,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             {
                 await this._audioPlayerSlim.WaitAsync();
 
-                this._urlAudioPlayer.Seek(position);
-
-
+                await this._urlAudioPlayer.SeekAsync(position);
             }
             finally
             {
@@ -234,10 +227,10 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             {
                 this.PlayingMusicName = fileName;
                 cancellationToken.ThrowIfCancellationRequested();
-                await this._urlAudioPlayer.LoadAsync(file, this._audioSetting.SampleRate, this._audioSetting.Channels, this._audioSetting.FrameDuration);
+                await this._urlAudioPlayer.LoadAsync(file, this._audioSetting.SampleRate, this._audioSetting.Channels, this._audioSetting.FrameDuration, cancellationToken);
 
                 this.Logger.LogDebug(Lang.FileMusicPlayer_AudioFileProcessingAsync_Playing, fileName);
-                this._urlAudioPlayer.Play(true);
+                await this._urlAudioPlayer.PlayAsync(cancellationToken);
 
                 this.Logger.LogDebug(Lang.FileMusicPlayer_AudioFileProcessingAsync_Completed, fileName);
             }
@@ -253,7 +246,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             {
                 this.PlayingMusicName = null;
                 // 使用原子交换置空字段，避免与 StopAsync 的 Cancel() 产生竞态：
-                // Stop() 解除 Play(true) 阻塞后，内层 finally 与 StopAsync 并行执行，
+                // StopAsync() 取消 PlayAsync() 后，内层 finally 与 StopAsync 并行执行，
                 // 直接 Dispose 会导致 StopAsync 随后的 Cancel() 抛出 ObjectDisposedException
                 var cts = Interlocked.Exchange(ref this._cancellationTokenSource, null);
                 cts?.Dispose();

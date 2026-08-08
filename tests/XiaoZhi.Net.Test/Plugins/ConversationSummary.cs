@@ -1,12 +1,11 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System.ComponentModel;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Text;
-using System.ComponentModel;
 
 namespace XiaoZhi.Net.Test.Plugins
 {
-
     /// <summary>
     /// Semantic plugin that enables conversations summarization.
     /// </summary>
@@ -60,10 +59,10 @@ BEGIN SUMMARY:
         [KernelFunction, Description("Given a long conversation transcript, summarize the conversation.")]
         public Task<string> SummarizeConversation(
             [Description("A long conversation transcript.")] string input,
-            Kernel kernel) =>
-            ProcessAsync(this._summarizeConversationFunction, input, kernel);
-
-
+            Kernel kernel)
+        {
+            return ProcessAsync(this._summarizeConversationFunction, input, kernel);
+        }
 
         private static async Task<string> ProcessAsync(KernelFunction func, string input, Kernel kernel)
         {

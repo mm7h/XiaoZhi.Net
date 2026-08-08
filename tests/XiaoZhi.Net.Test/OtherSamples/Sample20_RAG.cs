@@ -1,8 +1,8 @@
-﻿using Microsoft.Agents.AI;
+﻿using System.ClientModel;
+using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using OpenAI;
 using OpenAI.Embeddings;
-using System.ClientModel;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {
@@ -175,9 +175,11 @@ namespace XiaoZhi.Net.Test.OtherSamples
             }
         }
 
-        private static bool IsExitCommand(string value) =>
-            string.Equals(value.Trim(), "exit", StringComparison.OrdinalIgnoreCase)
+        private static bool IsExitCommand(string value)
+        {
+            return string.Equals(value.Trim(), "exit", StringComparison.OrdinalIgnoreCase)
             || string.Equals(value.Trim(), "quit", StringComparison.OrdinalIgnoreCase);
+        }
 
         private static void PrintSearchResults(IReadOnlyList<SearchHit> results)
         {
@@ -268,12 +270,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
             {
                 OpenAIEmbedding embedding = await this._embeddingClient.GenerateEmbeddingAsync(query, cancellationToken: cancellationToken);
                 float[] queryVector = embedding.ToFloats().ToArray();
-                if (queryVector.Length != this.VectorDimension)
-                {
-                    throw new InvalidOperationException("查询 embedding 维度与文档索引不一致，请使用同一 embedding 模型重建索引。");
-                }
-
-                return this._chunks
+                return queryVector.Length != this.VectorDimension
+                    ? throw new InvalidOperationException("查询 embedding 维度与文档索引不一致，请使用同一 embedding 模型重建索引。")
+                    : (IReadOnlyList<SearchHit>)this._chunks
                     .Select(chunk => new SearchHit(chunk, CosineSimilarity(queryVector, chunk.Embedding)))
                     .OrderByDescending(hit => hit.Score)
                     .ThenBy(hit => hit.Chunk.Id, StringComparer.Ordinal)

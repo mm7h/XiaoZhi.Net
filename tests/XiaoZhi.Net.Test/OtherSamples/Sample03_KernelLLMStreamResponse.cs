@@ -1,23 +1,22 @@
-﻿using Microsoft.SemanticKernel;
+﻿using System.ClientModel;
+using System.Text;
+using System.Text.RegularExpressions;
+using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using OpenAI;
 using OpenAI.Chat;
-using System.ClientModel;
-using System.Text;
-using System.Text.RegularExpressions;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample03_KernelLLMStreamResponse
     {
-        public static async Task Run()
+        public static async Task RunAsync()
         {
-            await TestKernelLLMStreamResponse();
+            await TestKernelLLMStreamResponseAsync();
         }
 
-
-        static async Task TestKernelLLMStreamResponse()
+        private static async Task TestKernelLLMStreamResponseAsync()
         {
             string endPoint = "https://open.bigmodel.cn/api/paas/v4/";
             string apiKey = Environment.GetEnvironmentVariable("OPEN_AI_API_KEY", EnvironmentVariableTarget.User)!;
@@ -43,10 +42,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
             Kernel kernel = builder.Build();
             IChatCompletionService chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
 
-            ChatHistory chatHistory = new ChatHistory();
+            ChatHistory chatHistory = [];
             chatHistory.AddUserMessage("介绍一下四川美食。");
             StringBuilder segmentResponse = new StringBuilder();
-            List<OutSegment> allResponse = new List<OutSegment>();
+            List<OutSegment> allResponse = [];
             Regex sentenceSplitRegex = new Regex(@"(?<![0-9])[.?!;:](?=\s|$)|[。？！；：，]");
 
             await foreach (var item in chatCompletionService.GetStreamingChatMessageContentsAsync(chatHistory, chatCompletionOptions, kernel))
@@ -65,7 +64,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     string remaining = currentSegment.Substring(splitPosition);
 
                     OutSegment outSegment = new OutSegment(sentence);
-                    if (allResponse.Count == 0) outSegment.IsFirst = true;
+                    if (allResponse.Count == 0)
+                    {
+                        outSegment.IsFirst = true;
+                    }
 
                     allResponse.Add(outSegment);
 
@@ -75,7 +77,6 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     currentSegment = remaining;
                     match = sentenceSplitRegex.Match(currentSegment);
                 }
-
             }
 
             // 处理流结束的情况
@@ -89,14 +90,15 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 // 处理LLM回复的内容无法被句子分隔的问题
                 if (segmentResponse.Length > 0)
                 {
-                    OutSegment segment = new OutSegment(segmentResponse.ToString());
-                    segment.IsFirst = true;
-                    segment.IsLast = true;
+                    OutSegment segment = new OutSegment(segmentResponse.ToString())
+                    {
+                        IsFirst = true,
+                        IsLast = true
+                    };
                 }
             }
             segmentResponse.Clear();
             Console.WriteLine("最后的所有回复：" + string.Join(string.Empty, allResponse.Select(a => a.Content)));
         }
-
     }
 }

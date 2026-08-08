@@ -1,4 +1,5 @@
 ﻿using FFmpeg.AutoGen;
+using XiaoZhi.Net.Server.Media.Common.Buffers;
 using XiaoZhi.Net.Server.Media.Common.Models;
 using XiaoZhi.Net.Server.Media.Common.Options;
 using XiaoZhi.Net.Server.Media.Utilities.Extensions;
@@ -6,9 +7,9 @@ using XiaoZhi.Net.Server.Media.Utilities.Extensions;
 namespace XiaoZhi.Net.Server.Media.Decoders.FFmpeg;
 
 /// <summary>
-/// A class that uses FFmpeg for decoding and demuxing specified audio source.
-/// This class cannot be inherited.
-/// <para>Implements: <see cref="IAudioDecoder"/>.</para>
+/// 表示使用 FFmpeg 解码和解复用指定音频源的类。
+/// 此类不能被继承。
+/// <para>实现：<see cref="IAudioDecoder"/>。</para>
 /// </summary>
 internal unsafe class FFmpegUrlDecoder : IAudioDecoder
 {
@@ -16,6 +17,7 @@ internal unsafe class FFmpegUrlDecoder : IAudioDecoder
     private const AVMediaType MediaType = AVMediaType.AVMEDIA_TYPE_AUDIO;
     private readonly object _syncLock = new();
     private readonly AVFormatContext* _formatCtx;
+    private readonly AVIOInterruptCB_callback _interruptCallback;
     private readonly AVCodecContext* _codecCtx;
     private readonly AVPacket* _currentPacket;
     private readonly AVFrame* _currentFrame;
@@ -25,93 +27,121 @@ internal unsafe class FFmpegUrlDecoder : IAudioDecoder
     private readonly int _outputChannels;
     private readonly int _outputSampleRate;
     private readonly int _frameDurationMs;
-    private readonly List<byte> _sampleBuffer = [];
-    private bool _disposed;
+    private readonly CancellationToken _initializationCancellationToken;
+    private readonly PooledByteBufferWriter _sampleBuffer = new PooledByteBufferWriter();
+    private int _disposed;
+    private int _interruptRequested;
 
     /// <summary>
-    /// Initializes <see cref="FFmpegDecoder"/> by providing audio URL.
-    /// The audio URL can be URL or path to local audio file.
+    /// 通过提供音频 URL 初始化 <see cref="FFmpegDecoder"/>。
+    /// 音频 URL 可以是 URL 或本地音频文件路径。
     /// </summary>
-    /// <param name="url">Audio URL or audio file path to decode.</param>
-    /// <param name="options">An optional FFmpeg decoder options.</param>
-    /// <exception cref="ArgumentNullException">Thrown when the given url is <c>null</c>.</exception>
-    public FFmpegUrlDecoder(string url, FFmpegDecoderOptions options)
+    /// <param name="url">要解码的音频 URL 或音频文件路径。</param>
+    /// <param name="options">可选的 FFmpeg 解码器选项。</param>
+    /// <exception cref="ArgumentNullException">指定的 URL 为 <c>null</c> 时引发。</exception>
+    public FFmpegUrlDecoder(string url, FFmpegDecoderOptions options, CancellationToken cancellationToken = default)
     {
+        this._initializationCancellationToken = cancellationToken;
         this._formatCtx = ffmpeg.avformat_alloc_context();
+        this._interruptCallback = this.InterruptCallback;
 
-        // Open and read operations (like av_read_frame) are blocked by default.
-        // We need to set http, udp and rstp read timeout, in case connection interrupted.
-        AVDictionary* dict = null;
-        ffmpeg.av_dict_set_int(&dict, "stimeout", 10, 0);
-        ffmpeg.av_dict_set_int(&dict, "timeout", 10, 0);
-
-        var formatCtx = this._formatCtx;
-        ffmpeg.avformat_open_input(&formatCtx, url, null, &dict).FFGuard();
-        ffmpeg.av_dict_free(&dict);
-
-        ffmpeg.avformat_find_stream_info(this._formatCtx, null).FFGuard();
-
-        AVCodec* codec = null;
-        this._streamIndex = ffmpeg.av_find_best_stream(this._formatCtx, MediaType, -1, -1, &codec, 0).FFGuard();
-
-        // The given source can be a video or contains multiple streams.
-        // Since we will only work with audio stream, let's discard other streams.
-        for (var i = 0; i < this._formatCtx->nb_streams; i++)
+        try
         {
-            if (i != this._streamIndex)
+            if (this._formatCtx is null)
             {
-                this._formatCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
-            }
-        }
-
-        this._codecCtx = ffmpeg.avcodec_alloc_context3(codec);
-
-        ffmpeg.avcodec_parameters_to_context(this._codecCtx, this._formatCtx->streams[this._streamIndex]->codecpar).FFGuard();
-        ffmpeg.avcodec_open2(this._codecCtx, codec, null).FFGuard();
-
-        options ??= new FFmpegDecoderOptions();
-
-        var srcChannelLayout = this._codecCtx->ch_layout;
-
-        // Validate sample rate
-        if (this._codecCtx->sample_rate <= 0)
-        {
-            throw new InvalidOperationException($"Invalid sample rate: {this._codecCtx->sample_rate}. Unable to decode audio stream from: {url}");
-        }
-
-        // Ensure we have a proper channel layout
-        if (srcChannelLayout.nb_channels == 0 || (srcChannelLayout.order == AVChannelOrder.AV_CHANNEL_ORDER_UNSPEC && srcChannelLayout.u.mask == 0))
-        {
-            // If channel layout is not specified, try to get channel count from codec context
-            var channelCount = this._codecCtx->ch_layout.nb_channels;
-            if (channelCount <= 0)
-            {
-                throw new InvalidOperationException($"Unable to determine channel count for audio stream from: {url}. Channel layout is unspecified and channel count is {channelCount}.");
+                throw new InvalidOperationException("Unable to allocate FFmpeg format context.");
             }
 
-            ffmpeg.av_channel_layout_default(&srcChannelLayout, channelCount);
+            this._formatCtx->interrupt_callback.callback = this._interruptCallback;
+
+            // 打开和读取操作（如 av_read_frame）默认会阻塞。
+            // 需要设置 HTTP、UDP 和 RTSP 的读取超时，以防连接中断。
+            AVDictionary* dict = null;
+            try
+            {
+                ffmpeg.av_dict_set_int(&dict, "stimeout", 10, 0);
+                ffmpeg.av_dict_set_int(&dict, "timeout", 10, 0);
+
+                var formatCtx = this._formatCtx;
+                int openResult = ffmpeg.avformat_open_input(&formatCtx, url, null, &dict);
+                this._formatCtx = formatCtx;
+                openResult.FFGuard();
+            }
+            finally
+            {
+                ffmpeg.av_dict_free(&dict);
+            }
+
+            ffmpeg.avformat_find_stream_info(this._formatCtx, null).FFGuard();
+
+            AVCodec* codec = null;
+            this._streamIndex = ffmpeg.av_find_best_stream(this._formatCtx, MediaType, -1, -1, &codec, 0).FFGuard();
+
+            // 指定的源可能是视频或包含多个流。
+            // 由于只处理音频流，丢弃其他流。
+            for (var i = 0; i < this._formatCtx->nb_streams; i++)
+            {
+                if (i != this._streamIndex)
+                {
+                    this._formatCtx->streams[i]->discard = AVDiscard.AVDISCARD_ALL;
+                }
+            }
+
+            this._codecCtx = ffmpeg.avcodec_alloc_context3(codec);
+
+            ffmpeg.avcodec_parameters_to_context(this._codecCtx, this._formatCtx->streams[this._streamIndex]->codecpar).FFGuard();
+            ffmpeg.avcodec_open2(this._codecCtx, codec, null).FFGuard();
+
+            options ??= new FFmpegDecoderOptions();
+
+            var srcChannelLayout = this._codecCtx->ch_layout;
+
+            // 验证采样率。
+            if (this._codecCtx->sample_rate <= 0)
+            {
+                throw new InvalidOperationException($"Invalid sample rate: {this._codecCtx->sample_rate}. Unable to decode audio stream from: {url}");
+            }
+
+            // 确保声道布局有效。
+            if (srcChannelLayout.nb_channels == 0 || (srcChannelLayout.order == AVChannelOrder.AV_CHANNEL_ORDER_UNSPEC && srcChannelLayout.u.mask == 0))
+            {
+                // 未指定声道布局时，尝试从编解码器上下文获取声道数。
+                var channelCount = this._codecCtx->ch_layout.nb_channels;
+                if (channelCount <= 0)
+                {
+                    throw new InvalidOperationException($"Unable to determine channel count for audio stream from: {url}. Channel layout is unspecified and channel count is {channelCount}.");
+                }
+
+                ffmpeg.av_channel_layout_default(&srcChannelLayout, channelCount);
+            }
+
+            this._resampler = new FFmpegResampler(
+                srcChannelLayout,
+                this._codecCtx->sample_rate,
+                this._codecCtx->sample_fmt,
+                options.Channels,
+                options.SampleRate);
+
+            this._outputChannels = options.Channels;
+            this._outputSampleRate = options.SampleRate;
+            this._frameDurationMs = options.FrameDuration;
+            this._frameSampleCount = this._outputSampleRate * this._frameDurationMs / 1000 * this._outputChannels;
+
+            var rational = ffmpeg.av_q2d(this._formatCtx->streams[this._streamIndex]->time_base);
+            var duration = this._formatCtx->streams[this._streamIndex]->duration * rational * 1000.00;
+            duration = duration > 0 ? duration : this._formatCtx->duration / 1000.00;
+
+            this.StreamInfo = new AudioStreamInfo(srcChannelLayout.nb_channels, this._codecCtx->sample_rate, TimeSpan.FromMicroseconds(duration));
+
+            this._currentPacket = ffmpeg.av_packet_alloc();
+            this._currentFrame = ffmpeg.av_frame_alloc();
+            this._initializationCancellationToken = default;
         }
-
-        this._resampler = new FFmpegResampler(
-            srcChannelLayout,
-            this._codecCtx->sample_rate,
-            this._codecCtx->sample_fmt,
-            options.Channels,
-            options.SampleRate);
-
-        this._outputChannels = options.Channels;
-        this._outputSampleRate = options.SampleRate;
-        this._frameDurationMs = options.FrameDuration;
-        this._frameSampleCount = this._outputSampleRate * this._frameDurationMs / 1000 * this._outputChannels;
-
-        var rational = ffmpeg.av_q2d(this._formatCtx->streams[this._streamIndex]->time_base);
-        var duration = this._formatCtx->streams[this._streamIndex]->duration * rational * 1000.00;
-        duration = duration > 0 ? duration : this._formatCtx->duration / 1000.00;
-
-        this.StreamInfo = new AudioStreamInfo(srcChannelLayout.nb_channels, this._codecCtx->sample_rate, TimeSpan.FromMicroseconds(duration));
-
-        this._currentPacket = ffmpeg.av_packet_alloc();
-        this._currentFrame = ffmpeg.av_frame_alloc();
+        catch
+        {
+            this.Dispose();
+            throw;
+        }
     }
 
     /// <inheritdoc />
@@ -122,6 +152,11 @@ internal unsafe class FFmpegUrlDecoder : IAudioDecoder
     {
         lock (this._syncLock)
         {
+            if (Volatile.Read(ref this._disposed) != 0)
+            {
+                return new AudioDecoderResult(null, false, true, "Decoder has been disposed");
+            }
+
             while (this._sampleBuffer.Count < this._frameSampleCount * sizeof(float))
             {
                 ffmpeg.av_frame_unref(this._currentFrame);
@@ -137,8 +172,7 @@ internal unsafe class FFmpegUrlDecoder : IAudioDecoder
                             ffmpeg.av_packet_unref(this._currentPacket);
                             if (this._sampleBuffer.Count > 0)
                             {
-                                var lastData = this._sampleBuffer.ToArray();
-                                this._sampleBuffer.Clear();
+                                byte[] lastData = this._sampleBuffer.ReadRemaining();
                                 return new AudioDecoderResult(new AudioFrame(0, lastData), true, true);
                             }
                             return new AudioDecoderResult(null, false, code.FFIsEOF(), code.FFErrorToText());
@@ -163,23 +197,18 @@ internal unsafe class FFmpegUrlDecoder : IAudioDecoder
                     }
                     ffmpeg.av_channel_layout_default(&this._currentFrame->ch_layout, channelCount);
                 }
-                if (!this._resampler.TryConvert(*this._currentFrame, out byte[]? data, out string? error))
+                if (!this._resampler.TryConvert(*this._currentFrame, this._sampleBuffer, out string? error))
                 {
                     return new AudioDecoderResult(null, false, false, error);
                 }
-                if (data != null && data.Length > 0)
-                {
-                    this._sampleBuffer.AddRange(data);
-                }
             }
-            // output frame
-            var frameData = this._sampleBuffer.GetRange(0, this._frameSampleCount * sizeof(float)).ToArray();
-            this._sampleBuffer.RemoveRange(0, this._frameSampleCount * sizeof(float));
+            // 输出帧。
+            byte[] frameData = this._sampleBuffer.Read(this._frameSampleCount * sizeof(float));
 
-            // Retrieve the best or most accurate presentation timestamp
+            // 获取最佳或最准确的呈现时间戳。
             long pts = this._currentFrame->best_effort_timestamp >= 0 ? this._currentFrame->best_effort_timestamp : this._currentFrame->pts >= 0 ? this._currentFrame->pts : 0;
 
-            // Calculate FFmpeg's presentation timestamp in milliseconds value
+            // 计算 FFmpeg 呈现时间戳的毫秒值。
             var rational = ffmpeg.av_q2d(this._formatCtx->streams[this._streamIndex]->time_base);
             var presentationTime = Math.Round(pts * rational * 1000.0, 2);
             return new AudioDecoderResult(new AudioFrame(presentationTime, frameData), true, false);
@@ -191,6 +220,12 @@ internal unsafe class FFmpegUrlDecoder : IAudioDecoder
     {
         lock (this._syncLock)
         {
+            if (Volatile.Read(ref this._disposed) != 0)
+            {
+                error = "Decoder has been disposed";
+                return false;
+            }
+
             var tb = this._formatCtx->streams[this._streamIndex]->time_base;
             var pos = (long)(position.TotalSeconds * ffmpeg.AV_TIME_BASE);
             var ts = ffmpeg.av_rescale_q(pos, ffmpeg.av_get_time_base_q(), tb);
@@ -209,26 +244,57 @@ internal unsafe class FFmpegUrlDecoder : IAudioDecoder
     }
 
     /// <inheritdoc />
+    public void RequestInterrupt()
+    {
+        Interlocked.Exchange(ref this._interruptRequested, 1);
+    }
+
+    /// <inheritdoc />
+    public void ResetInterrupt()
+    {
+        if (Volatile.Read(ref this._disposed) == 0)
+        {
+            Interlocked.Exchange(ref this._interruptRequested, 0);
+        }
+    }
+
+    private int InterruptCallback(void* opaque)
+    {
+        return Volatile.Read(ref this._disposed) != 0
+            || Volatile.Read(ref this._interruptRequested) != 0
+            || this._initializationCancellationToken.IsCancellationRequested
+            ? 1
+            : 0;
+    }
+
+    /// <inheritdoc />
     public void Dispose()
     {
-        if (this._disposed)
+        if (Interlocked.Exchange(ref this._disposed, 1) != 0)
         {
             return;
         }
 
-        var packet = this._currentPacket;
-        ffmpeg.av_packet_free(&packet);
+        this.RequestInterrupt();
 
-        var frame = this._currentFrame;
-        ffmpeg.av_frame_free(&frame);
+        lock (this._syncLock)
+        {
+            var packet = this._currentPacket;
+            ffmpeg.av_packet_free(&packet);
 
-        var formatCtx = this._formatCtx;
+            var frame = this._currentFrame;
+            ffmpeg.av_frame_free(&frame);
 
-        ffmpeg.avformat_close_input(&formatCtx);
-        var codecCtx = this._codecCtx;
-        ffmpeg.avcodec_free_context(&codecCtx);
+            var formatCtx = this._formatCtx;
+            if (formatCtx is not null)
+            {
+                ffmpeg.avformat_close_input(&formatCtx);
+            }
+            var codecCtx = this._codecCtx;
+            ffmpeg.avcodec_free_context(&codecCtx);
 
-        this._resampler?.Dispose();
-        this._disposed = true;
+            this._resampler?.Dispose();
+            this._sampleBuffer.Dispose();
+        }
     }
 }

@@ -4,15 +4,15 @@
     {
         public OutSegment(string content)
         {
-            Content = content;
-            IsFirst = false;
-            IsLast = false;
+            this.Content = content;
+            this.IsFirst = false;
+            this.IsLast = false;
         }
         public OutSegment(string content, bool isFirst, bool isLast)
         {
-            Content = content;
-            IsFirst = isFirst;
-            IsLast = isLast;
+            this.Content = content;
+            this.IsFirst = isFirst;
+            this.IsLast = isLast;
         }
         /// <summary>
         /// 段落内容

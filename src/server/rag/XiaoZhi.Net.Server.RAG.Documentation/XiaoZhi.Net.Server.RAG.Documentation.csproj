@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\XiaoZhi.Net.Server.Abstractions\XiaoZhi.Net.Server.Abstractions.csproj" />
     <ProjectReference Include="..\XiaoZhi.Net.Server.RAG.Abstractions\XiaoZhi.Net.Server.RAG.Abstractions.csproj" />
   </ItemGroup>
 </Project>

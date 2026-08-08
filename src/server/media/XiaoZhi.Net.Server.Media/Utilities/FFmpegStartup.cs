@@ -10,7 +10,7 @@ namespace XiaoZhi.Net.Server.Media.Utilities
         internal static string FFmpegRootPath = "./ffmpeg/";
 
         /// <summary>
-        /// Gets a value indicating whether FFmpeg has been successfully initialized.
+        /// 获取一个值，该值指示 FFmpeg 是否已成功初始化。
         /// </summary>
         internal static bool FFmpegInitialized
         {

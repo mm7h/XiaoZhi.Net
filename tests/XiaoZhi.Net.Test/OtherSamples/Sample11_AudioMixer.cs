@@ -9,17 +9,17 @@ namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample11_AudioMixer
     {
-        const string SYSTEM_AUDIO_FILE_PATH = "./audioFile/max_output_size.wav";
-        const string TTS_AUDIO_FILE_PATH = "./audioFile/bind_code.wav";
-        const string MUSIC_AUDIO_FILE_PATH = "./audioFile/Perfect.flac";
+        private const string SystemAudioFilePath = "./audioFile/max_output_size.wav";
+        private const string TtsAudioFilePath = "./audioFile/bind_code.wav";
+        private const string MusicAudioFilePath = "./audioFile/Perfect.flac";
 
-        const int SAMPLE_RATE = 16000;
-        const int CHANNELS = 1;
-        const int FRAME_DURATION_MS = 60;
+        private const int SampleRate = 16000;
+        private const int Channels = 1;
+        private const int FrameDurationMs = 60;
         /// <summary>
         /// 运行示例
         /// </summary>
-        public static async Task Run()
+        public static async Task RunAsync()
         {
             try
             {
@@ -30,20 +30,22 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 using (var waveOut = new WaveOutEvent())
                 {
                     // Reduced buffer size for lower latency
-                    var provider = new BufferedWaveProvider(WaveFormat.CreateIeeeFloatWaveFormat(SAMPLE_RATE, CHANNELS));
-                    provider.BufferLength = SAMPLE_RATE * 1 * CHANNELS * 4; // Reduced from 2 seconds to 1 second
+                    var provider = new BufferedWaveProvider(WaveFormat.CreateIeeeFloatWaveFormat(SampleRate, Channels))
+                    {
+                        BufferLength = SampleRate * 1 * Channels * 4 // Reduced from 2 seconds to 1 second
+                    };
                     waveOut.Init(provider);
                     waveOut.Play();
 
                     Console.WriteLine("Creating AudioMixer with smooth volume control...");
-                    
+
                     // 创建带有平滑音量控制的音频混音器
                     // 配置：1000ms过渡时间，对数曲线，启用平滑控制
                     IAudioMixer mixer = MediaFactory.CreateAudioMixer(
-                        SAMPLE_RATE, 
-                        CHANNELS, 
-                        FRAME_DURATION_MS,
-                        new AudioMixerConfig() 
+                        SampleRate,
+                        Channels,
+                        FrameDurationMs,
+                        new AudioMixerConfig()
                         {
                             VolumeTransitionDurationMs = 1000,
                             TransitionCurve = VolumeTransitionCurve.Logarithmic,
@@ -73,7 +75,6 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         var byteData = new byte[pcmData.Length * 4];
                         Buffer.BlockCopy(pcmData, 0, byteData, 0, byteData.Length);
-
 
                         // Reduced waiting time for lower latency
                         while (provider.BufferedBytes + byteData.Length > provider.BufferLength)
@@ -111,7 +112,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     Task musicTask = Task.Run(async () =>
                     {
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting Music playback...");
-                        await DecodeAudio(MUSIC_AUDIO_FILE_PATH, AudioType.Music, mixer);
+                        await DecodeAudioAsync(MusicAudioFilePath, AudioType.Music, mixer);
                     });
 
                     // Start TTS after 15 seconds (medium priority) - should suppress music smoothly
@@ -119,7 +120,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         await Task.Delay(15 * 1000);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting TTS playback (should smoothly suppress music over 500ms)...");
-                        await DecodeAudio(TTS_AUDIO_FILE_PATH, AudioType.TTS, mixer);
+                        await DecodeAudioAsync(TtsAudioFilePath, AudioType.TTS, mixer);
                     });
 
                     // Start another TTS after 35 seconds
@@ -127,7 +128,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         await Task.Delay(35 * 1000);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting second TTS playback...");
-                        await DecodeAudio(TTS_AUDIO_FILE_PATH, AudioType.TTS, mixer);
+                        await DecodeAudioAsync(TtsAudioFilePath, AudioType.TTS, mixer);
                     });
 
                     // Start another TTS after 100 seconds
@@ -135,7 +136,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         await Task.Delay(100 * 1000);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting second TTS playback...");
-                        await DecodeAudio(TTS_AUDIO_FILE_PATH, AudioType.TTS, mixer);
+                        await DecodeAudioAsync(TtsAudioFilePath, AudioType.TTS, mixer);
                     });
 
                     // Start system notification after 25 seconds (highest priority) - should suppress both smoothly
@@ -143,7 +144,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         await Task.Delay(25 * 1000);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting System Notification playback (should smoothly suppress TTS and music over 500ms)...");
-                        await DecodeAudio(SYSTEM_AUDIO_FILE_PATH, AudioType.SystemNotification, mixer);
+                        await DecodeAudioAsync(SystemAudioFilePath, AudioType.SystemNotification, mixer);
                     });
 
                     Console.WriteLine("Waiting for all tasks to complete...");
@@ -170,14 +171,14 @@ namespace XiaoZhi.Net.Test.OtherSamples
             }
         }
 
-        private static async Task DecodeAudio(string filePath, AudioType audioType, IAudioMixer audioMixer)
+        private static async Task DecodeAudioAsync(string filePath, AudioType audioType, IAudioMixer audioMixer)
         {
             try
             {
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting {audioType} decoder for: {Path.GetFileName(filePath)}");
 
                 IUrlAudioPlayer audioPlayer = MediaFactory.CreateUrlAudioPlayer();
-                if (!audioPlayer.CheckFFmpegInstalled())
+                if (!await audioPlayer.CheckFFmpegInstalledAsync())
                 {
                     Console.WriteLine("Failed to initialize the ffmpeg.");
                     return;
@@ -217,10 +218,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 };
 
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {audioType}: Loading audio file...");
-                await audioPlayer.LoadAsync(filePath, SAMPLE_RATE, CHANNELS, FRAME_DURATION_MS);
+                await audioPlayer.LoadAsync(filePath, SampleRate, Channels, FrameDurationMs);
 
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {audioType}: Starting playback...");
-                audioPlayer.Play(true); // Blocking playback
+                await audioPlayer.PlayAsync();
 
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {audioType}: Playback completed. Total frames sent: {framesSent}");
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Expected: Other audio streams should now recover their volume over 500ms");

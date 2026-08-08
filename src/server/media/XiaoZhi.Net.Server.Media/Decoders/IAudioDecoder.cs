@@ -3,28 +3,37 @@
 namespace XiaoZhi.Net.Server.Media.Decoders;
 
 /// <summary>
-/// An interface for decoding audio frames from given audio source.
-/// <para>Implements: <see cref="IDisposable"/>.</para>
+/// 表示可从给定音频源解码音频帧，并支持请求中断和重置中断状态的接口。
+/// <para>实现：<see cref="IDisposable"/>。</para>
 /// </summary>
 internal interface IAudioDecoder : IDisposable
 {
     /// <summary>
-    /// Gets the information about loaded audio source.
+    /// 获取已加载音频源的信息。
     /// </summary>
     AudioStreamInfo StreamInfo { get; }
 
     /// <summary>
-    /// Decode next available audio frame from loaded audio source.
+    /// 从已加载的音频源解码下一个可用的音频帧。
     /// </summary>
-    /// <returns>A new <see cref="AudioDecoderResult"/> data.</returns>
+    /// <returns>新的 <see cref="AudioDecoderResult"/> 数据。</returns>
     AudioDecoderResult DecodeNextFrame();
 
     /// <summary>
-    /// Try to seeks audio stream to the specified position and returns <c>true</c> if successfully seeks,
-    /// otherwise, <c>false</c>.
+    /// 尝试将音频流定位到指定位置；定位成功时返回 <c>true</c>，否则返回 <c>false</c>。
     /// </summary>
-    /// <param name="position">Desired seek position.</param>
-    /// <param name="error">An error message while seeking audio stream.</param>
-    /// <returns><c>true</c> if successfully seeks, otherwise, <c>false</c>.</returns>
+    /// <param name="position">目标定位位置。</param>
+    /// <param name="error">定位音频流时产生的错误信息。</param>
+    /// <returns>定位成功时为 <c>true</c>，否则为 <c>false</c>。</returns>
     bool TrySeek(TimeSpan position, out string? error);
+
+    /// <summary>
+    /// 请求中断当前正在执行的阻塞解码操作。
+    /// </summary>
+    void RequestInterrupt();
+
+    /// <summary>
+    /// 在被中断的操作返回后重置中断状态，以允许后续解码或定位操作继续执行。
+    /// </summary>
+    void ResetInterrupt();
 }

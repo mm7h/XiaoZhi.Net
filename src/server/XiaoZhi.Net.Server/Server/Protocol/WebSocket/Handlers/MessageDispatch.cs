@@ -30,7 +30,9 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
                             await session.XiaoZhiSession.HandlerPipeline.HandleHelloMessage(jsonObj);
                         }
                         else
+                        {
                             session.XiaoZhiSession.HandlerPipeline.HandleTextMessage(package.Message);
+                        }
                         break;
                     case OpCode.Binary:
                         await session.XiaoZhiSession.HandlerPipeline.HandleBinaryMessageAsync(package.Data.ToArray());

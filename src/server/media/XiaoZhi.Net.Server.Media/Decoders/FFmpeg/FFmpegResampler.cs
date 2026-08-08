@@ -1,4 +1,5 @@
-﻿using FFmpeg.AutoGen;
+﻿using System.Buffers;
+using FFmpeg.AutoGen;
 using XiaoZhi.Net.Server.Media.Utilities.Extensions;
 
 namespace XiaoZhi.Net.Server.Media.Decoders.FFmpeg;
@@ -13,7 +14,7 @@ internal unsafe class FFmpegResampler : IDisposable
     private readonly int _dstSampleRate;
     private readonly int _bytesPerSample;
 
-    // Store the last input parameters to detect changes
+    // 保存上一次输入参数以检测变化。
     private int _lastSrcSampleRate;
     private AVSampleFormat _lastSrcSampleFormat;
     private int _lastSrcChannels;
@@ -36,13 +37,13 @@ internal unsafe class FFmpegResampler : IDisposable
 
         this._dstFrame = ffmpeg.av_frame_alloc();
 
-        // Initialize with the first set of parameters
+        // 使用第一组参数初始化。
         this.InitializeSwrContext(srcChannelLayout, srcSampleRate, srcSampleFormat);
     }
 
     private void InitializeSwrContext(AVChannelLayout srcChannelLayout, int srcSampleRate, AVSampleFormat srcSampleFormat)
     {
-        // Free existing context if it exists
+        // 如果已有上下文，则释放它。
         if (this._swrCtx != null)
         {
             var oldSwrCtx = this._swrCtx;
@@ -56,12 +57,12 @@ internal unsafe class FFmpegResampler : IDisposable
             throw new ArgumentException("Unable to allocate swr context.");
         }
 
-        // Ensure we have a valid source channel layout
+        // 确保源声道布局有效。
         var normalizedSrcChannelLayout = srcChannelLayout;
         if (normalizedSrcChannelLayout.nb_channels == 0 ||
             (normalizedSrcChannelLayout.order == AVChannelOrder.AV_CHANNEL_ORDER_UNSPEC && normalizedSrcChannelLayout.u.mask == 0))
         {
-            // If the channel layout is not properly set, create a default layout
+            // 如果声道布局未正确设置，则创建默认布局。
             ffmpeg.av_channel_layout_default(&normalizedSrcChannelLayout, srcChannelLayout.nb_channels > 0 ? srcChannelLayout.nb_channels : 2);
         }
 
@@ -83,7 +84,7 @@ internal unsafe class FFmpegResampler : IDisposable
                 throw new InvalidOperationException($"Failed to initialize SwrContext: {initResult.FFErrorToText()}");
             }
 
-            // Store the current parameters
+            // 保存当前参数。
             this._lastSrcSampleRate = srcSampleRate;
             this._lastSrcSampleFormat = srcSampleFormat;
             this._lastSrcChannels = normalizedSrcChannelLayout.nb_channels;
@@ -94,7 +95,7 @@ internal unsafe class FFmpegResampler : IDisposable
         finally
         {
             ffmpeg.av_channel_layout_uninit(&dstChannelLayout);
-            // Clean up normalized layout if it was created
+            // 如果创建了规范化布局，则清理它。
             if (normalizedSrcChannelLayout.nb_channels != srcChannelLayout.nb_channels ||
                 normalizedSrcChannelLayout.u.mask != srcChannelLayout.u.mask)
             {
@@ -112,11 +113,11 @@ internal unsafe class FFmpegResampler : IDisposable
 
         var sourceChannelLayout = source.ch_layout;
 
-        // Handle cases where channel layout is not properly set in the source frame
+        // 处理源帧中声道布局未正确设置的情况。
         if (sourceChannelLayout.nb_channels == 0 ||
             (sourceChannelLayout.order == AVChannelOrder.AV_CHANNEL_ORDER_UNSPEC && sourceChannelLayout.u.mask == 0))
         {
-            // If frame doesn't have proper channel layout but has the same number of channels as before, don't reinitialize
+            // 如果帧没有正确的声道布局但声道数与之前相同，则不重新初始化。
             if (source.ch_layout.nb_channels == this._lastSrcChannels)
             {
                 return source.sample_rate != this._lastSrcSampleRate ||
@@ -132,11 +133,13 @@ internal unsafe class FFmpegResampler : IDisposable
                sourceChannelLayout.order != this._lastChannelOrder;
     }
 
-    public bool TryConvert(AVFrame source, out byte[]? result, out string? error)
+    public bool TryConvert(AVFrame source, IBufferWriter<byte> output, out string? error)
     {
+        ArgumentNullException.ThrowIfNull(output);
+
         try
         {
-            // Handle frames with invalid channel layouts
+            // 处理声道布局无效的帧。
             var workingFrame = source;
             var tempChannelLayout = new AVChannelLayout();
             bool needsLayoutCleanup = false;
@@ -144,7 +147,7 @@ internal unsafe class FFmpegResampler : IDisposable
             if (workingFrame.ch_layout.nb_channels == 0 ||
                 (workingFrame.ch_layout.order == AVChannelOrder.AV_CHANNEL_ORDER_UNSPEC && workingFrame.ch_layout.u.mask == 0))
             {
-                // Create a default channel layout based on the codec context or assume stereo
+                // 根据编解码器上下文创建默认声道布局，或假定为立体声。
                 var channelCount = workingFrame.ch_layout.nb_channels > 0 ? workingFrame.ch_layout.nb_channels : 2;
                 ffmpeg.av_channel_layout_default(&tempChannelLayout, channelCount);
                 workingFrame.ch_layout = tempChannelLayout;
@@ -153,7 +156,7 @@ internal unsafe class FFmpegResampler : IDisposable
 
             try
             {
-                // Check if input parameters have changed
+                // 检查输入参数是否已变化。
                 if (this.HasInputChanged(workingFrame))
                 {
                     this.InitializeSwrContext(workingFrame.ch_layout, workingFrame.sample_rate, (AVSampleFormat)workingFrame.format);
@@ -164,7 +167,6 @@ internal unsafe class FFmpegResampler : IDisposable
                 int srcNbSamples = workingFrame.nb_samples;
                 if (srcNbSamples <= 0)
                 {
-                    result = [];
                     error = null;
                     return true;
                 }
@@ -191,7 +193,6 @@ internal unsafe class FFmpegResampler : IDisposable
                     var ret = ffmpeg.av_frame_get_buffer(this._dstFrame, LogOffset);
                     if (ret < 0)
                     {
-                        result = null;
                         error = "Failed to allocate frame buffer: " + ret.FFErrorToText();
                         return false;
                     }
@@ -200,7 +201,7 @@ internal unsafe class FFmpegResampler : IDisposable
 
                     if (code.FFIsError())
                     {
-                        // If swr_convert_frame fails, try manual conversion
+                        // 如果 swr_convert_frame 失败，则尝试手动转换。
                         ffmpeg.av_frame_unref(this._dstFrame);
 
                         var outputSamples = (int)ffmpeg.av_rescale_rnd(
@@ -211,77 +212,67 @@ internal unsafe class FFmpegResampler : IDisposable
 
                         if (outputSamples <= 0)
                         {
-                            result = [];
                             error = null;
                             return true;
                         }
 
                         var bufferSize = outputSamples * this._bytesPerSample * this._dstChannels;
-                        var outputBuffer = new byte[bufferSize];
+                        Span<byte> outputBuffer = output.GetSpan(bufferSize)[..bufferSize];
 
-                        fixed (byte* outputPtr = &outputBuffer[0])
+                        fixed (byte* outputPtr = outputBuffer)
                         {
-                            byte*[] dstData = new byte*[this._dstChannels];
+                            byte** dstData = stackalloc byte*[1];
                             dstData[0] = outputPtr;
 
                             var sourceChannels = workingFrame.ch_layout.nb_channels;
-                            byte*[] srcData = new byte*[sourceChannels];
+                            byte** srcData = stackalloc byte*[sourceChannels];
                             for (uint i = 0; i < sourceChannels; i++)
                             {
                                 srcData[i] = workingFrame.data[i];
                             }
 
-                            fixed (byte** dstDataPtr = &dstData[0])
-                            fixed (byte** srcDataPtr = &srcData[0])
+                            var convertedSamples = ffmpeg.swr_convert(
+                                this._swrCtx,
+                                dstData,
+                                outputSamples,
+                                srcData,
+                                srcNbSamples);
+
+                            if (convertedSamples < 0)
                             {
-                                var convertedSamples = ffmpeg.swr_convert(
-                                    this._swrCtx,
-                                    dstDataPtr,
-                                    outputSamples,
-                                    srcDataPtr,
-                                    srcNbSamples);
+                                error = "Error during manual resampling: " + convertedSamples.FFErrorToText();
+                                return false;
+                            }
 
-                                if (convertedSamples < 0)
-                                {
-                                    result = null;
-                                    error = "Error during manual resampling: " + convertedSamples.FFErrorToText();
-                                    return false;
-                                }
-
-                                if (convertedSamples == 0)
-                                {
-                                    result = [];
-                                    error = null;
-                                    return true;
-                                }
-
-                                var actualSize = convertedSamples * this._bytesPerSample * this._dstChannels;
-                                var finalResult = new byte[actualSize];
-                                Array.Copy(outputBuffer, 0, finalResult, 0, actualSize);
-
-                                result = finalResult;
+                            if (convertedSamples == 0)
+                            {
                                 error = null;
                                 return true;
                             }
+
+                            var actualSize = convertedSamples * this._bytesPerSample * this._dstChannels;
+                            output.Advance(actualSize);
+
+                            error = null;
+                            return true;
                         }
                     }
 
-                    // check if we got valid output samples
+                    // 检查是否获得有效的输出采样数据。
                     if (this._dstFrame->nb_samples <= 0)
                     {
-                        result = [];
                         error = null;
                         return true;
                     }
 
                     var size = this._dstFrame->nb_samples * this._bytesPerSample * this._dstFrame->ch_layout.nb_channels;
-                    var data = new byte[size];
-                    fixed (byte* h = &data[0])
+                    Span<byte> data = output.GetSpan(size)[..size];
+                    fixed (byte* h = data)
                     {
                         Buffer.MemoryCopy(this._dstFrame->data[0], h, size, size);
                     }
 
-                    result = data;
+                    output.Advance(size);
                     error = null;
                     return true;
                 }
@@ -300,7 +291,6 @@ internal unsafe class FFmpegResampler : IDisposable
         }
         catch (Exception ex)
         {
-            result = null;
             error = ex.Message;
             return false;
         }

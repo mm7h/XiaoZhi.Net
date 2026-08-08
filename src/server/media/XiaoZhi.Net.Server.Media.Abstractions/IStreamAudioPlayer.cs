@@ -10,6 +10,6 @@
         /// <param name="outputChannels">Desired output channel count.</param>
         /// <param name="frameDuration">Desired output frame duration in milliseconds.</param>
         /// <returns><c>true</c> if successfully loaded, otherwise, <c>false</c>.</returns>
-        Task<bool> LoadAsync(Stream stream, int outputSampleRate, int outputChannels, int frameDuration);
+        Task<bool> LoadAsync(Stream stream, int outputSampleRate, int outputChannels, int frameDuration, CancellationToken cancellationToken = default);
     }
 }

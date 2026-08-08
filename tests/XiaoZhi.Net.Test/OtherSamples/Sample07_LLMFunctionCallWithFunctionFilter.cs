@@ -1,10 +1,10 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System.Collections.ObjectModel;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using ModelContextProtocol.Client;
 using OpenAI.Chat;
-using System.Collections.ObjectModel;
 using XiaoZhi.Net.Test.Filter;
 using XiaoZhi.Net.Test.Plugins;
 
@@ -12,12 +12,12 @@ namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample07_LLMFunctionCallWithFunctionFilter
     {
-        public static async Task Run()
+        public static async Task RunAsync()
         {
-            await TestPromptSample();
+            await TestPromptSampleAsync();
         }
 
-        static async Task TestPromptSample()
+        private static async Task TestPromptSampleAsync()
         {
             try
             {
@@ -39,9 +39,8 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 kernel.ImportPluginFromType<WeatherPlugin>(nameof(WeatherPlugin));
                 //kernel.Plugins.AddFromType<WeatherPlugin>(nameof(WeatherPlugin));
 
-                //await InitMCP(kernel);
+                //await InitMCPAsync();
                 InitCustomFunctions(kernel);
-
 
                 var chatCompletionOptions = new OpenAIPromptExecutionSettings
                 {
@@ -54,7 +53,6 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 IChatCompletionService chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
                 var clientResult = await chatCompletionService.GetChatMessageContentAsync("我本地目录下有哪些音乐文件", chatCompletionOptions, kernel);
                 Console.WriteLine(clientResult.Content);
-
             }
             catch (Exception ex)
             {
@@ -67,32 +65,32 @@ namespace XiaoZhi.Net.Test.OtherSamples
             }
         }
 
-        static async Task InitMCP(Kernel kernel)
+        private static async Task InitMCPAsync()
         {
-//            var (command, arguments) = GetCommandAndArguments();
+            //            var (command, arguments) = GetCommandAndArguments();
 
-//            var clientTransport = new StdioClientTransport(new()
-//            {
-//                Name = "Demo Server",
-//                Command = command,
-//                Arguments = arguments,
-//            });
+            //            var clientTransport = new StdioClientTransport(new()
+            //            {
+            //                Name = "Demo Server",
+            //                Command = command,
+            //                Arguments = arguments,
+            //            });
 
-//            await using var mcpClient = await McpClientFactory.CreateAsync(clientTransport);
+            //            await using var mcpClient = await McpClientFactory.CreateAsync(clientTransport);
 
-//            var tools = await mcpClient.ListToolsAsync();
-//            foreach (var tool in tools)
-//            {
-//                Console.WriteLine($"Connected to server with tools: {tool.Name}");
-//            }
-//#pragma warning disable SKEXP0001
-//            var functions = tools.Select(aiFunction => aiFunction.AsKernelFunction()).ToList();
-//#pragma warning restore SKEXP0001
+            //            var tools = await mcpClient.ListToolsAsync();
+            //            foreach (var tool in tools)
+            //            {
+            //                Console.WriteLine($"Connected to server with tools: {tool.Name}");
+            //            }
+            //#pragma warning disable SKEXP0001
+            //            var functions = tools.Select(aiFunction => aiFunction.AsKernelFunction()).ToList();
+            //#pragma warning restore SKEXP0001
 
-//            kernel.Plugins.AddFromFunctions("Tools", functions);
+            //            kernel.Plugins.AddFromFunctions("Tools", functions);
         }
 
-        static void InitCustomFunctions(Kernel kernel)
+        private static void InitCustomFunctions(Kernel kernel)
         {
             //Func<string, Task<string>> openUrlMethod = (url) =>
             //{
@@ -141,7 +139,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
             var openUrlFunction = KernelFunctionFactory.CreateFromMethod(tempMethod, openUrlFunctionOptions);
 
-            var deviceMcpPlugins = kernel.ImportPluginFromFunctions("DeviceMcpFunctions", new List<KernelFunction> { openUrlFunction });
+            var deviceMcpPlugins = kernel.ImportPluginFromFunctions("DeviceMcpFunctions", new[] { openUrlFunction });
             //if (kernel.Plugins.Remove(deviceMcpPlugins))
             //{
             //    Console.WriteLine("删除deviceMcpPlugins成功");
@@ -152,7 +150,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             //}
         }
 
-        static (string command, string[] arguments) GetCommandAndArguments()
+        private static (string command, string[] arguments) GetCommandAndArguments()
         {
             return ("dotnet", ["run", "--project", Path.Combine("D:\\MyDotNet\\XiaoZhi AI\\model context protocol 0.3.0\\samples\\QuickstartWeatherServer\\../QuickstartWeatherServer")]);
         }

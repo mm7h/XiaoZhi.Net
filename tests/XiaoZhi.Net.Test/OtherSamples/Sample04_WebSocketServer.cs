@@ -9,7 +9,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             TestWebSocketServer();
         }
 
-        static void TestWebSocketServer()
+        private static void TestWebSocketServer()
         {
             //// 创建 WebSocket 服务端实例
             //WebSocketServer server = new WebSocketServer("ws://0.0.0.0:4530")
@@ -32,7 +32,6 @@ namespace XiaoZhi.Net.Test.OtherSamples
             //Console.WriteLine("WebSocket 服务器已停止");
         }
     }
-
 
     //// 定义 WebSocket 行为
     //file class EchoBehavior : WebSocketBehavior

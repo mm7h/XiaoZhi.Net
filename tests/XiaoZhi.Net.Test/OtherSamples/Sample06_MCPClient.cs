@@ -1,18 +1,18 @@
-﻿using ModelContextProtocol.Client;
+﻿using System.IO.Pipelines;
+using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
-using System.IO.Pipelines;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample06_MCPClient
     {
-        public static async Task Run()
+        public static async Task RunAsync()
         {
-            await TestStdioClient();
-            await TestSseClient();
+            await TestStdioClientAsync();
+            await TestSseClientAsync();
         }
 
-        static async Task TestStdioClient()
+        private static async Task TestStdioClientAsync()
         {
             //Console.WriteLine(nameof(TestStdioClient));
             //var transport = new StdioClientTransport(new()
@@ -34,11 +34,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
             //}
         }
 
-        static async Task TestSseClient()
+        private static async Task TestSseClientAsync()
         {
             //Console.WriteLine(nameof(TestSseClient));
             //string serverUrl = " http://localhost:3000/mcp";
-
 
             //var sharedHandler = new SocketsHttpHandler
             //{
@@ -62,7 +61,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             //}
         }
 
-        static async Task Test2()
+        private static async Task Test2Async()
         {
             //var pipIn = new Pipe();
             //var pipOut = new Pipe();

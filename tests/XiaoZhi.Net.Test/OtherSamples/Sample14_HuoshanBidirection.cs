@@ -7,7 +7,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample14_HuoshanBidirection
     {
-        public static async Task Run()
+        public static async Task RunAsync()
         {
             HuoshanBidirectionTTS tts = new HuoshanBidirectionTTS();
 
@@ -23,7 +23,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             await tts.SynthesisAsync("春眠不觉晓，", true, false, CancellationToken.None);
             await tts.SynthesisAsync("处处闻啼鸟。", false, false, CancellationToken.None);
             await Task.Delay(100);
-            await tts.CancelGenerate();
+            await tts.CancelGenerateAsync();
             //await tts.SynthesisAsync("夜来风雨声，", false, false, CancellationToken.None);
             //await tts.SynthesisAsync("花落知多少。", false, true, CancellationToken.None);
             await Task.Delay(1000);
@@ -32,18 +32,16 @@ namespace XiaoZhi.Net.Test.OtherSamples
             await tts.SynthesisAsync("举头望明月,", false, false, CancellationToken.None);
             await tts.SynthesisAsync("低头思故乡.", false, true, CancellationToken.None);
         }
-
-
     }
 
     file class HuoshanBidirectionTTS
     {
-        private const string SERVICE_END_POINT = "wss://openspeech.bytedance.com/api/v3/tts/bidirection";
-        private const string TTS_NAMESPACE = "BidirectionalTTS";
-        private const int SAMPLE_RATE = 16000;
-        private static readonly TimeSpan DefaultWaitTimeout = TimeSpan.FromSeconds(15);
+        private const string ServiceEndPoint = "wss://openspeech.bytedance.com/api/v3/tts/bidirection";
+        private const string TtsNamespace = "BidirectionalTTS";
+        private const int SampleRate = 16000;
+        private static readonly TimeSpan s_defaultWaitTimeout = TimeSpan.FromSeconds(15);
 
-        private readonly List<PendingWait> _waits = new();
+        private readonly List<PendingWait> _waits = [];
         private readonly object _waitsLock = new();
 
         private bool _saveFile = false;
@@ -56,20 +54,22 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
         // File saving state per session
         private readonly object _fileLock = new();
-        private readonly Dictionary<string, TTSAudioFile> _sessionFiles = new();
+        private readonly Dictionary<string, TTSAudioFile> _sessionFiles = [];
 
         public event Action<OutSegment>? OnBeforeProcessing;
         public event Action<byte[]>? OnProcessing;
         public event Action<byte[], OutSegment, double>? OnProcessed;
 
         protected WebSocketClient? WebSocketClient { get; set; }
-        public int GetTtsSampleRate() => SAMPLE_RATE;
+        public int GetTtsSampleRate()
+        {
+            return SampleRate;
+        }
 
         public bool Build(string appId, string accessToken, string resourceId)
         {
             try
             {
-
                 this._speaker = "zh_female_cancan_mars_bigtts";
                 this._speechRate = 0;
                 this._loudnessRate = 0;
@@ -80,7 +80,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 {
                     this._savePath = Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
                     if (!Directory.Exists(this._savePath))
+                    {
                         Directory.CreateDirectory(this._savePath);
+                    }
                 }
 
                 IDictionary<string, string> headers = new Dictionary<string, string>
@@ -115,29 +117,28 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
                 if (!this.WebSocketClient.IsConnected)
                 {
-                    await this.ConnectAsync(SERVICE_END_POINT, token);
+                    await this.ConnectAsync(ServiceEndPoint, token);
                     await this.StartConnectionAsync(token);
                 }
-
 
                 if (string.IsNullOrEmpty(this._tssSessionId))
                 {
                     this._tssSessionId = Guid.NewGuid().ToString();
                 }
-                Console.WriteLine($"tssSessionId: {_tssSessionId}");
+                Console.WriteLine($"tssSessionId: {this._tssSessionId}");
                 if (isFirstSegment)
                 {
                     Dictionary<string, object> startReq = new Dictionary<string, object>
                     {
                         { "User", new { Uid = "my_test" } },
                         { "Event", (int)EventType.StartSession },
-                        { "Namespace", TTS_NAMESPACE },
+                        { "Namespace", TtsNamespace },
                         { "ReqParams",
                             new {
                                 Speaker = this._speaker,
                                 AudioParams = new {
                                     Format = "wav",
-                                    SampleRate = SAMPLE_RATE,
+                                    SampleRate,
                                     EnableTimestamp = false,
                                     SpeechRate = this._speechRate,
                                     LoudnessRate = this._loudnessRate,
@@ -152,7 +153,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                                     TextType = 1,
                                     UseCache = true
                                 },
-                                MyCustomerData = new { 
+                                MyCustomerData = new {
                                     MyName = "Tom",
                                     MyAge = 18
                                 }
@@ -167,14 +168,14 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 {
                     { "User", new { Uid = "my_test" } },
                     { "Event", (int)EventType.TaskRequest },
-                    { "Namespace", TTS_NAMESPACE },
+                    { "Namespace", TtsNamespace },
                     { "ReqParams",
                         new {
                             Text = text,
                             Speaker = this._speaker,
                             AudioParams = new {
                                 Format = "wav",
-                                SampleRate = SAMPLE_RATE,
+                                SampleRate,
                                 EnableTimestamp = false,
                                 SpeechRate = this._speechRate,
                                 LoudnessRate = this._loudnessRate,
@@ -219,7 +220,11 @@ namespace XiaoZhi.Net.Test.OtherSamples
                                     while (read < allBytes.Length)
                                     {
                                         int r = rs.Read(allBytes, read, allBytes.Length - read);
-                                        if (r == 0) break;
+                                        if (r == 0)
+                                        {
+                                            break;
+                                        }
+
                                         read += r;
                                     }
                                 }
@@ -251,14 +256,12 @@ namespace XiaoZhi.Net.Test.OtherSamples
                         else
                         {
                         }
-
                     }
                     catch (Exception ex)
                     {
                         Console.WriteLine("Unexpected error when aggregating audio for OnProcessed in TTS session");
                     }
                     #endregion
-
 
                     this._tssSessionId = null;
                 }
@@ -276,7 +279,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             }
         }
 
-        public async Task CancelGenerate()
+        public async Task CancelGenerateAsync()
         {
             if (string.IsNullOrEmpty(this._tssSessionId))
             {
@@ -316,14 +319,14 @@ namespace XiaoZhi.Net.Test.OtherSamples
         {
             // ensure files are closed (leave as .tmp)
             this.CloseAllSessionFiles(finalize: false);
-            FailAllWaits(new OperationCanceledException($"WebSocket closed: {status} {desc}"));
+            this.FailAllWaits(new OperationCanceledException($"WebSocket closed: {status} {desc}"));
         }
 
         private void WebSocketClient_OnError(System.Net.WebSockets.WebSocketError error, string message)
         {
             // ensure files are closed (leave as .tmp)
             this.CloseAllSessionFiles(finalize: false);
-            FailAllWaits(new Exception($"WebSocket error: {error} {message}"));
+            this.FailAllWaits(new Exception($"WebSocket error: {error} {message}"));
         }
 
         private void WebSocketClient_OnBinaryMessage(byte[] data)
@@ -367,7 +370,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             bool matched = false;
             lock (this._waitsLock)
             {
-                for (int i = 0; i < _waits.Count; i++)
+                for (int i = 0; i < this._waits.Count; i++)
                 {
                     var pw = this._waits[i];
                     if (pw.Match(message))
@@ -461,14 +464,14 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 });
             }
 
-            var effectiveTimeout = timeout ?? DefaultWaitTimeout;
+            var effectiveTimeout = timeout ?? s_defaultWaitTimeout;
             timeoutCts = new CancellationTokenSource();
             _ = Task.Delay(effectiveTimeout, timeoutCts.Token).ContinueWith(_ =>
             {
                 bool removed;
                 lock (this._waitsLock)
                 {
-                    removed = _waits.Remove(pw);
+                    removed = this._waits.Remove(pw);
                 }
                 if (removed)
                 {
@@ -502,7 +505,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             message.Payload = JsonHelper.SerializeToUtf8Bytes(new { });
 
             var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.ConnectionStarted, cancellationToken, null);
-            await this.SendMessage(message);
+            await this.SendMessageAsync(message);
             return await waitTask.ConfigureAwait(false);
         }
 
@@ -513,7 +516,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             message.Payload = JsonHelper.SerializeToUtf8Bytes(new { });
 
             var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.ConnectionFinished, cancellationToken, null);
-            await this.SendMessage(message);
+            await this.SendMessageAsync(message);
             return await waitTask.ConfigureAwait(false);
         }
 
@@ -525,7 +528,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             message.Payload = payload;
 
             var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.SessionStarted, cancellationToken, null);
-            await this.SendMessage(message);
+            await this.SendMessageAsync(message);
             return await waitTask.ConfigureAwait(false);
         }
 
@@ -535,7 +538,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             message.EventType = EventType.TaskRequest;
             message.SessionId = sessionId;
             message.Payload = payload;
-            await this.SendMessage(message);
+            await this.SendMessageAsync(message);
         }
 
         private async Task<Message> CancelSessionAsync(string sessionId, CancellationToken cancellationToken)
@@ -546,7 +549,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             message.Payload = JsonHelper.SerializeToUtf8Bytes(new { });
 
             var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.SessionCanceled, cancellationToken, null);
-            await this.SendMessage(message);
+            await this.SendMessageAsync(message);
             return await waitTask.ConfigureAwait(false);
         }
 
@@ -558,22 +561,26 @@ namespace XiaoZhi.Net.Test.OtherSamples
             message.Payload = JsonHelper.SerializeToUtf8Bytes(new { });
 
             var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.SessionFinished, cancellationToken, null);
-            await this.SendMessage(message);
+            await this.SendMessageAsync(message);
             return await waitTask.ConfigureAwait(false);
         }
         #endregion
 
         private void AppendPcmChunk(string sessionId, byte[] pcmData)
         {
-            if (string.IsNullOrEmpty(_savePath)) return;
-            lock (_fileLock)
+            if (string.IsNullOrEmpty(this._savePath))
             {
-                if (!_sessionFiles.TryGetValue(sessionId, out var entry))
+                return;
+            }
+
+            lock (this._fileLock)
+            {
+                if (!this._sessionFiles.TryGetValue(sessionId, out var entry))
                 {
                     // create new file
                     var fileBase = $"{sessionId}_{DateTime.UtcNow:yyyyMMdd_HHmmssfff}";
-                    var tmpPath = Path.Combine(_savePath, fileBase + ".wav.tmp");
-                    var finalPath = Path.Combine(_savePath, fileBase + ".wav");
+                    var tmpPath = Path.Combine(this._savePath, fileBase + ".wav.tmp");
+                    var finalPath = Path.Combine(this._savePath, fileBase + ".wav");
                     var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.Read, 8192, FileOptions.Asynchronous | FileOptions.SequentialScan);
                     entry = new TTSAudioFile(sessionId, fs, tmpPath, finalPath);
                     this._sessionFiles[sessionId] = entry;
@@ -637,7 +644,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             }
         }
 
-        private async Task SendMessage(Message message)
+        private async Task SendMessageAsync(Message message)
         {
             if (this.WebSocketClient is null)
             {

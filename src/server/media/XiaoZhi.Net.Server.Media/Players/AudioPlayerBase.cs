@@ -1,674 +1,1008 @@
-﻿using System.Collections.Concurrent;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Media.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.Media.Abstractions.Exceptions;
 using XiaoZhi.Net.Server.Media.Common.Models;
 using XiaoZhi.Net.Server.Media.Decoders;
-using XiaoZhi.Net.Server.Media.Decoders.FFmpeg;
 using XiaoZhi.Net.Server.Media.Exceptions;
+using XiaoZhi.Net.Server.Media.Players.Contexts;
+using XiaoZhi.Net.Server.Media.Players.WorkPool;
 using XiaoZhi.Net.Server.Media.Processors;
 using XiaoZhi.Net.Server.Media.Utilities;
-using XiaoZhi.Net.Server.Media.Utilities.Extensions;
 
-namespace XiaoZhi.Net.Server.Media.Players
+namespace XiaoZhi.Net.Server.Media.Players;
+
+internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
 {
-    internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
+    private const int FrameBufferCapacity = 128;
+    private readonly IAudioDecoderWorkPool _decoderWorkPool;
+    private readonly CancellationTokenSource _lifetimeCancellationSource = new();
+    private readonly object _syncRoot = new();
+    private AudioPlaybackContext? _playbackContext;
+    private bool _disposed;
+    private bool _loading;
+
+    protected AudioPlayerBase(IAudioDecoderWorkPool decoderWorkPool, ILogger<TLogger> logger)
     {
-        private const int MinQueueSize = 8;
-        private const int MaxQueueSize = 128;
-        private bool _disposed;
-        private ManualResetEventSlim? _playbackCompletionEvent;
+        this._decoderWorkPool = decoderWorkPool;
+        this.Logger = logger;
+        this.VolumeProcessor = new VolumeProcessor { Volume = 1.0f };
+    }
 
-        public AudioPlayerBase(ILogger<TLogger> logger)
+    public event Action<PlaybackState>? StateChanged;
+
+    public event Action<TimeSpan>? PositionChanged;
+
+    public event Action<float[], bool, bool>? OnAudioDataAvailable;
+
+    public abstract string AudioPlayerName { get; }
+
+    public bool IsFFmpegInitialized => FFmpegStartup.FFmpegInitialized;
+
+    public bool IsLoaded { get; private set; }
+
+    public TimeSpan Duration { get; private set; }
+
+    public TimeSpan Position { get; private set; }
+
+    public PlaybackState State { get; private set; }
+
+    public bool IsSeeking { get; private set; }
+
+    public float Volume
+    {
+        get => this.VolumeProcessor.Volume;
+        set => this.VolumeProcessor.Volume = this.VerifyVolume(value);
+    }
+
+    public ISampleProcessor? CustomSampleProcessor { get; set; }
+
+    protected IAudioDecoder? CurrentDecoder { get; private set; }
+
+    protected ILogger<TLogger> Logger { get; }
+
+    protected VolumeProcessor VolumeProcessor { get; }
+
+    public Task<bool> CheckFFmpegInstalledAsync(CancellationToken cancellationToken = default)
+    {
+        if (cancellationToken.IsCancellationRequested)
         {
-            this.Logger = logger;
-            this.VolumeProcessor = new VolumeProcessor { Volume = 1.0f };
-            this.Queue = new ConcurrentQueue<AudioFrame>();
+            return Task.FromCanceled<bool>(cancellationToken);
         }
 
-        /// <inheritdoc />
-        public event Action<PlaybackState>? StateChanged;
-
-        /// <inheritdoc />
-        public event Action<TimeSpan>? PositionChanged;
-
-        public event Action<float[], bool, bool>? OnAudioDataAvailable;
-
-        /// <inheritdoc />
-        public abstract string AudioPlayerName { get; }
-
-        public bool IsFFmpegInitialized => FFmpegStartup.FFmpegInitialized;
-
-        /// <inheritdoc />
-        public bool IsLoaded { get; protected set; }
-
-        /// <inheritdoc />
-        public TimeSpan Duration { get; protected set; }
-
-        /// <inheritdoc />
-        public TimeSpan Position { get; protected set; }
-
-        /// <inheritdoc />
-        public PlaybackState State { get; protected set; }
-
-        /// <inheritdoc />
-        public bool IsSeeking { get; private set; }
-
-        /// <inheritdoc />
-        public float Volume
+        if (this.IsFFmpegInitialized)
         {
-            get => this.VolumeProcessor.Volume;
-            set => this.VolumeProcessor.Volume = this.VerifyVolume(value);
+            return Task.FromResult(true);
         }
 
-        /// <inheritdoc />
-        public ISampleProcessor? CustomSampleProcessor { get; set; }
-
-        /// <summary>
-        /// Gets or sets current <see cref="IAudioDecoder"/> instance.
-        /// </summary>
-        protected IAudioDecoder? CurrentDecoder { get; set; }
-
-        /// <summary>
-        /// Current logger.
-        /// </summary>
-        protected ILogger<TLogger> Logger { get; }
-
-        /// <summary>
-        /// Gets <see cref="VolumeProcessor"/> instance.
-        /// </summary>
-        protected VolumeProcessor VolumeProcessor { get; }
-
-        /// <summary>
-        /// Gets queue object that holds queued audio frames.
-        /// </summary>
-        protected ConcurrentQueue<AudioFrame> Queue { get; }
-
-        /// <summary>
-        /// Gets current audio decoder thread.
-        /// </summary>
-        protected Thread? DecoderThread { get; private set; }
-
-        /// <summary>
-        /// Gets current audio engine thread.
-        /// </summary>
-        protected Thread? EngineThread { get; private set; }
-
-        /// <summary>
-        /// Gets whether or not the decoder thread reach end of file.
-        /// </summary>
-        protected bool IsEOF { get; private set; }
-
-        /// <summary>
-        /// Tracks the playback start time for timing synchronization.
-        /// </summary>
-        private DateTime _playbackStartTime;
-
-        /// <summary>
-        /// Tracks whether this is the first frame being processed.
-        /// </summary>
-        private bool _firstFrame;
-
-        /// <summary>
-        /// Tracks total pause duration to adjust playback timing.
-        /// </summary>
-        private TimeSpan _totalPauseDuration;
-
-        /// <summary>
-        /// Tracks when seeking occurred to reset pause tracking.
-        /// </summary>
-        private bool _seekOccurred;
-
-        /// <summary>
-        /// Checks whether FFmpeg is installed and initialized for use.
-        /// </summary>
-        /// <remarks>This method verifies the initialization status of FFmpeg. If FFmpeg is not
-        /// initialized, it attempts to initialize it. If an error occurs during initialization, the method logs the
-        /// error and returns <see langword="false"/>.</remarks>
-        /// <returns><see langword="true"/> if FFmpeg is successfully initialized; otherwise, <see langword="false"/>.</returns>
-        public bool CheckFFmpegInstalled()
+        bool checkResult = FFmpegStartup.CheckFFmpegInstalled(out string message);
+        if (checkResult)
         {
-            if (this.IsFFmpegInitialized)
+            this.Logger.LogInformation("Initialized the ffmpeg, version: {Version}", message);
+        }
+        else
+        {
+            this.Logger.LogError("FFmpeg is not installed or failed to initialize: {Message}", message);
+        }
+
+        return Task.FromResult(checkResult);
+    }
+
+    public Task PlayAsync(CancellationToken cancellationToken = default)
+    {
+        Action<PlaybackState>? stateChangedHandler = null;
+        TaskCompletionSource? engineStartSource = null;
+        Task playbackTask;
+
+        lock (this._syncRoot)
+        {
+            this.ThrowIfDisposed();
+
+            if (!this.IsFFmpegInitialized)
             {
-                return true;
+                throw new FFmpegException("FFmpeg is not initialized yet, please invoke CheckFFmpegInstalledAsync first.");
             }
-            bool checkResult = FFmpegStartup.CheckFFmpegInstalled(out var message);
 
-            if (checkResult)
+            if (!this.IsLoaded || this.CurrentDecoder is null)
             {
-                this.Logger.LogInformation("Initialized the ffmpeg, version: {v}", message);
-                return true;
+                this.Logger.LogDebug("No loaded audio for playback.");
+                return Task.CompletedTask;
+            }
+
+            if (this._playbackContext is not null)
+            {
+                if (this._playbackContext.IsPaused)
+                {
+                    this._playbackContext.Resume();
+                    stateChangedHandler = this.SetStateLocked(PlaybackState.Playing);
+                }
+
+                playbackTask = this._playbackContext.PlaybackTask;
             }
             else
             {
-                this.Logger.LogError("FFmpeg is not installed or failed to initialize: {message}", message);
-                return false;
-            }
-        }
+                AudioPlaybackContext context = new(this.CurrentDecoder, FrameBufferCapacity, cancellationToken);
+                TimeSpan startPosition = this.Position;
 
-        /// <inheritdoc />
-        public void Play(bool waitDone = false)
-        {
-            if (!this.IsFFmpegInitialized)
-            {
-                throw new FFmpegException("FFmpeg is not initialized yet, please invoke the function \"CheckFFmpegInstalled()\" first.");
-            }
-
-            if (!this.IsLoaded)
-            {
-                this.Logger.LogDebug("No loaded audio for playback.");
-                return;
-            }
-
-            if (this.State is PlaybackState.Playing or PlaybackState.Buffering)
-            {
-                this.Logger.LogDebug("The player is running.");
-                return;
-            }
-
-            if (this.State == PlaybackState.Paused)
-            {
-                this.SetAndRaiseStateChanged(PlaybackState.Playing);
-                return;
-            }
-
-            this.EnsureThreadsDone();
-
-            this.Seek(this.Position);
-            this.IsEOF = false;
-
-            // Reset timing tracking for new playback
-            this._playbackStartTime = DateTime.Now;
-            this._firstFrame = true;
-
-            // Create completion event if waitDone is requested
-            if (waitDone)
-            {
-                this._playbackCompletionEvent?.Dispose();
-                this._playbackCompletionEvent = new ManualResetEventSlim(false);
-            }
-
-            this.DecoderThread = new Thread(this.RunDecoder) { Name = $"Decoder_Thread_{this.AudioPlayerName}", IsBackground = true };
-            this.EngineThread = new Thread(this.RunEngine) { Name = $"Engine_Thread_{this.AudioPlayerName}", IsBackground = true };
-
-            this.SetAndRaiseStateChanged(PlaybackState.Playing);
-
-            this.DecoderThread.Start();
-            this.EngineThread.Start();
-
-            if (waitDone)
-            {
                 try
                 {
-                    this.Logger.LogDebug("Waiting for playback to complete...");
-                    this._playbackCompletionEvent?.Wait();
-                    this.Logger.LogDebug("Playback completed.");
+                    context.DecoderTask = this._decoderWorkPool.RunAsync(
+                        workerCancellationToken => this.RunDecoder(context, startPosition, workerCancellationToken),
+                        context.Token);
                 }
-                catch (ObjectDisposedException)
+                catch
                 {
-                    // Event was disposed, which means playback was stopped
-                    this.Logger.LogDebug("Playback was stopped.");
+                    context.Dispose();
+                    throw;
                 }
-                finally
-                {
-                    this._playbackCompletionEvent?.Dispose();
-                    this._playbackCompletionEvent = null;
-                }
+
+                this._playbackContext = context;
+                stateChangedHandler = this.SetStateLocked(PlaybackState.Playing);
+                engineStartSource = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                context.EngineTask = this.RunEngineAsync(context, engineStartSource.Task);
+                context.PlaybackTask = this.RunPlaybackAsync(context);
+                playbackTask = context.PlaybackTask;
             }
         }
 
-        /// <inheritdoc />
-        public void Pause()
+        this.RaiseStateChanged(stateChangedHandler, PlaybackState.Playing);
+        engineStartSource?.TrySetResult();
+        return playbackTask;
+    }
+
+    public Task PauseAsync(CancellationToken cancellationToken = default)
+    {
+        if (cancellationToken.IsCancellationRequested)
         {
-            if (!this.IsFFmpegInitialized)
+            return Task.FromCanceled(cancellationToken);
+        }
+
+        Action<PlaybackState>? stateChangedHandler = null;
+
+        lock (this._syncRoot)
+        {
+            this.ThrowIfDisposed();
+
+            if (this._playbackContext is not null && this.State is PlaybackState.Playing or PlaybackState.Buffering)
             {
-                throw new FFmpegException("FFmpeg is not initialized yet, please invoke the function \"CheckFFmpegInstalled()\" first.");
-            }
-            if (this.State is PlaybackState.Playing or PlaybackState.Buffering)
-            {
-                this.SetAndRaiseStateChanged(PlaybackState.Paused);
+                this._playbackContext.Pause();
+                stateChangedHandler = this.SetStateLocked(PlaybackState.Paused);
             }
         }
 
-        /// <inheritdoc />
-        public void Seek(TimeSpan position)
+        this.RaiseStateChanged(stateChangedHandler, PlaybackState.Paused);
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        AudioPlaybackContext? context;
+
+        lock (this._syncRoot)
         {
-            if (!this.IsFFmpegInitialized)
+            this.ThrowIfDisposed();
+            context = this._playbackContext;
+
+            if (context is null)
             {
-                throw new FFmpegException("FFmpeg is not initialized yet, please invoke the function \"CheckFFmpegInstalled()\" first.");
+                return Task.CompletedTask;
             }
-            if (!this.IsLoaded || this.IsSeeking || this.CurrentDecoder == null)
+
+            context.Cancel();
+            this.RequestDecoderInterrupt(context.Decoder);
+        }
+
+        return context.CleanupTask.WaitAsync(cancellationToken);
+    }
+
+    public Task SeekAsync(TimeSpan position, CancellationToken cancellationToken = default)
+    {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Task.FromCanceled(cancellationToken);
+        }
+
+        AudioPlaybackContext? context;
+        AudioSeekRequest? request = null;
+
+        lock (this._syncRoot)
+        {
+            this.ThrowIfDisposed();
+            context = this._playbackContext;
+
+            if (!this.IsLoaded
+                || context is null
+                || context.IsCancellationRequested
+                || context.DecoderTask.IsCompleted
+                || !context.AcceptsSeekRequests)
             {
-                return;
+                return Task.CompletedTask;
+            }
+
+            request = new AudioSeekRequest(position, cancellationToken);
+            if (!context.SeekRequests.Writer.TryWrite(request))
+            {
+                return Task.CompletedTask;
             }
 
             this.IsSeeking = true;
-            this.Queue.Clear();
-
-            // Sleep to produce smooth seek
-            if (this.DecoderThread is { IsAlive: true } || this.EngineThread is { IsAlive: true })
-            {
-                Thread.Sleep(100);
-            }
-
-            this.Logger?.LogDebug("Seeking to: {position}.", position);
-
-            if (!this.CurrentDecoder.TrySeek(position, out var error))
-            {
-                this.Logger?.LogDebug("Unable to seek audio stream: {error}", error);
-                this.IsSeeking = false;
-                return;
-            }
-
-            // Reset timing tracking when seeking
-            this._playbackStartTime = DateTime.Now - position;
-            this._firstFrame = true;
-            this._totalPauseDuration = TimeSpan.Zero;
-            this._seekOccurred = true;
-
-            this.IsSeeking = false;
-            this.SetAndRaisePositionChanged(position);
-
-            this.Logger?.LogDebug("Successfully seeks to {position}.", position);
+            this.RequestDecoderInterrupt(context.Decoder);
         }
 
-        /// <inheritdoc />
-        public void Stop()
-        {
-            if (!this.IsFFmpegInitialized)
-            {
-                throw new FFmpegException("FFmpeg is not initialized yet, please invoke the function \"CheckFFmpegInstalled()\" first.");
-            }
-            if (this.State == PlaybackState.Idle)
-            {
-                return;
-            }
+        return this.WaitForSeekAsync(context, request, cancellationToken);
+    }
 
-            this.State = PlaybackState.Idle;
+    public virtual void Dispose()
+    {
+        IAudioDecoder? decoderToDispose = null;
 
-            // Interrupt the decoder if it supports interruption
-            if (this.CurrentDecoder is FFmpegStreamDecoder streamDecoder)
-            {
-                streamDecoder.Interrupt();
-            }
-
-            this.EnsureThreadsDone();
-
-            // Signal completion event before invoking StateChanged
-            this._playbackCompletionEvent?.Set();
-
-            StateChanged?.Invoke(this.State);
-        }
-
-        protected abstract IAudioDecoder CreateDecoder(TDecoderType decoderParam);
-
-        /// <summary>
-        /// Handles audio decoder error, returns <c>true</c> to continue decoder thread, <c>false</c> will
-        /// break the thread. By default, this will try to re-initializes <see cref="CurrentDecoder"/>
-        /// and seeks to the last position.
-        /// </summary>
-        /// <param name="result">Failed audio decoder result.</param>
-        /// <returns><c>true</c> will continue decoder thread, <c>false</c> will break the thread.</returns>
-        protected abstract bool HandleDecoderError(AudioDecoderResult result);
-
-        /// <summary>
-        /// Sets <see cref="State"/> value and raise <see cref="StateChanged"/> if value is changed.
-        /// </summary>
-        /// <param name="state">Playback state.</param>
-        protected virtual void SetAndRaiseStateChanged(PlaybackState state)
-        {
-            var raise = this.State != state;
-            this.State = state;
-
-            if (raise && StateChanged != null)
-            {
-                StateChanged.Invoke(this.State);
-            }
-
-            // Signal completion when state changes to Idle
-            if (state == PlaybackState.Idle && this._playbackCompletionEvent != null)
-            {
-                this._playbackCompletionEvent.Set();
-            }
-        }
-
-        /// <summary>
-        /// Sets <see cref="Position"/> value and raise <see cref="PositionChanged"/> if value is changed.
-        /// </summary>
-        /// <param name="position">Playback position.</param>
-        protected virtual void SetAndRaisePositionChanged(TimeSpan position)
-        {
-            var raise = position != this.Position;
-            this.Position = position;
-
-            if (raise && PositionChanged != null)
-            {
-                PositionChanged.Invoke(this.Position);
-            }
-        }
-
-        /// <summary>
-        /// Run <see cref="VolumeProcessor"/> and <see cref="CustomSampleProcessor"/> to the specified samples.
-        /// </summary>
-        /// <param name="samples">Audio samples to process to.</param>
-        protected virtual void ProcessSampleProcessors(Span<float> samples)
-        {
-            if (this.CustomSampleProcessor is not null && this.CustomSampleProcessor is { IsEnabled: true })
-            {
-                for (var i = 0; i < samples.Length; i++)
-                {
-                    samples[i] = this.CustomSampleProcessor.Process(samples[i]);
-                }
-            }
-
-            if (this.VolumeProcessor.Volume != 1.0f)
-            {
-                for (var i = 0; i < samples.Length; i++)
-                {
-                    samples[i] = this.VolumeProcessor.Process(samples[i]);
-                }
-            }
-        }
-
-        protected void LoadInternal(Func<IAudioDecoder> decoderFactory)
-        {
-            this.Logger.LogDebug("Loading audio to the player.");
-
-            this.CurrentDecoder?.Dispose();
-            this.CurrentDecoder = null;
-            this.IsLoaded = false;
-
-            try
-            {
-                this.CurrentDecoder = decoderFactory();
-                this.Duration = this.CurrentDecoder.StreamInfo.Duration;
-
-                this.Logger.LogDebug("Audio successfully loaded.");
-                this.IsLoaded = true;
-            }
-            catch (Exception ex)
-            {
-                this.CurrentDecoder = null;
-                this.Logger.LogDebug("Failed to load audio: {exMessage}", ex.Message);
-                this.IsLoaded = false;
-            }
-
-            this.SetAndRaisePositionChanged(TimeSpan.Zero);
-        }
-
-        private void RunDecoder()
-        {
-            this.Logger.LogDebug("Decoder thread is started.");
-            while (this.State != PlaybackState.Idle)
-            {
-                while (this.IsSeeking)
-                {
-                    if (this.State == PlaybackState.Idle)
-                    {
-                        break;
-                    }
-
-                    this.Queue.Clear();
-                    Thread.Sleep(10);
-                }
-                if (this.State == PlaybackState.Idle)
-                {
-                    break;
-                }
-                if (this.CurrentDecoder is null)
-                {
-                    break;
-                }
-                if (this.EngineThread is null)
-                {
-                    break;
-                }
-                var result = this.CurrentDecoder.DecodeNextFrame();
-
-                if (result.IsEOF)
-                {
-                    this.IsEOF = true;
-                    this.EngineThread.EnsureThreadDone(() => this.IsSeeking);
-
-                    if (this.IsSeeking)
-                    {
-                        this.IsEOF = false;
-                        this.Queue.Clear();
-
-                        continue;
-                    }
-
-                    break;
-                }
-
-                if (!result.IsSucceeded)
-                {
-                    if (this.HandleDecoderError(result))
-                    {
-                        continue;
-                    }
-
-                    this.IsEOF = true; // ends the engine thread
-                    break;
-                }
-
-                while (this.Queue.Count >= MaxQueueSize)
-                {
-                    if (this.State == PlaybackState.Idle)
-                    {
-                        break;
-                    }
-
-                    Thread.Sleep(100);
-                }
-                if (this.State == PlaybackState.Idle)
-                {
-                    break;
-                }
-                if (result.Frame is not null)
-                {
-                    this.Queue.Enqueue(result.Frame);
-                }
-            }
-            this.Logger.LogDebug("Decoder thread is completed.");
-        }
-
-        private void RunEngine()
-        {
-            this.Logger.LogDebug("Engine thread is started.");
-
-            double lastPresentationTime = 0;
-            DateTime lastFrameTime = DateTime.Now;
-            DateTime pauseStartTime = DateTime.MinValue;
-            TimeSpan totalPauseDuration = this._totalPauseDuration;
-            bool isFirstAudioFrame = true; // mark if this is the first audio frame
-            float[]? lastProcessedSamples = null; // save the last processed audio samples
-            bool lastEventSent = false; // mark if the last frame event has been sent
-
-            while (this.State != PlaybackState.Idle)
-            {
-                if (this.State == PlaybackState.Paused || this.IsSeeking)
-                {
-                    // record the pause start time for calculating total pause duration
-                    if (this.State == PlaybackState.Paused && pauseStartTime == DateTime.MinValue)
-                    {
-                        pauseStartTime = DateTime.Now;
-                    }
-
-                    // when paused, if there are last processed samples and the last event has not been sent, send the event with isLast=true
-                    if (this.State == PlaybackState.Paused && lastProcessedSamples != null && !lastEventSent)
-                    {
-                        this.OnAudioDataAvailable?.Invoke(lastProcessedSamples, false, true);
-                        lastEventSent = true; // mark as sent
-                    }
-
-                    Thread.Sleep(10);
-                    continue;
-                }
-
-                if (this._seekOccurred)
-                {
-                    totalPauseDuration = TimeSpan.Zero;
-                    pauseStartTime = DateTime.MinValue;
-                    this._seekOccurred = false;
-                    isFirstAudioFrame = true; // reset to first frame on seek
-                    lastProcessedSamples = null; // clear last samples on seek
-                    lastEventSent = false; // reset the last event sent flag
-                }
-
-                // calculate total pause duration when resuming from pause
-                if (pauseStartTime != DateTime.MinValue)
-                {
-                    var pauseDuration = DateTime.Now - pauseStartTime;
-                    totalPauseDuration = totalPauseDuration.Add(pauseDuration);
-                    this._totalPauseDuration = totalPauseDuration;
-                    pauseStartTime = DateTime.MinValue;
-                    lastEventSent = false; // reset the flag when resuming playback
-                }
-
-                if (this.Queue.Count < MinQueueSize && !this.IsEOF)
-                {
-                    this.SetAndRaiseStateChanged(PlaybackState.Buffering);
-                    Thread.Sleep(10);
-                    continue;
-                }
-
-                if (!this.Queue.TryDequeue(out var frame))
-                {
-                    if (this.IsEOF)
-                    {
-                        // send the last processed samples if available and not sent yet
-                        if (lastProcessedSamples != null && !lastEventSent)
-                        {
-                            this.OnAudioDataAvailable?.Invoke(lastProcessedSamples, false, true);
-                            lastEventSent = true; // set the flag as sent
-                        }
-                        break;
-                    }
-
-                    Thread.Sleep(10);
-                    continue;
-                }
-
-                var samples = MemoryMarshal.Cast<byte, float>(frame.Data);
-                this.ProcessSampleProcessors(samples);
-
-                this.SetAndRaiseStateChanged(PlaybackState.Playing);
-
-                // check if this is the last audio frame: queue is empty and reached EOF
-                bool isLastAudioFrame = this.Queue.IsEmpty && this.IsEOF;
-
-                var samplesArray = samples.ToArray();
-                lastProcessedSamples = samplesArray; // save the current processed samples
-
-                this.OnAudioDataAvailable?.Invoke(samplesArray, isFirstAudioFrame, isLastAudioFrame);
-
-                // make sure to send isLast=true only once
-                if (isLastAudioFrame)
-                {
-                    lastEventSent = true;
-                }
-
-                // process the first frame flag
-                if (isFirstAudioFrame)
-                {
-                    isFirstAudioFrame = false;
-                }
-
-                var framePresentationTime = frame.PresentationTime;
-
-                // If this is the first frame, initialize timing
-                if (this._firstFrame)
-                {
-                    this._playbackStartTime = DateTime.Now - TimeSpan.FromMilliseconds(framePresentationTime);
-                    this._firstFrame = false;
-                }
-
-                // Calculate when this frame should be played
-                var targetPlayTime = this._playbackStartTime.AddMilliseconds(framePresentationTime).Add(totalPauseDuration);
-                var currentTime = DateTime.Now;
-                var timeToWait = targetPlayTime - currentTime;
-
-                // If we're ahead of schedule, wait
-                if (timeToWait.TotalMilliseconds > 0)
-                {
-                    var waitMs = Math.Min((int)timeToWait.TotalMilliseconds, 100);
-                    if (waitMs > 0)
-                    {
-                        Thread.Sleep(waitMs);
-                    }
-                }
-
-                // Update timing tracking
-                lastFrameTime = DateTime.Now;
-                lastPresentationTime = framePresentationTime;
-
-                // Update the position to reflect the actual playback timing
-                this.SetAndRaisePositionChanged(TimeSpan.FromMilliseconds(framePresentationTime));
-            }
-
-            // once the engine thread ends, if there are last processed samples and the last event has not been sent, send the event with isLast=true
-            if (lastProcessedSamples != null && !lastEventSent)
-            {
-                this.OnAudioDataAvailable?.Invoke(lastProcessedSamples, false, true);
-                lastEventSent = true;
-            }
-
-            this.SetAndRaisePositionChanged(TimeSpan.Zero);
-
-            Task.Run(() => this.SetAndRaiseStateChanged(PlaybackState.Idle));
-
-            this.Logger.LogDebug("Engine thread is completed.");
-        }
-
-        private void EnsureThreadsDone()
-        {
-            this.EngineThread?.EnsureThreadDone();
-            this.DecoderThread?.EnsureThreadDone();
-
-            this.EngineThread = null;
-            this.DecoderThread = null;
-        }
-
-        private float VerifyVolume(float volume)
-        {
-            return volume switch
-            {
-                > 1.0f => 1.0f,
-                < 0.0f => 0.0f,
-                _ => volume
-            };
-        }
-
-        /// <inheritdoc />
-        public virtual void Dispose()
+        lock (this._syncRoot)
         {
             if (this._disposed)
             {
                 return;
             }
 
-            this.State = PlaybackState.Idle;
+            this._disposed = true;
+            this._lifetimeCancellationSource.Cancel();
 
-            // Interrupt the decoder if it supports interruption
-            if (this.CurrentDecoder is FFmpegStreamDecoder streamDecoder)
+            if (this._playbackContext is not null)
             {
-                streamDecoder.Interrupt();
+                this._playbackContext.Cancel();
+                this.RequestDecoderInterrupt(this._playbackContext.Decoder);
+            }
+            else
+            {
+                decoderToDispose = this.CurrentDecoder;
+                this.CurrentDecoder = null;
             }
 
-            this.EnsureThreadsDone();
-
-            // Dispose completion event
-            this._playbackCompletionEvent?.Dispose();
-            this._playbackCompletionEvent = null;
-
-            this.CurrentDecoder?.Dispose();
-            this.Queue.Clear();
-
-            GC.SuppressFinalize(this);
-
-            this._disposed = true;
+            this.IsLoaded = false;
         }
+
+        decoderToDispose?.Dispose();
+        this._lifetimeCancellationSource.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
+    protected abstract IAudioDecoder CreateDecoder(TDecoderType decoderParam, CancellationToken cancellationToken);
+
+    protected abstract IAudioDecoder? CreateRecoveryDecoder(AudioDecoderResult result, CancellationToken cancellationToken);
+
+    protected async Task<bool> LoadInternalAsync(Func<CancellationToken, IAudioDecoder> decoderFactory, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(decoderFactory);
+
+        IAudioDecoder? oldDecoder;
+        lock (this._syncRoot)
+        {
+            this.ThrowIfDisposed();
+
+            if (this.State != PlaybackState.Idle || this._loading)
+            {
+                return false;
+            }
+
+            this._loading = true;
+            oldDecoder = this.CurrentDecoder;
+            this.CurrentDecoder = null;
+            this.IsLoaded = false;
+        }
+
+        oldDecoder?.Dispose();
+        IAudioDecoder? newDecoder = null;
+
+        using CancellationTokenSource linkedCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken,
+            this._lifetimeCancellationSource.Token);
+
+        try
+        {
+            this.Logger.LogDebug("Loading audio to the player.");
+            newDecoder = await this._decoderWorkPool.RunAsync(
+                decoderFactory,
+                linkedCancellationSource.Token).ConfigureAwait(false);
+
+            lock (this._syncRoot)
+            {
+                if (this._disposed)
+                {
+                    newDecoder.Dispose();
+                    newDecoder = null;
+                    return false;
+                }
+
+                this.CurrentDecoder = newDecoder;
+                this.Duration = newDecoder.StreamInfo.Duration;
+                this.IsLoaded = true;
+            }
+
+            this.SetAndRaisePositionChanged(TimeSpan.Zero);
+            this.Logger.LogDebug("Audio successfully loaded.");
+            return true;
+        }
+        catch (AudioPlaybackCapacityExceededException)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception) when (linkedCancellationSource.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(linkedCancellationSource.Token);
+        }
+        catch (Exception exception)
+        {
+            newDecoder?.Dispose();
+            this.Logger.LogDebug("Failed to load audio: {Message}", exception.Message);
+            return false;
+        }
+        finally
+        {
+            lock (this._syncRoot)
+            {
+                this._loading = false;
+            }
+        }
+    }
+
+    protected virtual void ProcessSampleProcessors(Span<float> samples)
+    {
+        if (this.CustomSampleProcessor is { IsEnabled: true })
+        {
+            for (int index = 0; index < samples.Length; index++)
+            {
+                samples[index] = this.CustomSampleProcessor.Process(samples[index]);
+            }
+        }
+
+        if (this.VolumeProcessor.Volume != 1.0f)
+        {
+            for (int index = 0; index < samples.Length; index++)
+            {
+                samples[index] = this.VolumeProcessor.Process(samples[index]);
+            }
+        }
+    }
+
+    protected virtual void SetAndRaisePositionChanged(TimeSpan position)
+    {
+        Action<TimeSpan>? handler;
+
+        lock (this._syncRoot)
+        {
+            handler = this.SetPositionLocked(position);
+        }
+
+        this.RaisePositionChanged(handler, position);
+    }
+
+    protected virtual void SetAndRaiseStateChanged(PlaybackState state)
+    {
+        Action<PlaybackState>? handler;
+
+        lock (this._syncRoot)
+        {
+            handler = this.SetStateLocked(state);
+        }
+
+        this.RaiseStateChanged(handler, state);
+    }
+
+    private void RunDecoder(AudioPlaybackContext context, TimeSpan startPosition, CancellationToken cancellationToken)
+    {
+        Exception? completionException = null;
+        using CancellationTokenRegistration decoderInterruptRegistration = cancellationToken.Register(
+            static state => ((AudioPlaybackContext)state!).RequestDecoderInterrupt(),
+            context);
+
+        try
+        {
+            this.ResetDecoderInterrupt(context.Decoder, cancellationToken);
+            if (!context.Decoder.TrySeek(startPosition, out string? seekError))
+            {
+                this.Logger.LogDebug("Unable to seek audio stream to {Position}: {Error}", startPosition, seekError);
+            }
+
+            Task<bool> seekAvailableTask = context.SeekRequests.Reader.WaitToReadAsync().AsTask();
+
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                this.ProcessPendingSeekRequests(context, cancellationToken, ref seekAvailableTask);
+
+                int generation = context.Generation;
+                AudioDecoderResult result = context.Decoder.DecodeNextFrame();
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (this.ProcessPendingSeekRequests(context, cancellationToken, ref seekAvailableTask))
+                {
+                    continue;
+                }
+
+                if (result.Frame is not null)
+                {
+                    this.WriteFrame(context, new PlaybackAudioFrame(result.Frame, generation), cancellationToken, ref seekAvailableTask);
+                }
+
+                if (result.IsEOF)
+                {
+                    if (this.ShouldFinishAtEndOfFile(context))
+                    {
+                        break;
+                    }
+
+                    this.ProcessPendingSeekRequests(context, cancellationToken, ref seekAvailableTask);
+                    continue;
+                }
+
+                if (!result.IsSucceeded)
+                {
+                    this.RecoverDecoder(context, result, cancellationToken);
+                }
+            }
+        }
+        catch (Exception exception)
+        {
+            completionException = exception;
+            throw;
+        }
+        finally
+        {
+            lock (this._syncRoot)
+            {
+                context.AcceptsSeekRequests = false;
+                context.SeekRequests.Writer.TryComplete();
+            }
+
+            this.CompletePendingSeekRequests(context, completionException);
+            context.Frames.Writer.TryComplete(completionException);
+        }
+    }
+
+    private async Task RunEngineAsync(AudioPlaybackContext context, Task engineStartTask)
+    {
+        await engineStartTask.WaitAsync(context.Token).ConfigureAwait(false);
+
+        PlaybackAudioFrame? pendingFrame = null;
+        DateTime playbackStartTime = DateTime.UtcNow;
+        TimeSpan totalPauseDuration = TimeSpan.Zero;
+        int activeGeneration = -1;
+        bool isFirstAudioFrame = true;
+        bool lastEventSent = false;
+        float[]? lastProcessedSamples = null;
+
+        async Task ProcessFrameAsync(PlaybackAudioFrame playbackFrame, bool isLastAudioFrame)
+        {
+            if (playbackFrame.Generation != context.Generation)
+            {
+                return;
+            }
+
+            if (activeGeneration != playbackFrame.Generation)
+            {
+                if (lastProcessedSamples is not null && !lastEventSent)
+                {
+                    this.OnAudioDataAvailable?.Invoke(lastProcessedSamples, false, true);
+                }
+
+                activeGeneration = playbackFrame.Generation;
+                playbackStartTime = DateTime.UtcNow - TimeSpan.FromMilliseconds(playbackFrame.Frame.PresentationTime);
+                totalPauseDuration = TimeSpan.Zero;
+                isFirstAudioFrame = true;
+                lastEventSent = false;
+                lastProcessedSamples = null;
+            }
+
+            while (context.IsPaused)
+            {
+                if (lastProcessedSamples is not null && !lastEventSent)
+                {
+                    this.OnAudioDataAvailable?.Invoke(lastProcessedSamples, false, true);
+                    lastEventSent = true;
+                }
+
+                DateTime pauseStartTime = DateTime.UtcNow;
+                await context.WaitWhilePausedAsync(context.Token).ConfigureAwait(false);
+                totalPauseDuration += DateTime.UtcNow - pauseStartTime;
+                isFirstAudioFrame = true;
+                lastEventSent = false;
+            }
+
+            if (playbackFrame.Generation != context.Generation)
+            {
+                return;
+            }
+
+            DateTime targetPlayTime = playbackStartTime
+                .AddMilliseconds(playbackFrame.Frame.PresentationTime)
+                .Add(totalPauseDuration);
+            TimeSpan delay = targetPlayTime - DateTime.UtcNow;
+            if (delay > TimeSpan.Zero)
+            {
+                await Task.Delay(delay, context.Token).ConfigureAwait(false);
+            }
+
+            if (context.IsPaused)
+            {
+                return;
+            }
+
+            if (playbackFrame.Generation != context.Generation)
+            {
+                return;
+            }
+
+            float[] samplesArray = this.ProcessFrameSamples(playbackFrame.Frame);
+
+            Action<PlaybackState>? stateChangedHandler;
+            lock (this._syncRoot)
+            {
+                if (context.IsPaused)
+                {
+                    return;
+                }
+
+                stateChangedHandler = this.SetStateLocked(PlaybackState.Playing);
+            }
+
+            this.RaiseStateChanged(stateChangedHandler, PlaybackState.Playing);
+            lastProcessedSamples = samplesArray;
+            this.OnAudioDataAvailable?.Invoke(samplesArray, isFirstAudioFrame, isLastAudioFrame);
+            lastEventSent = isLastAudioFrame;
+            isFirstAudioFrame = false;
+            this.SetAndRaisePositionChanged(TimeSpan.FromMilliseconds(playbackFrame.Frame.PresentationTime));
+        }
+
+        try
+        {
+            while (true)
+            {
+                if (!context.Frames.Reader.TryRead(out PlaybackAudioFrame? playbackFrame))
+                {
+                    if (!context.IsPaused)
+                    {
+                        this.SetAndRaiseStateChanged(PlaybackState.Buffering);
+                    }
+
+                    if (!await context.Frames.Reader.WaitToReadAsync(context.Token).ConfigureAwait(false))
+                    {
+                        break;
+                    }
+
+                    continue;
+                }
+
+                if (playbackFrame.Generation != context.Generation)
+                {
+                    continue;
+                }
+
+                if (pendingFrame is not null && pendingFrame.Generation == context.Generation)
+                {
+                    await ProcessFrameAsync(pendingFrame, false).ConfigureAwait(false);
+                }
+
+                pendingFrame = playbackFrame;
+            }
+
+            if (pendingFrame is not null && pendingFrame.Generation == context.Generation)
+            {
+                await ProcessFrameAsync(pendingFrame, true).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            if (context.IsCancellationRequested && lastProcessedSamples is not null && !lastEventSent)
+            {
+                this.OnAudioDataAvailable?.Invoke(lastProcessedSamples, false, true);
+            }
+        }
+    }
+
+    private async Task RunPlaybackAsync(AudioPlaybackContext context)
+    {
+        IAudioDecoder? decoderToDispose = null;
+        Action<TimeSpan>? positionChangedHandler = null;
+        Action<PlaybackState>? stateChangedHandler = null;
+
+        try
+        {
+            await context.EngineTask.ConfigureAwait(false);
+            await context.DecoderTask.ConfigureAwait(false);
+        }
+        catch (AudioPlaybackCanceledException)
+        {
+            throw;
+        }
+        catch (OperationCanceledException) when (context.IsCancellationRequested)
+        {
+            throw new AudioPlaybackCanceledException(context.Token);
+        }
+        finally
+        {
+            if (!context.DecoderTask.IsCompleted)
+            {
+                context.Cancel();
+                this.RequestDecoderInterrupt(context.Decoder);
+
+                try
+                {
+                    await context.DecoderTask.ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // 原始播放异常由上方任务传播，这里只等待解码工作归还线程池槽位。
+                }
+            }
+
+            try
+            {
+                lock (this._syncRoot)
+                {
+                    if (ReferenceEquals(this._playbackContext, context))
+                    {
+                        this._playbackContext = null;
+                        this.IsSeeking = false;
+                        positionChangedHandler = this.SetPositionLocked(TimeSpan.Zero);
+                        stateChangedHandler = this.SetStateLocked(PlaybackState.Idle);
+
+                        if (this._disposed)
+                        {
+                            decoderToDispose = context.Decoder;
+                            this.CurrentDecoder = null;
+                        }
+                        else
+                        {
+                            this.CurrentDecoder = context.Decoder;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                try
+                {
+                    decoderToDispose?.Dispose();
+                }
+                catch (Exception exception)
+                {
+                    this.Logger.LogError(exception, "释放音频解码器失败。");
+                }
+
+                try
+                {
+                    context.Dispose();
+                }
+                catch (Exception exception)
+                {
+                    this.Logger.LogError(exception, "释放音频播放上下文失败。");
+                }
+
+                this.RaisePositionChanged(positionChangedHandler, TimeSpan.Zero);
+                this.RaiseStateChanged(stateChangedHandler, PlaybackState.Idle);
+                context.CleanupCompletionSource.TrySetResult();
+            }
+        }
+    }
+
+    private async Task WaitForSeekAsync(AudioPlaybackContext context, AudioSeekRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await request.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (this._syncRoot)
+            {
+                if (ReferenceEquals(this._playbackContext, context))
+                {
+                    this.IsSeeking = false;
+                }
+            }
+        }
+    }
+
+    private bool ProcessPendingSeekRequests(
+        AudioPlaybackContext context,
+        CancellationToken cancellationToken,
+        ref Task<bool> seekAvailableTask)
+    {
+        bool processed = false;
+
+        while (context.SeekRequests.Reader.TryRead(out AudioSeekRequest? request))
+        {
+            processed = true;
+
+            try
+            {
+                this.ResetDecoderInterrupt(context.Decoder, cancellationToken);
+
+                if (request.CancellationToken.IsCancellationRequested)
+                {
+                    request.Cancel();
+                    continue;
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                using CancellationTokenRegistration seekInterruptRegistration = request.CancellationToken.Register(
+                    static state => ((IAudioDecoder)state!).RequestInterrupt(),
+                    context.Decoder);
+
+                if (context.Decoder.TrySeek(request.Position, out string? error))
+                {
+                    context.IncrementGeneration();
+                    this.ClearFrames(context);
+                    this.SetAndRaisePositionChanged(request.Position);
+
+                    if (!context.IsPaused)
+                    {
+                        this.SetAndRaiseStateChanged(PlaybackState.Buffering);
+                    }
+
+                    this.Logger.LogDebug("Successfully seeks to {Position}.", request.Position);
+                }
+                else
+                {
+                    this.Logger.LogDebug("Unable to seek audio stream: {Error}", error);
+                }
+
+                if (request.CancellationToken.IsCancellationRequested)
+                {
+                    request.Cancel();
+                    this.ResetDecoderInterrupt(context.Decoder, cancellationToken);
+                    continue;
+                }
+
+                request.Complete();
+            }
+            catch (OperationCanceledException) when (request.CancellationToken.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                request.Cancel();
+                this.ResetDecoderInterrupt(context.Decoder, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                request.Cancel();
+                throw;
+            }
+            catch (Exception exception)
+            {
+                request.Fail(exception);
+            }
+        }
+
+        if (processed)
+        {
+            seekAvailableTask = context.SeekRequests.Reader.WaitToReadAsync().AsTask();
+        }
+
+        return processed;
+    }
+
+    private void RecoverDecoder(AudioPlaybackContext context, AudioDecoderResult result, CancellationToken cancellationToken)
+    {
+        this.Logger.LogDebug("Failed to decode audio frame, retrying: {Error}", result.ErrorMessage);
+        TimeSpan recoveryPosition = this.Position;
+        IAudioDecoder previousDecoder = context.Decoder;
+
+        IAudioDecoder? recoveredDecoder = this.CreateRecoveryDecoder(result, cancellationToken);
+        if (recoveredDecoder is null)
+        {
+            throw new FFmpegException(result.ErrorMessage ?? "Unable to recover audio decoder.");
+        }
+
+        context.Decoder = recoveredDecoder;
+        previousDecoder.Dispose();
+        if (cancellationToken.IsCancellationRequested)
+        {
+            this.RequestDecoderInterrupt(recoveredDecoder);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+
+        if (!recoveredDecoder.TrySeek(recoveryPosition, out string? seekError))
+        {
+            this.Logger.LogDebug("Unable to seek recreated decoder to {Position}: {Error}", recoveryPosition, seekError);
+        }
+
+        context.IncrementGeneration();
+        this.ClearFrames(context);
+
+        lock (this._syncRoot)
+        {
+            if (ReferenceEquals(this._playbackContext, context))
+            {
+                this.CurrentDecoder = recoveredDecoder;
+            }
+        }
+    }
+
+    private void WriteFrame(
+        AudioPlaybackContext context,
+        PlaybackAudioFrame playbackFrame,
+        CancellationToken cancellationToken,
+        ref Task<bool> seekAvailableTask)
+    {
+        while (playbackFrame.Generation == context.Generation)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (context.Frames.Writer.TryWrite(playbackFrame))
+            {
+                return;
+            }
+
+            Task<bool> frameSpaceTask = context.Frames.Writer.WaitToWriteAsync(cancellationToken).AsTask();
+            Task.WhenAny(frameSpaceTask, seekAvailableTask).GetAwaiter().GetResult();
+
+            if (seekAvailableTask.IsCompleted)
+            {
+                if (!seekAvailableTask.GetAwaiter().GetResult())
+                {
+                    return;
+                }
+
+                this.ProcessPendingSeekRequests(context, cancellationToken, ref seekAvailableTask);
+                return;
+            }
+
+            if (!frameSpaceTask.GetAwaiter().GetResult())
+            {
+                return;
+            }
+        }
+    }
+
+    private void ClearFrames(AudioPlaybackContext context)
+    {
+        while (context.Frames.Reader.TryRead(out _))
+        {
+        }
+    }
+
+    private bool ShouldFinishAtEndOfFile(AudioPlaybackContext context)
+    {
+        lock (this._syncRoot)
+        {
+            if (context.SeekRequests.Reader.TryPeek(out _))
+            {
+                return false;
+            }
+
+            context.AcceptsSeekRequests = false;
+            return true;
+        }
+    }
+
+    private void CompletePendingSeekRequests(AudioPlaybackContext context, Exception? exception)
+    {
+        while (context.SeekRequests.Reader.TryRead(out AudioSeekRequest? request))
+        {
+            if (exception is OperationCanceledException)
+            {
+                request.Cancel();
+            }
+            else if (exception is not null)
+            {
+                request.Fail(exception);
+            }
+            else
+            {
+                request.Complete();
+            }
+        }
+    }
+
+    private void RequestDecoderInterrupt(IAudioDecoder decoder)
+    {
+        lock (this._syncRoot)
+        {
+            decoder.RequestInterrupt();
+        }
+    }
+
+    private void RaisePositionChanged(Action<TimeSpan>? handler, TimeSpan position)
+    {
+        if (handler is null)
+        {
+            return;
+        }
+
+        foreach (Action<TimeSpan> subscriber in handler.GetInvocationList())
+        {
+            try
+            {
+                subscriber(position);
+            }
+            catch (Exception exception)
+            {
+                this.Logger.LogError(exception, "播放器位置事件处理程序执行失败。");
+            }
+        }
+    }
+
+    private void RaiseStateChanged(Action<PlaybackState>? handler, PlaybackState state)
+    {
+        if (handler is null)
+        {
+            return;
+        }
+
+        foreach (Action<PlaybackState> subscriber in handler.GetInvocationList())
+        {
+            try
+            {
+                subscriber(state);
+            }
+            catch (Exception exception)
+            {
+                this.Logger.LogError(exception, "播放器状态事件处理程序执行失败。");
+            }
+        }
+    }
+
+    private float[] ProcessFrameSamples(AudioFrame frame)
+    {
+        Span<float> samples = MemoryMarshal.Cast<byte, float>(frame.Data);
+        this.ProcessSampleProcessors(samples);
+        return samples.ToArray();
+    }
+
+    private void ResetDecoderInterrupt(IAudioDecoder decoder, CancellationToken cancellationToken)
+    {
+        lock (this._syncRoot)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            decoder.ResetInterrupt();
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                decoder.RequestInterrupt();
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+        }
+    }
+
+    private Action<TimeSpan>? SetPositionLocked(TimeSpan position)
+    {
+        if (position == this.Position)
+        {
+            return null;
+        }
+
+        this.Position = position;
+        return this.PositionChanged;
+    }
+
+    private Action<PlaybackState>? SetStateLocked(PlaybackState state)
+    {
+        if (state == this.State)
+        {
+            return null;
+        }
+
+        this.State = state;
+        return this.StateChanged;
+    }
+
+    private float VerifyVolume(float volume)
+    {
+        return volume switch
+        {
+            > 1.0f => 1.0f,
+            < 0.0f => 0.0f,
+            _ => volume
+        };
+    }
+
+    private void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(this._disposed, this);
     }
 }

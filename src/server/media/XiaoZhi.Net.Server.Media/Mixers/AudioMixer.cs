@@ -10,7 +10,7 @@ using XiaoZhi.Net.Server.Media.Common.Models;
 namespace XiaoZhi.Net.Server.Media.Mixers
 {
     /// <summary>
-    /// Audio mixer with advanced volume control and smooth transitions
+    /// 具有高级音量控制和平滑过渡效果的音频混音器。
     /// </summary>
     internal class AudioMixer : IAudioMixer
     {
@@ -24,28 +24,28 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         private volatile int _processingFlag = 0;
         private AudioMixerConfig _config = new();
 
-        // Audio format settings
+        // 音频格式设置。
         private int _frameSampleCount;
 
-        // State management
+        // 状态管理。
         private bool _disposed = false;
         private AudioMixerState _state = AudioMixerState.Idle;
         private readonly AudioMixerStats _currentStats = new();
 
-        // Enhanced volume control for priority-based mixing
+        // 用于基于优先级混音的增强音量控制。
         private Dictionary<AudioType, float>? _baseVolumeLevels;
         private Dictionary<AudioType, float>? _prioritySuppressionLevels;
 
-        // Track last active types to avoid restarting transitions too often
+        // 跟踪上次活动的类型，避免过于频繁地重新开始过渡。
         private HashSet<AudioType> _lastActiveTypes = [];
-        // Track last highest priority to detect priority change even if active set stays same
+        // 跟踪上次最高优先级，即使活动集合不变也可检测优先级变化。
         private int? _lastHighestPriority = null;
 
         private float _lastNormalizationFactor = 0.75f;
 
-        // Only mark the very first mixed frame after switching to Mixing
+        // 仅标记切换到 Mixing 后的第一个混音帧。
         private volatile bool _firstFrameAfterStart = false;
-        // Ensure we emit isLast only once per mixing session
+        // 确保每个混音会话只输出一次 isLast。
         private volatile bool _lastFrameEmitted = false;
 
         private readonly Queue<OutputBufferFrame> _outputBuffer = new();
@@ -108,7 +108,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     this.OutputChannels = outputChannels;
                     this.FrameDuration = frameDuration;
                     this._frameSampleCount = outputSampleRate * frameDuration / 1000 * outputChannels;
-                    // Use a higher tick than frame to drive smoother transitions
+                    // 使用比帧频更高的节拍驱动更平滑的过渡。
                     var timerInterval = Math.Max(frameDuration / 4, 5);
                     this._mixingTimer.Change(timerInterval, timerInterval);
 
@@ -157,7 +157,8 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     if (this._outputBuffer.Count < targetBufferDepth)
                     {
                         nextIdealTime = this._lastScheduledOutputTime.AddMilliseconds(this.FrameDuration);
-                        var frame = new OutputBufferFrame([.. mixedData], isFirst, isLast, sentenceId);
+                        // mixedData 是当前混音周期独占的新数组，入队后由输出队列接管。
+                        var frame = new OutputBufferFrame(mixedData, isFirst, isLast, sentenceId);
                         this._outputBuffer.Enqueue(frame);
                         this._lastScheduledOutputTime = nextIdealTime;
                         if (!this._bufferPreFilled && this._outputBuffer.Count >= this._config.BufferPrefillFrames)
@@ -236,19 +237,19 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             }
 
 
-            // Get or create input stream for this audio type
+            // 获取或创建此音频类型的输入流。
             var audioInput = this._audioInputs.GetOrAdd(audioType,
                 _ => new AudioStreamProcessor(audioType, this.OutputSampleRate, this.OutputChannels, this.FrameDuration, this._config));
 
             this._volumeStates.GetOrAdd(audioType, _ => new VolumeTransitionControl());
 
-            // Add data to the input stream with automatic frame boundary detection
+            // 将数据加入输入流，并自动检测帧边界。
             audioInput.AddData(audioData, sentenceId);
 
-            // Reset last-frame flag as new data arrived in current session
+            // 当前会话收到新数据时重置末帧标志。
             this._lastFrameEmitted = false;
 
-            // Only when new stream first frame enters do we recompute
+            // 仅当新流的首帧进入时重新计算。
             if (audioInput.ProcessedFrameCount == 0 && audioInput.IsFirstFrame)
             {
                 this.UpdateVolumeTargets();
@@ -271,7 +272,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 return;
             }
 
-            // Active set determined by started-but-not-completed streams to avoid jitter
+            // 根据已开始但未完成的流确定活动集合，以避免抖动。
             var activeTypes = this._audioInputs
                 .Where(kvp => !kvp.Value.IsComplete && (kvp.Value.HasAnyData() || kvp.Value.ProcessedFrameCount > 0 || kvp.Value.IsStopping))
                 .Select(kvp => kvp.Key)
@@ -285,7 +286,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
             var highestPriority = activeTypes.Max(t => (int)t);
 
-            // Recompute when active set or highest priority changes
+            // 当活动集合或最高优先级变化时重新计算。
             bool activeUnchanged = this._lastActiveTypes.SetEquals(activeTypes);
             bool priorityUnchanged = this._lastHighestPriority.HasValue && this._lastHighestPriority.Value == highestPriority;
             if (activeUnchanged && priorityUnchanged)
@@ -301,7 +302,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 var volumeState = this._volumeStates.GetOrAdd(audioType, _ => new VolumeTransitionControl());
                 var targetVolume = this.CalculateTargetVolume(audioType, highestPriority, activeTypes);
 
-                // Only start transition if target actually changes, to avoid repeated log spam
+                // 仅当目标确实变化时开始过渡，以避免重复日志。
                 if (MathF.Abs(volumeState.TargetVolume - targetVolume) > 1e-3f)
                 {
                     volumeState.StartTransition(targetVolume, this._config.VolumeTransitionDurationMs, this._config.TransitionCurve);
@@ -311,7 +312,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 }
             }
 
-            // Remove states for streams no longer active to allow future clean restarts
+            // 移除不再活动的流的状态，以便将来干净地重新开始。
             foreach (var stale in this._volumeStates.Keys.ToList())
             {
                 if (!activeTypes.Contains(stale))
@@ -422,7 +423,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
                     if (inputsWithData.Count == 0)
                     {
-                        // Transition-only period: advance transitions and emit silent frames
+                        // 仅过渡阶段：推进过渡并输出静音帧。
                         bool hadTransitions = this._volumeStates.Values.Any(v => v.IsTransitioning);
                         if (hadTransitions && allInputs.Count > 0)
                         {
@@ -459,7 +460,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                         bool allCompleteAndEmpty = allInputs.Count > 0 && this._audioInputs.Values.All(i => i.IsComplete && !i.HasAnyData());
                         if (allCompleteAndEmpty && !this._lastFrameEmitted)
                         {
-                            // Only emit the final frame once
+                            // 仅输出一次最终帧。
                             if (!this._lastFrameEmitted)
                             {
                                 var silentFrame = new float[this._frameSampleCount];
@@ -482,7 +483,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                         break;
                     }
 
-                    // buffer strategy to allow partial on new streams
+                    // 缓冲策略允许新流输出部分帧。
                     var activeInputs = this.GetActiveInputsWithBufferStrategy(inputsWithData);
                     if (activeInputs.Count == 0)
                     {
@@ -491,7 +492,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
                     var currentActiveTypes = activeInputs.Select(input => input.AudioType).OrderBy(t => t).ToList();
 
-                    // If active set changed (some completed mid-loop), trigger update once.
+                    // 如果活动集合发生变化（部分流在循环中完成），则触发一次更新。
                     if (!this._lastActiveTypes.SetEquals(currentActiveTypes))
                     {
                         this.UpdateVolumeTargets();
@@ -537,7 +538,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     processedFrameCount++;
                 }
 
-                // Cleanup completed streams
+                // 清理已完成的流。
                 var completedStreams = this._audioInputs.Where(kvp => kvp.Value.IsComplete && !kvp.Value.HasAnyData()).ToList();
                 bool hasCompletedStreams = completedStreams.Count > 0;
 
@@ -559,7 +560,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     this._hasPendingData = true;
                 }
 
-                // Update state
+                // 更新状态。
                 if (this._audioInputs.IsEmpty)
                 {
                     this.SetState(AudioMixerState.Idle);
@@ -590,7 +591,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
             foreach (var input in inputsWithData)
             {
-                // Handle meta-only frames (no audio data but has metadata)
+                // 处理仅包含元数据、不含音频数据的帧。
                 if (input.AvailableDataCount == 0)
                 {
                     activeInputs.Add(input);
@@ -606,7 +607,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 }
                 else if (isNewStream && this._config.EnableSmoothVolumeControl)
                 {
-                    // Allow partial frame on new streams to reduce startup latency
+                    // 允许新流输出部分帧，以降低启动延迟。
                     int minRequiredSamples = (int)(this._frameSampleCount * this._config.NewStreamBufferTolerance);
                     if (input.AvailableDataCount >= minRequiredSamples)
                     {
@@ -615,7 +616,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 }
                 else if (input.IsStopping && input.HasAnyData())
                 {
-                    // Include stopping streams that have any data (audio or meta-only frames)
+                    // 包含具有任意数据（音频或仅元数据帧）的正在停止的流。
                     activeInputs.Add(input);
                 }
             }
@@ -634,7 +635,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             string? selectedSentenceId = null;
             bool hasAudioContent = false;
 
-            // Track per-stream energy to decide normalization participants
+            // 跟踪每条流的能量，以确定参与归一化的流。
             var streamEnergies = new List<(AudioStreamProcessor stream, float energy, bool warmup)>();
 
             foreach (var input in activeInputs)
@@ -645,7 +646,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     continue;
                 }
 
-                // Prioritize TTS sentence ID
+                // 优先使用 TTS 句子 ID。
                 if (input.AudioType == AudioType.TTS && !string.IsNullOrEmpty(sentenceId))
                 {
                     selectedSentenceId = sentenceId;
@@ -662,7 +663,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
                 hasAudioContent = true;
 
-                // short fade in/out to reduce clicks
+                // 短暂淡入淡出以减少爆音。
                 const int FadeLength = 16;
                 if (input.IsFirstFrame)
                 {
@@ -711,7 +712,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
             if (streamEnergies.Count <= 1)
             {
-                // Single stream: smooth normalization to target ~0.75
+                // 单流：平滑归一化到约 0.75 的目标值。
                 float targetNorm = 0.75f;
                 this._lastNormalizationFactor = SmoothNormalization(this._lastNormalizationFactor, targetNorm);
                 for (int i = 0; i < mixedAudio.Length; i++)
@@ -722,7 +723,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 return (mixedAudio, selectedSentenceId);
             }
 
-            // Decide which streams participate in normalization (exclude very low energy / warmup streams)
+            // 确定哪些流参与归一化（排除能量极低或预热中的流）。
             const float EnergyThreshold = 0.003f; // small value
             var effective = streamEnergies.Where(e => !e.warmup && e.energy >= EnergyThreshold).ToList();
             int effectiveCount = effective.Count;
@@ -732,7 +733,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             }
 
             float targetFactor = (float)(0.75 / Math.Sqrt(effectiveCount));
-            // Smooth normalization changes to avoid sudden dip when a new low-energy stream enters
+            // 平滑归一化变化，避免新的低能量流进入时音量突然降低。
             this._lastNormalizationFactor = SmoothNormalization(this._lastNormalizationFactor, targetFactor);
 
             for (int i = 0; i < mixedAudio.Length; i++)
@@ -745,7 +746,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         private static float SmoothNormalization(float previous, float target)
         {
-            // Limit change per frame to avoid abrupt gain shifts (attack slower than release)
+            // 限制每帧变化以避免增益突变（起音比释放更慢）。
             float maxStepUp = 0.05f;   // allow small increases
             float maxStepDown = 0.15f; // allow moderate decreases
             float delta = target - previous;

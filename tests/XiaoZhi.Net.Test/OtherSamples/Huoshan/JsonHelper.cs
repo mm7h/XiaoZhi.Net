@@ -16,11 +16,31 @@ namespace XiaoZhi.Test.OtherSamples.Huoshan
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
-        public static string ToJson(this object obj) => JsonSerializer.Serialize(obj, JsonHelper.OPTIONS);
-        public static JsonNode? ToNode(this object obj) => obj is null ? null : JsonSerializer.SerializeToNode(obj, JsonHelper.OPTIONS);
-        public static string Serialize(object obj) => JsonSerializer.Serialize(obj, JsonHelper.OPTIONS);
-        public static string Serialize(JsonObject obj) => obj.ToJsonString(JsonHelper.OPTIONS);
-        public static byte[] SerializeToUtf8Bytes(object obj) => JsonSerializer.SerializeToUtf8Bytes(obj, JsonHelper.OPTIONS);
+        public static string ToJson(this object obj)
+        {
+            return JsonSerializer.Serialize(obj, JsonHelper.OPTIONS);
+        }
+
+        public static JsonNode? ToNode(this object obj)
+        {
+            return obj is null ? null : JsonSerializer.SerializeToNode(obj, JsonHelper.OPTIONS);
+        }
+
+        public static string Serialize(object obj)
+        {
+            return JsonSerializer.Serialize(obj, JsonHelper.OPTIONS);
+        }
+
+        public static string Serialize(JsonObject obj)
+        {
+            return obj.ToJsonString(JsonHelper.OPTIONS);
+        }
+
+        public static byte[] SerializeToUtf8Bytes(object obj)
+        {
+            return JsonSerializer.SerializeToUtf8Bytes(obj, JsonHelper.OPTIONS);
+        }
+
         public static T? Deserialize<T>(string json) where T : class
         {
             try
@@ -40,11 +60,13 @@ namespace XiaoZhi.Test.OtherSamples.Huoshan
 
         public override string ConvertName(string name)
         {
-            if (string.IsNullOrEmpty(name) || string.IsNullOrWhiteSpace(name)) return string.Empty;
-
+            if (string.IsNullOrEmpty(name) || string.IsNullOrWhiteSpace(name))
+            {
+                return string.Empty;
+            }
 
             // 尝试获取属性的 JsonPropertyName 特性
-            var propertyInfo = GetPropertyInfo(name);
+            var propertyInfo = this.GetPropertyInfo(name);
             if (propertyInfo != null)
             {
                 var jsonPropertyAttribute = propertyInfo.GetCustomAttribute<JsonPropertyNameAttribute>();
@@ -85,7 +107,9 @@ namespace XiaoZhi.Test.OtherSamples.Huoshan
                         (isPreviousSeparator) ||
                         (isNextUpper) ||
                         (isNextSpace)))
+                    {
                         addCharacter = false;
+                    }
                     else
                     {
                         var isCurrentUpper = spanName[position] > 64 && spanName[position] < 91;
@@ -98,14 +122,16 @@ namespace XiaoZhi.Test.OtherSamples.Huoshan
                         (isNextLower) ||
                         (isNextSpace) ||
                         (isNextLower && !isPreviousSpace)))
-                            stringBuilder.Append(_separator);
+                        {
+                            stringBuilder.Append(this._separator);
+                        }
                         else
                         {
                             if ((isCurrentSpace &&
                                 !isPreviousSpace &&
                                 !isNextSpace))
                             {
-                                stringBuilder.Append(_separator);
+                                stringBuilder.Append(this._separator);
                                 addCharacter = false;
                             }
                         }
@@ -113,9 +139,13 @@ namespace XiaoZhi.Test.OtherSamples.Huoshan
                 }
 
                 if (addCharacter)
+                {
                     stringBuilder.Append(spanName[position]);
+                }
                 else
+                {
                     addCharacter = true;
+                }
             }
 
             var result = stringBuilder.ToString().ToLower();
@@ -131,11 +161,11 @@ namespace XiaoZhi.Test.OtherSamples.Huoshan
                 {
                     foreach (var type in assembly.GetTypes())
                     {
-                        var property = type.GetProperty(propertyName, 
-                            BindingFlags.Public | 
-                            BindingFlags.NonPublic | 
+                        var property = type.GetProperty(propertyName,
+                            BindingFlags.Public |
+                            BindingFlags.NonPublic |
                             BindingFlags.Instance);
-                        
+
                         if (property != null)
                         {
                             return property;

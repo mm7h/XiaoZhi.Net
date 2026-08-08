@@ -1,36 +1,36 @@
 ﻿namespace XiaoZhi.Net.Server.Media.Common.Models;
 
 /// <summary>
-/// Represents result structure returned by audio decoder while reading audio frame.
+/// 表示音频解码器读取音频帧时返回的结果结构。
 /// </summary>
 /// <remarks>
-/// Initializes <see cref="AudioDecoderResult"/> structure.
+/// 初始化 <see cref="AudioDecoderResult"/> 结构。
 /// </remarks>
-/// <param name="frame">Decoded audio frame if successfully reads.</param>
-/// <param name="succeeded">Whether or not the frame is successfully reads.</param>
-/// <param name="eof">Whether or not the decoder reaches end-of-file.</param>
-/// <param name="errorMessage">An error message while reading audio frame.</param>
+/// <param name="frame">读取成功时的已解码音频帧。</param>
+/// <param name="succeeded">是否成功读取音频帧。</param>
+/// <param name="eof">解码器是否已到达文件末尾。</param>
+/// <param name="errorMessage">读取音频帧时产生的错误信息。</param>
 internal readonly struct AudioDecoderResult(AudioFrame? frame, bool succeeded, bool eof, string? errorMessage = default)
 {
 
     /// <summary>
-    /// Gets decoded audio frame if successfully reads.
-    /// This should returns <c>null</c> if <see cref="IsSucceeded"/> is <c>false</c>.
+    /// 获取读取成功时的已解码音频帧。
+    /// 当 <see cref="IsSucceeded"/> 为 <c>false</c> 时，应返回 <c>null</c>。
     /// </summary>
     public AudioFrame? Frame { get; } = frame;
 
     /// <summary>
-    /// Gets whether or not the decoder is successfully reading audio frame.
+    /// 获取解码器是否成功读取音频帧。
     /// </summary>
     public bool IsSucceeded { get; } = succeeded;
 
     /// <summary>
-    /// Gets whether or not the decoder reaches end-of-file (cannot be continued) while reading audio frame. 
+    /// 获取解码器读取音频帧时是否已到达文件末尾（无法继续读取）。
     /// </summary>
     public bool IsEOF { get; } = eof;
 
     /// <summary>
-    /// Gets error message from the decoder while reading audio frame.
+    /// 获取解码器读取音频帧时的错误信息。
     /// </summary>
     public string? ErrorMessage { get; } = errorMessage;
 }

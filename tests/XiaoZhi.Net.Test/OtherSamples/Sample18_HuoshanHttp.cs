@@ -1,6 +1,6 @@
-﻿using Flurl.Http;
+﻿using System.Text;
+using Flurl.Http;
 using Flurl.Http.Configuration;
-using System.Text;
 using XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Models;
 using XiaoZhi.Test.OtherSamples.Huoshan;
 
@@ -8,13 +8,13 @@ namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample18_HuoshanHttp
     {
-        public static async Task Run()
+        public static async Task RunAsync()
         {
             HuoshanHttpTTS tts = new();
             string apiId = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
             string accessToken = Environment.GetEnvironmentVariable("HuoshanAccessToken", EnvironmentVariableTarget.User)!;
 
-            if (!tts.Build(apiId, accessToken, "volc.service_type.10029"))
+            if (!tts.Build(apiId, accessToken))
             {
                 Console.WriteLine("Build failed");
                 return;
@@ -26,19 +26,19 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
     file class HuoshanHttpTTS
     {
-        private const string SERVICE_END_POINT = "https://openspeech.bytedance.com/api/v1/tts";
-        private const int SAMPLE_RATE = 24000;
+        private const string ServiceEndPoint = "https://openspeech.bytedance.com/api/v1/tts";
+        private const int SampleRate = 24000;
 
         private bool _saveFile = false;
         private string? _savePath;
         private string? _speaker;
-        private string _audioFormat = "wav";
+        private readonly string _audioFormat = "wav";
 
         private string? _appId;
         private string? _accessToken;
         private string? _cluster;
 
-        public bool Build(string appId, string accessToken, string resourceId)
+        public bool Build(string appId, string accessToken)
         {
             try
             {
@@ -52,7 +52,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 {
                     this._savePath = Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
                     if (!Directory.Exists(this._savePath))
+                    {
                         Directory.CreateDirectory(this._savePath);
+                    }
                 }
 
                 return true;
@@ -78,7 +80,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 {
                     VoiceType = this._speaker ?? "zh_female_wanwanxiaohe_moon_bigtts",
                     Encoding = this._audioFormat,
-                    Rate = SAMPLE_RATE
+                    Rate = SampleRate
                 },
                 Request = new
                 {
@@ -101,7 +103,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                         }
                     })
             };
-            IFlurlClient client = new FlurlClient(SERVICE_END_POINT)
+            IFlurlClient client = new FlurlClient(ServiceEndPoint)
             {
                 Settings = { JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS) }
             };
@@ -156,13 +158,13 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
     file class HuoshanHttpV3TTS
     {
-        private const string SERVICE_END_POINT = "https://openspeech.bytedance.com/api/v3/tts/unidirectional";
-        private const int SAMPLE_RATE = 24000;
+        private const string ServiceEndPoint = "https://openspeech.bytedance.com/api/v3/tts/unidirectional";
+        private const int SampleRate = 24000;
 
         private bool _saveFile = false;
         private string? _savePath;
         private string? _speaker;
-        private string _audioFormat = "wav";
+        private readonly string _audioFormat = "wav";
         private readonly IDictionary<string, string> _headers;
         public HuoshanHttpV3TTS()
         {
@@ -181,7 +183,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 {
                     this._savePath = Path.Combine(Environment.CurrentDirectory, "data", "tts-cache");
                     if (!Directory.Exists(this._savePath))
+                    {
                         Directory.CreateDirectory(this._savePath);
+                    }
                 }
 
                 this._headers.Add("X-Api-App-Key", appId);
@@ -209,7 +213,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     AudioParams = new
                     {
                         Format = this._audioFormat,
-                        SampleRate = SAMPLE_RATE,
+                        SampleRate,
                         EnableTimestamp = false
                     },
                     Additions =
@@ -224,7 +228,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                         })
                 }
             };
-            IFlurlClient client = new FlurlClient(SERVICE_END_POINT)
+            IFlurlClient client = new FlurlClient(ServiceEndPoint)
             {
                 Settings = { JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS) }
             };
@@ -256,12 +260,16 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 {
                     string? line = await reader.ReadLineAsync();
                     if (string.IsNullOrEmpty(line))
+                    {
                         continue;
+                    }
 
                     TTSHttpResponseChunk? message = JsonHelper.Deserialize<TTSHttpResponseChunk>(line);
 
                     if (message is null || !message.Code.HasValue)
+                    {
                         continue;
+                    }
 
                     Console.WriteLine($"data: {message.Data?.Length ?? 0}, sentence: {message.Sentence}, message: {message.Message}, code: {message.Code}");
 
@@ -277,7 +285,6 @@ namespace XiaoZhi.Net.Test.OtherSamples
                         {
                             byte[] bytes = Convert.FromBase64String(message.Data);
 
-
                             if (audioFs is not null)
                             {
                                 await audioFs.WriteAsync(bytes);
@@ -288,7 +295,6 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     }
                     if (message.Code == 20000000)
                     {
-
                         break;
                     }
                     if (message.Code.HasValue && message.Code > 0)
@@ -297,8 +303,6 @@ namespace XiaoZhi.Net.Test.OtherSamples
                         return Array.Empty<byte>();
                     }
                 }
-
-
 
                 if (audioFs != null)
                 {
@@ -319,6 +323,5 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 }
             }
         }
-
     }
 }

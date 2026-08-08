@@ -6,6 +6,7 @@ using XiaoZhi.Net.Server.Media.Encoders;
 using XiaoZhi.Net.Server.Media.Encoders.FFmpeg;
 using XiaoZhi.Net.Server.Media.Mixers;
 using XiaoZhi.Net.Server.Media.Players;
+using XiaoZhi.Net.Server.Media.Players.WorkPool;
 using XiaoZhi.Net.Server.Media.Subtitle;
 using XiaoZhi.Net.Server.Media.Utilities;
 
@@ -15,11 +16,11 @@ namespace XiaoZhi.Net.Server
     public static class MediaExtension
     {
         /// <summary>
-        /// Initialize all media services, including audio player, audio mixer and audio subtitle sync tracker.
+        /// 初始化所有媒体服务，包括音频播放器、音频混音器和音频字幕同步跟踪器。
         /// </summary>
-        /// <param name="builder">current builder</param>
-        /// <param name="useFFmpeg">use ffmpeg audio mixer support</param>
-        /// <returns></returns>
+        /// <param name="builder">当前构建器。</param>
+        /// <param name="useFFmpeg">是否启用 FFmpeg 音频混音器支持。</param>
+        /// <returns>当前构建器。</returns>
         public static IServerBuilder WithMedia(this IServerBuilder builder, bool useFFmpegAudioMixer = true, string ffmpegPath = "./ffmpeg/")
         {
             builder.InitializeFFmpeg(ffmpegPath)
@@ -32,11 +33,11 @@ namespace XiaoZhi.Net.Server
         }
 
         /// <summary>
-        /// Initialize FFmpeg.
+        /// 初始化 FFmpeg。
         /// </summary>
-        /// <param name="builder">current builder</param>
-        /// <param name="ffmpegPath">the root path of ffmpeg; Defaults to "./ffmpeg/" if not specified. Must not be null or empty.</param>
-        /// <returns></returns>
+        /// <param name="builder">当前构建器。</param>
+        /// <param name="ffmpegPath">FFmpeg 根路径；未指定时默认为“./ffmpeg/”。不能为空。</param>
+        /// <returns>当前构建器。</returns>
         private static IServerBuilder InitializeFFmpeg(this IServerBuilder builder, string ffmpegPath = "./ffmpeg/")
         {
             FFmpegStartup.RegisterFFmpegBinaries(ffmpegPath);
@@ -44,14 +45,16 @@ namespace XiaoZhi.Net.Server
         }
 
         /// <summary>
-        /// Initialize audio player.
+        /// 初始化音频播放器。
         /// </summary>
-        /// <param name="builder">current builder</param>
-        /// <returns></returns>
+        /// <param name="builder">当前构建器。</param>
+        /// <returns>当前构建器。</returns>
         private static IServerBuilder WithAudioPlayer(this IServerBuilder builder)
         {
             builder.HostBuilder.ConfigureServices((context, services) =>
             {
+                int workerCount = Math.Max(2, Environment.ProcessorCount);
+                services.AddSingleton<IAudioDecoderWorkPool>(_ => new AudioDecoderWorkPool(workerCount));
                 services.AddTransient<IUrlAudioPlayer, UrlAudioPlayer>();
                 services.AddTransient<IStreamAudioPlayer, StreamAudioPlayer>();
             });
@@ -59,11 +62,11 @@ namespace XiaoZhi.Net.Server
         }
 
         /// <summary>
-        /// Initialize audio mixer
+        /// 初始化音频混音器。
         /// </summary>
-        /// <param name="builder">current builder</param>
-        /// <param name="useFFmpegAudioMixer">use ffmpeg audio mixer support</param>
-        /// <returns></returns>
+        /// <param name="builder">当前构建器。</param>
+        /// <param name="useFFmpegAudioMixer">是否启用 FFmpeg 音频混音器支持。</param>
+        /// <returns>当前构建器。</returns>
         private static IServerBuilder WithAudioMixer(this IServerBuilder builder, bool useFFmpegAudioMixer = true)
         {
             builder.HostBuilder.ConfigureServices((context, services) =>
@@ -82,10 +85,10 @@ namespace XiaoZhi.Net.Server
         }
 
         /// <summary>
-        /// Initialize audio subtitle sync tracker
+        /// 初始化音频字幕同步跟踪器。
         /// </summary>
-        /// <param name="builder">current builder</param>
-        /// <returns></returns>
+        /// <param name="builder">当前构建器。</param>
+        /// <returns>当前构建器。</returns>
         private static IServerBuilder WithAudioSubtitleSyncTracker(this IServerBuilder builder)
         {
             builder.HostBuilder.ConfigureServices((context, services) =>
@@ -96,10 +99,10 @@ namespace XiaoZhi.Net.Server
         }
 
         /// <summary>
-        /// Initialize audio editor
+        /// 初始化音频编辑器。
         /// </summary>
-        /// <param name="builder">current builder</param>
-        /// <returns></returns>
+        /// <param name="builder">当前构建器。</param>
+        /// <returns>当前构建器。</returns>
         private static IServerBuilder WithAudioEditor(this IServerBuilder builder)
         {
             builder.HostBuilder.ConfigureServices((context, services) =>

@@ -8,12 +8,12 @@ namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample08_CloneKernelAndCheckTheMemory
     {
-        public static async Task Run()
+        public static async Task RunAsync()
         {
-            await TestTheMemory();
+            await TestTheMemoryAsync();
         }
 
-        static async Task TestTheMemory()
+        private static async Task TestTheMemoryAsync()
         {
             try
             {
@@ -33,7 +33,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 kernel.ImportPluginFromType<TimePlugin>();
                 kernel.ImportPluginFromType<WeatherPlugin>();
 
-                await InitMCP(kernel);
+                await InitMCPAsync();
 
                 List<Kernel> kernels = new List<Kernel>(100_000);
                 for (int i = 0; i < 100_000; i++)
@@ -46,11 +46,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 var anotherClonedKernel = kernel.Clone();
                 anotherClonedKernel.ImportPluginFromType<TimePlugin>("TimePlugin2");
                 anotherClonedKernel.ImportPluginFromType<WeatherPlugin>("WeatherPlugin2");
-
             }
             catch (Exception ex)
             {
-
                 throw;
             }
             finally
@@ -59,31 +57,31 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 Console.ReadLine();
             }
         }
-        static async Task InitMCP(Kernel kernel)
+        private static async Task InitMCPAsync()
         {
-//            var (command, arguments) = GetCommandAndArguments();
+            //            var (command, arguments) = GetCommandAndArguments();
 
-//            var clientTransport = new StdioClientTransport(new()
-//            {
-//                Name = "Demo Server",
-//                Command = command,
-//                Arguments = arguments,
-//            });
+            //            var clientTransport = new StdioClientTransport(new()
+            //            {
+            //                Name = "Demo Server",
+            //                Command = command,
+            //                Arguments = arguments,
+            //            });
 
-//            await using var mcpClient = await McpClientFactory.CreateAsync(clientTransport);
+            //            await using var mcpClient = await McpClientFactory.CreateAsync(clientTransport);
 
-//            var tools = await mcpClient.ListToolsAsync();
-//            foreach (var tool in tools)
-//            {
-//                Console.WriteLine($"Connected to server with tools: {tool.Name}");
-//            }
-//#pragma warning disable SKEXP0001
-//            var functions = tools.Select(aiFunction => aiFunction.AsKernelFunction()).ToList();
-//#pragma warning restore SKEXP0001
+            //            var tools = await mcpClient.ListToolsAsync();
+            //            foreach (var tool in tools)
+            //            {
+            //                Console.WriteLine($"Connected to server with tools: {tool.Name}");
+            //            }
+            //#pragma warning disable SKEXP0001
+            //            var functions = tools.Select(aiFunction => aiFunction.AsKernelFunction()).ToList();
+            //#pragma warning restore SKEXP0001
 
             // kernel.Plugins.AddFromFunctions("Tools", functions);
         }
-        static (string command, string[] arguments) GetCommandAndArguments()
+        private static (string command, string[] arguments) GetCommandAndArguments()
         {
             return ("dotnet", ["run", "--project", Path.Combine("C:\\Visual_D_Drive\\Projects\\Github\\csharp-sdk-0.3.0-preview.2\\samples\\QuickstartWeatherServer\\../QuickstartWeatherServer")]);
         }

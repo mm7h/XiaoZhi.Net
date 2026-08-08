@@ -74,28 +74,31 @@ public interface IAudioPlayer : IDisposable
     /// initialized, it attempts to initialize it. If an error occurs during initialization, the method logs the
     /// error and returns <see langword="false"/>.</remarks>
     /// <returns><see langword="true"/> if FFmpeg is successfully initialized; otherwise, <see langword="false"/>.</returns>
-    bool CheckFFmpegInstalled();
+    Task<bool> CheckFFmpegInstalledAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Plays the audio or media associated with this instance.
     /// </summary>
-    /// <param name="waitDone">A value indicating whether the method should block execution until playback is complete.  <see langword="true"/>
-    /// to wait for playback to finish; otherwise, <see langword="false"/>.</param>
-    void Play(bool waitDone = false);
+    /// <param name="cancellationToken">用于取消播放的令牌。</param>
+    /// <returns>在音频自然播放结束时完成的任务。</returns>
+    Task PlayAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Suspends the player for sending buffers to output device.
     /// </summary>
-    void Pause();
+    /// <param name="cancellationToken">取消令牌。</param>
+    Task PauseAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Stop the playback.
     /// </summary>
-    void Stop();
+    /// <param name="cancellationToken">取消等待停止完成的令牌。</param>
+    Task StopAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Seeks loaded audio to the specified position.
     /// </summary>
     /// <param name="position">Desired seek position.</param>
-    void Seek(TimeSpan position);
+    /// <param name="cancellationToken">取消令牌。</param>
+    Task SeekAsync(TimeSpan position, CancellationToken cancellationToken = default);
 }

@@ -36,7 +36,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification
 
         public override bool Build(AudioSetting audioSetting)
         {
-            if (!this._streamAudioPlayer.CheckFFmpegInstalled())
+            if (!this._streamAudioPlayer.CheckFFmpegInstalledAsync().GetAwaiter().GetResult())
             {
                 this.Logger.LogError(Lang.NotificationPlayer_Build_FFmpegInitFailed);
                 return false;
@@ -64,7 +64,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification
             using (bindCodeAudioStream)
             {
                 await this._streamAudioPlayer.LoadAsync(bindCodeAudioStream, this._audioSetting.SampleRate, this._audioSetting.Channels, this._audioSetting.FrameDuration);
-                this._streamAudioPlayer.Play(true);
+                await this._streamAudioPlayer.PlayAsync();
             }
         }
 
@@ -84,26 +84,18 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification
             using (notFoundAudioStream)
             {
                 await this._streamAudioPlayer.LoadAsync(notFoundAudioStream, this._audioSetting.SampleRate, this._audioSetting.Channels, this._audioSetting.FrameDuration);
-                this._streamAudioPlayer.Play(true);
+                await this._streamAudioPlayer.PlayAsync();
             }
         }
 
-        public Task StopAsync()
+        public async Task StopAsync()
         {
             if (this.PlaybackState == PlaybackState.Idle)
             {
                 this.Logger.LogInformation(Lang.NotificationPlayer_StopAsync_Skip, this.PlaybackState);
-                return Task.CompletedTask;
+                return;
             }
-            // 记录停止前的状态：暂停时播放器已自动发出 isLast=true；
-            // 播放中强制停止时播放器不会发出，需手动触发以正确关闭混音器中的 SystemNotification 流
-            bool wasPlaying = this.PlaybackState is PlaybackState.Playing or PlaybackState.Buffering;
-            this._streamAudioPlayer.Stop();
-            if (wasPlaying)
-            {
-                this.FireAudioData(Array.Empty<float>(), false, true);
-            }
-            return Task.CompletedTask;
+            await this._streamAudioPlayer.StopAsync();
         }
         private void FireAudioData(float[] pcmData, bool isFirst, bool isLast)
         {

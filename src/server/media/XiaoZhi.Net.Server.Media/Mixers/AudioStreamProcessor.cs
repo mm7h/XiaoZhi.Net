@@ -6,7 +6,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 {
 #pragma warning disable IDE0290 // 保持构造函数签名，避免未读取参数的编译器警告。
     /// <summary>
-    /// Enhanced audio input stream with improved buffering strategy and automatic frame boundary detection
+    /// 采用改进缓冲策略并支持自动帧边界检测的增强音频输入流。
     /// </summary>
     internal class AudioStreamProcessor : IDisposable
     {
@@ -16,7 +16,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         private readonly AudioMixerConfig _config;
         private bool _disposed;
 
-        // Internal frame boundary tracking
+        // 内部帧边界跟踪。
         private volatile bool _isFirstFrame = false;
         private volatile bool _isLastFrame = false;
         private volatile bool _isComplete = false;
@@ -27,7 +27,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         private volatile int _silentFrameCount = 0;
         private readonly int _maxSilentFrames = 10; // Consider stream ended after 10 silent frames
 
-        // Meta tracking for consumer
+        // 为消费者跟踪元数据。
         private int _currentMetaRemaining = 0;
         private string? _currentMetaId = null;
 
@@ -61,8 +61,8 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
             lock (this._syncLock)
             {
-                // If previous logical stream has completed and buffer is empty,
-                // reset state so the next add becomes a new segment with first-frame.
+                // 如果上一个逻辑流已完成且缓冲区为空，
+                // 则重置状态，使下一次添加成为带有首帧的新分段。
                 if (this._isComplete && this._bufferQueue.IsEmpty)
                 {
                     this._isFirstFrame = false;
@@ -74,13 +74,13 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     this._streamEnded = false;
                     this._silentFrameCount = 0;
 
-                    // Reset meta state
+                    // 重置元数据状态。
                     while (this._metaQueue.TryDequeue(out _)) { }
                     this._currentMetaRemaining = 0;
                     this._currentMetaId = null;
                 }
 
-                // Auto-detect first frame
+                // 自动检测首帧。
                 if (!this._hasReceivedData)
                 {
                     this._isFirstFrame = true;
@@ -146,7 +146,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             return !this._bufferQueue.IsEmpty || !this._metaQueue.IsEmpty;
         }
 
-        // New overload that reports how many real samples were consumed from the buffer
+        // 新重载会报告从缓冲区消耗的实际采样数量。
         public float[]? GetFrameDataWithPartialSupport(int frameSampleCount, out int samplesRead, out string? sentenceId)
         {
             samplesRead = 0;
@@ -156,13 +156,13 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 return null;
             }
 
-            // Check for pending zero-length meta at the very beginning
+            // 检查开头是否存在待处理的零长度元数据。
             if (this._currentMetaRemaining <= 0 && this._metaQueue.TryPeek(out var meta) && meta.Count == 0)
             {
                 this._metaQueue.TryDequeue(out _);
                 sentenceId = meta.SentenceId;
 
-                // Check if stream should be marked as complete after consuming this meta
+                // 检查消耗此元数据后是否应将流标记为完成。
                 if (this.IsStopping && this._bufferQueue.IsEmpty && this._metaQueue.IsEmpty)
                 {
                     this._isComplete = true;
@@ -209,37 +209,37 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
             while (samplesRead < targetSamples)
             {
-                // Check meta state before dequeuing sample
+                // 在出队采样前检查元数据状态。
                 if (this._currentMetaRemaining <= 0)
                 {
                     if (this._metaQueue.TryPeek(out var nextMeta))
                     {
                         if (nextMeta.Count == 0)
                         {
-                            // Zero-length meta found.
+                            // 找到零长度元数据。
                             if (samplesRead > 0)
                             {
-                                // We have data in this frame already. Stop here so next call picks up the zero-length meta.
+                                // 当前帧已有数据。此处停止，让下次调用读取该零长度元数据。
                                 break;
                             }
                             else
                             {
-                                // Start of frame. Consume this meta and return empty frame.
+                                // 帧起始位置。消耗此元数据并返回空帧。
                                 this._metaQueue.TryDequeue(out _);
                                 sentenceId = nextMeta.SentenceId;
                                 return [];
                             }
                         }
 
-                        // Normal meta. Consume it.
+                        // 常规元数据。消耗它。
                         this._metaQueue.TryDequeue(out _);
                         this._currentMetaRemaining = nextMeta.Count;
                         this._currentMetaId = nextMeta.SentenceId;
                     }
                     else
                     {
-                        // No meta? Should match buffer.
-                        // If buffer has data but no meta, use null ID.
+                        // 没有元数据？应与缓冲区匹配。
+                        // 如果缓冲区有数据但没有元数据，则使用 null ID。
                         this._currentMetaRemaining = int.MaxValue;
                         this._currentMetaId = null;
                     }
@@ -251,7 +251,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     idSet = true;
                 }
 
-                // Now dequeue sample
+                // 现在出队采样数据。
                 if (this._bufferQueue.TryDequeue(out float sample))
                 {
                     frameData[samplesRead++] = sample;
@@ -259,7 +259,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 }
                 else
                 {
-                    // Should not happen if we checked availableData, but for safety
+                    // 如果已检查 availableData 则不应发生，但为安全起见仍作处理。
                     break;
                 }
             }
@@ -277,7 +277,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             return frameData;
         }
 
-        // Backward-compatible method
+        // 向后兼容的方法。
         public float[]? GetFrameDataWithPartialSupport(int frameSampleCount)
         {
             var data = this.GetFrameDataWithPartialSupport(frameSampleCount, out _, out _);

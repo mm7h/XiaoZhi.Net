@@ -68,7 +68,7 @@ namespace XiaoZhi.Net.Server.Media.Editors
         }
 
         /// <summary>
-        /// Convert 16-bit signed little-endian PCM bytes to float array [-1.0, 1.0]
+        /// 将 16 位有符号小端 PCM 字节转换为 [-1.0, 1.0] 范围内的浮点数组。
         /// </summary>
         private static float[] ConvertS16LEToFloat(byte[] pcmBytes)
         {

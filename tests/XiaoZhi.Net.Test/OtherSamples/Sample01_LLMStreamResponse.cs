@@ -1,19 +1,19 @@
-﻿using OpenAI;
-using OpenAI.Chat;
-using System.ClientModel;
+﻿using System.ClientModel;
 using System.Text;
 using System.Text.RegularExpressions;
+using OpenAI;
+using OpenAI.Chat;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample01_LLMStreamResponse
     {
-        public static async Task Run()
+        public static async Task RunAsync()
         {
-            await TestLLMStreamResponse();
+            await TestLLMStreamResponseAsync();
         }
 
-        static async Task TestLLMStreamResponse()
+        private static async Task TestLLMStreamResponseAsync()
         {
             string endPoint = "https://open.bigmodel.cn/api/paas/v4/";
             string apiKey = Environment.GetEnvironmentVariable("OPEN_AI_API_KEY", EnvironmentVariableTarget.User)!;
@@ -27,10 +27,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
             var chatClient = openAIClient.GetChatClient(chatModel);
 
-            List<ChatMessage> chatMessages = new List<ChatMessage>
-            {
+            List<ChatMessage> chatMessages =
+            [
                 ChatMessage.CreateUserMessage("介绍一下四川美食")
-            };
+            ];
 
             var chatCompletionOptions = new ChatCompletionOptions
             {
@@ -41,7 +41,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
             bool isThinkingFinished = true;
             StringBuilder segmentResponse = new StringBuilder();
-            List<OutSegment> allResponse = new List<OutSegment>();
+            List<OutSegment> allResponse = [];
             Regex sentenceSplitRegex = new Regex(@"(?<![0-9])[.?!;:](?=\s|$)|[。？！；：，]");
             await foreach (var item in chatClient.CompleteChatStreamingAsync(chatMessages, chatCompletionOptions))
             {
@@ -66,7 +66,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     string remaining = currentSegment.Substring(splitPosition);
 
                     OutSegment outSegment = new OutSegment(sentence);
-                    if (allResponse.Count == 0) outSegment.IsFirst = true;
+                    if (allResponse.Count == 0)
+                    {
+                        outSegment.IsFirst = true;
+                    }
 
                     allResponse.Add(outSegment);
                     Console.WriteLine(sentence); // 输出当前分割的句子
@@ -82,13 +85,16 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 if (item.FinishReason == ChatFinishReason.Stop && segmentResponse.Length > 0)
                 {
                     OutSegment lastSegment = new OutSegment(segmentResponse.ToString());
-                    if (allResponse.Count == 0) lastSegment.IsFirst = true;
+                    if (allResponse.Count == 0)
+                    {
+                        lastSegment.IsFirst = true;
+                    }
+
                     lastSegment.IsLast = true;
                     allResponse.Add(lastSegment);
                     Console.WriteLine(segmentResponse.ToString());
                     segmentResponse.Clear();
                 }
-
 
                 //if (text.Contains("<think>"))
                 //{
@@ -120,6 +126,5 @@ namespace XiaoZhi.Net.Test.OtherSamples
             }
             Console.WriteLine("最后的所有回复：" + string.Join(string.Empty, allResponse.Select(a => a.Content)));
         }
-
     }
 }

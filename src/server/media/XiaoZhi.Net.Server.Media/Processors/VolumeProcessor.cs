@@ -3,19 +3,19 @@
 namespace XiaoZhi.Net.Server.Media.Processors;
 
 /// <summary>
-/// A sample processor that simply multiplies the given audio sample to a desired volume.
-/// This class cannot be inherited.
-/// <para>Implements: <see cref="SampleProcessorBase"/>.</para>
+/// 表示通过将音频采样值乘以目标音量来处理音频采样的处理器。
+/// 此类不能被继承。
+/// <para>实现：<see cref="SampleProcessorBase"/>。</para>
 /// </summary>
 /// <remarks>
-/// Initializes <see cref="VolumeProcessor"/>. The volume range should be between 0f and 1f.
+/// 初始化 <see cref="VolumeProcessor"/>。音量范围应介于 0f 和 1f 之间。
 /// </remarks>
-/// <param name="initialVolume">Initial desired audio volume.</param>
+/// <param name="initialVolume">初始目标音量。</param>
 internal class VolumeProcessor(float initialVolume = 1.0f) : SampleProcessorBase
 {
 
     /// <summary>
-    /// Gets or sets desired volume.
+    /// 获取或设置目标音量。
     /// </summary>
     public float Volume { get; set; } = initialVolume;
 
