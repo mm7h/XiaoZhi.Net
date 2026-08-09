@@ -57,11 +57,11 @@ namespace XiaoZhi.Net.Server.Management
             return builder.ConfigureServices((context, services) =>
             {
                 RegisterAudioDecoder(services);
-                RegisterVad(services, config, GlobalProviderNames.GLOBAL_VAD);
-                RegisterAsr(services, config, GlobalProviderNames.GLOBAL_ASR);
+                RegisterVad(services, config);
+                RegisterAsr(services, config);
                 RegisterLlm(services, config);
-                RegisterMemory(services, config, GlobalProviderNames.GLOBAL_MEMORY);
-                RegisterTts(services, config, GlobalProviderNames.GLOBAL_TTS);
+                RegisterMemory(services, config);
+                RegisterTts(services, config);
 
                 RegisterAudioEncoder(services);
                 RegisterAudioResampler(services);
@@ -79,25 +79,34 @@ namespace XiaoZhi.Net.Server.Management
             try
             {
                 #region Vad
-                IVad vad = this.ServiceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
-                if (vad.IsSherpaModel && !vad.Build(this.GetSelectedSetting("VAD", this.Config)))
+                string selectedVadModelName = ConvertToKebabCase(this.Config.SelectedSettings["VAD"]);
+                IVad vad = this.ServiceProvider.GetRequiredKeyedService<IVad>(selectedVadModelName);
+                if (SherpaModels.VadModels.Contains(selectedVadModelName, StringComparer.OrdinalIgnoreCase))
                 {
-                    this.Logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, vad.ModelName);
-                    return false;
+                    if (!vad.Build(this.GetSelectedSetting("VAD", this.Config)))
+                    {
+                        this.Logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, vad.ModelName);
+                        return false;
+                    }
                 }
                 #endregion
 
                 #region Asr
-                IAsr asr = this.ServiceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
-                if (asr.IsSherpaModel && !asr.Build(this.GetSelectedSetting("ASR", this.Config)))
+                string selectedAsrModelName = ConvertToKebabCase(this.Config.SelectedSettings["ASR"]);
+                if (SherpaModels.AsrModels.Contains(selectedAsrModelName, StringComparer.OrdinalIgnoreCase))
                 {
-                    this.Logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, asr.ModelName);
-                    return false;
+                    IAsr asr = this.ServiceProvider.GetRequiredKeyedService<IAsr>(selectedAsrModelName);
+                    if (!asr.Build(this.GetSelectedSetting("ASR", this.Config)))
+                    {
+                        this.Logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, asr.ModelName);
+                        return false;
+                    }
                 }
                 #endregion
 
                 #region Memory
-                IMemory memory = this.ServiceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY);
+                string selectedMemoryModelName = ConvertToKebabCase(this.Config.SelectedSettings["Memory"]);
+                IMemory memory = this.ServiceProvider.GetRequiredKeyedService<IMemory>(selectedMemoryModelName);
                 if (!memory.Build(this.GetSelectedSetting("Memory", this.Config)))
                 {
                     this.Logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, memory.ModelName);
@@ -106,11 +115,15 @@ namespace XiaoZhi.Net.Server.Management
                 #endregion
 
                 #region Tts
-                ITts tts = this.ServiceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
-                if (tts.IsSherpaModel && !tts.Build(this.GetSelectedSetting("TTS", this.Config)))
+                string selectedTtsModelName = ConvertToKebabCase(this.Config.SelectedSettings["TTS"]);
+                if (SherpaModels.TtsModels.Contains(selectedTtsModelName, StringComparer.OrdinalIgnoreCase))
                 {
-                    this.Logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, tts.ModelName);
-                    return false;
+                    ITts tts = this.ServiceProvider.GetRequiredKeyedService<ITts>(selectedTtsModelName);
+                    if (!tts.Build(this.GetSelectedSetting("TTS", this.Config)))
+                    {
+                        this.Logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, tts.ModelName);
+                        return false;
+                    }
                 }
                 #endregion
 
@@ -330,11 +343,14 @@ namespace XiaoZhi.Net.Server.Management
 
         public override void Dispose()
         {
+            string selectedVadModelName = ConvertToKebabCase(this.Config.SelectedSettings["VAD"]);
+            string selectedAsrModelName = ConvertToKebabCase(this.Config.SelectedSettings["ASR"]);
+            string selectedTtsModelName = ConvertToKebabCase(this.Config.SelectedSettings["TTS"]);
             IList<IDisposable> providers = new List<IDisposable>
             {
-                this.ServiceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR),
-                this.ServiceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD),
-                this.ServiceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY)
+                this.ServiceProvider.GetRequiredKeyedService<IAsr>(selectedVadModelName),
+                this.ServiceProvider.GetRequiredKeyedService<IVad>(selectedAsrModelName),
+                this.ServiceProvider.GetRequiredKeyedService<IMemory>(selectedTtsModelName)
             };
 
             foreach (IDisposable provider in providers)
@@ -369,7 +385,8 @@ namespace XiaoZhi.Net.Server.Management
         }
         public void BuildAudioResampler(Session session)
         {
-            int ttsSampleRate = session.PrivateProvider.Tts?.GetTtsSampleRate() ?? this.ServiceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS).GetTtsSampleRate();
+            string selectedTtsModelName = ConvertToKebabCase(this.Config.SelectedSettings["TTS"]);
+            int ttsSampleRate = session.PrivateProvider.Tts?.GetTtsSampleRate() ?? this.ServiceProvider.GetRequiredKeyedService<ITts>(selectedTtsModelName).GetTtsSampleRate();
 
             if (ttsSampleRate == this.Config.AudioSetting.SampleRate)
             {
@@ -409,20 +426,8 @@ namespace XiaoZhi.Net.Server.Management
         #endregion
 
         #region VAD
-        private static void RegisterVad(IServiceCollection services, XiaoZhiConfig config, string key)
+        private static void RegisterVad(IServiceCollection services, XiaoZhiConfig config)
         {
-            string selectedModelName = ConvertToKebabCase(config.SelectedSettings["VAD"]);
-            switch (selectedModelName)
-            {
-                case "sense-voice":
-                    services.AddKeyedSingleton<IAsr, SenseVoice>(key);
-                    break;
-                case "paraformer":
-                    services.AddKeyedSingleton<IAsr, Paraformer>(key);
-                    break;
-                default:
-                    throw new ModelBuildException("Invalid vad model.");
-            }
             foreach (var vadSettingItem in config.ConfiguredSettings["VAD"])
             {
                 string modelName = ConvertToKebabCase(vadSettingItem.Key);
@@ -442,20 +447,8 @@ namespace XiaoZhi.Net.Server.Management
         #endregion
 
         #region ASR
-        private static void RegisterAsr(IServiceCollection services, XiaoZhiConfig config, string key)
+        private static void RegisterAsr(IServiceCollection services, XiaoZhiConfig config)
         {
-            string selectedModelName = ConvertToKebabCase(config.SelectedSettings["ASR"]);
-            switch (selectedModelName)
-            {
-                case "sense-voice":
-                    services.AddKeyedSingleton<IAsr, SenseVoice>(key);
-                    break;
-                case "paraformer":
-                    services.AddKeyedSingleton<IAsr, Paraformer>(key);
-                    break;
-                default:
-                    throw new ModelBuildException("Invalid asr model.");
-            }
             foreach (var asrSettingItem in config.ConfiguredSettings["ASR"])
             {
                 string modelName = ConvertToKebabCase(asrSettingItem.Key);
@@ -522,20 +515,8 @@ namespace XiaoZhi.Net.Server.Management
         #endregion
 
         #region Memory
-        private static void RegisterMemory(IServiceCollection services, XiaoZhiConfig config, string key)
+        private static void RegisterMemory(IServiceCollection services, XiaoZhiConfig config)
         {
-            string selectedModelName = ConvertToKebabCase(config.SelectedSettings["Memory"]);
-            switch (selectedModelName)
-            {
-                case "flash-memory":
-                    services.AddKeyedSingleton<IMemory, FlashMemory>(key);
-                    break;
-                case "database":
-                    services.AddKeyedSingleton<IMemory, Database>(key);
-                    break;
-                default:
-                    throw new ModelBuildException("Invalid memory model.");
-            }
             foreach (var memorySettingItem in config.ConfiguredSettings["Memory"])
             {
                 string modelName = ConvertToKebabCase(memorySettingItem.Key);
@@ -555,42 +536,8 @@ namespace XiaoZhi.Net.Server.Management
         #endregion
 
         #region TTS
-        private static void RegisterTts(IServiceCollection services, XiaoZhiConfig config, string key)
+        private static void RegisterTts(IServiceCollection services, XiaoZhiConfig config)
         {
-            string selectedModelName = ConvertToKebabCase(config.SelectedSettings["TTS"]);
-            switch (selectedModelName)
-            {
-                case "kokoro":
-                    services.AddKeyedSingleton<ITts, Kokoro>(key);
-                    break;
-                case "huoshan-bidirection":
-                    services.AddKeyedTransient<ITts, HuoshanBidirectionTTS>(key);
-                    break;
-                /*
-                case "huoshan-unidirectional":
-                    services.AddKeyedTransient<ITts, HuoshanUnidirectionalTTS>(modelName);
-                    services.AddKeyedTransient<ITts, HuoshanUnidirectionalTTS>(key);
-                    break;
-                */
-                case "huoshan-http":
-                    services.AddSingleton(_ => new FlurlClientCache()
-                    .Add(nameof(HuoshanHttpTTS), configure: builder =>
-                    {
-                        builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
-                    }));
-                    services.AddKeyedTransient<ITts, HuoshanHttpTTS>(key);
-                    break;
-                case "huoshan-http-v3":
-                    services.AddSingleton(_ => new FlurlClientCache()
-                    .Add(nameof(HuoshanHttpV3TTS), configure: builder =>
-                    {
-                        builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
-                    }));
-                    services.AddKeyedTransient<ITts, HuoshanHttpV3TTS>(key);
-                    break;
-                default:
-                    throw new ModelBuildException("Invalid tts model.");
-            }
             foreach (var ttsSettingItem in config.ConfiguredSettings["TTS"])
             {
                 string modelName = ConvertToKebabCase(ttsSettingItem.Key);
@@ -742,7 +689,8 @@ namespace XiaoZhi.Net.Server.Management
 
         private bool RegisterGlobalVadProviders(Session session)
         {
-            IVad genericVad = this.ServiceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
+            string selectedVadModelName = ConvertToKebabCase(this.Config.SelectedSettings["VAD"]);
+            IVad genericVad = this.ServiceProvider.GetRequiredKeyedService<IVad>(selectedVadModelName);
             if (!genericVad.IsSherpaModel && !genericVad.Build(this.GetSelectedSetting("VAD", this.Config)))
             {
                 this.Logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_VadBuildFailed, genericVad.ModelName);
@@ -755,7 +703,8 @@ namespace XiaoZhi.Net.Server.Management
 
         private bool RegisterGlobalAsrProviders(Session session)
         {
-            IAsr genericAsr = this.ServiceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
+            string selectedAsrModelName = ConvertToKebabCase(this.Config.SelectedSettings["ASR"]);
+            IAsr genericAsr = this.ServiceProvider.GetRequiredKeyedService<IAsr>(selectedAsrModelName);
             if (!genericAsr.IsSherpaModel && !genericAsr.Build(this.GetSelectedSetting("ASR", this.Config)))
             {
                 this.Logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_AsrBuildFailed, genericAsr.ModelName);
@@ -825,7 +774,8 @@ namespace XiaoZhi.Net.Server.Management
 
         private bool RegisterGlobalTtsProviders(Session session)
         {
-            ITts genericTts = this.ServiceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
+            string selectedTtsModelName = ConvertToKebabCase(this.Config.SelectedSettings["TTS"]);
+            ITts genericTts = this.ServiceProvider.GetRequiredKeyedService<ITts>(selectedTtsModelName);
             if (!genericTts.IsSherpaModel && !genericTts.Build(this.GetSelectedSetting("TTS", this.Config)))
             {
                 this.Logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_TtsBuildFailed, genericTts.ModelName);
