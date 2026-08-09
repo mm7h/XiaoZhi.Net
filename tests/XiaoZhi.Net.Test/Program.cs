@@ -2,7 +2,7 @@
 using SherpaOnnx;
 using XiaoZhi.Net.Test.OtherSamples;
 
-await Sample09_MP3Player.RunAsync();
+//await Sample09_MP3Player.RunAsync();
 //await Sample10_NumberAudioPlayer.RunAsync();
 //await Sample11_AudioMixer.RunAsync();
 //await Sample12_AudioMixerWithTTS.RunAsync();
@@ -13,6 +13,7 @@ await Sample09_MP3Player.RunAsync();
 //await Sample18_HuoshanHttp.RunAsync();
 //await Sample19_SaveAudioFile.RunAsync();
 //await Sample20_RAG.RunAsync();
+await Sample21_ConcurrentAudioPlayer.RunAsync();
 //ModelsInit();
 
 void ModelsInit()

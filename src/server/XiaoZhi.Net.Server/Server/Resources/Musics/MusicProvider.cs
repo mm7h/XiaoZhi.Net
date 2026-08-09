@@ -42,7 +42,7 @@ namespace XiaoZhi.Net.Server.Resources.Musics
                 this.Logger.LogWarning(Lang.MusicProvider_Load_PathNotExist, musicFolderPath);
                 return false;
             }
-
+            
             string[] musicFiles = Directory.GetFiles(musicFolderPath);
 
             this.HasMusicFiles = musicFiles.Any();

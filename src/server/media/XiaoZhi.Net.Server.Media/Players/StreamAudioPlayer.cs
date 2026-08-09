@@ -17,12 +17,22 @@ namespace XiaoZhi.Net.Server.Media.Players;
 /// 通过提供 <see cref="FFmpegDecoderOptions"/> 实例初始化 <see cref="StreamAudioPlayer"/>。
 /// 音频引擎将自动配置为与解码器输出格式匹配。
 /// </remarks>
-internal class StreamAudioPlayer(IAudioDecoderWorkPool decoderWorkPool, ILogger<StreamAudioPlayer> logger)
-    : AudioPlayerBase<Stream, StreamAudioPlayer>(decoderWorkPool, logger), IStreamAudioPlayer
+internal class StreamAudioPlayer(IAudioDecodeScheduler decodeScheduler, ILogger<StreamAudioPlayer> logger)
+    : AudioPlayerBase<Stream, StreamAudioPlayer>(decodeScheduler, logger), IStreamAudioPlayer
 {
     private FFmpegDecoderOptions? _decoderOptions;
 
     public override string AudioPlayerName => nameof(StreamAudioPlayer);
+
+    protected override bool CanRecoverAfterInterrupt => this.CurrentStream?.CanSeek == true;
+
+    protected override int ExpectedFrameBytes => this._decoderOptions is null
+        ? 0
+        : this._decoderOptions.SampleRate * this._decoderOptions.Channels * this._decoderOptions.FrameDuration / 1000 * sizeof(float);
+
+    protected override TimeSpan FrameDuration => this._decoderOptions is null
+        ? TimeSpan.Zero
+        : TimeSpan.FromMilliseconds(this._decoderOptions.FrameDuration);
 
     /// <summary>
     /// 获取或设置当前指定的音频流。
@@ -82,29 +92,15 @@ internal class StreamAudioPlayer(IAudioDecoderWorkPool decoderWorkPool, ILogger<
     /// <returns>返回 <c>true</c> 时继续解码线程，返回 <c>false</c> 时中断该线程。</returns>
     protected override IAudioDecoder? CreateRecoveryDecoder(AudioDecoderResult result, CancellationToken cancellationToken)
     {
-        this.Logger?.LogDebug("Failed to decode audio frame, retrying: {resultErrorMessage}", result.ErrorMessage);
+        this.Logger.LogDebug("Recreating interrupted stream audio decoder: {ResultErrorMessage}", result.ErrorMessage);
 
-        if (this.CurrentStream is null)
+        if (this.CurrentStream is not { CanSeek: true } stream)
         {
             return null;
         }
 
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            try
-            {
-                return this.CreateDecoder(this.CurrentStream, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                this.Logger?.LogDebug("Unable to recreate audio decoder, retrying: {exMessage}", ex.Message);
-                if (cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(1)))
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                }
-            }
-        }
+        cancellationToken.ThrowIfCancellationRequested();
+        stream.Seek(0, SeekOrigin.Begin);
+        return this.CreateDecoder(stream, cancellationToken);
     }
 }

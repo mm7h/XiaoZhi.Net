@@ -23,8 +23,24 @@ namespace XiaoZhi.Net.Server
         /// <returns>当前构建器。</returns>
         public static IServerBuilder WithMedia(this IServerBuilder builder, bool useFFmpegAudioMixer = true, string ffmpegPath = "./ffmpeg/")
         {
+            return builder.WithMedia(new AudioPlayerOptions(), useFFmpegAudioMixer, ffmpegPath);
+        }
+
+        /// <summary>
+        /// 使用指定的音频播放配置初始化所有媒体服务，包括音频播放器、音频混音器和音频字幕同步跟踪器。
+        /// </summary>
+        /// <param name="builder">当前构建器。</param>
+        /// <param name="audioPlayerOptions">音频播放的解码调度和资源限制配置。</param>
+        /// <param name="useFFmpegAudioMixer">是否启用 FFmpeg 音频混音器支持。</param>
+        /// <param name="ffmpegPath">FFmpeg 根路径。</param>
+        /// <returns>当前构建器。</returns>
+        public static IServerBuilder WithMedia(this IServerBuilder builder, AudioPlayerOptions audioPlayerOptions, bool useFFmpegAudioMixer, string ffmpegPath)
+        {
+            ArgumentNullException.ThrowIfNull(audioPlayerOptions);
+            AudioPlayerOptionsValidator.Validate(audioPlayerOptions);
+
             builder.InitializeFFmpeg(ffmpegPath)
-                .WithAudioPlayer()
+                .WithAudioPlayer(audioPlayerOptions)
                 .WithAudioMixer(useFFmpegAudioMixer)
                 .WithAudioSubtitleSyncTracker()
                 .WithAudioEditor();
@@ -49,12 +65,12 @@ namespace XiaoZhi.Net.Server
         /// </summary>
         /// <param name="builder">当前构建器。</param>
         /// <returns>当前构建器。</returns>
-        private static IServerBuilder WithAudioPlayer(this IServerBuilder builder)
+        private static IServerBuilder WithAudioPlayer(this IServerBuilder builder, AudioPlayerOptions audioPlayerOptions)
         {
             builder.HostBuilder.ConfigureServices((context, services) =>
             {
-                int workerCount = Math.Max(2, Environment.ProcessorCount);
-                services.AddSingleton<IAudioDecoderWorkPool>(_ => new AudioDecoderWorkPool(workerCount));
+                services.AddSingleton(audioPlayerOptions);
+                services.AddSingleton<IAudioDecodeScheduler>(_ => new AudioDecodeScheduler(audioPlayerOptions));
                 services.AddTransient<IUrlAudioPlayer, UrlAudioPlayer>();
                 services.AddTransient<IStreamAudioPlayer, StreamAudioPlayer>();
             });

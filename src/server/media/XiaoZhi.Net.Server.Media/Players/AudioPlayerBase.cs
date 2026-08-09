@@ -15,17 +15,20 @@ namespace XiaoZhi.Net.Server.Media.Players;
 
 internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
 {
-    private const int FrameBufferCapacity = 128;
-    private readonly IAudioDecoderWorkPool _decoderWorkPool;
+    private readonly IAudioDecodeScheduler _decodeScheduler;
     private readonly CancellationTokenSource _lifetimeCancellationSource = new();
     private readonly object _syncRoot = new();
     private AudioPlaybackContext? _playbackContext;
+    private Task? _recoveryTask;
+    private bool _decoderRecoveryRequired;
     private bool _disposed;
+    private bool _hasPlaybackContextSlot;
     private bool _loading;
+    private TimeSpan _recoveryPosition;
 
-    protected AudioPlayerBase(IAudioDecoderWorkPool decoderWorkPool, ILogger<TLogger> logger)
+    protected AudioPlayerBase(IAudioDecodeScheduler decodeScheduler, ILogger<TLogger> logger)
     {
-        this._decoderWorkPool = decoderWorkPool;
+        this._decodeScheduler = decodeScheduler;
         this.Logger = logger;
         this.VolumeProcessor = new VolumeProcessor { Volume = 1.0f };
     }
@@ -58,9 +61,20 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
 
     public ISampleProcessor? CustomSampleProcessor { get; set; }
 
+    protected abstract bool CanRecoverAfterInterrupt { get; }
+
     protected IAudioDecoder? CurrentDecoder { get; private set; }
 
+    protected abstract int ExpectedFrameBytes { get; }
+
+    protected abstract TimeSpan FrameDuration { get; }
+
     protected ILogger<TLogger> Logger { get; }
+
+    /// <summary>
+    /// 获取当前播放器使用的调度和资源限制配置。
+    /// </summary>
+    protected AudioPlayerOptions AudioPlayerOptions => this._decodeScheduler.Options;
 
     protected VolumeProcessor VolumeProcessor { get; }
 
@@ -91,9 +105,11 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
 
     public Task PlayAsync(CancellationToken cancellationToken = default)
     {
+        AudioPlaybackContext? contextToStart = null;
         Action<PlaybackState>? stateChangedHandler = null;
-        TaskCompletionSource? engineStartSource = null;
+        PlaybackState stateChangedTo = PlaybackState.Idle;
         Task playbackTask;
+        bool requiresRecovery = false;
 
         lock (this._syncRoot)
         {
@@ -104,7 +120,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
                 throw new FFmpegException("FFmpeg is not initialized yet, please invoke CheckFFmpegInstalledAsync first.");
             }
 
-            if (!this.IsLoaded || this.CurrentDecoder is null)
+            if (!this.IsLoaded)
             {
                 this.Logger.LogDebug("No loaded audio for playback.");
                 return Task.CompletedTask;
@@ -116,38 +132,80 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
                 {
                     this._playbackContext.Resume();
                     stateChangedHandler = this.SetStateLocked(PlaybackState.Playing);
+                    stateChangedTo = PlaybackState.Playing;
+                    contextToStart = this._playbackContext;
                 }
 
                 playbackTask = this._playbackContext.PlaybackTask;
             }
+            else if (this._decoderRecoveryRequired)
+            {
+                requiresRecovery = true;
+                playbackTask = Task.CompletedTask;
+            }
+            else if (this.CurrentDecoder is null)
+            {
+                this.IsLoaded = false;
+                return Task.CompletedTask;
+            }
             else
             {
-                AudioPlaybackContext context = new(this.CurrentDecoder, FrameBufferCapacity, cancellationToken);
-                TimeSpan startPosition = this.Position;
-
-                try
-                {
-                    context.DecoderTask = this._decoderWorkPool.RunAsync(
-                        workerCancellationToken => this.RunDecoder(context, startPosition, workerCancellationToken),
-                        context.Token);
-                }
-                catch
-                {
-                    context.Dispose();
-                    throw;
-                }
-
+                int frameBufferCapacity = Math.Max(1, (int)Math.Ceiling(this._decodeScheduler.Options.MaxBufferDuration / this.FrameDuration));
+                AudioPlaybackContext context = new(
+                    this.CurrentDecoder,
+                    this._decodeScheduler,
+                    frameBufferCapacity,
+                    this.FrameDuration,
+                    this.ExpectedFrameBytes,
+                    this.Position,
+                    cancellationToken,
+                    this.RunDecodeBatch);
                 this._playbackContext = context;
-                stateChangedHandler = this.SetStateLocked(PlaybackState.Playing);
-                engineStartSource = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                context.EngineTask = this.RunEngineAsync(context, engineStartSource.Task);
-                context.PlaybackTask = this.RunPlaybackAsync(context);
+                stateChangedHandler = this.SetStateLocked(PlaybackState.Buffering);
+                stateChangedTo = PlaybackState.Buffering;
+                contextToStart = context;
                 playbackTask = context.PlaybackTask;
             }
         }
 
-        this.RaiseStateChanged(stateChangedHandler, PlaybackState.Playing);
-        engineStartSource?.TrySetResult();
+        if (requiresRecovery)
+        {
+            return this.RecoverAndPlayAsync(cancellationToken);
+        }
+
+        if (contextToStart is not null)
+        {
+            if (ReferenceEquals(contextToStart, this._playbackContext) && contextToStart.PlaybackTask == Task.CompletedTask)
+            {
+                try
+                {
+                    this._decodeScheduler.Schedule(contextToStart, AudioDecodeWorkPriority.Refill);
+                    contextToStart.EngineTask = this.RunEngineAsync(contextToStart);
+                    contextToStart.PlaybackTask = this.RunPlaybackAsync(contextToStart);
+                    playbackTask = contextToStart.PlaybackTask;
+                }
+                catch
+                {
+                    lock (this._syncRoot)
+                    {
+                        if (ReferenceEquals(this._playbackContext, contextToStart))
+                        {
+                            this._playbackContext = null;
+                            this.SetStateLocked(PlaybackState.Idle);
+                        }
+                    }
+
+                    contextToStart.Dispose();
+                    throw;
+                }
+            }
+            else if (!contextToStart.IsPaused)
+            {
+                this._decodeScheduler.Schedule(contextToStart, AudioDecodeWorkPriority.Refill);
+            }
+        }
+
+        this.RaiseStateChanged(stateChangedHandler, stateChangedTo);
         return playbackTask;
     }
 
@@ -183,16 +241,15 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         {
             this.ThrowIfDisposed();
             context = this._playbackContext;
-
-            if (context is null)
-            {
-                return Task.CompletedTask;
-            }
-
-            context.Cancel();
-            this.RequestDecoderInterrupt(context.Decoder);
+            context?.Cancel();
         }
 
+        if (context is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        this._decodeScheduler.Schedule(context, AudioDecodeWorkPriority.StopOrDispose);
         return context.CleanupTask.WaitAsync(cancellationToken);
     }
 
@@ -205,29 +262,47 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
 
         AudioPlaybackContext? context;
         AudioSeekRequest? request = null;
+        bool requiresRecovery = false;
 
         lock (this._syncRoot)
         {
             this.ThrowIfDisposed();
             context = this._playbackContext;
 
-            if (!this.IsLoaded
-                || context is null
-                || context.IsCancellationRequested
-                || context.DecoderTask.IsCompleted
-                || !context.AcceptsSeekRequests)
+            if (context is null)
             {
-                return Task.CompletedTask;
+                requiresRecovery = this._decoderRecoveryRequired;
             }
-
-            request = new AudioSeekRequest(position, cancellationToken);
-            if (!context.SeekRequests.Writer.TryWrite(request))
+            else if (!context.IsCancellationRequested && !context.EndOfFile)
             {
-                return Task.CompletedTask;
-            }
+                request = new AudioSeekRequest(position, cancellationToken);
+                if (!context.SeekRequests.Writer.TryWrite(request))
+                {
+                    return Task.CompletedTask;
+                }
 
-            this.IsSeeking = true;
-            this.RequestDecoderInterrupt(context.Decoder);
+                this.IsSeeking = true;
+                context.RequestDecoderInterrupt();
+            }
+        }
+
+        if (requiresRecovery)
+        {
+            return this.EnsureDecoderRecoveredAsync(position, cancellationToken);
+        }
+
+        if (context is null || request is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        try
+        {
+            this._decodeScheduler.Schedule(context, AudioDecodeWorkPriority.Seek);
+        }
+        catch (Exception exception)
+        {
+            request.Fail(exception);
         }
 
         return this.WaitForSeekAsync(context, request, cancellationToken);
@@ -236,6 +311,8 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
     public virtual void Dispose()
     {
         IAudioDecoder? decoderToDispose = null;
+        bool releaseContextSlot = false;
+        AudioPlaybackContext? playbackContext;
 
         lock (this._syncRoot)
         {
@@ -246,22 +323,38 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
 
             this._disposed = true;
             this._lifetimeCancellationSource.Cancel();
+            playbackContext = this._playbackContext;
 
-            if (this._playbackContext is not null)
+            if (playbackContext is not null)
             {
-                this._playbackContext.Cancel();
-                this.RequestDecoderInterrupt(this._playbackContext.Decoder);
+                playbackContext.Cancel();
             }
             else
             {
                 decoderToDispose = this.CurrentDecoder;
                 this.CurrentDecoder = null;
+                releaseContextSlot = this._hasPlaybackContextSlot;
+                this._hasPlaybackContextSlot = false;
             }
 
             this.IsLoaded = false;
         }
 
-        decoderToDispose?.Dispose();
+        if (playbackContext is not null)
+        {
+            this._decodeScheduler.Schedule(playbackContext, AudioDecodeWorkPriority.StopOrDispose);
+        }
+
+        if (decoderToDispose is not null)
+        {
+            _ = this.DisposeDecoderAsync(decoderToDispose);
+        }
+
+        if (releaseContextSlot)
+        {
+            this._decodeScheduler.ReleasePlaybackContext();
+        }
+
         this._lifetimeCancellationSource.Dispose();
         GC.SuppressFinalize(this);
     }
@@ -275,11 +368,12 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         ArgumentNullException.ThrowIfNull(decoderFactory);
 
         IAudioDecoder? oldDecoder;
+        bool alreadyHasSlot;
         lock (this._syncRoot)
         {
             this.ThrowIfDisposed();
 
-            if (this.State != PlaybackState.Idle || this._loading)
+            if (this.State != PlaybackState.Idle || this._loading || this._recoveryTask is not null)
             {
                 return false;
             }
@@ -287,12 +381,18 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
             this._loading = true;
             oldDecoder = this.CurrentDecoder;
             this.CurrentDecoder = null;
+            alreadyHasSlot = this._hasPlaybackContextSlot;
             this.IsLoaded = false;
+            this._decoderRecoveryRequired = false;
         }
 
-        oldDecoder?.Dispose();
-        IAudioDecoder? newDecoder = null;
+        if (oldDecoder is not null)
+        {
+            await this.DisposeDecoderAsync(oldDecoder).ConfigureAwait(false);
+        }
 
+        IAudioDecoder? newDecoder = null;
+        bool acquiredSlot = false;
         using CancellationTokenSource linkedCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken,
             this._lifetimeCancellationSource.Token);
@@ -300,22 +400,30 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         try
         {
             this.Logger.LogDebug("Loading audio to the player.");
-            newDecoder = await this._decoderWorkPool.RunAsync(
-                decoderFactory,
-                linkedCancellationSource.Token).ConfigureAwait(false);
+            newDecoder = await this._decodeScheduler.RunAsync(decoderFactory, linkedCancellationSource.Token).ConfigureAwait(false);
+
+            if (!alreadyHasSlot)
+            {
+                if (!this._decodeScheduler.TryAcquirePlaybackContext())
+                {
+                    throw new AudioPlaybackCapacityExceededException(AudioPlaybackCapacityExceededReason.ContextLimit);
+                }
+
+                acquiredSlot = true;
+            }
 
             lock (this._syncRoot)
             {
                 if (this._disposed)
                 {
-                    newDecoder.Dispose();
-                    newDecoder = null;
                     return false;
                 }
 
                 this.CurrentDecoder = newDecoder;
                 this.Duration = newDecoder.StreamInfo.Duration;
                 this.IsLoaded = true;
+                this._hasPlaybackContextSlot = true;
+                newDecoder = null;
             }
 
             this.SetAndRaisePositionChanged(TimeSpan.Zero);
@@ -336,15 +444,31 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         }
         catch (Exception exception)
         {
-            newDecoder?.Dispose();
             this.Logger.LogDebug("Failed to load audio: {Message}", exception.Message);
             return false;
         }
         finally
         {
+            if (newDecoder is not null)
+            {
+                await this.DisposeDecoderAsync(newDecoder).ConfigureAwait(false);
+            }
+
+            bool releaseSlot = false;
             lock (this._syncRoot)
             {
+                if (!this.IsLoaded && (alreadyHasSlot || acquiredSlot))
+                {
+                    this._hasPlaybackContextSlot = false;
+                    releaseSlot = true;
+                }
+
                 this._loading = false;
+            }
+
+            if (releaseSlot)
+            {
+                this._decodeScheduler.ReleasePlaybackContext();
             }
         }
     }
@@ -380,7 +504,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         this.RaisePositionChanged(handler, position);
     }
 
-    protected virtual void SetAndRaiseStateChanged(PlaybackState state)
+    private void SetAndRaiseStateChanged(PlaybackState state)
     {
         Action<PlaybackState>? handler;
 
@@ -392,84 +516,112 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         this.RaiseStateChanged(handler, state);
     }
 
-    private void RunDecoder(AudioPlaybackContext context, TimeSpan startPosition, CancellationToken cancellationToken)
+    private AudioDecodeBatchResult RunDecodeBatch(AudioPlaybackContext context)
     {
-        Exception? completionException = null;
-        using CancellationTokenRegistration decoderInterruptRegistration = cancellationToken.Register(
-            static state => ((AudioPlaybackContext)state!).RequestDecoderInterrupt(),
-            context);
-
-        try
+        if (context.IsCancellationRequested)
         {
-            this.ResetDecoderInterrupt(context.Decoder, cancellationToken);
-            if (!context.Decoder.TrySeek(startPosition, out string? seekError))
+            return AudioDecodeBatchResult.Completed;
+        }
+
+        if (context.InitialSeekPending)
+        {
+            this.SeekDecoder(context, context.StartPosition, null);
+            context.CompleteInitialSeek();
+        }
+
+        this.ProcessPendingSeekRequests(context);
+        long batchStartTimestamp = TimeProvider.System.GetTimestamp();
+        int decodedFrames = 0;
+
+        while (decodedFrames < this._decodeScheduler.Options.MaxFramesPerBatch
+            && TimeProvider.System.GetElapsedTime(batchStartTimestamp) < this._decodeScheduler.Options.MaxDecodeBatchDuration)
+        {
+            if (context.IsCancellationRequested)
             {
-                this.Logger.LogDebug("Unable to seek audio stream to {Position}: {Error}", startPosition, seekError);
+                return AudioDecodeBatchResult.Completed;
             }
 
-            Task<bool> seekAvailableTask = context.SeekRequests.Reader.WaitToReadAsync().AsTask();
-
-            while (true)
+            if (this.ProcessPendingSeekRequests(context))
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                this.ProcessPendingSeekRequests(context, cancellationToken, ref seekAvailableTask);
+                continue;
+            }
 
-                int generation = context.Generation;
-                AudioDecoderResult result = context.Decoder.DecodeNextFrame();
-                cancellationToken.ThrowIfCancellationRequested();
+            if (!context.TryReserveFrame(out int reservedBytes))
+            {
+                return AudioDecodeBatchResult.Completed;
+            }
 
-                if (this.ProcessPendingSeekRequests(context, cancellationToken, ref seekAvailableTask))
+            int generation = context.Generation;
+            AudioDecoderResult result = context.Decoder.DecodeNextFrame();
+
+            if (context.Decoder.InterruptionReason == AudioDecoderInterruptionReason.UrlReadTimeout)
+            {
+                context.ReleaseReservedFrame(reservedBytes);
+                context.Decoder.FlushAfterInterrupt();
+                context.MarkTerminalFault();
+                throw new TimeoutException("URL 音频源读取超时。");
+            }
+
+            if (context.Decoder.WasInterrupted)
+            {
+                context.ReleaseReservedFrame(reservedBytes);
+                context.MarkDecoderInterrupted();
+
+                if (context.IsCancellationRequested)
                 {
+                    return AudioDecodeBatchResult.Completed;
+                }
+
+                if (context.HasPendingSeekRequests)
+                {
+                    this.ProcessPendingSeekRequests(context);
                     continue;
                 }
 
-                if (result.Frame is not null)
-                {
-                    this.WriteFrame(context, new PlaybackAudioFrame(result.Frame, generation), cancellationToken, ref seekAvailableTask);
-                }
-
-                if (result.IsEOF)
-                {
-                    if (this.ShouldFinishAtEndOfFile(context))
-                    {
-                        break;
-                    }
-
-                    this.ProcessPendingSeekRequests(context, cancellationToken, ref seekAvailableTask);
-                    continue;
-                }
-
-                if (!result.IsSucceeded)
-                {
-                    this.RecoverDecoder(context, result, cancellationToken);
-                }
+                this.RecoverDecoder(context, result, this.Position);
+                continue;
             }
-        }
-        catch (Exception exception)
-        {
-            completionException = exception;
-            throw;
-        }
-        finally
-        {
-            lock (this._syncRoot)
+
+            if (this.ProcessPendingSeekRequests(context))
             {
-                context.AcceptsSeekRequests = false;
-                context.SeekRequests.Writer.TryComplete();
+                context.ReleaseReservedFrame(reservedBytes);
+                continue;
             }
 
-            this.CompletePendingSeekRequests(context, completionException);
-            context.Frames.Writer.TryComplete(completionException);
+            if (result.Frame is not null)
+            {
+                if (!context.TryWriteReservedFrame(reservedBytes, new PlaybackAudioFrame(result.Frame, generation)))
+                {
+                    return AudioDecodeBatchResult.Completed;
+                }
+
+                decodedFrames++;
+            }
+            else
+            {
+                context.ReleaseReservedFrame(reservedBytes);
+            }
+
+            if (result.IsEOF)
+            {
+                context.MarkEndOfFile();
+                return AudioDecodeBatchResult.Completed;
+            }
+
+            if (!result.IsSucceeded)
+            {
+                this.RecoverDecoder(context, result, this.Position);
+            }
         }
+
+        return context.CanDecodeMore() ? AudioDecodeBatchResult.Refill : AudioDecodeBatchResult.Completed;
     }
 
-    private async Task RunEngineAsync(AudioPlaybackContext context, Task engineStartTask)
+    private async Task RunEngineAsync(AudioPlaybackContext context)
     {
-        await engineStartTask.WaitAsync(context.Token).ConfigureAwait(false);
-
         PlaybackAudioFrame? pendingFrame = null;
-        DateTime playbackStartTime = DateTime.UtcNow;
-        TimeSpan totalPauseDuration = TimeSpan.Zero;
+        long playbackStartTimestamp = TimeProvider.System.GetTimestamp();
+        long totalPauseTicks = 0;
         int activeGeneration = -1;
         bool isFirstAudioFrame = true;
         bool lastEventSent = false;
@@ -490,8 +642,8 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
                 }
 
                 activeGeneration = playbackFrame.Generation;
-                playbackStartTime = DateTime.UtcNow - TimeSpan.FromMilliseconds(playbackFrame.Frame.PresentationTime);
-                totalPauseDuration = TimeSpan.Zero;
+                playbackStartTimestamp = TimeProvider.System.GetTimestamp() - ToTimestampTicks(TimeSpan.FromMilliseconds(playbackFrame.Frame.PresentationTime));
+                totalPauseTicks = 0;
                 isFirstAudioFrame = true;
                 lastEventSent = false;
                 lastProcessedSamples = null;
@@ -505,9 +657,9 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
                     lastEventSent = true;
                 }
 
-                DateTime pauseStartTime = DateTime.UtcNow;
+                long pauseStartTimestamp = TimeProvider.System.GetTimestamp();
                 await context.WaitWhilePausedAsync(context.Token).ConfigureAwait(false);
-                totalPauseDuration += DateTime.UtcNow - pauseStartTime;
+                totalPauseTicks += TimeProvider.System.GetTimestamp() - pauseStartTimestamp;
                 isFirstAudioFrame = true;
                 lastEventSent = false;
             }
@@ -517,27 +669,21 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
                 return;
             }
 
-            DateTime targetPlayTime = playbackStartTime
-                .AddMilliseconds(playbackFrame.Frame.PresentationTime)
-                .Add(totalPauseDuration);
-            TimeSpan delay = targetPlayTime - DateTime.UtcNow;
+            long targetTimestamp = playbackStartTimestamp
+                + ToTimestampTicks(TimeSpan.FromMilliseconds(playbackFrame.Frame.PresentationTime))
+                + totalPauseTicks;
+            TimeSpan delay = TimeProvider.System.GetElapsedTime(TimeProvider.System.GetTimestamp(), targetTimestamp);
             if (delay > TimeSpan.Zero)
             {
                 await Task.Delay(delay, context.Token).ConfigureAwait(false);
             }
 
-            if (context.IsPaused)
-            {
-                return;
-            }
-
-            if (playbackFrame.Generation != context.Generation)
+            if (context.IsPaused || playbackFrame.Generation != context.Generation)
             {
                 return;
             }
 
             float[] samplesArray = this.ProcessFrameSamples(playbackFrame.Frame);
-
             Action<PlaybackState>? stateChangedHandler;
             lock (this._syncRoot)
             {
@@ -561,11 +707,16 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         {
             while (true)
             {
-                if (!context.Frames.Reader.TryRead(out PlaybackAudioFrame? playbackFrame))
+                if (!context.TryReadFrame(out PlaybackAudioFrame? playbackFrame))
                 {
-                    if (!context.IsPaused)
+                    if (!context.IsPaused && !context.EndOfFile)
                     {
                         this.SetAndRaiseStateChanged(PlaybackState.Buffering);
+                    }
+
+                    if (context.ShouldRequestRefill())
+                    {
+                        this._decodeScheduler.Schedule(context, AudioDecodeWorkPriority.Refill);
                     }
 
                     if (!await context.Frames.Reader.WaitToReadAsync(context.Token).ConfigureAwait(false))
@@ -574,6 +725,16 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
                     }
 
                     continue;
+                }
+
+                if (playbackFrame is null)
+                {
+                    continue;
+                }
+
+                if (context.ShouldRequestRefill())
+                {
+                    this._decodeScheduler.Schedule(context, AudioDecodeWorkPriority.Refill);
                 }
 
                 if (playbackFrame.Generation != context.Generation)
@@ -606,17 +767,14 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
     private async Task RunPlaybackAsync(AudioPlaybackContext context)
     {
         IAudioDecoder? decoderToDispose = null;
+        bool releaseContextSlot = false;
         Action<TimeSpan>? positionChangedHandler = null;
         Action<PlaybackState>? stateChangedHandler = null;
 
         try
         {
             await context.EngineTask.ConfigureAwait(false);
-            await context.DecoderTask.ConfigureAwait(false);
-        }
-        catch (AudioPlaybackCanceledException)
-        {
-            throw;
+            await context.DecoderIdleTask.ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (context.IsCancellationRequested)
         {
@@ -624,67 +782,180 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         }
         finally
         {
-            if (!context.DecoderTask.IsCompleted)
+            if (!context.DecoderIdleTask.IsCompleted)
             {
                 context.Cancel();
-                this.RequestDecoderInterrupt(context.Decoder);
-
-                try
-                {
-                    await context.DecoderTask.ConfigureAwait(false);
-                }
-                catch (Exception)
-                {
-                    // 原始播放异常由上方任务传播，这里只等待解码工作归还线程池槽位。
-                }
+                this._decodeScheduler.Schedule(context, AudioDecodeWorkPriority.StopOrDispose);
             }
 
             try
             {
-                lock (this._syncRoot)
-                {
-                    if (ReferenceEquals(this._playbackContext, context))
-                    {
-                        this._playbackContext = null;
-                        this.IsSeeking = false;
-                        positionChangedHandler = this.SetPositionLocked(TimeSpan.Zero);
-                        stateChangedHandler = this.SetStateLocked(PlaybackState.Idle);
+                await context.DecoderIdleTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // 调度器关闭时只需继续释放本次播放持有的资源。
+            }
 
-                        if (this._disposed)
+            this.CompletePendingSeekRequests(context, context.IsCancellationRequested ? new OperationCanceledException(context.Token) : null);
+            context.ClearFrames();
+
+            lock (this._syncRoot)
+            {
+                if (ReferenceEquals(this._playbackContext, context))
+                {
+                    TimeSpan completedPosition = this.Position;
+                    this._playbackContext = null;
+                    this.IsSeeking = false;
+                    positionChangedHandler = this.SetPositionLocked(TimeSpan.Zero);
+                    stateChangedHandler = this.SetStateLocked(PlaybackState.Idle);
+
+                    if (context.WasInterrupted || context.IsFaulted)
+                    {
+                        this._recoveryPosition = completedPosition;
+                        decoderToDispose = context.Decoder;
+                        this.CurrentDecoder = null;
+                        this._decoderRecoveryRequired = !context.IsTerminalFault
+                            && this.CanRecoverAfterInterrupt
+                            && !this._disposed;
+
+                        if (!this._decoderRecoveryRequired)
                         {
-                            decoderToDispose = context.Decoder;
-                            this.CurrentDecoder = null;
+                            this.IsLoaded = false;
+                            releaseContextSlot = this._hasPlaybackContextSlot;
+                            this._hasPlaybackContextSlot = false;
                         }
-                        else
-                        {
-                            this.CurrentDecoder = context.Decoder;
-                        }
+                    }
+                    else if (this._disposed)
+                    {
+                        decoderToDispose = context.Decoder;
+                        this.CurrentDecoder = null;
+                        this.IsLoaded = false;
+                        releaseContextSlot = this._hasPlaybackContextSlot;
+                        this._hasPlaybackContextSlot = false;
+                    }
+                    else
+                    {
+                        this.CurrentDecoder = context.Decoder;
                     }
                 }
             }
-            finally
+
+            if (decoderToDispose is not null)
             {
-                try
+                await this.DisposeDecoderAsync(decoderToDispose).ConfigureAwait(false);
+            }
+
+            if (releaseContextSlot)
+            {
+                this._decodeScheduler.ReleasePlaybackContext();
+            }
+
+            this._decodeScheduler.Unregister(context);
+            context.Dispose();
+            this.RaisePositionChanged(positionChangedHandler, TimeSpan.Zero);
+            this.RaiseStateChanged(stateChangedHandler, PlaybackState.Idle);
+            context.CleanupCompletionSource.TrySetResult();
+        }
+    }
+
+    private async Task RecoverAndPlayAsync(CancellationToken cancellationToken)
+    {
+        TimeSpan position;
+        lock (this._syncRoot)
+        {
+            position = this._recoveryPosition;
+        }
+
+        await this.EnsureDecoderRecoveredAsync(position, cancellationToken).ConfigureAwait(false);
+        await this.PlayAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task EnsureDecoderRecoveredAsync(TimeSpan position, CancellationToken cancellationToken)
+    {
+        Task recoveryTask;
+        lock (this._syncRoot)
+        {
+            this.ThrowIfDisposed();
+
+            if (!this._decoderRecoveryRequired)
+            {
+                return;
+            }
+
+            recoveryTask = this._recoveryTask ??= this.RecoverDecoderAsync(position, cancellationToken);
+        }
+
+        await recoveryTask.ConfigureAwait(false);
+    }
+
+    private async Task RecoverDecoderAsync(TimeSpan position, CancellationToken cancellationToken)
+    {
+        IAudioDecoder? decoder = null;
+        bool releaseContextSlot = false;
+
+        try
+        {
+            decoder = await this._decodeScheduler.RunAsync(
+                workerCancellationToken =>
                 {
-                    decoderToDispose?.Dispose();
-                }
-                catch (Exception exception)
+                    IAudioDecoder recoveredDecoder = this.CreateRecoveryDecoder(
+                        new AudioDecoderResult(null, false, false, "Decoder was interrupted."),
+                        workerCancellationToken)
+                        ?? throw new FFmpegException("Unable to recreate interrupted audio decoder.");
+
+                    try
+                    {
+                        using CancellationTokenRegistration interruptRegistration = workerCancellationToken.Register(
+                            static state => ((IAudioDecoder)state!).RequestInterrupt(),
+                            recoveredDecoder);
+
+                        if (!recoveredDecoder.TrySeek(position, out string? error))
+                        {
+                            throw new FFmpegException(error ?? "Unable to seek recreated audio decoder.");
+                        }
+
+                        return recoveredDecoder;
+                    }
+                    catch
+                    {
+                        recoveredDecoder.Dispose();
+                        throw;
+                    }
+                },
+                cancellationToken).ConfigureAwait(false);
+
+            lock (this._syncRoot)
+            {
+                this.ThrowIfDisposed();
+                this.CurrentDecoder = decoder;
+                this._decoderRecoveryRequired = false;
+                this.SetPositionLocked(position);
+                decoder = null;
+            }
+        }
+        finally
+        {
+            if (decoder is not null)
+            {
+                await this.DisposeDecoderAsync(decoder).ConfigureAwait(false);
+            }
+
+            lock (this._syncRoot)
+            {
+                if (this._decoderRecoveryRequired)
                 {
-                    this.Logger.LogError(exception, "释放音频解码器失败。");
+                    this.IsLoaded = false;
+                    releaseContextSlot = this._hasPlaybackContextSlot;
+                    this._hasPlaybackContextSlot = false;
                 }
 
-                try
-                {
-                    context.Dispose();
-                }
-                catch (Exception exception)
-                {
-                    this.Logger.LogError(exception, "释放音频播放上下文失败。");
-                }
+                this._recoveryTask = null;
+            }
 
-                this.RaisePositionChanged(positionChangedHandler, TimeSpan.Zero);
-                this.RaiseStateChanged(stateChangedHandler, PlaybackState.Idle);
-                context.CleanupCompletionSource.TrySetResult();
+            if (releaseContextSlot)
+            {
+                this._decodeScheduler.ReleasePlaybackContext();
             }
         }
     }
@@ -707,10 +978,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         }
     }
 
-    private bool ProcessPendingSeekRequests(
-        AudioPlaybackContext context,
-        CancellationToken cancellationToken,
-        ref Task<bool> seekAvailableTask)
+    private bool ProcessPendingSeekRequests(AudioPlaybackContext context)
     {
         bool processed = false;
 
@@ -720,56 +988,28 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
 
             try
             {
-                this.ResetDecoderInterrupt(context.Decoder, cancellationToken);
-
                 if (request.CancellationToken.IsCancellationRequested)
                 {
                     request.Cancel();
                     continue;
                 }
 
-                cancellationToken.ThrowIfCancellationRequested();
+                this.SeekDecoder(context, request.Position, request.CancellationToken);
+                context.IncrementGeneration();
+                context.ClearFrames();
+                context.StartFillingAfterSeek();
+                this.SetAndRaisePositionChanged(request.Position);
 
-                using CancellationTokenRegistration seekInterruptRegistration = request.CancellationToken.Register(
-                    static state => ((IAudioDecoder)state!).RequestInterrupt(),
-                    context.Decoder);
-
-                if (context.Decoder.TrySeek(request.Position, out string? error))
+                if (!context.IsPaused)
                 {
-                    context.IncrementGeneration();
-                    this.ClearFrames(context);
-                    this.SetAndRaisePositionChanged(request.Position);
-
-                    if (!context.IsPaused)
-                    {
-                        this.SetAndRaiseStateChanged(PlaybackState.Buffering);
-                    }
-
-                    this.Logger.LogDebug("Successfully seeks to {Position}.", request.Position);
-                }
-                else
-                {
-                    this.Logger.LogDebug("Unable to seek audio stream: {Error}", error);
-                }
-
-                if (request.CancellationToken.IsCancellationRequested)
-                {
-                    request.Cancel();
-                    this.ResetDecoderInterrupt(context.Decoder, cancellationToken);
-                    continue;
+                    this.SetAndRaiseStateChanged(PlaybackState.Buffering);
                 }
 
                 request.Complete();
             }
-            catch (OperationCanceledException) when (request.CancellationToken.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (request.CancellationToken.IsCancellationRequested && !context.IsCancellationRequested)
             {
                 request.Cancel();
-                this.ResetDecoderInterrupt(context.Decoder, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                request.Cancel();
-                throw;
             }
             catch (Exception exception)
             {
@@ -777,41 +1017,64 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
             }
         }
 
-        if (processed)
-        {
-            seekAvailableTask = context.SeekRequests.Reader.WaitToReadAsync().AsTask();
-        }
-
         return processed;
     }
 
-    private void RecoverDecoder(AudioPlaybackContext context, AudioDecoderResult result, CancellationToken cancellationToken)
+    private void SeekDecoder(AudioPlaybackContext context, TimeSpan position, CancellationToken? seekCancellationToken)
     {
-        this.Logger.LogDebug("Failed to decode audio frame, retrying: {Error}", result.ErrorMessage);
-        TimeSpan recoveryPosition = this.Position;
-        IAudioDecoder previousDecoder = context.Decoder;
+        if (context.Decoder.WasInterrupted)
+        {
+            context.MarkDecoderInterrupted();
+            this.RecoverDecoder(context, new AudioDecoderResult(null, false, false, "Decoder was interrupted."), position);
+            return;
+        }
 
-        IAudioDecoder? recoveredDecoder = this.CreateRecoveryDecoder(result, cancellationToken);
+        context.ResetDecoderInterrupt();
+        using CancellationTokenRegistration seekInterruptRegistration = seekCancellationToken?.Register(
+            static state => ((AudioPlaybackContext)state!).RequestDecoderInterrupt(),
+            context) ?? default;
+
+        if (!context.Decoder.TrySeek(position, out string? error))
+        {
+            if (context.Decoder.WasInterrupted)
+            {
+                context.MarkDecoderInterrupted();
+                this.RecoverDecoder(context, new AudioDecoderResult(null, false, false, error), position);
+                return;
+            }
+
+            this.Logger.LogDebug("Unable to seek audio stream to {Position}: {Error}", position, error);
+        }
+    }
+
+    private void RecoverDecoder(AudioPlaybackContext context, AudioDecoderResult result, TimeSpan position)
+    {
+        if (!this.CanRecoverAfterInterrupt)
+        {
+            throw new FFmpegException(result.ErrorMessage ?? "Unable to recover audio decoder.");
+        }
+
+        IAudioDecoder previousDecoder = context.Decoder;
+        previousDecoder.FlushAfterInterrupt();
+        previousDecoder.Dispose();
+
+        IAudioDecoder? recoveredDecoder = this.CreateRecoveryDecoder(result, context.Token);
         if (recoveredDecoder is null)
         {
             throw new FFmpegException(result.ErrorMessage ?? "Unable to recover audio decoder.");
         }
 
         context.Decoder = recoveredDecoder;
-        previousDecoder.Dispose();
-        if (cancellationToken.IsCancellationRequested)
+        context.ResetDecoderInterrupt();
+        if (!recoveredDecoder.TrySeek(position, out string? seekError))
         {
-            this.RequestDecoderInterrupt(recoveredDecoder);
-            cancellationToken.ThrowIfCancellationRequested();
+            recoveredDecoder.Dispose();
+            throw new FFmpegException(seekError ?? "Unable to seek recreated audio decoder.");
         }
 
-        if (!recoveredDecoder.TrySeek(recoveryPosition, out string? seekError))
-        {
-            this.Logger.LogDebug("Unable to seek recreated decoder to {Position}: {Error}", recoveryPosition, seekError);
-        }
-
+        context.ResetDecoderInterrupted();
         context.IncrementGeneration();
-        this.ClearFrames(context);
+        context.ClearFrames();
 
         lock (this._syncRoot)
         {
@@ -819,63 +1082,6 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
             {
                 this.CurrentDecoder = recoveredDecoder;
             }
-        }
-    }
-
-    private void WriteFrame(
-        AudioPlaybackContext context,
-        PlaybackAudioFrame playbackFrame,
-        CancellationToken cancellationToken,
-        ref Task<bool> seekAvailableTask)
-    {
-        while (playbackFrame.Generation == context.Generation)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (context.Frames.Writer.TryWrite(playbackFrame))
-            {
-                return;
-            }
-
-            Task<bool> frameSpaceTask = context.Frames.Writer.WaitToWriteAsync(cancellationToken).AsTask();
-            Task.WhenAny(frameSpaceTask, seekAvailableTask).GetAwaiter().GetResult();
-
-            if (seekAvailableTask.IsCompleted)
-            {
-                if (!seekAvailableTask.GetAwaiter().GetResult())
-                {
-                    return;
-                }
-
-                this.ProcessPendingSeekRequests(context, cancellationToken, ref seekAvailableTask);
-                return;
-            }
-
-            if (!frameSpaceTask.GetAwaiter().GetResult())
-            {
-                return;
-            }
-        }
-    }
-
-    private void ClearFrames(AudioPlaybackContext context)
-    {
-        while (context.Frames.Reader.TryRead(out _))
-        {
-        }
-    }
-
-    private bool ShouldFinishAtEndOfFile(AudioPlaybackContext context)
-    {
-        lock (this._syncRoot)
-        {
-            if (context.SeekRequests.Reader.TryPeek(out _))
-            {
-                return false;
-            }
-
-            context.AcceptsSeekRequests = false;
-            return true;
         }
     }
 
@@ -898,11 +1104,19 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         }
     }
 
-    private void RequestDecoderInterrupt(IAudioDecoder decoder)
+    private async Task DisposeDecoderAsync(IAudioDecoder decoder)
     {
-        lock (this._syncRoot)
+        try
         {
-            decoder.RequestInterrupt();
+            await this._decodeScheduler.RunCleanupAsync(_ => decoder.Dispose()).ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
+            decoder.Dispose();
+        }
+        catch (OperationCanceledException)
+        {
+            decoder.Dispose();
         }
     }
 
@@ -953,22 +1167,6 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         return samples.ToArray();
     }
 
-    private void ResetDecoderInterrupt(IAudioDecoder decoder, CancellationToken cancellationToken)
-    {
-        lock (this._syncRoot)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            decoder.ResetInterrupt();
-
-            if (cancellationToken.IsCancellationRequested)
-            {
-                decoder.RequestInterrupt();
-                cancellationToken.ThrowIfCancellationRequested();
-            }
-        }
-    }
-
     private Action<TimeSpan>? SetPositionLocked(TimeSpan position)
     {
         if (position == this.Position)
@@ -999,6 +1197,11 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
             < 0.0f => 0.0f,
             _ => volume
         };
+    }
+
+    private static long ToTimestampTicks(TimeSpan duration)
+    {
+        return (long)(duration.TotalSeconds * TimeProvider.System.TimestampFrequency);
     }
 
     private void ThrowIfDisposed()

@@ -20,6 +20,16 @@ internal interface IAudioDecoder : IDisposable
     AudioDecoderResult DecodeNextFrame();
 
     /// <summary>
+    /// 获取当前解码器是否已经观察到 FFmpeg I/O 中断返回。
+    /// </summary>
+    bool WasInterrupted { get; }
+
+    /// <summary>
+    /// 获取最近一次 FFmpeg I/O 中断的原因。
+    /// </summary>
+    AudioDecoderInterruptionReason InterruptionReason { get; }
+
+    /// <summary>
     /// 尝试将音频流定位到指定位置；定位成功时返回 <c>true</c>，否则返回 <c>false</c>。
     /// </summary>
     /// <param name="position">目标定位位置。</param>
@@ -36,4 +46,9 @@ internal interface IAudioDecoder : IDisposable
     /// 在被中断的操作返回后重置中断状态，以允许后续解码或定位操作继续执行。
     /// </summary>
     void ResetInterrupt();
+
+    /// <summary>
+    /// 在观察到中断后清理解码器内部缓冲区。
+    /// </summary>
+    void FlushAfterInterrupt();
 }

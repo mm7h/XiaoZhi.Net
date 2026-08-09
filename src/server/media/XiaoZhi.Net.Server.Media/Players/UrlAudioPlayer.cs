@@ -17,12 +17,22 @@ namespace XiaoZhi.Net.Server.Media.Players;
 /// 通过提供 <see cref="FFmpegDecoderOptions"/> 实例初始化 <see cref="UrlAudioPlayer"/>。
 /// 音频引擎将自动配置为与解码器输出格式匹配。
 /// </remarks>
-internal class UrlAudioPlayer(IAudioDecoderWorkPool decoderWorkPool, ILogger<UrlAudioPlayer> logger)
-    : AudioPlayerBase<string, UrlAudioPlayer>(decoderWorkPool, logger), IUrlAudioPlayer
+internal class UrlAudioPlayer(IAudioDecodeScheduler decodeScheduler, ILogger<UrlAudioPlayer> logger)
+    : AudioPlayerBase<string, UrlAudioPlayer>(decodeScheduler, logger), IUrlAudioPlayer
 {
     private FFmpegDecoderOptions? _decoderOptions;
 
     public override string AudioPlayerName => nameof(UrlAudioPlayer);
+
+    protected override bool CanRecoverAfterInterrupt => !string.IsNullOrEmpty(this.CurrentUrl);
+
+    protected override int ExpectedFrameBytes => this._decoderOptions is null
+        ? 0
+        : this._decoderOptions.SampleRate * this._decoderOptions.Channels * this._decoderOptions.FrameDuration / 1000 * sizeof(float);
+
+    protected override TimeSpan FrameDuration => this._decoderOptions is null
+        ? TimeSpan.Zero
+        : TimeSpan.FromMilliseconds(this._decoderOptions.FrameDuration);
 
     /// <summary>
     /// 获取或设置当前指定的音频 URL。
@@ -68,7 +78,12 @@ internal class UrlAudioPlayer(IAudioDecoderWorkPool decoderWorkPool, ILogger<Url
         {
             throw new InvalidOperationException("Decoder options is not set.");
         }
-        return new FFmpegUrlDecoder(url, this._decoderOptions, cancellationToken);
+        return new FFmpegUrlDecoder(
+            url,
+            this._decoderOptions,
+            this.AudioPlayerOptions.UrlOpenTimeout,
+            this.AudioPlayerOptions.UrlReadInactivityTimeout,
+            cancellationToken);
     }
 
     /// <summary>
@@ -79,24 +94,8 @@ internal class UrlAudioPlayer(IAudioDecoderWorkPool decoderWorkPool, ILogger<Url
     /// <returns>返回 <c>true</c> 时继续解码线程，返回 <c>false</c> 时中断该线程。</returns>
     protected override IAudioDecoder? CreateRecoveryDecoder(AudioDecoderResult result, CancellationToken cancellationToken)
     {
-        this.Logger?.LogDebug("Failed to decode audio frame, retrying: {resultErrorMessage}", result.ErrorMessage);
-
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            try
-            {
-                return this.CreateDecoder(this.CurrentUrl, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                this.Logger?.LogDebug("Unable to recreate audio decoder, retrying: {exMessage}", ex.Message);
-                if (cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(1)))
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                }
-            }
-        }
+        this.Logger.LogDebug("Recreating interrupted audio decoder: {ResultErrorMessage}", result.ErrorMessage);
+        cancellationToken.ThrowIfCancellationRequested();
+        return string.IsNullOrEmpty(this.CurrentUrl) ? null : this.CreateDecoder(this.CurrentUrl, cancellationToken);
     }
 }

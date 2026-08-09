@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Resources;
@@ -44,7 +45,8 @@ namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
                 throw new InvalidOperationException("Audio player client is not initialized.");
             }
 
-            await this._session.PrivateProvider.AudioPlayerClient.MusicPlayer.PlayAsync(this._session.PrivateProvider.Token, musicName);
+            CancellationToken cancellationToken = this._session.PrivateProvider.Token;
+            await this._session.PrivateProvider.AudioPlayerClient.MusicPlayer.PlayAsync(cancellationToken, musicName);
         }
 
         public async ValueTask PauseAsync()
@@ -54,7 +56,8 @@ namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
                 throw new InvalidOperationException("Audio player client is not initialized.");
             }
 
-            await this._session.PrivateProvider.AudioPlayerClient.MusicPlayer.PauseAsync();
+            CancellationToken cancellationToken = this._session.PrivateProvider.Token;
+            await this._session.PrivateProvider.AudioPlayerClient.MusicPlayer.PauseAsync(cancellationToken);
         }
 
         public async ValueTask ResumeAsync()
@@ -64,7 +67,8 @@ namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
                 throw new InvalidOperationException("Audio player client is not initialized.");
             }
 
-            await this._session.PrivateProvider.AudioPlayerClient.MusicPlayer.ResumeAsync();
+            CancellationToken cancellationToken = this._session.PrivateProvider.Token;
+            await this._session.PrivateProvider.AudioPlayerClient.MusicPlayer.ResumeAsync(cancellationToken);
         }
 
         public async ValueTask StopAsync()
@@ -74,7 +78,8 @@ namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
                 throw new InvalidOperationException("Audio player client is not initialized.");
             }
 
-            await this._session.PrivateProvider.AudioPlayerClient.MusicPlayer.StopAsync();
+            CancellationToken cancellationToken = this._session.PrivateProvider.Token;
+            await this._session.PrivateProvider.AudioPlayerClient.MusicPlayer.StopAsync(cancellationToken);
         }
 
         public async ValueTask SeekAsync(TimeSpan position)
@@ -84,7 +89,8 @@ namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
                 throw new InvalidOperationException("Audio player client is not initialized.");
             }
 
-            await this._session.PrivateProvider.AudioPlayerClient.MusicPlayer.SeekAsync(position);
+            CancellationToken cancellationToken = this._session.PrivateProvider.Token;
+            await this._session.PrivateProvider.AudioPlayerClient.MusicPlayer.SeekAsync(position, cancellationToken);
         }
     }
 }

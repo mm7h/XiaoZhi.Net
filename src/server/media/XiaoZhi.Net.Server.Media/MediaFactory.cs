@@ -22,7 +22,7 @@ namespace XiaoZhi.Net.Server.Media
     /// </remarks>
     public static class MediaFactory
     {
-        private static readonly IAudioDecoderWorkPool s_audioDecoderWorkPool = new AudioDecoderWorkPool(Math.Max(2, Environment.ProcessorCount));
+        private static readonly IAudioDecodeScheduler s_audioDecodeScheduler = new AudioDecodeScheduler(new AudioPlayerOptions());
 
         /// <summary>
         /// 从指定路径注册 FFmpeg 二进制文件。
@@ -49,7 +49,7 @@ namespace XiaoZhi.Net.Server.Media
         /// <returns>已配置为从 URL 源播放音频的 <see cref="IUrlAudioPlayer"/> 实例。</returns>
         public static IUrlAudioPlayer CreateUrlAudioPlayer()
         {
-            return new UrlAudioPlayer(s_audioDecoderWorkPool, NullLoggerFactory.Instance.CreateLogger<UrlAudioPlayer>());
+            return new UrlAudioPlayer(s_audioDecodeScheduler, NullLoggerFactory.Instance.CreateLogger<UrlAudioPlayer>());
         }
 
         /// <summary>
@@ -59,7 +59,7 @@ namespace XiaoZhi.Net.Server.Media
         /// <returns>已配置为流式播放音频的 <see cref="IStreamAudioPlayer"/> 实例。</returns>
         public static IStreamAudioPlayer CreateStreamAudioPlayer()
         {
-            return new StreamAudioPlayer(s_audioDecoderWorkPool, NullLoggerFactory.Instance.CreateLogger<StreamAudioPlayer>());
+            return new StreamAudioPlayer(s_audioDecodeScheduler, NullLoggerFactory.Instance.CreateLogger<StreamAudioPlayer>());
         }
 
         /// <summary>

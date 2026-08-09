@@ -12,8 +12,8 @@ namespace XiaoZhi.Net.Test.OtherSamples
         {
             //await TestTheMP3PlayerAsync();
             MediaFactory.InitializeFFmpeg();
-            //await TestTheUrlAudioPlayerAsync();
-            await TestTheStreamAudioPlayerAsync();
+            await TestTheUrlAudioPlayerAsync();
+            //await TestTheStreamAudioPlayerAsync();
         }
 
         private static async Task TestTheMP3PlayerAsync()

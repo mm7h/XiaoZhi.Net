@@ -27,10 +27,15 @@ internal unsafe class FFmpegUrlDecoder : IAudioDecoder
     private readonly int _outputChannels;
     private readonly int _outputSampleRate;
     private readonly int _frameDurationMs;
+    private readonly TimeSpan _openTimeout;
+    private readonly TimeSpan _readInactivityTimeout;
     private readonly CancellationToken _initializationCancellationToken;
     private readonly PooledByteBufferWriter _sampleBuffer = new PooledByteBufferWriter();
     private int _disposed;
+    private long _ioDeadlineTimestamp;
+    private int _interruptionReason;
     private int _interruptRequested;
+    private int _wasInterrupted;
 
     /// <summary>
     /// 通过提供音频 URL 初始化 <see cref="FFmpegDecoder"/>。
@@ -38,10 +43,22 @@ internal unsafe class FFmpegUrlDecoder : IAudioDecoder
     /// </summary>
     /// <param name="url">要解码的音频 URL 或音频文件路径。</param>
     /// <param name="options">可选的 FFmpeg 解码器选项。</param>
+    /// <param name="openTimeout">打开 URL 和读取流信息的最长时间。</param>
+    /// <param name="readInactivityTimeout">单次读取无进展的最长时间。</param>
     /// <exception cref="ArgumentNullException">指定的 URL 为 <c>null</c> 时引发。</exception>
-    public FFmpegUrlDecoder(string url, FFmpegDecoderOptions options, CancellationToken cancellationToken = default)
+    public FFmpegUrlDecoder(
+        string url,
+        FFmpegDecoderOptions options,
+        TimeSpan openTimeout,
+        TimeSpan readInactivityTimeout,
+        CancellationToken cancellationToken = default)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(openTimeout, TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(readInactivityTimeout, TimeSpan.Zero);
+
         this._initializationCancellationToken = cancellationToken;
+        this._openTimeout = openTimeout;
+        this._readInactivityTimeout = readInactivityTimeout;
         this._formatCtx = ffmpeg.avformat_alloc_context();
         this._interruptCallback = this.InterruptCallback;
 
@@ -54,25 +71,35 @@ internal unsafe class FFmpegUrlDecoder : IAudioDecoder
 
             this._formatCtx->interrupt_callback.callback = this._interruptCallback;
 
-            // 打开和读取操作（如 av_read_frame）默认会阻塞。
-            // 需要设置 HTTP、UDP 和 RTSP 的读取超时，以防连接中断。
-            AVDictionary* dict = null;
+            // URL 打开和流信息探测都可能在原生 I/O 中阻塞。
+            // AVIOInterruptCB 是跨协议的最终超时保障。
+            this.BeginIoDeadline(this._openTimeout);
+            AVDictionary* dictionary = null;
             try
             {
-                ffmpeg.av_dict_set_int(&dict, "stimeout", 10, 0);
-                ffmpeg.av_dict_set_int(&dict, "timeout", 10, 0);
+                // URLContext 的 rw_timeout 单位为微秒，作为协议内部等待的兜底；
+                // 打开阶段仍由上面的配置化单调时钟截止点控制。
+                ffmpeg.av_dict_set_int(
+                    &dictionary,
+                    "rw_timeout",
+                    checked(this._readInactivityTimeout.Ticks / 10),
+                    0);
 
                 var formatCtx = this._formatCtx;
-                int openResult = ffmpeg.avformat_open_input(&formatCtx, url, null, &dict);
+                int openResult = ffmpeg.avformat_open_input(&formatCtx, url, null, &dictionary);
                 this._formatCtx = formatCtx;
+                this.ThrowIfUrlReadTimedOut();
                 openResult.FFGuard();
+
+                int streamInfoResult = ffmpeg.avformat_find_stream_info(this._formatCtx, null);
+                this.ThrowIfUrlReadTimedOut();
+                streamInfoResult.FFGuard();
             }
             finally
             {
-                ffmpeg.av_dict_free(&dict);
+                ffmpeg.av_dict_free(&dictionary);
+                this.ClearIoDeadline();
             }
-
-            ffmpeg.avformat_find_stream_info(this._formatCtx, null).FFGuard();
 
             AVCodec* codec = null;
             this._streamIndex = ffmpeg.av_find_best_stream(this._formatCtx, MediaType, -1, -1, &codec, 0).FFGuard();
@@ -148,6 +175,12 @@ internal unsafe class FFmpegUrlDecoder : IAudioDecoder
     public AudioStreamInfo StreamInfo { get; }
 
     /// <inheritdoc />
+    public bool WasInterrupted => Volatile.Read(ref this._wasInterrupted) != 0;
+
+    /// <inheritdoc />
+    public AudioDecoderInterruptionReason InterruptionReason => (AudioDecoderInterruptionReason)Volatile.Read(ref this._interruptionReason);
+
+    /// <inheritdoc />
     public AudioDecoderResult DecodeNextFrame()
     {
         lock (this._syncLock)
@@ -166,10 +199,20 @@ internal unsafe class FFmpegUrlDecoder : IAudioDecoder
                     do
                     {
                         ffmpeg.av_packet_unref(this._currentPacket);
-                        code = ffmpeg.av_read_frame(this._formatCtx, this._currentPacket);
+                        this.BeginIoDeadline(this._readInactivityTimeout);
+                        try
+                        {
+                            code = ffmpeg.av_read_frame(this._formatCtx, this._currentPacket);
+                        }
+                        finally
+                        {
+                            this.ClearIoDeadline();
+                        }
+
                         if (code.FFIsError())
                         {
                             ffmpeg.av_packet_unref(this._currentPacket);
+                            this.MarkInterruptedIfRequested(code);
                             if (this._sampleBuffer.Count > 0)
                             {
                                 byte[] lastData = this._sampleBuffer.ReadRemaining();
@@ -179,10 +222,25 @@ internal unsafe class FFmpegUrlDecoder : IAudioDecoder
                         }
                     } while (this._currentPacket->stream_index != this._streamIndex);
 
-                    ffmpeg.avcodec_send_packet(this._codecCtx, this._currentPacket);
+                    code = ffmpeg.avcodec_send_packet(this._codecCtx, this._currentPacket);
                     ffmpeg.av_packet_unref(this._currentPacket);
+                    if (code.FFIsError())
+                    {
+                        return new AudioDecoderResult(null, false, code.FFIsEOF(), code.FFErrorToText());
+                    }
+
                     code = ffmpeg.avcodec_receive_frame(this._codecCtx, this._currentFrame);
-                    if (code != ffmpeg.AVERROR(ffmpeg.EAGAIN))
+                    if (code == ffmpeg.AVERROR(ffmpeg.EAGAIN))
+                    {
+                        continue;
+                    }
+
+                    if (code.FFIsError())
+                    {
+                        return new AudioDecoderResult(null, false, code.FFIsEOF(), code.FFErrorToText());
+                    }
+
+                    if (!code.FFIsError())
                     {
                         break;
                     }
@@ -231,10 +289,9 @@ internal unsafe class FFmpegUrlDecoder : IAudioDecoder
             var ts = ffmpeg.av_rescale_q(pos, ffmpeg.av_get_time_base_q(), tb);
 
             var code = ffmpeg.avformat_seek_file(this._formatCtx, this._streamIndex, 0, ts, long.MaxValue, 0);
-            ffmpeg.avcodec_flush_buffers(this._codecCtx);
-
             if (!code.FFIsError())
             {
+                ffmpeg.avcodec_flush_buffers(this._codecCtx);
                 this._sampleBuffer.Clear();
             }
 
@@ -258,13 +315,81 @@ internal unsafe class FFmpegUrlDecoder : IAudioDecoder
         }
     }
 
+    /// <inheritdoc />
+    public void FlushAfterInterrupt()
+    {
+        lock (this._syncLock)
+        {
+            if (Volatile.Read(ref this._disposed) == 0)
+            {
+                ffmpeg.avcodec_flush_buffers(this._codecCtx);
+                this._sampleBuffer.Clear();
+            }
+        }
+    }
+
+    private void MarkInterruptedIfRequested(int code)
+    {
+        if (this.InterruptionReason == AudioDecoderInterruptionReason.UrlReadTimeout)
+        {
+            return;
+        }
+
+        if (code == ffmpeg.AVERROR_EXIT
+            || Volatile.Read(ref this._interruptRequested) != 0
+            || this._initializationCancellationToken.IsCancellationRequested)
+        {
+            Interlocked.Exchange(ref this._wasInterrupted, 1);
+            Interlocked.CompareExchange(
+                ref this._interruptionReason,
+                (int)AudioDecoderInterruptionReason.Requested,
+                (int)AudioDecoderInterruptionReason.None);
+        }
+    }
+
     private int InterruptCallback(void* opaque)
     {
+        if (this.IsIoDeadlineExceeded())
+        {
+            Interlocked.CompareExchange(
+                ref this._interruptionReason,
+                (int)AudioDecoderInterruptionReason.UrlReadTimeout,
+                (int)AudioDecoderInterruptionReason.None);
+            Interlocked.Exchange(ref this._wasInterrupted, 1);
+            return 1;
+        }
+
         return Volatile.Read(ref this._disposed) != 0
             || Volatile.Read(ref this._interruptRequested) != 0
             || this._initializationCancellationToken.IsCancellationRequested
             ? 1
             : 0;
+    }
+
+    private void BeginIoDeadline(TimeSpan timeout)
+    {
+        long timeoutTicks = checked((long)Math.Ceiling(timeout.TotalSeconds * TimeProvider.System.TimestampFrequency));
+        long deadline = checked(TimeProvider.System.GetTimestamp() + timeoutTicks);
+        Volatile.Write(ref this._ioDeadlineTimestamp, deadline);
+    }
+
+    private void ClearIoDeadline()
+    {
+        Volatile.Write(ref this._ioDeadlineTimestamp, 0);
+    }
+
+    private bool IsIoDeadlineExceeded()
+    {
+        long deadline = Volatile.Read(ref this._ioDeadlineTimestamp);
+        return deadline != 0 && TimeProvider.System.GetTimestamp() >= deadline;
+    }
+
+    private void ThrowIfUrlReadTimedOut()
+    {
+        if (this.InterruptionReason == AudioDecoderInterruptionReason.UrlReadTimeout)
+        {
+            throw new TimeoutException("URL 音频源读取超时。");
+        }
     }
 
     /// <inheritdoc />

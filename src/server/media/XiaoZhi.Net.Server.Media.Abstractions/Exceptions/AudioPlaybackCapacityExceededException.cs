@@ -9,7 +9,22 @@ public sealed class AudioPlaybackCapacityExceededException : InvalidOperationExc
     /// 初始化 <see cref="AudioPlaybackCapacityExceededException"/> 的新实例。
     /// </summary>
     public AudioPlaybackCapacityExceededException()
-        : base("Audio playback decoder work pool capacity has been exceeded.")
+        : this(AudioPlaybackCapacityExceededReason.ContextLimit)
     {
     }
+
+    /// <summary>
+    /// 初始化 <see cref="AudioPlaybackCapacityExceededException"/> 的新实例。
+    /// </summary>
+    /// <param name="reason">容量不足的具体资源。</param>
+    public AudioPlaybackCapacityExceededException(AudioPlaybackCapacityExceededReason reason)
+        : base($"Audio playback capacity has been exceeded: {reason}.")
+    {
+        this.Reason = reason;
+    }
+
+    /// <summary>
+    /// 获取容量不足的具体资源。
+    /// </summary>
+    public AudioPlaybackCapacityExceededReason Reason { get; }
 }

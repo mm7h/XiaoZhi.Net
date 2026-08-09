@@ -18,6 +18,7 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
     private const AVMediaType MediaType = AVMediaType.AVMEDIA_TYPE_AUDIO;
     private readonly object _syncLock = new();
     private readonly AVFormatContext* _formatCtx;
+    private readonly AVIOInterruptCB_callback _interruptCallback;
     private readonly AVCodecContext* _codecCtx;
     private readonly AVPacket* _currentPacket;
     private readonly AVFrame* _currentFrame;
@@ -36,6 +37,7 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
     private readonly PooledByteBufferWriter _sampleBuffer = new PooledByteBufferWriter();
     private int _disposed;
     private int _interruptRequested;
+    private int _wasInterrupted;
 
     /// <summary>
     /// 通过提供源音频流初始化 <see cref="FFmpegDecoder"/>。
@@ -47,6 +49,7 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
     {
         this._initializationCancellationToken = cancellationToken;
         this._formatCtx = ffmpeg.avformat_alloc_context();
+        this._interruptCallback = this.InterruptCallback;
 
         this._reads = this.ReadsImpl;
         this._seeks = this.SeeksImpl;
@@ -60,6 +63,8 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
             {
                 throw new InvalidOperationException("Unable to allocate FFmpeg format context.");
             }
+
+            this._formatCtx->interrupt_callback.callback = this._interruptCallback;
 
             var buffer = (byte*)ffmpeg.av_malloc(StreamBufferSize);
             var avio = ffmpeg.avio_alloc_context(buffer, StreamBufferSize, 0, null, this._reads, null, this._seeks);
@@ -152,6 +157,14 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
     public AudioStreamInfo StreamInfo { get; }
 
     /// <inheritdoc />
+    public bool WasInterrupted => Volatile.Read(ref this._wasInterrupted) != 0;
+
+    /// <inheritdoc />
+    public AudioDecoderInterruptionReason InterruptionReason => this.WasInterrupted
+        ? AudioDecoderInterruptionReason.Requested
+        : AudioDecoderInterruptionReason.None;
+
+    /// <inheritdoc />
     public AudioDecoderResult DecodeNextFrame()
     {
         lock (this._syncLock)
@@ -190,6 +203,7 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
                         if (code.FFIsError())
                         {
                             ffmpeg.av_packet_unref(this._currentPacket);
+                            this.MarkInterruptedIfRequested(code);
                             if (this._sampleBuffer.Count > 0)
                             {
                                 byte[] lastData = this._sampleBuffer.ReadRemaining();
@@ -199,10 +213,25 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
                         }
                     } while (this._currentPacket->stream_index != this._streamIndex);
 
-                    ffmpeg.avcodec_send_packet(this._codecCtx, this._currentPacket);
+                    code = ffmpeg.avcodec_send_packet(this._codecCtx, this._currentPacket);
                     ffmpeg.av_packet_unref(this._currentPacket);
+                    if (code.FFIsError())
+                    {
+                        return new AudioDecoderResult(null, false, code.FFIsEOF(), code.FFErrorToText());
+                    }
+
                     code = ffmpeg.avcodec_receive_frame(this._codecCtx, this._currentFrame);
-                    if (code != ffmpeg.AVERROR(ffmpeg.EAGAIN))
+                    if (code == ffmpeg.AVERROR(ffmpeg.EAGAIN))
+                    {
+                        continue;
+                    }
+
+                    if (code.FFIsError())
+                    {
+                        return new AudioDecoderResult(null, false, code.FFIsEOF(), code.FFErrorToText());
+                    }
+
+                    if (!code.FFIsError())
                     {
                         break;
                     }
@@ -261,10 +290,9 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
             var ts = ffmpeg.av_rescale_q(pos, ffmpeg.av_get_time_base_q(), tb);
 
             var code = ffmpeg.avformat_seek_file(this._formatCtx, this._streamIndex, 0, ts, long.MaxValue, 0);
-            ffmpeg.avcodec_flush_buffers(this._codecCtx);
-
             if (!code.FFIsError())
             {
+                ffmpeg.avcodec_flush_buffers(this._codecCtx);
                 this._sampleBuffer.Clear();
             }
 
@@ -291,12 +319,26 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
         }
     }
 
+    /// <inheritdoc />
+    public void FlushAfterInterrupt()
+    {
+        lock (this._syncLock)
+        {
+            if (Volatile.Read(ref this._disposed) == 0)
+            {
+                ffmpeg.avcodec_flush_buffers(this._codecCtx);
+                this._sampleBuffer.Clear();
+            }
+        }
+    }
+
     private int ReadsImpl(void* opaque, byte* buf, int buf_size)
     {
         if (Volatile.Read(ref this._disposed) != 0
             || Volatile.Read(ref this._interruptRequested) != 0
             || this._initializationCancellationToken.IsCancellationRequested)
         {
+            Interlocked.Exchange(ref this._wasInterrupted, 1);
             return ffmpeg.AVERROR_EXIT;
         }
 
@@ -350,6 +392,25 @@ internal unsafe class FFmpegStreamDecoder : IAudioDecoder
         catch
         {
             return -1;
+        }
+    }
+
+    private int InterruptCallback(void* opaque)
+    {
+        return Volatile.Read(ref this._disposed) != 0
+            || Volatile.Read(ref this._interruptRequested) != 0
+            || this._initializationCancellationToken.IsCancellationRequested
+            ? 1
+            : 0;
+    }
+
+    private void MarkInterruptedIfRequested(int code)
+    {
+        if (code == ffmpeg.AVERROR_EXIT
+            || Volatile.Read(ref this._interruptRequested) != 0
+            || this._initializationCancellationToken.IsCancellationRequested)
+        {
+            Interlocked.Exchange(ref this._wasInterrupted, 1);
         }
     }
 
