@@ -27,7 +27,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
                         string? type = jsonObject?["type"]?.GetValue<string>()?.ToLower();
                         if (jsonObject is JsonObject jsonObj && !string.IsNullOrWhiteSpace(type) && type == "hello")
                         {
-                            await session.XiaoZhiSession.HandlerPipeline.HandleHelloMessage(jsonObj);
+                            await session.XiaoZhiSession.HandlerPipeline.HandleHelloMessageAsync(jsonObj);
                         }
                         else
                         {

@@ -26,7 +26,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._audioReceiveHandler = handlerContainer[nameof(AudioReceiveHandler)] as AudioReceiveHandler ?? throw new ArgumentNullException(nameof(AudioReceiveHandler));
         }
 
-        public async ValueTask HandleHelloMessage(JsonObject helloMessage)
+        public async ValueTask HandleHelloMessageAsync(JsonObject helloMessage)
         {
             if (this._helloMessageHandler is not null)
             {
