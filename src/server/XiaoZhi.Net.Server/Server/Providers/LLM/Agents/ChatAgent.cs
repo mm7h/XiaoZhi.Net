@@ -108,7 +108,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                         Instructions = instructions,
                         Temperature = 0.5f,
                         MaxOutputTokens = 40,
-                        ResponseFormat = ChatResponseFormat.Text
+                        ResponseFormat = ChatResponseFormat.Text,
+                        Reasoning = new ReasoningOptions
+                        {
+                            Effort = ReasoningEffort.None,
+                            Output = ReasoningOutput.None
+                        }
                     },
                     UseProvidedChatClientAsIs = true,
                     RequirePerServiceCallChatHistoryPersistence = true

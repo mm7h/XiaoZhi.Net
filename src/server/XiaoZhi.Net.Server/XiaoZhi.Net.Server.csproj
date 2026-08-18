@@ -27,15 +27,15 @@
         <PackageReference Include="Concentus" Version="2.2.2" />
         <PackageReference Include="Flurl.Http" Version="4.0.2" />
         <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-        <PackageReference Include="Microsoft.Agents.AI" Version="1.16.0" />
-        <PackageReference Include="Microsoft.Agents.AI.Workflows" Version="1.16.0" />
-        <PackageReference Include="Microsoft.Extensions.AI" Version="10.8.3" />
-        <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.8.3" />
-        <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
-        <PackageReference Include="Microsoft.Extensions.ObjectPool.DependencyInjection" Version="10.8.0" />
-        <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.28.0" />
-        <PackageReference Include="ModelContextProtocol" Version="2.0.0" />
-        <PackageReference Include="org.k2fsa.sherpa.onnx" Version="1.13.4" />
+        <PackageReference Include="Microsoft.Agents.AI" Version="1.17.0" />
+        <PackageReference Include="Microsoft.Agents.AI.Workflows" Version="1.17.0" />
+        <PackageReference Include="Microsoft.Extensions.AI" Version="10.9.0" />
+        <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.9.0" />
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
+        <PackageReference Include="Microsoft.Extensions.ObjectPool.DependencyInjection" Version="10.9.0" />
+        <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.29.0" />
+        <PackageReference Include="ModelContextProtocol" Version="2.2.0" />
+        <PackageReference Include="org.k2fsa.sherpa.onnx" Version="1.13.5" />
         <PackageReference Include="Serilog" Version="4.4.0" />
         <PackageReference Include="Serilog.Extensions.Logging" Version="10.0.0" />
         <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />

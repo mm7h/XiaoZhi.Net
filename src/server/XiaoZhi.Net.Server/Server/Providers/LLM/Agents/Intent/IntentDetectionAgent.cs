@@ -1,4 +1,4 @@
-using Microsoft.Agents.AI;
+﻿using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -95,7 +95,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                     {
                         Temperature = 0.1f,
                         MaxOutputTokens = 200,
-                        ResponseFormat = ChatResponseFormat.ForJsonSchema<IntentDetectionResult>()
+                        ResponseFormat = ChatResponseFormat.ForJsonSchema<IntentDetectionResult>(),
+                        Reasoning = new ReasoningOptions
+                        {
+                            Effort = ReasoningEffort.None,
+                            Output = ReasoningOutput.None
+                        }
                     }
                 };
 

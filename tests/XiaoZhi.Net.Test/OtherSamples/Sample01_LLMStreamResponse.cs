@@ -1,8 +1,8 @@
-﻿using System.ClientModel;
-using System.Text;
+﻿using System.Text;
 using System.Text.RegularExpressions;
-using OpenAI;
-using OpenAI.Chat;
+using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
+using XiaoZhi.Net.Test.Runtime;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {
@@ -10,120 +10,59 @@ namespace XiaoZhi.Net.Test.OtherSamples
     {
         public static async Task RunAsync()
         {
-            await TestLLMStreamResponseAsync();
-        }
-
-        private static async Task TestLLMStreamResponseAsync()
-        {
-            string endPoint = "https://open.bigmodel.cn/api/paas/v4/";
-            string apiKey = Environment.GetEnvironmentVariable("OPEN_AI_API_KEY", EnvironmentVariableTarget.User)!;
-            string chatModel = "glm-4-flash";
-            OpenAIClientOptions options = new OpenAIClientOptions
+            using SampleAiRuntime runtime = SampleAiRuntime.Create();
+            ChatClientAgent agent = new(runtime.ChatClient, new ChatClientAgentOptions
             {
-                Endpoint = new Uri(endPoint),
-                ProjectId = "Xiao Zhi Test"
-            };
-            OpenAIClient openAIClient = new OpenAIClient(new ApiKeyCredential(apiKey), options);
-
-            var chatClient = openAIClient.GetChatClient(chatModel);
-
-            List<ChatMessage> chatMessages =
-            [
-                ChatMessage.CreateUserMessage("介绍一下四川美食")
-            ];
-
-            var chatCompletionOptions = new ChatCompletionOptions
-            {
-                Temperature = 0.5f,
-                MaxOutputTokenCount = 50,
-                ResponseFormat = ChatResponseFormat.CreateTextFormat()
-            };
-
-            bool isThinkingFinished = true;
-            StringBuilder segmentResponse = new StringBuilder();
-            List<OutSegment> allResponse = [];
-            Regex sentenceSplitRegex = new Regex(@"(?<![0-9])[.?!;:](?=\s|$)|[。？！；：，]");
-            await foreach (var item in chatClient.CompleteChatStreamingAsync(chatMessages, chatCompletionOptions))
-            {
-                string text = (item.ContentUpdate.First().Text ?? "").Replace(Environment.NewLine, string.Empty).Replace("\n", string.Empty);
-                segmentResponse.Append(text);
-
-                // 处理流结束的情况
-                if (item.FinishReason == ChatFinishReason.Stop && allResponse.Any())
+                Name = nameof(Sample01_LLMStreamResponse),
+                Description = "Streams a simple chat response.",
+                ChatOptions = new ChatOptions
                 {
-                    OutSegment lastOutSegment = allResponse.Last();
-                    lastOutSegment.IsLast = true;
+                    Temperature = 0.5f,
+                    MaxOutputTokens = 50,
+                    ResponseFormat = ChatResponseFormat.Text
                 }
+            });
 
-                // 在累积的文本中查找分割点
+            AgentSession session = await agent.CreateSessionAsync();
+            StringBuilder segmentResponse = new();
+            List<OutSegment> allResponse = [];
+            Regex sentenceSplitRegex = new(@"(?<![0-9])[.?!;:](?=\s|$)|[。？！；：，]");
+
+            await foreach (AgentResponseUpdate update in agent.RunStreamingAsync("介绍一下四川美食", session))
+            {
+                string text = (update.Text ?? string.Empty).Replace(Environment.NewLine, string.Empty).Replace("\n", string.Empty);
+                segmentResponse.Append(text);
                 string currentSegment = segmentResponse.ToString();
                 Match match = sentenceSplitRegex.Match(currentSegment);
 
                 while (match.Success)
                 {
                     int splitPosition = match.Index + match.Length;
-                    string sentence = currentSegment.Substring(0, splitPosition);
-                    string remaining = currentSegment.Substring(splitPosition);
-
-                    OutSegment outSegment = new OutSegment(sentence);
-                    if (allResponse.Count == 0)
-                    {
-                        outSegment.IsFirst = true;
-                    }
-
+                    string sentence = currentSegment[..splitPosition];
+                    string remaining = currentSegment[splitPosition..];
+                    OutSegment outSegment = new(sentence) { IsFirst = allResponse.Count == 0 };
                     allResponse.Add(outSegment);
-                    Console.WriteLine(sentence); // 输出当前分割的句子
+                    Console.WriteLine(sentence);
 
-                    // 重置累积内容为剩余部分
                     segmentResponse.Clear();
                     segmentResponse.Append(remaining);
                     currentSegment = remaining;
                     match = sentenceSplitRegex.Match(currentSegment);
                 }
-
-                // 处理流结束时剩余的文本
-                if (item.FinishReason == ChatFinishReason.Stop && segmentResponse.Length > 0)
-                {
-                    OutSegment lastSegment = new OutSegment(segmentResponse.ToString());
-                    if (allResponse.Count == 0)
-                    {
-                        lastSegment.IsFirst = true;
-                    }
-
-                    lastSegment.IsLast = true;
-                    allResponse.Add(lastSegment);
-                    Console.WriteLine(segmentResponse.ToString());
-                    segmentResponse.Clear();
-                }
-
-                //if (text.Contains("<think>"))
-                //{
-                //    isThinkingFinished = false;
-                //    text = text.Split("<think>", StringSplitOptions.RemoveEmptyEntries)[0];
-                //}
-                //if (text.Contains("</think>"))
-                //{
-                //    isThinkingFinished = true;
-                //    text = text.Split("</think>", StringSplitOptions.RemoveEmptyEntries)[-1];
-                //}
-
-                //if (isThinkingFinished)
-                //{
-
-                //    if (isFirst)
-                //    {
-
-                //    }
-                //    else
-                //    {
-
-                //    }
-                //}
-                //else
-                //{ 
-
-                //}
             }
+
+            if (segmentResponse.Length > 0)
+            {
+                OutSegment lastSegment = new(segmentResponse.ToString()) { IsFirst = allResponse.Count == 0 };
+                allResponse.Add(lastSegment);
+                Console.WriteLine(lastSegment.Content);
+            }
+
+            if (allResponse.Count > 0)
+            {
+                allResponse[^1].IsLast = true;
+            }
+
             Console.WriteLine("最后的所有回复：" + string.Join(string.Empty, allResponse.Select(a => a.Content)));
         }
     }

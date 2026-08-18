@@ -1,7 +1,7 @@
-﻿using System.ClientModel;
-using System.Text.Json;
-using OpenAI;
-using OpenAI.Chat;
+﻿using System.ComponentModel;
+using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
+using XiaoZhi.Net.Test.Runtime;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {
@@ -9,154 +9,50 @@ namespace XiaoZhi.Net.Test.OtherSamples
     {
         public static async Task RunAsync()
         {
-            await TestLLMFunctionResponseAsync();
-        }
-
-        private static async Task TestLLMFunctionResponseAsync()
-        {
-            try
+            using SampleAiRuntime runtime = SampleAiRuntime.Create();
+            AIFunction musicTool = AIFunctionFactory.Create(GetMusicName, new AIFunctionFactoryOptions
             {
-                string endPoint = "https://open.bigmodel.cn/api/paas/v4/";
-                string apiKey = Environment.GetEnvironmentVariable("OPEN_AI_API_KEY", EnvironmentVariableTarget.User)!;
-                string chatModel = "glm-4-flash";
-                OpenAIClientOptions options = new OpenAIClientOptions
-                {
-                    Endpoint = new Uri(endPoint),
-                    ProjectId = "Xiao Zhi Test"
-                };
-                OpenAIClient openAIClient = new OpenAIClient(new ApiKeyCredential(apiKey), options);
+                Name = nameof(GetMusicName),
+                Description = "唱歌、听歌、播放音乐的方法。"
+            });
 
-                ChatTool getMusicNameTool = ChatTool.CreateFunctionTool(
-                    functionName: nameof(GetMusicName),
-                    functionDescription: "唱歌、听歌、播放音乐的方法。",
-                    functionParameters: BinaryData.FromBytes("""
-                    {
-                        "type": "object",
-                        "properties": {
-                            "songName": {
-                                "type": "string",
-                                "description": "歌曲名称，如果用户没有指定具体歌名则为'random', 明确指定的时返回音乐的名字 示例: ```用户:播放两只老虎\n参数：两只老虎``` ```用户:播放音乐 \n参数：random ```"
-                            }
-                        },
-                        "required": ["songName"]
-                    }
-                    """u8.ToArray()));
+            AIFunction switchAssistantTool = AIFunctionFactory.Create(SwitchAssistantAsync, new AIFunctionFactoryOptions
+            {
+                Name = nameof(SwitchAssistantAsync),
+                Description = "切换到指定的目标 Assistant。"
+            });
 
-                var chatCompletionOptions = new ChatCompletionOptions
+            ChatClientAgent agent = new(runtime.ChatClient, new ChatClientAgentOptions
+            {
+                Name = nameof(Sample02_LLMFunctionCallResponse),
+                Description = "Demonstrates automatic local function invocation.",
+                ChatOptions = new ChatOptions
                 {
                     Temperature = 0.5f,
-                    MaxOutputTokenCount = 50,
-                    ResponseFormat = ChatResponseFormat.CreateTextFormat(),
-                    Tools = { getMusicNameTool }
-                };
-
-                var chatClient = openAIClient.GetChatClient(chatModel);
-
-                List<ChatMessage> chatMessages =
-                [
-                    ChatMessage.CreateUserMessage("Hello, 来点音乐")
-                ];
-
-                bool requiresAction;
-
-                do
-                {
-                    requiresAction = false;
-                    ChatCompletion completion = chatClient.CompleteChat(chatMessages, chatCompletionOptions);
-
-                    switch (completion.FinishReason)
-                    {
-                        case ChatFinishReason.Stop:
-                        {
-                            // Add the assistant message to the conversation history.
-                            chatMessages.Add(new AssistantChatMessage(completion));
-                            break;
-                        }
-
-                        case ChatFinishReason.ToolCalls:
-                        {
-                            // First, add the assistant message with tool calls to the conversation history.
-                            chatMessages.Add(new AssistantChatMessage(completion));
-
-                            // Then, add a new tool message for each tool call that is resolved.
-                            foreach (ChatToolCall toolCall in completion.ToolCalls)
-                            {
-                                switch (toolCall.FunctionName)
-                                {
-
-                                    case nameof(GetMusicName):
-                                    {
-                                        // The arguments that the model wants to use to call the function are specified as a
-                                        // stringified JSON object based on the schema defined in the tool definition. Note that
-                                        // the model may hallucinate arguments too. Consequently, it is important to do the
-                                        // appropriate parsing and validation before calling the function.
-                                        using JsonDocument argumentsJson = JsonDocument.Parse(toolCall.FunctionArguments);
-                                        bool hasLocation = argumentsJson.RootElement.TryGetProperty("songName", out JsonElement songName);
-
-                                        GetMusicName(songName.GetString());
-                                        break;
-                                    }
-
-                                    default:
-                                    {
-                                        // Handle other unexpected calls.
-                                        throw new NotImplementedException();
-                                    }
-                                }
-                            }
-
-                            requiresAction = true;
-                            break;
-                        }
-
-                        case ChatFinishReason.Length:
-                            throw new NotImplementedException("Incomplete model output due to MaxTokens parameter or token limit exceeded.");
-
-                        case ChatFinishReason.ContentFilter:
-                            throw new NotImplementedException("Omitted content due to a content filter flag.");
-
-                        case ChatFinishReason.FunctionCall:
-                            throw new NotImplementedException("Deprecated in favor of tool calls.");
-
-                        default:
-                            throw new NotImplementedException(completion.FinishReason.ToString());
-                    }
-                } while (requiresAction);
-
-                foreach (ChatMessage message in chatMessages)
-                {
-                    switch (message)
-                    {
-                        case UserChatMessage userMessage:
-                            Console.WriteLine("[USER]:");
-                            Console.WriteLine($"{userMessage.Content[0].Text}");
-                            Console.WriteLine();
-                            break;
-
-                        case AssistantChatMessage assistantMessage when assistantMessage.Content.Count > 0:
-                            Console.WriteLine("[ASSISTANT]:");
-                            Console.WriteLine($"{assistantMessage.Content[0].Text}");
-                            Console.WriteLine();
-                            break;
-
-                        case ToolChatMessage:
-                            // Do not print any tool messages; let the assistant summarize the tool results instead.
-                            break;
-
-                        default:
-                            break;
-                    }
+                    MaxOutputTokens = 50,
+                    ResponseFormat = ChatResponseFormat.Text,
+                    ToolMode = ChatToolMode.Auto,
+                    Tools = [musicTool, switchAssistantTool]
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
+            });
+
+            AgentSession session = await agent.CreateSessionAsync();
+            AgentResponse response = await agent.RunAsync("Hello, 帮我切换到号码“10086”", session);
+            Console.WriteLine(response.Text);
         }
 
-        private static void GetMusicName(string songName)
+        [Description("返回要播放的歌曲名称；没有指定歌名时返回 random。")]
+        private static string GetMusicName([Description("用户指定的歌曲名称。")] string songName = "random")
         {
             Console.WriteLine("songName: " + songName);
+            return $"准备播放：{songName}";
+        }
+
+        [Description("根据 Assistant 号码切换的方法工具。在不结束当前电话的情况下，将来电切换到另一个专业 Assistant。仅当来电者明确需要其他专业服务时调用，不要用它代替当前 Assistant 直接回答问题。")]
+        private static string SwitchAssistantAsync([Description("要切换到的目标 Assistant 拨号号码。")] string targetAssistantNumber, CancellationToken cancellationToken = default)
+        {
+            Console.WriteLine($"已经切换到 {targetAssistantNumber}");
+            return $"已经成功切换到 {targetAssistantNumber}";
         }
     }
 }

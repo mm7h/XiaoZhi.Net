@@ -1,11 +1,10 @@
-﻿using System.ComponentModel;
-using Microsoft.SemanticKernel;
+using System.ComponentModel;
 
 namespace XiaoZhi.Net.Test.Plugins
 {
     public class WeatherPlugin
     {
-        [KernelFunction, Description("根据城市名称获取当天的天气信息")]
+        [Description("根据城市名称获取当天的天气信息")]
         public string GetWeather(string cityName)
         {
             return cityName switch
