@@ -149,6 +149,11 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
             }
         }
 
+        public Task ConvertSpeechTextStreamingAsync(Workflow<float[]> workflow, int sampleRate, int frameSize, StreamingAsrOperation operation, CancellationToken token)
+        {
+            throw new NotSupportedException($"{this.ModelName} does not support streaming ASR.");
+        }
+
         private string GenerateAudioFileName<T>(Workflow<T> workflow)
         {
             string devicePart = this.ReplaceMacDelimiters(workflow.DeviceId, "_");

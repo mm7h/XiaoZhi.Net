@@ -20,6 +20,7 @@ using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media;
 using XiaoZhi.Net.Server.Providers;
+using XiaoZhi.Net.Server.Providers.ASR.Huoshan;
 using XiaoZhi.Net.Server.Providers.ASR.Sherpa;
 using XiaoZhi.Net.Server.Providers.AudioCodec;
 using XiaoZhi.Net.Server.Providers.AudioMixer;
@@ -459,6 +460,12 @@ namespace XiaoZhi.Net.Server.Management
                         break;
                     case "paraformer":
                         services.AddKeyedSingleton<IAsr, Paraformer>(modelName);
+                        break;
+                    case "huoshan-unidirectional":
+                        services.AddKeyedTransient<IAsr, HuoshanUnidirectionalASR>(modelName);
+                        break;
+                    case "huoshan-bidirection":
+                        services.AddKeyedTransient<IAsr, HuoshanBidirectionASR>(modelName);
                         break;
                     default:
                         throw new ModelBuildException("Invalid asr model.");

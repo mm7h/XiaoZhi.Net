@@ -78,6 +78,12 @@ namespace XiaoZhi.Net.Server.Handlers
                 this.Logger.LogError(Lang.Audio2TextHandler_Build_AsrNotConfigured, session.DeviceId);
                 return;
             }
+            if (this._asr.IsStreaming)
+            {
+                // Streaming ASR receives PCM frames directly from AudioReceiveHandler and
+                // invokes this handler only after it has a final result.
+                return;
+            }
             try
             {
                 if (!session.IsDeviceBinded)

@@ -159,6 +159,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
                     {
                         this._vadSessionState.HaveVoice = true;
                         this._vadSessionState.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                        this._vadEventCallback?.OnVoiceStarted();
                     }
                 }
 

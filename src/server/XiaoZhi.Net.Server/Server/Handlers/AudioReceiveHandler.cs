@@ -1,12 +1,15 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers;
+using XiaoZhi.Net.Server.Providers.ASR;
 using XiaoZhi.Net.Server.Providers.VAD;
 
 namespace XiaoZhi.Net.Server.Handlers
@@ -18,6 +21,10 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private IVad? _vad;
         private IAudioDecoder? _audioDecoder;
+        private IAsr? _asr;
+        private readonly Queue<float[]> _streamingPreRollFrames = new();
+        private bool _streamingUtteranceActive;
+        private const int STREAMING_PRE_ROLL_FRAME_COUNT = 10;
 
         public AudioReceiveHandler(ObjectPool<Workflow<float[]>> workflowPool,
             ObjectPool<Workflow<string>> stringWorkflowPool,
@@ -49,6 +56,8 @@ namespace XiaoZhi.Net.Server.Handlers
 
             this._vad = privateProvider.Vad;
             this._vad.RegisterDevice(session.DeviceId, session.SessionId, this);
+
+            this._asr = privateProvider.Asr;
 
             this._audioDecoder = privateProvider.AudioDecoder;
             this._audioDecoder.RegisterDevice(session.DeviceId, session.SessionId);
@@ -87,6 +96,11 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 this.HandlerToken.ThrowIfCancellationRequested();
 
+                if (this._asr?.IsStreaming == true && session.IsDeviceBinded)
+                {
+                    await this.HandleStreamingAudioAsync(session, pcmData).ConfigureAwait(false);
+                }
+
                 session.AudioPacket.PushAudio(pcmData);
 
                 if (session.ListenMode != ListenMode.Manual)
@@ -105,6 +119,17 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
+        public void OnVoiceStarted()
+        {
+            Session session = this.SendOutter.GetSession();
+            if (session is null || session.ShouldIgnore() || !session.IsDeviceBinded || this._asr?.IsStreaming != true)
+            {
+                return;
+            }
+
+            _ = this.StartStreamingUtteranceAsync(session);
+        }
+
         public void OnVoiceDetected(float[] audioData)
         {
             Session session = this.SendOutter.GetSession();
@@ -115,6 +140,12 @@ namespace XiaoZhi.Net.Server.Handlers
             session.RejectIncomingAudio();
             session.AudioPacket.ResetAudioBuffer();
             session.AudioPacket.VoiceStop = true;
+
+            if (this._asr?.IsStreaming == true && session.IsDeviceBinded)
+            {
+                this.FinishStreamingUtteranceAsync(session);
+                return;
+            }
             this.HandleVoiceDetectedAsync(session, audioData);
         }
 
@@ -134,6 +165,11 @@ namespace XiaoZhi.Net.Server.Handlers
             if (session is null || session.ShouldIgnore())
             {
                 return;
+            }
+
+            if (this._asr?.IsStreaming == true)
+            {
+                this.AbortStreamingUtteranceAsync(session);
             }
 
             session.AudioPacket.Reset();
@@ -195,14 +231,25 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
+            if (this._asr?.IsStreaming == true && session.IsDeviceBinded)
+            {
+                this.FinishStreamingUtteranceAsync(session);
+                return;
+            }
+
             this.HandleVoiceDetectedAsync(session, session.AudioPacket.GetAllAudio());
         }
 
         public override void Dispose()
         {
+            Session session = this.SendOutter.GetSession();
+            if (session is not null && this._asr?.IsStreaming == true)
+            {
+                this.AbortStreamingUtteranceAsync(session);
+            }
+
             if (this._vad is not null)
             {
-                Session session = this.SendOutter.GetSession();
                 if (session is not null)
                 {
                     this._vad.UnregisterDevice(session.DeviceId, session.SessionId);
@@ -214,6 +261,131 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             this.NextWriter.Complete();
             base.Dispose();
+        }
+
+        private async Task HandleStreamingAudioAsync(Session session, float[] pcmData)
+        {
+            if (this._asr is null)
+            {
+                return;
+            }
+
+            if (!this._streamingUtteranceActive)
+            {
+                this.CacheStreamingPreRollFrame(pcmData);
+                if (session.ListenMode == ListenMode.Manual)
+                {
+                    await this.StartStreamingUtteranceAsync(session).ConfigureAwait(false);
+                }
+                return;
+            }
+
+            await this.SendStreamingOperationAsync(session, pcmData, StreamingAsrOperation.Audio).ConfigureAwait(false);
+        }
+
+        private async Task StartStreamingUtteranceAsync(Session session)
+        {
+            if (this._asr is null || this._streamingUtteranceActive || this.HandlerToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            this._streamingUtteranceActive = true;
+            float[] preRollAudio = this.DrainStreamingPreRollAudio();
+            try
+            {
+                await this.SendStreamingOperationAsync(session, preRollAudio, StreamingAsrOperation.Start).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                this._streamingUtteranceActive = false;
+            }
+            catch (Exception ex)
+            {
+                this._streamingUtteranceActive = false;
+                this.Logger.LogError(ex, "Failed to start streaming ASR for {DeviceId}.", session.DeviceId);
+            }
+        }
+
+        private async void FinishStreamingUtteranceAsync(Session session)
+        {
+            if (this._asr is null || !this._streamingUtteranceActive)
+            {
+                return;
+            }
+
+            this._streamingUtteranceActive = false;
+            try
+            {
+                await this.SendStreamingOperationAsync(session, Array.Empty<float>(), StreamingAsrOperation.Finish).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Session cancellation is expected during user abort or disconnect.
+            }
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, "Failed to finish streaming ASR for {DeviceId}.", session.DeviceId);
+            }
+        }
+
+        private async void AbortStreamingUtteranceAsync(Session session)
+        {
+            if (this._asr is null)
+            {
+                return;
+            }
+
+            this._streamingUtteranceActive = false;
+            this._streamingPreRollFrames.Clear();
+            try
+            {
+                await this.SendStreamingOperationAsync(session, Array.Empty<float>(), StreamingAsrOperation.Abort).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                this.Logger.LogDebug(ex, "Failed to abort streaming ASR for {DeviceId}.", session.DeviceId);
+            }
+        }
+
+        private async Task SendStreamingOperationAsync(Session session, float[] audioData, StreamingAsrOperation operation)
+        {
+            if (this._asr is null)
+            {
+                return;
+            }
+
+            Workflow<float[]> workflow = this._audioBufferWorkflowPool.Get();
+            try
+            {
+                workflow.Initialize(session, audioData);
+                await this._asr.ConvertSpeechTextStreamingAsync(workflow, session.AudioSetting.SampleRate, session.AudioSetting.FrameSize, operation, this.HandlerToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                this._audioBufferWorkflowPool.Return(workflow);
+            }
+        }
+
+        private void CacheStreamingPreRollFrame(float[] pcmData)
+        {
+            this._streamingPreRollFrames.Enqueue(pcmData);
+            while (this._streamingPreRollFrames.Count > STREAMING_PRE_ROLL_FRAME_COUNT)
+            {
+                this._streamingPreRollFrames.Dequeue();
+            }
+        }
+
+        private float[] DrainStreamingPreRollAudio()
+        {
+            if (this._streamingPreRollFrames.Count == 0)
+            {
+                return Array.Empty<float>();
+            }
+
+            float[] audio = this._streamingPreRollFrames.SelectMany(frame => frame).ToArray();
+            this._streamingPreRollFrames.Clear();
+            return audio;
         }
     }
 }

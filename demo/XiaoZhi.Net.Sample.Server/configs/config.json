@@ -78,6 +78,14 @@
           "Channels": 1,
           "BitRate": 128000
           */
+        },
+        "HuoshanBidirection": {
+          "ApiKey": "your-api-key",
+          "ResourceId": "your-resource-id",
+          "SegmentDurationMs": "200",
+          "EnableItn": "true",
+          "EnablePunc": "true",
+          "EnableDdc": "true"
         }
       }
     },

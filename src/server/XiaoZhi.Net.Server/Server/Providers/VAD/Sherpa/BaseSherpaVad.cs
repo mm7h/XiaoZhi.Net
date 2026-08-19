@@ -121,8 +121,13 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 
                     if (isSpeaking)
                     {
+                        bool voiceStarted = !vadState.HaveVoice;
                         vadState.HaveVoice = true;
                         vadState.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                        if (voiceStarted)
+                        {
+                            callback.OnVoiceStarted();
+                        }
                         continue;
                     }
                     else
