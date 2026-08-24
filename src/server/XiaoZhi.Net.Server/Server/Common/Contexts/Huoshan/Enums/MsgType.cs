@@ -1,4 +1,4 @@
-﻿namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Enums
+﻿namespace XiaoZhi.Net.Server.Common.Contexts.Huoshan.Enums
 {
     /// <summary>
     /// Message type which determines how the message will be serialized with the protocol

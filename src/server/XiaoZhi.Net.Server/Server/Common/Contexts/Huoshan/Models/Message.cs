@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Buffers.Binary;
 using System.IO;
 using System.Text;
-using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Enums;
+using XiaoZhi.Net.Server.Common.Contexts.Huoshan.Enums;
 
-namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
+namespace XiaoZhi.Net.Server.Common.Contexts.Huoshan.Models
 {
     /// <summary>
     /// Message structure for protocol communication
@@ -49,11 +49,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
         /// </summary>
         public Message()
         {
-            Version = VersionBits.Version1;
-            HeaderSize = HeaderSizeBits.HeaderSize4;
-            Serialization = SerializationBits.JSON;
-            Compression = CompressionBits.None;
-            Payload = Array.Empty<byte>();
+            this.Version = VersionBits.Version1;
+            this.HeaderSize = HeaderSizeBits.HeaderSize4;
+            this.Serialization = SerializationBits.JSON;
+            this.Compression = CompressionBits.None;
+            this.Payload = Array.Empty<byte>();
         }
 
         /// <summary>
@@ -92,16 +92,16 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
             using var stream = new MemoryStream();
 
             // Write header bytes
-            byte header1 = (byte)((byte)Version << 4 | (byte)HeaderSize);
-            byte header2 = (byte)((byte)MsgType << 4 | (byte)MsgTypeFlag);
-            byte header3 = (byte)((byte)Serialization << 4 | (byte)Compression);
+            byte header1 = (byte)((byte)this.Version << 4 | (byte)this.HeaderSize);
+            byte header2 = (byte)((byte)this.MsgType << 4 | (byte)this.MsgTypeFlag);
+            byte header3 = (byte)((byte)this.Serialization << 4 | (byte)this.Compression);
 
             stream.WriteByte(header1);
             stream.WriteByte(header2);
             stream.WriteByte(header3);
 
             // Write padding for header size
-            int headerSize = 4 * (int)HeaderSize;
+            int headerSize = 4 * (int)this.HeaderSize;
             int paddingSize = headerSize - 3;
             for (int i = 0; i < paddingSize; i++)
             {
@@ -109,42 +109,42 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
             }
 
             // Write fields in Go writers() order
-            if ((MsgTypeFlag & MsgTypeFlagBits.WithEvent) != 0)
+            if ((this.MsgTypeFlag & MsgTypeFlagBits.WithEvent) != 0)
             {
                 // Write event type
                 var eventBytes = new byte[4];
-                BinaryPrimitives.WriteInt32BigEndian(eventBytes, (int)EventType);
+                BinaryPrimitives.WriteInt32BigEndian(eventBytes, (int)this.EventType);
                 stream.Write(eventBytes, 0, 4);
 
                 // Write session ID
-                WriteSessionId(stream);
+                this.WriteSessionId(stream);
             }
 
             // Write sequence if needed
-            switch (MsgType)
+            switch (this.MsgType)
             {
                 case MsgType.FullClientRequest:
                 case MsgType.FullServerResponse:
                 case MsgType.FrontEndResultServer:
                 case MsgType.AudioOnlyClient:
                 case MsgType.AudioOnlyServer:
-                    if (MsgTypeFlag == MsgTypeFlagBits.PositiveSeq || MsgTypeFlag == MsgTypeFlagBits.NegativeSeq)
+                    if (this.MsgTypeFlag == MsgTypeFlagBits.PositiveSeq || this.MsgTypeFlag == MsgTypeFlagBits.NegativeSeq)
                     {
                         var seqBytes = new byte[4];
-                        BinaryPrimitives.WriteInt32BigEndian(seqBytes, Sequence);
+                        BinaryPrimitives.WriteInt32BigEndian(seqBytes, this.Sequence);
                         stream.Write(seqBytes, 0, 4);
                     }
                     break;
 
                 case MsgType.Error:
                     var errorBytes = new byte[4];
-                    BinaryPrimitives.WriteUInt32BigEndian(errorBytes, ErrorCode);
+                    BinaryPrimitives.WriteUInt32BigEndian(errorBytes, this.ErrorCode);
                     stream.Write(errorBytes, 0, 4);
                     break;
             }
 
             // Write payload with length prefix
-            WritePayload(stream);
+            this.WritePayload(stream);
 
             return stream.ToArray();
         }
@@ -152,7 +152,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
         private void WriteSessionId(MemoryStream stream)
         {
             // Skip session ID for connection events
-            switch (EventType)
+            switch (this.EventType)
             {
                 case EventType.StartConnection:
                 case EventType.FinishConnection:
@@ -161,7 +161,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
                     return;
             }
 
-            var sessionBytes = string.IsNullOrWhiteSpace(SessionId) ? Array.Empty<byte>() : Encoding.UTF8.GetBytes(SessionId!);
+            var sessionBytes = string.IsNullOrWhiteSpace(this.SessionId) ? Array.Empty<byte>() : Encoding.UTF8.GetBytes(this.SessionId!);
             var lenBytes = new byte[4];
             BinaryPrimitives.WriteUInt32BigEndian(lenBytes, (uint)sessionBytes.Length);
             stream.Write(lenBytes, 0, 4);
@@ -173,7 +173,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
 
         private void WritePayload(MemoryStream stream)
         {
-            var payloadBytes = Payload ?? Array.Empty<byte>();
+            var payloadBytes = this.Payload ?? Array.Empty<byte>();
             var lenBytes = new byte[4];
             BinaryPrimitives.WriteUInt32BigEndian(lenBytes, (uint)payloadBytes.Length);
             stream.Write(lenBytes, 0, 4);
@@ -190,19 +190,19 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
         {
             // Read header bytes
             int header1 = stream.ReadByte();
-            Version = (VersionBits)(header1 >> 4);
-            HeaderSize = (HeaderSizeBits)(header1 & 0x0F);
+            this.Version = (VersionBits)(header1 >> 4);
+            this.HeaderSize = (HeaderSizeBits)(header1 & 0x0F);
 
             int header2 = stream.ReadByte();
-            MsgType = (MsgType)(header2 >> 4);
-            MsgTypeFlag = (MsgTypeFlagBits)(header2 & 0x0F);
+            this.MsgType = (MsgType)(header2 >> 4);
+            this.MsgTypeFlag = (MsgTypeFlagBits)(header2 & 0x0F);
 
             int header3 = stream.ReadByte();
-            Serialization = (SerializationBits)(header3 >> 4);
-            Compression = (CompressionBits)(header3 & 0x0F);
+            this.Serialization = (SerializationBits)(header3 >> 4);
+            this.Compression = (CompressionBits)(header3 & 0x0F);
 
             // Skip padding bytes
-            int headerSize = 4 * (int)HeaderSize;
+            int headerSize = 4 * (int)this.HeaderSize;
             int paddingSize = headerSize - 3;
             for (int i = 0; i < paddingSize; i++)
             {
@@ -212,44 +212,44 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
             // Read fields in Go readers() order
 
             // First, read sequence or error code based on message type
-            switch (MsgType)
+            switch (this.MsgType)
             {
                 case MsgType.FullClientRequest:
                 case MsgType.FullServerResponse:
                 case MsgType.FrontEndResultServer:
                 case MsgType.AudioOnlyClient:
                 case MsgType.AudioOnlyServer:
-                    if (MsgTypeFlag == MsgTypeFlagBits.PositiveSeq || MsgTypeFlag == MsgTypeFlagBits.NegativeSeq)
+                    if (this.MsgTypeFlag == MsgTypeFlagBits.PositiveSeq || this.MsgTypeFlag == MsgTypeFlagBits.NegativeSeq)
                     {
                         var seqBytes = new byte[4];
                         stream.Read(seqBytes, 0, 4);
-                        Sequence = BinaryPrimitives.ReadInt32BigEndian(seqBytes);
+                        this.Sequence = BinaryPrimitives.ReadInt32BigEndian(seqBytes);
                     }
                     break;
 
                 case MsgType.Error:
                     var errorBytes = new byte[4];
                     stream.Read(errorBytes, 0, 4);
-                    ErrorCode = BinaryPrimitives.ReadUInt32BigEndian(errorBytes);
+                    this.ErrorCode = BinaryPrimitives.ReadUInt32BigEndian(errorBytes);
                     break;
 
                 default:
-                    throw new InvalidDataException($"Unsupported message type: {MsgType}");
+                    throw new InvalidDataException($"Unsupported message type: {this.MsgType}");
             }
 
             // Then, if WithEvent flag is set, read event, session ID, and connect ID
-            if ((MsgTypeFlag & MsgTypeFlagBits.WithEvent) != 0)
+            if ((this.MsgTypeFlag & MsgTypeFlagBits.WithEvent) != 0)
             {
                 var eventBytes = new byte[4];
                 stream.Read(eventBytes, 0, 4);
-                EventType = (EventType)BinaryPrimitives.ReadInt32BigEndian(eventBytes);
+                this.EventType = (EventType)BinaryPrimitives.ReadInt32BigEndian(eventBytes);
 
-                ReadSessionId(stream);
-                ReadConnectId(stream);
+                this.ReadSessionId(stream);
+                this.ReadConnectId(stream);
             }
 
             // Read payload with length prefix
-            ReadPayload(stream);
+            this.ReadPayload(stream);
 
             // Verify no unexpected data remains
             if (stream.Position < stream.Length)
@@ -261,7 +261,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
         private void ReadSessionId(MemoryStream stream)
         {
             // Skip session ID for connection events
-            switch (EventType)
+            switch (this.EventType)
             {
                 case EventType.StartConnection:
                 case EventType.FinishConnection:
@@ -279,14 +279,14 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
             {
                 var sessionBytes = new byte[sessionIdLength];
                 stream.Read(sessionBytes, 0, (int)sessionIdLength);
-                SessionId = Encoding.UTF8.GetString(sessionBytes);
+                this.SessionId = Encoding.UTF8.GetString(sessionBytes);
             }
         }
 
         private void ReadConnectId(MemoryStream stream)
         {
             // Only read connect ID for specific connection events
-            switch (EventType)
+            switch (this.EventType)
             {
                 case EventType.ConnectionStarted:
                 case EventType.ConnectionFailed:
@@ -304,7 +304,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
             {
                 var connectBytes = new byte[connectIdLength];
                 stream.Read(connectBytes, 0, (int)connectIdLength);
-                ConnectId = Encoding.UTF8.GetString(connectBytes);
+                this.ConnectId = Encoding.UTF8.GetString(connectBytes);
             }
         }
 
@@ -316,50 +316,52 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
 
             if (payloadLength > 0)
             {
-                Payload = new byte[payloadLength];
-                stream.Read(Payload, 0, (int)payloadLength);
+                this.Payload = new byte[payloadLength];
+                stream.Read(this.Payload, 0, (int)payloadLength);
             }
             else
             {
-                Payload = Array.Empty<byte>();
+                this.Payload = Array.Empty<byte>();
             }
         }
 
         public override string ToString()
         {
-            switch (MsgType)
+            switch (this.MsgType)
             {
                 case MsgType.AudioOnlyServer:
                 case MsgType.AudioOnlyClient:
-                    if (MsgTypeFlag == MsgTypeFlagBits.PositiveSeq || MsgTypeFlag == MsgTypeFlagBits.NegativeSeq)
+                    if (this.MsgTypeFlag == MsgTypeFlagBits.PositiveSeq || this.MsgTypeFlag == MsgTypeFlagBits.NegativeSeq)
                     {
-                        return $"SessionId: {SessionId}, ConnectId: {ConnectId}, MsgType: {MsgType}, EventType: {EventType}, Sequence: {Sequence}, PayloadSize: {Payload.Length}";
+                        return $"SessionId: {this.SessionId}, ConnectId: {this.ConnectId}, MsgType: {this.MsgType}, EventType: {this.EventType}, Sequence: {this.Sequence}, PayloadSize: {this.Payload.Length}";
                     }
-                    return $"SessionId: {SessionId}, ConnectId: {ConnectId}, MsgType: {MsgType}, EventType: {EventType}, PayloadSize: {Payload.Length}";
+                    return $"SessionId: {this.SessionId}, ConnectId: {this.ConnectId}, MsgType: {this.MsgType}, EventType: {this.EventType}, PayloadSize: {this.Payload.Length}";
 
                 case MsgType.Error:
-                    return $"SessionId: {SessionId}, ConnectId: {ConnectId}, MsgType: {MsgType}, EventType: {EventType}, ErrorCode: {ErrorCode}, Payload: {GetPayloadString()}";
+                    return $"SessionId: {this.SessionId}, ConnectId: {this.ConnectId}, MsgType: {this.MsgType}, EventType: {this.EventType}, ErrorCode: {this.ErrorCode}, Payload: {this.GetPayloadString()}";
 
                 default:
-                    if (MsgTypeFlag == MsgTypeFlagBits.PositiveSeq || MsgTypeFlag == MsgTypeFlagBits.NegativeSeq)
+                    if (this.MsgTypeFlag == MsgTypeFlagBits.PositiveSeq || this.MsgTypeFlag == MsgTypeFlagBits.NegativeSeq)
                     {
-                        return $"SessionId: {SessionId}, ConnectId: {ConnectId}, MsgType: {MsgType}, EventType: {EventType}, Sequence: {Sequence}, Payload: {GetPayloadString()}";
+                        return $"SessionId: {this.SessionId}, ConnectId: {this.ConnectId}, MsgType: {this.MsgType}, EventType: {this.EventType}, Sequence: {this.Sequence}, Payload: {this.GetPayloadString()}";
                     }
-                    return $"SessionId: {SessionId}, ConnectId: {ConnectId}, MsgType: {MsgType}, EventType: {EventType}, Payload: {GetPayloadString()}";
+                    return $"SessionId: {this.SessionId}, ConnectId: {this.ConnectId}, MsgType: {this.MsgType}, EventType: {this.EventType}, Payload: {this.GetPayloadString()}";
             }
         }
 
         private string GetPayloadString()
         {
-            if (Payload == null || Payload.Length == 0)
+            if (this.Payload == null || this.Payload.Length == 0)
+            {
                 return "";
+            }
             try
             {
-                return Encoding.UTF8.GetString(Payload);
+                return Encoding.UTF8.GetString(this.Payload);
             }
             catch
             {
-                return Convert.ToHexString(Payload);
+                return Convert.ToHexString(this.Payload);
             }
         }
     }

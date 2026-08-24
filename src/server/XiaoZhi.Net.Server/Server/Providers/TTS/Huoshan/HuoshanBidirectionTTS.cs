@@ -4,13 +4,13 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Contexts.Huoshan.Enums;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan;
-using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Enums;
 
 namespace XiaoZhi.Net.Server.Providers.TTS
 {

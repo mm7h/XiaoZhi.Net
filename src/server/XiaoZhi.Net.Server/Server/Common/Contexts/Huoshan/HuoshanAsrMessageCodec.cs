@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using System.Buffers.Binary;
 using System.IO;
 using System.IO.Compression;
 using System.Text.Json.Nodes;
-using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Enums;
+using XiaoZhi.Net.Server.Common.Contexts.Huoshan.Enums;
 
-namespace XiaoZhi.Net.Server.Providers.ASR.Huoshan.Protocols
+namespace XiaoZhi.Net.Server.Common.Contexts.Huoshan
 {
     /// <summary>
     /// Codec for the V3 SAUC WebSocket framing. It deliberately does not use the
@@ -132,16 +132,5 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Huoshan.Protocols
                 throw new InvalidDataException("The Huoshan ASR response is truncated.");
             }
         }
-    }
-
-    internal sealed record HuoshanAsrResponse(
-        MsgType MessageType,
-        byte Flags,
-        int Sequence,
-        int EventType,
-        int ErrorCode,
-        JsonNode? Payload)
-    {
-        public bool IsLastPackage => (this.Flags & 0b0010) != 0;
     }
 }

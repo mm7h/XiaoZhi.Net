@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using SherpaOnnx;
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -8,14 +6,16 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using SherpaOnnx;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
-using XiaoZhi.Net.Server.Providers.ASR.Contexts;
 using XiaoZhi.Net.Server.Media.Abstractions;
-using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
+using XiaoZhi.Net.Server.Providers.ASR.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 {

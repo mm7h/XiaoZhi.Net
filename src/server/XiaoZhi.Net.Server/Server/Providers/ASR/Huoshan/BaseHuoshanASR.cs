@@ -1,16 +1,18 @@
-using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.WebSockets;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Contexts.Huoshan;
+using XiaoZhi.Net.Server.Common.Contexts.Huoshan.Enums;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Protocol.WebSocket;
-using XiaoZhi.Net.Server.Providers.ASR.Huoshan.Protocols;
+using XiaoZhi.Net.Server.Providers.ASR.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.ASR.Huoshan
 {

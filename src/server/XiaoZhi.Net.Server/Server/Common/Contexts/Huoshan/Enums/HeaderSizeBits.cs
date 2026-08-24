@@ -1,4 +1,4 @@
-﻿namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Enums
+﻿namespace XiaoZhi.Net.Server.Common.Contexts.Huoshan.Enums
 {
     /// <summary>
     /// Header size bits defines the 4-bit header-size type

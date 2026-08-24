@@ -1,4 +1,4 @@
-namespace XiaoZhi.Net.Server.Providers.ASR
+﻿namespace XiaoZhi.Net.Server.Providers.ASR.Contexts
 {
     /// <summary>
     /// Describes the lifecycle operation of a streaming ASR utterance.

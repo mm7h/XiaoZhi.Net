@@ -53,4 +53,8 @@
       <ProjectReference Include="..\media\XiaoZhi.Net.Server.Media\XiaoZhi.Net.Server.Media.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Server\Providers\TTS\Huoshan\Protocols\" />
+    </ItemGroup>
+
 </Project>

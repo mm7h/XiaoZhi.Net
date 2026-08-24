@@ -1,4 +1,4 @@
-﻿namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Enums
+﻿namespace XiaoZhi.Net.Server.Common.Contexts.Huoshan.Enums
 {
     /// <summary>
     /// Defines the event type which determines the event of the message.

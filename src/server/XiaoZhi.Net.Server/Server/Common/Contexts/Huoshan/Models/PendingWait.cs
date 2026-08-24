@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models
+namespace XiaoZhi.Net.Server.Common.Contexts.Huoshan.Models
 {
     internal class PendingWait
     {

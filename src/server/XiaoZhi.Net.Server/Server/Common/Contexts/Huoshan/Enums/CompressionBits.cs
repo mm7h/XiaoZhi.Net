@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Enums
+﻿namespace XiaoZhi.Net.Server.Common.Contexts.Huoshan.Enums
 {
     /// <summary>
     /// Compression bits defines the 4-bit compression method type
