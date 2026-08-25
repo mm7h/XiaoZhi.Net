@@ -1,8 +1,10 @@
-﻿using Concentus;
-using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Concentus;
+using Concentus.Structs;
+using Microsoft.Extensions.Logging;
 using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.I18n;
 
@@ -43,17 +45,28 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
             }
         }
 
-        public async Task<float[]> DecodeAsync(byte[] opusData, CancellationToken token)
+        public ValueTask<float[]> DecodeAsync(byte[] opusData, CancellationToken token)
         {
             if (this._decoder == null)
             {
                 throw new ArgumentNullException(Lang.DefaultOpusDecoder_DecodeAsync_NotBuilt);
             }
-            
-            var decoded = new float[this.FrameSize];
-            var decodedSamples = this._decoder.Decode(opusData, decoded, this.FrameSize, false);
+            token.ThrowIfCancellationRequested();
+            int frameSizePerChannel = this.FrameSize / this.Channels;
+            int decodedSamplesPerChannel = opusData.Length == 0
+                ? frameSizePerChannel
+                : OpusPacketInfo.GetNumSamples(opusData, this.SampleRate);
+            float[] decoded = new float[checked(decodedSamplesPerChannel * this.Channels)];
+            int decodedSamples = this._decoder.Decode(opusData, decoded, decodedSamplesPerChannel, false);
+            if (decodedSamples != decodedSamplesPerChannel)
+            {
+                throw new InvalidDataException(string.Format(
+                    Lang.DefaultOpusDecoder_DecodeAsync_SampleCountMismatch,
+                    decodedSamplesPerChannel,
+                    decodedSamples));
+            }
 
-            return await Task.FromResult(decoded);
+            return ValueTask.FromResult(decoded);
         }
 
         public override void Dispose()

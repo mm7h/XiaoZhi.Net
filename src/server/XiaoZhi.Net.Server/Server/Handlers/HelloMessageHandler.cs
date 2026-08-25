@@ -1,6 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System;
+using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Models;
 using XiaoZhi.Net.Server.Helpers;
@@ -12,6 +15,8 @@ namespace XiaoZhi.Net.Server.Handlers
     internal class HelloMessageHandler : BaseHandler
     {
         private const string DEFAULT_AUDIO_FORMAT = "opus";
+        private static readonly int[] s_supportedOpusSampleRates = [8000, 12000, 16000, 24000, 48000];
+        private static readonly int[] s_supportedOpusFrameDurations = [10, 20, 40, 60];
         private readonly ProviderManager _providerManager;
         private readonly HandlerManager _handlerManager;
         private readonly FunctionToolManager _functionToolManager;
@@ -45,7 +50,19 @@ namespace XiaoZhi.Net.Server.Handlers
                 int sampleRate = audioParamsObj["sample_rate"]?.GetValue<int>() ?? 16000;
                 int channels = audioParamsObj["channels"]?.GetValue<int>() ?? 1;
                 int frameDuration = audioParamsObj["frame_duration"]?.GetValue<int>() ?? 60;
+                if (!format.Equals(DEFAULT_AUDIO_FORMAT, StringComparison.OrdinalIgnoreCase)
+                    || channels != GlobalVariables.AudioProcessingChannels
+                    || !s_supportedOpusSampleRates.Contains(sampleRate)
+                    || !s_supportedOpusFrameDurations.Contains(frameDuration))
+                {
+                    this.Logger.LogError(
+                        Lang.HelloMessageHandler_Handle_UnsupportedAudioParameters,
+                        session.DeviceId, format, sampleRate, channels, frameDuration);
+                    return;
+                }
 
+                // AudioSetting describes raw device input and stays available as the
+                // input side of the ingress resampler.
                 session.AudioSetting.Format = format;
                 session.AudioSetting.SampleRate = sampleRate;
                 session.AudioSetting.Channels = channels;

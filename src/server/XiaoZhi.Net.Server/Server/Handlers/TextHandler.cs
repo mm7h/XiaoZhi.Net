@@ -1,9 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.ObjectPool;
-using System;
+﻿using System;
 using System.Text.Json.Nodes;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.ObjectPool;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.I18n;
@@ -17,22 +17,22 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ProviderManager _providerManager;
         private readonly ObjectPool<Workflow<string>> _workflowPool;
 
-        public TextHandler(ProviderManager providerManager, 
+        public TextHandler(ProviderManager providerManager,
             ObjectPool<Workflow<string>> workflowPool,
-            XiaoZhiConfig config, 
+            XiaoZhiConfig config,
             ILogger<TextHandler> logger) : base(config, logger)
         {
             this._providerManager = providerManager;
             this._workflowPool = workflowPool;
         }
-        
+
         public event Action<Session>? OnManualStop;
         public override string HandlerName => nameof(TextHandler);
         public ChannelWriter<Workflow<string>> NextWriter { get; set; } = null!;
 
         public override bool Build(PrivateProvider privateProvider)
         {
-            this.RegisterCancellationToken(); 
+            this.RegisterCancellationToken();
             this.Builded = true;
             return true;
         }
@@ -78,7 +78,7 @@ namespace XiaoZhi.Net.Server.Handlers
                         await Task.Run(() =>
                         {
                             this.HandleMcpAsync(jsonObj);
-                        }).ConfigureAwait(false);
+                        });
 
                         break;
                 }

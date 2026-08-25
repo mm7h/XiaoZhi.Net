@@ -1221,4 +1221,91 @@
   <data name="IoTClient_RegisterIoTTools_KernelNull" xml:space="preserve">
     <value>Kernel尚未準備好處理 IOT 訊息。設備 ID：{DeviceId}。</value>
   </data>
+  <data name="BaseHuoshanASR_Build_ConfigIncomplete" xml:space="preserve">
+    <value>火山引擎 ASR 的 {ModelName} 設定不完整。</value>
+  </data>
+  <data name="BaseHuoshanASR_Build_SegmentDurationInvalid" xml:space="preserve">
+    <value>火山引擎 ASR 的 SegmentDurationMs 必須介於 100 到 1000 毫秒之間。</value>
+  </data>
+  <data name="BaseHuoshanASR_Build_Built" xml:space="preserve">
+    <value>火山引擎 ASR 提供者 {ModelName} 已建置。</value>
+  </data>
+  <data name="BaseHuoshanASR_Build_Failed" xml:space="preserve">
+    <value>無法建置火山引擎 ASR 提供者 {ModelName}。</value>
+  </data>
+  <data name="BaseHuoshanASR_FinishUtterance_WaitForFinalResultFailed" xml:space="preserve">
+    <value>火山引擎 ASR {ModelName} 等待最終結果失敗。</value>
+  </data>
+  <data name="BaseHuoshanASR_AbortSynchronously_Failed" xml:space="preserve">
+    <value>清理期間中止火山引擎 ASR 失敗。</value>
+  </data>
+  <data name="Audio2TextHandler_OnSpeechTextConverted_StaleResult" xml:space="preserve">
+    <value>忽略裝置 {DeviceId} 的過期 ASR 結果：結果輪次 {ResultTurnId}，目前輪次 {CurrentTurnId}。</value>
+  </data>
+  <data name="Audio2TextHandler_ObserveSpeechResult_Failed" xml:space="preserve">
+    <value>處理 ASR 結果失敗。</value>
+  </data>
+  <data name="AudioReceiveHandler_OnVoiceDetected_DispatchFailed" xml:space="preserve">
+    <value>分派裝置 {DeviceId} 的語句音訊失敗。</value>
+  </data>
+  <data name="AudioReceiveHandler_HandleManualStop_DispatchFailed" xml:space="preserve">
+    <value>分派裝置 {DeviceId} 手動擷取的音訊失敗。</value>
+  </data>
+  <data name="AudioReceiveHandler_AbortStreamingUtterance_Failed" xml:space="preserve">
+    <value>中止裝置 {DeviceId} 的串流 ASR 失敗。</value>
+  </data>
+  <data name="AudioReceiveHandler_QueueStreamingOperation_QueueOverflow" xml:space="preserve">
+    <value>裝置 {DeviceId} 的串流 ASR 佇列溢位，正在中止目前語句。</value>
+  </data>
+  <data name="AudioReceiveHandler_SendStreamingOperationSafelyAsync_Failed" xml:space="preserve">
+    <value>裝置 {DeviceId} 的串流 ASR 操作 {Operation} 失敗。</value>
+  </data>
+  <data name="HelloMessageHandler_Handle_UnsupportedAudioParameters" xml:space="preserve">
+    <value>裝置 {DeviceId} 的用戶端音訊參數不支援：format={Format}，sampleRate={SampleRate}，channels={Channels}，frameDuration={FrameDuration}。</value>
+  </data>
+  <data name="ProviderManager_BuildOutputAudioResampler_ResamplingRequired" xml:space="preserve">
+    <value>裝置 {deviceId} 的輸出音訊需要從 {ttsSampleRate} 重取樣到 {deviceSampleRate}。</value>
+  </data>
+  <data name="ProviderManager_BuildOutputAudioResampler_BuildFailed" xml:space="preserve">
+    <value>工作階段 {sessionId} 建置輸出音訊重取樣器失敗。</value>
+  </data>
+  <data name="ProviderManager_BuildInputAudioResampler_ResamplingRequired" xml:space="preserve">
+    <value>裝置 {deviceId} 的用戶端輸入音訊將從 {inputSampleRate} Hz 重取樣到 {outputSampleRate} Hz。</value>
+  </data>
+  <data name="ProviderManager_BuildInputAudioResampler_BuildFailed" xml:space="preserve">
+    <value>工作階段 {sessionId} 建置用戶端輸入音訊重取樣器失敗。</value>
+  </data>
+  <data name="SileroNative_Build_NonCanonicalSampleRate" xml:space="preserve">
+    <value>Silero VAD 必須使用內部 {SampleRate} Hz PCM 格式，但設定的是 {ConfiguredSampleRate} Hz。</value>
+  </data>
+  <data name="BaseSherpaVad_Build_NonCanonicalSampleRate" xml:space="preserve">
+    <value>Sherpa VAD 必須使用內部 {SampleRate} Hz PCM 格式，但設定的是 {ConfiguredSampleRate} Hz。</value>
+  </data>
+  <data name="DefaultOpusDecoder_DecodeAsync_SampleCountMismatch" xml:space="preserve">
+    <value>Opus 解碼輸出樣本數不相符。預期 {0}，實際 {1}。</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_ConfigIncomplete" xml:space="preserve">
+    <value>阿里雲即時 ASR 需要 ApiKey 和受支援的 ModelName。</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_EndpointInvalid" xml:space="preserve">
+    <value>阿里雲即時 ASR 的 Endpoint 必須是絕對 wss URL。</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_UnsupportedRegion" xml:space="preserve">
+    <value>不支援阿里雲即時 ASR 區域 {Region}。請使用 cn-beijing 或 ap-southeast-1。</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_SegmentDurationInvalid" xml:space="preserve">
+    <value>阿里雲即時 ASR 的 SegmentDurationMs 必須介於 20 到 1000 毫秒之間。</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_Built" xml:space="preserve">
+    <value>阿里雲即時 ASR 提供者 {ModelName} 已建置。</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_Failed" xml:space="preserve">
+    <value>無法建置阿里雲即時 ASR 提供者。</value>
+  </data>
+  <data name="AliyunRealtimeASR_FinishUtterance_WaitForFinalResultFailed" xml:space="preserve">
+    <value>阿里雲即時 ASR 等待最終結果失敗。</value>
+  </data>
+  <data name="AliyunRealtimeASR_AbortSynchronously_Failed" xml:space="preserve">
+    <value>清理期間中止阿里雲即時 ASR 失敗。</value>
+  </data>
 </root>

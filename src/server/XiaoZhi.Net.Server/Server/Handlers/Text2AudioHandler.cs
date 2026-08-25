@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.ObjectPool;
-using System;
+﻿using System;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.ObjectPool;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Enums;
@@ -273,9 +273,9 @@ namespace XiaoZhi.Net.Server.Handlers
 
             try
             {
-                if (session.PrivateProvider.AudioResampler is not null && audioData.Length > 0)
+                if (session.PrivateProvider.OutputAudioResampler is not null && audioData.Length > 0)
                 {
-                    (float[] resampledAudioData, _) = await session.PrivateProvider.AudioResampler.ResampleAsync(audioData, this.HandlerToken);
+                    (float[] resampledAudioData, _) = await session.PrivateProvider.OutputAudioResampler.ResampleAsync(audioData, this.HandlerToken);
                     outAudioSegment.Initialize(audioType: AudioType.TTS, audioData: resampledAudioData, isFirstFrame: isFirstFrame, isLastFrame: isLastFrame);
                 }
                 else

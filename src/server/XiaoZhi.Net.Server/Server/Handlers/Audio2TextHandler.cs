@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.ObjectPool;
-using System;
+﻿using System;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.ObjectPool;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
@@ -113,7 +113,12 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        public async void OnSpeechTextConverted(bool success, string speechText)
+        public void OnSpeechTextConverted(long turnId, bool success, string speechText)
+        {
+            this.ObserveSpeechResult(this.OnSpeechTextConvertedAsync(turnId, success, speechText));
+        }
+
+        private async Task OnSpeechTextConvertedAsync(long turnId, bool success, string speechText)
         {
             if (this.HandlerToken.IsCancellationRequested)
             {
@@ -123,6 +128,12 @@ namespace XiaoZhi.Net.Server.Handlers
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
             {
+                return;
+            }
+            if (turnId != session.TurnId)
+            {
+                this.Logger.LogDebug(Lang.Audio2TextHandler_OnSpeechTextConverted_StaleResult,
+                    session.DeviceId, turnId, session.TurnId);
                 return;
             }
 
@@ -152,6 +163,13 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 this._stringWorkflowPool.Return(nextWorkflow);
             }
+        }
+
+        private void ObserveSpeechResult(Task task)
+        {
+            _ = task.ContinueWith(
+                completed => this.Logger.LogError(completed.Exception, Lang.Audio2TextHandler_ObserveSpeechResult_Failed),
+                TaskContinuationOptions.OnlyOnFaulted);
         }
 
         public override void Dispose()

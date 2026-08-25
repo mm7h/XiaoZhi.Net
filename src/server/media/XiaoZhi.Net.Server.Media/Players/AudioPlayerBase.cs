@@ -388,7 +388,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
 
         if (oldDecoder is not null)
         {
-            await this.DisposeDecoderAsync(oldDecoder).ConfigureAwait(false);
+            await this.DisposeDecoderAsync(oldDecoder);
         }
 
         IAudioDecoder? newDecoder = null;
@@ -400,7 +400,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         try
         {
             this.Logger.LogDebug("Loading audio to the player.");
-            newDecoder = await this._decodeScheduler.RunAsync(decoderFactory, linkedCancellationSource.Token).ConfigureAwait(false);
+            newDecoder = await this._decodeScheduler.RunAsync(decoderFactory, linkedCancellationSource.Token);
 
             if (!alreadyHasSlot)
             {
@@ -451,7 +451,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         {
             if (newDecoder is not null)
             {
-                await this.DisposeDecoderAsync(newDecoder).ConfigureAwait(false);
+                await this.DisposeDecoderAsync(newDecoder);
             }
 
             bool releaseSlot = false;
@@ -658,7 +658,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
                 }
 
                 long pauseStartTimestamp = TimeProvider.System.GetTimestamp();
-                await context.WaitWhilePausedAsync(context.Token).ConfigureAwait(false);
+                await context.WaitWhilePausedAsync(context.Token);
                 totalPauseTicks += TimeProvider.System.GetTimestamp() - pauseStartTimestamp;
                 isFirstAudioFrame = true;
                 lastEventSent = false;
@@ -675,7 +675,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
             TimeSpan delay = TimeProvider.System.GetElapsedTime(TimeProvider.System.GetTimestamp(), targetTimestamp);
             if (delay > TimeSpan.Zero)
             {
-                await Task.Delay(delay, context.Token).ConfigureAwait(false);
+                await Task.Delay(delay, context.Token);
             }
 
             if (context.IsPaused || playbackFrame.Generation != context.Generation)
@@ -719,7 +719,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
                         this._decodeScheduler.Schedule(context, AudioDecodeWorkPriority.Refill);
                     }
 
-                    if (!await context.Frames.Reader.WaitToReadAsync(context.Token).ConfigureAwait(false))
+                    if (!await context.Frames.Reader.WaitToReadAsync(context.Token))
                     {
                         break;
                     }
@@ -744,7 +744,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
 
                 if (pendingFrame is not null && pendingFrame.Generation == context.Generation)
                 {
-                    await ProcessFrameAsync(pendingFrame, false).ConfigureAwait(false);
+                    await ProcessFrameAsync(pendingFrame, false);
                 }
 
                 pendingFrame = playbackFrame;
@@ -752,7 +752,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
 
             if (pendingFrame is not null && pendingFrame.Generation == context.Generation)
             {
-                await ProcessFrameAsync(pendingFrame, true).ConfigureAwait(false);
+                await ProcessFrameAsync(pendingFrame, true);
             }
         }
         finally
@@ -773,8 +773,8 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
 
         try
         {
-            await context.EngineTask.ConfigureAwait(false);
-            await context.DecoderIdleTask.ConfigureAwait(false);
+            await context.EngineTask;
+            await context.DecoderIdleTask;
         }
         catch (OperationCanceledException) when (context.IsCancellationRequested)
         {
@@ -790,7 +790,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
 
             try
             {
-                await context.DecoderIdleTask.ConfigureAwait(false);
+                await context.DecoderIdleTask;
             }
             catch (OperationCanceledException)
             {
@@ -843,7 +843,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
 
             if (decoderToDispose is not null)
             {
-                await this.DisposeDecoderAsync(decoderToDispose).ConfigureAwait(false);
+                await this.DisposeDecoderAsync(decoderToDispose);
             }
 
             if (releaseContextSlot)
@@ -867,8 +867,8 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
             position = this._recoveryPosition;
         }
 
-        await this.EnsureDecoderRecoveredAsync(position, cancellationToken).ConfigureAwait(false);
-        await this.PlayAsync(cancellationToken).ConfigureAwait(false);
+        await this.EnsureDecoderRecoveredAsync(position, cancellationToken);
+        await this.PlayAsync(cancellationToken);
     }
 
     private async Task EnsureDecoderRecoveredAsync(TimeSpan position, CancellationToken cancellationToken)
@@ -886,7 +886,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
             recoveryTask = this._recoveryTask ??= this.RecoverDecoderAsync(position, cancellationToken);
         }
 
-        await recoveryTask.ConfigureAwait(false);
+        await recoveryTask;
     }
 
     private async Task RecoverDecoderAsync(TimeSpan position, CancellationToken cancellationToken)
@@ -923,7 +923,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
                         throw;
                     }
                 },
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken);
 
             lock (this._syncRoot)
             {
@@ -938,7 +938,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         {
             if (decoder is not null)
             {
-                await this.DisposeDecoderAsync(decoder).ConfigureAwait(false);
+                await this.DisposeDecoderAsync(decoder);
             }
 
             lock (this._syncRoot)
@@ -964,7 +964,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
     {
         try
         {
-            await request.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await request.Task.WaitAsync(cancellationToken);
         }
         finally
         {
@@ -1108,7 +1108,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
     {
         try
         {
-            await this._decodeScheduler.RunCleanupAsync(_ => decoder.Dispose()).ConfigureAwait(false);
+            await this._decodeScheduler.RunCleanupAsync(_ => decoder.Dispose());
         }
         catch (ObjectDisposedException)
         {

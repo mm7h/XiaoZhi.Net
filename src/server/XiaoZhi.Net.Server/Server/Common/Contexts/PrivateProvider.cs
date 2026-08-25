@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.AI;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.AI;
 using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Providers;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
@@ -38,7 +38,10 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public IAsr? Asr { get; private set; }
         public ILlm? Llm { get; private set; }
         public ITts? Tts { get; private set; }
-        public IAudioResampler? AudioResampler { get; private set; }
+        /// <summary>Resamples client input PCM to the internal VAD/ASR format.</summary>
+        public IAudioResampler? InputAudioResampler { get; private set; }
+        /// <summary>Resamples server output PCM to the device playback format.</summary>
+        public IAudioResampler? OutputAudioResampler { get; private set; }
         public IAudioEncoder? AudioEncoder { get; private set; }
         public List<AITool> FunctionTools { get; private set; }
 
@@ -115,9 +118,13 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         {
             this.Tts = tts;
         }
-        public void SetAudioResampler(IAudioResampler audioResampler)
+        public void SetOutputAudioResampler(IAudioResampler audioResampler)
         {
-            this.AudioResampler = audioResampler;
+            this.OutputAudioResampler = audioResampler;
+        }
+        public void SetInputAudioResampler(IAudioResampler audioResampler)
+        {
+            this.InputAudioResampler = audioResampler;
         }
         public void SetAudioEncoder(IAudioEncoder audioEncoder)
         {
@@ -185,7 +192,8 @@ namespace XiaoZhi.Net.Server.Common.Contexts
                 this.Tts.Dispose();
             }
 
-            this.AudioResampler?.Dispose();
+            this.InputAudioResampler?.Dispose();
+            this.OutputAudioResampler?.Dispose();
             this.AudioEncoder?.Dispose();
             this._iotClient?.Dispose();
             this._mcpClient?.Dispose();

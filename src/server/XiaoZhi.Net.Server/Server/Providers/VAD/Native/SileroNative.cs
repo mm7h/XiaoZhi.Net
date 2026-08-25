@@ -1,9 +1,10 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.VAD.Contexts;
@@ -21,7 +22,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
         private readonly IServiceProvider _serviceProvider;
 
         private IVadOnnxModel? _vadOnnxModel;
-        private int _sampleRate = 16000;
+        private int _sampleRate = GlobalVariables.AudioProcessingSampleRate;
         private int _closeConnectionNoVoiceTime = 120;
 
         private float _silenceThresholdSecond;
@@ -29,9 +30,6 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
         private float _thresholdLow;
 
         private const int FRAME_WINDOW_THRESHOLD = 5;
-        private const int SAMPLING_RATE_8K = 8000;
-        private const int SAMPLING_RATE_16K = 16000;
-
         private SileroModelState? _sileroModelState;
         private VadSessionState? _vadSessionState;
 
@@ -51,20 +49,22 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
         {
             try
             {
-                this._sampleRate = modelSetting.Config.GetConfigValueOrDefault("SampleRate", SAMPLING_RATE_16K);
-
-                if (this._sampleRate != SAMPLING_RATE_8K && this._sampleRate != SAMPLING_RATE_16K)
+                int configuredSampleRate = modelSetting.Config.GetConfigValueOrDefault("SampleRate", GlobalVariables.AudioProcessingSampleRate);
+                if (configuredSampleRate != GlobalVariables.AudioProcessingSampleRate)
                 {
-                    this.Logger.LogError(Lang.SileroNative_Build_UnsupportedSampleRate, this._sampleRate);
+                    this.Logger.LogError(
+                        Lang.SileroNative_Build_NonCanonicalSampleRate,
+                        GlobalVariables.AudioProcessingSampleRate, configuredSampleRate);
                     return false;
                 }
+                this._sampleRate = GlobalVariables.AudioProcessingSampleRate;
 
                 this._silenceThresholdSecond = modelSetting.Config.GetConfigValueOrDefault("SilenceThresholdSecond", 0.7f);
                 this._threshold = modelSetting.Config.GetConfigValueOrDefault("Threshold", 0.5f);
                 this._thresholdLow = modelSetting.Config.GetConfigValueOrDefault("ThresholdLow", 0.2f);
                 this._closeConnectionNoVoiceTime = modelSetting.Config.GetConfigValueOrDefault("CloseConnectionNoVoiceTime", 120);
 
-                this.FrameSize = this._sampleRate == SAMPLING_RATE_16K ? 512 : 256;
+                this.FrameSize = 512;
 
                 this._vadOnnxModel = this._serviceProvider.GetRequiredService<IVadOnnxModel>();
 
@@ -108,11 +108,11 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
 
             try
             {
-                int analyzedIndex = this._vadSessionState.AnalyzedIndex;
-
-                while (audioData.GetSlidingFrame(this.FrameSize, ref analyzedIndex, out float[] chunk))
+                this._vadSessionState.AppendAudio(audioData);
+                while (this._vadSessionState.TryDequeueFrame(this.FrameSize, out float[] chunk))
                 {
                     token.ThrowIfCancellationRequested();
+                    this._vadSessionState.MarkFrameProcessed(chunk.Length);
 
                     if (chunk.Length == 0)
                     {
@@ -163,7 +163,8 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
                     }
                 }
 
-                if (!this._vadSessionState.HaveVoice && analyzedIndex > this.FrameSize * 50)
+                if (!this._vadSessionState.HaveVoice
+                    && this._vadSessionState.ProcessedSamplesSinceReset > this.FrameSize * 50)
                 {
                     this._vadEventCallback?.OnVoiceSilence();
                 }
@@ -183,10 +184,6 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
             {
                 this.Logger.LogError(ex, Lang.SileroNative_AnalysisVoiceAsync_UnexpectedError, this.ProviderType, deviceId);
                 return Task.CompletedTask;
-            }
-            finally
-            {
-                this._vadSessionState.AnalyzedIndex = 0;
             }
         }
 

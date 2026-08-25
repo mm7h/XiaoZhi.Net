@@ -1,5 +1,5 @@
-﻿using SherpaOnnx;
-using System.Threading;
+﻿using System.Threading;
+using SherpaOnnx;
 
 namespace XiaoZhi.Net.Server.Providers.ASR.Contexts
 {
@@ -9,6 +9,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Contexts
         OfflineStream Stream,
         int SampleRate,
         int FrameSize,
+        long TurnId,
         IAsrEventCallback Callback,
         CancellationToken Token
     );

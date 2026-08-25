@@ -132,7 +132,7 @@ namespace XiaoZhi.Net.Sample.Server.RAG
                 throw new FileNotFoundException($"No documnets in path {rootDirectory}.");
             }
 
-            IReadOnlyList<KnowledgeImportResult> results = await knowledgeImportPipeline.ImportDirectoryAsync(embeddingGenerator, knowledgeBaseId, rootDirectory).ConfigureAwait(false);
+            IReadOnlyList<KnowledgeImportResult> results = await knowledgeImportPipeline.ImportDirectoryAsync(embeddingGenerator, knowledgeBaseId, rootDirectory);
 
             foreach (KnowledgeImportResult result in results)
             {

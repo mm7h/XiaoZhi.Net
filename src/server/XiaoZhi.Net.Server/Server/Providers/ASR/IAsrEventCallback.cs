@@ -2,6 +2,6 @@
 {
     internal interface IAsrEventCallback
     {
-        void OnSpeechTextConverted(bool success, string text);
+        void OnSpeechTextConverted(long turnId, bool success, string text);
     }
 }

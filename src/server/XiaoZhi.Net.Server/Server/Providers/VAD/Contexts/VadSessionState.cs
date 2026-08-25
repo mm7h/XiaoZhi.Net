@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace XiaoZhi.Net.Server.Providers.VAD.Contexts
 {
@@ -15,17 +15,13 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Contexts
 
         public VadSessionState(int voiceWindowSize)
         {
-            VoiceWindow = new Queue<bool>(voiceWindowSize);
-            _voiceWindowSize = voiceWindowSize;
+            this.VoiceWindow = new Queue<bool>(voiceWindowSize);
+            this._voiceWindowSize = voiceWindowSize;
         }
 
         private readonly int _voiceWindowSize;
 
-        /// <summary>
-        /// Index of the next sample to analyze in the audio buffer.
-        /// This allows VAD to analyze without removing data from the buffer.
-        /// </summary>
-        public int AnalyzedIndex { get; set; }
+        private readonly List<float> _pendingAudio = [];
 
         /// <summary>
         /// Latest time when voice was detected (Unix timestamp in milliseconds).
@@ -46,6 +42,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Contexts
         /// Indicates whether voice has stopped after being detected.
         /// </summary>
         public bool VoiceStop { get; set; }
+        public int ProcessedSamplesSinceReset { get; private set; }
 
         /// <summary>
         /// Sliding window to track voice activity across multiple frames.
@@ -53,15 +50,45 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Contexts
         public Queue<bool> VoiceWindow { get; private set; }
 
         /// <summary>
+        /// Appends newly decoded canonical PCM. Each frame is consumed once,
+        /// independently of the utterance buffer retained by AudioPacket.
+        /// </summary>
+        public void AppendAudio(float[] audioData)
+        {
+            if (audioData is { Length: > 0 })
+            {
+                this._pendingAudio.AddRange(audioData);
+            }
+        }
+
+        public bool TryDequeueFrame(int frameSize, out float[] frame)
+        {
+            if (this._pendingAudio.Count < frameSize)
+            {
+                frame = [];
+                return false;
+            }
+
+            frame = this._pendingAudio.GetRange(0, frameSize).ToArray();
+            this._pendingAudio.RemoveRange(0, frameSize);
+            return true;
+        }
+
+        public void MarkFrameProcessed(int sampleCount)
+        {
+            this.ProcessedSamplesSinceReset += sampleCount;
+        }
+
+        /// <summary>
         /// Adds a voice detection result to the sliding window.
         /// </summary>
         public void AddToVoiceWindow(bool isVoice)
         {
-            if (VoiceWindow.Count >= _voiceWindowSize)
+            if (this.VoiceWindow.Count >= this._voiceWindowSize)
             {
-                VoiceWindow.Dequeue();
+                this.VoiceWindow.Dequeue();
             }
-            VoiceWindow.Enqueue(isVoice);
+            this.VoiceWindow.Enqueue(isVoice);
         }
 
         /// <summary>
@@ -70,9 +97,12 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Contexts
         public int CountVoiceInWindow()
         {
             int count = 0;
-            foreach (bool isVoice in VoiceWindow)
+            foreach (bool isVoice in this.VoiceWindow)
             {
-                if (isVoice) count++;
+                if (isVoice)
+                {
+                    count++;
+                }
             }
             return count;
         }
@@ -82,12 +112,13 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Contexts
         /// </summary>
         public void Reset()
         {
-            HaveVoice = false;
-            HaveVoiceLatestTime = 0;
-            AnalyzedIndex = 0;
-            LastIsVoice = false;
-            VoiceStop = false;
-            VoiceWindow.Clear();
+            this.HaveVoice = false;
+            this.HaveVoiceLatestTime = 0;
+            this.LastIsVoice = false;
+            this.VoiceStop = false;
+            this.ProcessedSamplesSinceReset = 0;
+            this.VoiceWindow.Clear();
+            this._pendingAudio.Clear();
         }
     }
 }

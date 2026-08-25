@@ -10,52 +10,59 @@ using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Protocol.WebSocket;
 using XiaoZhi.Net.Server.Providers.ASR.Contexts;
 
-namespace XiaoZhi.Net.Server.Providers.ASR.Huoshan
+namespace XiaoZhi.Net.Server.Providers.ASR.Aliyun
 {
     /// <summary>
-    /// 协调当前活动的火山 ASR 语句。协议和每轮状态由
-    /// <see cref="HuoshanAsrUtteranceSession"/> 管理，使 Provider 能在连续语句间
-    /// 安全复用同一个 WebSocket 包装对象。
+    /// 协调当前活动的 DashScope ASR 任务。每轮任务由
+    /// <see cref="AliyunRealtimeAsrUtteranceSession"/> 表示；旧连接关闭后，
+    /// WebSocket 包装对象仍可供下一轮语句使用。
     /// </summary>
-    internal abstract class BaseHuoshanASR<TLogger> : BaseProvider<TLogger, ModelSetting>, IAsr
+    internal sealed class AliyunRealtimeASR : BaseProvider<AliyunRealtimeASR, ModelSetting>, IAsr
     {
         private readonly SemaphoreSlim _streamLock = new(1, 1);
         private readonly WebSocketClient _webSocketClient = new(null);
 
         private IAsrEventCallback? _asrEventCallback;
-        private HuoshanAsrOptions? _options;
-        private HuoshanAsrUtteranceSession? _activeSession;
+        private AliyunRealtimeAsrOptions? _options;
+        private AliyunRealtimeAsrUtteranceSession? _activeSession;
 
-        protected BaseHuoshanASR(ILogger<TLogger> logger) : base(logger)
+        public AliyunRealtimeASR(ILogger<AliyunRealtimeASR> logger) : base(logger)
         {
         }
 
         public override string ProviderType => "asr";
+        public override string ModelName => nameof(AliyunRealtimeASR);
         public bool IsStreaming => true;
-        protected abstract string ServiceEndpoint { get; }
-        protected virtual bool SupportsLanguage => false;
 
         public override bool Build(ModelSetting modelSetting)
         {
             try
             {
                 string apiKey = modelSetting.Config.GetConfigValueOrDefault("ApiKey", string.Empty);
-                string appId = modelSetting.Config.GetConfigValueOrDefault("AppId", string.Empty);
-                string accessToken = modelSetting.Config.GetConfigValueOrDefault("AccessToken", string.Empty);
-                string resourceId = modelSetting.Config.GetConfigValueOrDefault("ResourceId", string.Empty);
-                bool hasApiKey = !string.IsNullOrWhiteSpace(apiKey);
-                bool hasLegacyCredentials = !string.IsNullOrWhiteSpace(appId)
-                    && !string.IsNullOrWhiteSpace(accessToken);
-                if (string.IsNullOrWhiteSpace(resourceId) || (!hasApiKey && !hasLegacyCredentials))
+                string modelName = modelSetting.Config.GetConfigValueOrDefault(
+                    "ModelName",
+                    "qwen-audio-3.0-asr-flash-streaming");
+                if (string.IsNullOrWhiteSpace(apiKey)
+                    || (!modelName.Equals("qwen-audio-3.0-asr-flash-streaming", StringComparison.OrdinalIgnoreCase)
+                        && !modelName.StartsWith("fun-asr-realtime", StringComparison.OrdinalIgnoreCase)))
                 {
-                    this.Logger.LogWarning(Lang.BaseHuoshanASR_Build_ConfigIncomplete, this.ModelName);
+                    this.Logger.LogWarning(Lang.AliyunRealtimeASR_Build_ConfigIncomplete);
                     return false;
                 }
 
-                int segmentDurationMs = modelSetting.Config.GetConfigValueOrDefault("SegmentDurationMs", 200);
-                if (segmentDurationMs is < 100 or > 1000)
+                string serviceEndpoint = this.ResolveEndpoint(
+                    modelSetting.Config.GetConfigValueOrDefault<string?>("Endpoint"),
+                    modelSetting.Config.GetConfigValueOrDefault("Region", "cn-beijing"),
+                    modelSetting.Config.GetConfigValueOrDefault<string?>("WorkspaceId"));
+                if (string.IsNullOrWhiteSpace(serviceEndpoint))
                 {
-                    this.Logger.LogWarning(Lang.BaseHuoshanASR_Build_SegmentDurationInvalid);
+                    return false;
+                }
+
+                int segmentDurationMs = modelSetting.Config.GetConfigValueOrDefault("SegmentDurationMs", 100);
+                if (segmentDurationMs is < 20 or > 1000)
+                {
+                    this.Logger.LogWarning(Lang.AliyunRealtimeASR_Build_SegmentDurationInvalid);
                     return false;
                 }
 
@@ -63,28 +70,30 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Huoshan
                     * GlobalVariables.AudioProcessingChannels
                     * (GlobalVariables.AudioProcessingBitsPerSample / 8)
                     * segmentDurationMs / 1000;
-                this._options = new HuoshanAsrOptions(
-                    this.ServiceEndpoint,
+                string[] languageHints = (modelSetting.Config.GetConfigValueOrDefault<string?>("LanguageHints")
+                    ?? string.Empty)
+                    .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                this._options = new AliyunRealtimeAsrOptions(
+                    serviceEndpoint,
                     apiKey,
-                    appId,
-                    accessToken,
-                    resourceId,
-                    modelSetting.Config.GetConfigValueOrDefault("AsrModelName", "bigmodel"),
-                    this.SupportsLanguage
-                        ? modelSetting.Config.GetConfigValueOrDefault<string?>("Language")
-                        : null,
+                    modelName,
+                    languageHints,
                     packetSizeBytes,
-                    Math.Clamp(modelSetting.Config.GetConfigValueOrDefault("ResponseTimeoutSeconds", 15), 1, 60),
-                    modelSetting.Config.GetConfigValueOrDefault("EnableItn", true),
-                    modelSetting.Config.GetConfigValueOrDefault("EnablePunc", true),
-                    modelSetting.Config.GetConfigValueOrDefault("EnableDdc", true));
+                    Math.Clamp(
+                        modelSetting.Config.GetConfigValueOrDefault("ConnectionTimeoutSeconds", 5),
+                        1,
+                        60),
+                    Math.Clamp(
+                        modelSetting.Config.GetConfigValueOrDefault("ResponseTimeoutSeconds", 15),
+                        1,
+                        60));
 
-                this.Logger.LogInformation(Lang.BaseHuoshanASR_Build_Built, this.ModelName);
+                this.Logger.LogInformation(Lang.AliyunRealtimeASR_Build_Built, modelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, Lang.BaseHuoshanASR_Build_Failed, this.ModelName);
+                this.Logger.LogError(ex, Lang.AliyunRealtimeASR_Build_Failed);
                 return false;
             }
         }
@@ -133,7 +142,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Huoshan
         {
             if (!this.CheckDeviceRegistered(workflow.DeviceId, workflow.SessionId))
             {
-                throw new InvalidOperationException("The Huoshan ASR provider is not registered for this session.");
+                throw new InvalidOperationException("The Aliyun ASR provider is not registered for this session.");
             }
 
             return operation switch
@@ -156,12 +165,11 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Huoshan
                     return;
                 }
 
-                HuoshanAsrOptions options = this._options
-                    ?? throw new InvalidOperationException("The Huoshan ASR provider has not been built.");
-                var session = new HuoshanAsrUtteranceSession(
+                AliyunRealtimeAsrOptions options = this._options
+                    ?? throw new InvalidOperationException("The Aliyun ASR provider has not been built.");
+                var session = new AliyunRealtimeAsrUtteranceSession(
                     this._webSocketClient,
                     options,
-                    this.DeviceId,
                     turnId);
                 this._activeSession = session;
                 try
@@ -200,7 +208,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Huoshan
 
         private async Task FinishUtteranceAsync(CancellationToken token)
         {
-            HuoshanAsrUtteranceSession? session;
+            AliyunRealtimeAsrUtteranceSession? session;
             Task<string?>? finishTask;
             await this._streamLock.WaitAsync(token);
             try
@@ -230,10 +238,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Huoshan
                 failed = !session.IsAborted;
                 if (failed)
                 {
-                    this.Logger.LogError(
-                        ex,
-                        Lang.BaseHuoshanASR_FinishUtterance_WaitForFinalResultFailed,
-                        this.ModelName);
+                    this.Logger.LogError(ex, Lang.AliyunRealtimeASR_FinishUtterance_WaitForFinalResultFailed);
                 }
             }
             finally
@@ -268,7 +273,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Huoshan
             await this._streamLock.WaitAsync();
             try
             {
-                HuoshanAsrUtteranceSession? session = this._activeSession;
+                AliyunRealtimeAsrUtteranceSession? session = this._activeSession;
                 this._activeSession = null;
                 if (session is not null)
                 {
@@ -282,6 +287,38 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Huoshan
             }
         }
 
+        private string ResolveEndpoint(string? endpoint, string region, string? workspaceId)
+        {
+            if (!string.IsNullOrWhiteSpace(endpoint))
+            {
+                if (Uri.TryCreate(endpoint, UriKind.Absolute, out Uri? uri)
+                    && uri.Scheme == Uri.UriSchemeWss)
+                {
+                    return uri.ToString();
+                }
+
+                this.Logger.LogWarning(Lang.AliyunRealtimeASR_Build_EndpointInvalid);
+                return string.Empty;
+            }
+
+            return region.ToLowerInvariant() switch
+            {
+                "cn-beijing" => string.IsNullOrWhiteSpace(workspaceId)
+                    ? "wss://dashscope.aliyuncs.com/api-ws/v1/inference"
+                    : $"wss://{workspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/inference",
+                "ap-southeast-1" => string.IsNullOrWhiteSpace(workspaceId)
+                    ? "wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference"
+                    : $"wss://{workspaceId}.ap-southeast-1.maas.aliyuncs.com/api-ws/v1/inference",
+                _ => this.LogUnsupportedRegion(region)
+            };
+        }
+
+        private string LogUnsupportedRegion(string region)
+        {
+            this.Logger.LogWarning(Lang.AliyunRealtimeASR_Build_UnsupportedRegion, region);
+            return string.Empty;
+        }
+
         private void AbortSynchronously()
         {
             try
@@ -290,7 +327,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Huoshan
             }
             catch (Exception ex)
             {
-                this.Logger.LogDebug(ex, Lang.BaseHuoshanASR_AbortSynchronously_Failed);
+                this.Logger.LogDebug(ex, Lang.AliyunRealtimeASR_AbortSynchronously_Failed);
             }
         }
 

@@ -11,7 +11,7 @@ internal sealed class PlainTextDocumentParser : IDocumentParser
 
     public async Task<ParsedDocument> ParseAsync(DocumentParseRequest request, CancellationToken cancellationToken = default)
     {
-        string text = await File.ReadAllTextAsync(request.FilePath, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+        string text = await File.ReadAllTextAsync(request.FilePath, Encoding.UTF8, cancellationToken);
         return new ParsedDocument(request.KnowledgeBaseId, request.SourceId, Path.GetFileName(request.FilePath), text);
     }
 }

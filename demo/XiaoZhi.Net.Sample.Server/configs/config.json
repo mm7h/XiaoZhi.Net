@@ -78,15 +78,35 @@
           "Channels": 1,
           "BitRate": 128000
           */
-        },
-        "HuoshanBidirection": {
-          "ApiKey": "your-api-key",
-          "ResourceId": "your-resource-id",
-          "SegmentDurationMs": "200",
-          "EnableItn": "true",
-          "EnablePunc": "true",
-          "EnableDdc": "true"
         }
+      },
+      "HuoshanUnidirectional": {
+        "ApiKey": "your-api-key",
+        "ResourceId": "your-resource-id",
+        "SegmentDurationMs": 200,
+        "Language": "zh-CN",
+        "EnableItn": true,
+        "EnablePunc": true,
+        "EnableDdc": true
+      },
+      "HuoshanBidirection": {
+        "ApiKey": "your-api-key",
+        "ResourceId": "your-resource-id",
+        "SegmentDurationMs": 200,
+        "EnableItn": true,
+        "EnablePunc": true,
+        "EnableDdc": true
+      },
+      "AliyunRealtime": {
+        "ApiKey": "your-api-key",
+        "ModelName": "qwen-audio-3.0-asr-flash-streaming",
+        "Region": "cn-beijing",
+        // 可选：开通百炼专属推理后填写 WorkspaceId；也可以直接提供 Endpoint。
+        "WorkspaceId": "",
+        "SegmentDurationMs": 100,
+        "LanguageHints": "zh,en",
+        "ConnectionTimeoutSeconds": 5,
+        "ResponseTimeoutSeconds": 15
       }
     },
     "LLM": {

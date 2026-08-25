@@ -1,12 +1,12 @@
-﻿using Microsoft.Extensions.Logging;
-using ModelContextProtocol.Protocol;
-using System;
+﻿using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using ModelContextProtocol.Protocol;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
+using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
-using XiaoZhi.Net.Server.Common.Configs;
-using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 
 namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
 {
@@ -33,8 +33,8 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
 
 
 
-            this.SendMcpInitializeAsync().ConfigureAwait(false);
-            this.RequestToolsListAsync().ConfigureAwait(false);
+            _ = this.SendMcpInitializeAsync();
+            _ = this.RequestToolsListAsync();
 
             return true;
         }

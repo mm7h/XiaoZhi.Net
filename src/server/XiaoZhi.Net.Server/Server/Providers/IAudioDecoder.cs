@@ -10,6 +10,6 @@ namespace XiaoZhi.Net.Server.Providers
         int Channels { get; }
         int FrameDuration { get; }
         int FrameSize { get; }
-        Task<float[]> DecodeAsync(byte[] opusData, CancellationToken token);
+        ValueTask<float[]> DecodeAsync(byte[] opusData, CancellationToken token);
     }
 }

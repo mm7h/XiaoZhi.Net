@@ -56,7 +56,7 @@ internal class UrlAudioPlayer(IAudioDecodeScheduler decodeScheduler, ILogger<Url
 
         bool loaded = await this.LoadInternalAsync(
             workerCancellationToken => this.CreateDecoder(url, workerCancellationToken),
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken);
 
         if (loaded)
         {

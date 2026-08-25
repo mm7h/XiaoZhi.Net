@@ -1,15 +1,15 @@
-﻿using Microsoft.Extensions.Logging;
-using ModelContextProtocol.Protocol;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using ModelContextProtocol.Protocol;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
+using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Protocol.WebSocket;
-using XiaoZhi.Net.Server.Common.Configs;
-using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 
 namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
 {
@@ -45,7 +45,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
                 this._webSocketClient.OnOpen += this.WebSocketClientEngine_OnOpenAsync;
                 this._webSocketClient.OnTextMessage += this.WebSocketClient_OnMessageAsync;
 
-                this._webSocketClient.ConnectAsync(this._endpointUrl).ConfigureAwait(false);
+                _ = this._webSocketClient.ConnectAsync(this._endpointUrl);
                 return true;
             }
             catch (Exception ex)
@@ -78,7 +78,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.McpEndpoint
             {
                 return;
             }
-            this._webSocketClient.CloseAsync().ConfigureAwait(false);
+            _ = this._webSocketClient.CloseAsync();
         }
         private async void WebSocketClientEngine_OnOpenAsync()
         {

@@ -20,6 +20,7 @@ using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media;
 using XiaoZhi.Net.Server.Providers;
+using XiaoZhi.Net.Server.Providers.ASR.Aliyun;
 using XiaoZhi.Net.Server.Providers.ASR.Huoshan;
 using XiaoZhi.Net.Server.Providers.ASR.Sherpa;
 using XiaoZhi.Net.Server.Providers.AudioCodec;
@@ -317,9 +318,10 @@ namespace XiaoZhi.Net.Server.Management
             finally
             {
                 this.BuildAudioDecoder(session);
+                this.BuildInputAudioResampler(session);
                 this.BuildAudioPlayer(session);
                 this.BuildAudioProcessor(session);
-                this.BuildAudioResampler(session);
+                this.BuildOutputAudioResampler(session);
                 this.BuildAudioEncoder(session);
             }
         }
@@ -384,28 +386,53 @@ namespace XiaoZhi.Net.Server.Management
         {
             services.AddTransient<IAudioResampler, DefaultResampler>();
         }
-        public void BuildAudioResampler(Session session)
+        public void BuildOutputAudioResampler(Session session)
         {
             string selectedTtsModelName = ConvertToKebabCase(this.Config.SelectedSettings["TTS"]);
             int ttsSampleRate = session.PrivateProvider.Tts?.GetTtsSampleRate() ?? this.ServiceProvider.GetRequiredKeyedService<ITts>(selectedTtsModelName).GetTtsSampleRate();
 
-            if (ttsSampleRate == this.Config.AudioSetting.SampleRate)
+            if (ttsSampleRate == session.AudioSetting.SampleRate)
             {
                 return;
             }
 
-            this.Logger.LogInformation(Lang.ProviderManager_BuildAudioResampler_ResamplingRequired, session.DeviceId, ttsSampleRate, this.Config.AudioSetting.SampleRate);
+            this.Logger.LogInformation(Lang.ProviderManager_BuildOutputAudioResampler_ResamplingRequired, session.DeviceId, ttsSampleRate, session.AudioSetting.SampleRate);
 
-            ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, ttsSampleRate, this.Config.AudioSetting.SampleRate);
+            ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, ttsSampleRate, session.AudioSetting.SampleRate);
             IAudioResampler audioResampler = this.ServiceProvider.GetRequiredService<IAudioResampler>();
             if (!audioResampler.Build(resamplerBuildConfig))
             {
-                this.Logger.LogWarning(Lang.ProviderManager_BuildAudioResampler_BuildFailed, session.SessionId);
+                this.Logger.LogWarning(Lang.ProviderManager_BuildOutputAudioResampler_BuildFailed, session.SessionId);
             }
             else
             {
-                session.PrivateProvider.SetAudioResampler(audioResampler);
+                session.PrivateProvider.SetOutputAudioResampler(audioResampler);
             }
+        }
+
+        public void BuildInputAudioResampler(Session session)
+        {
+            if (session.AudioSetting.SampleRate == GlobalVariables.AudioProcessingSampleRate
+                && session.AudioSetting.Channels == GlobalVariables.AudioProcessingChannels)
+            {
+                return;
+            }
+
+            ResamplerBuildConfig resamplerBuildConfig = new(
+                GlobalVariables.AudioProcessingChannels,
+                session.AudioSetting.SampleRate,
+                GlobalVariables.AudioProcessingSampleRate);
+            IAudioResampler inputAudioResampler = this.ServiceProvider.GetRequiredService<IAudioResampler>();
+            if (!inputAudioResampler.Build(resamplerBuildConfig))
+            {
+                this.Logger.LogWarning(Lang.ProviderManager_BuildInputAudioResampler_BuildFailed, session.SessionId);
+                return;
+            }
+
+            session.PrivateProvider.SetInputAudioResampler(inputAudioResampler);
+            this.Logger.LogInformation(
+                Lang.ProviderManager_BuildInputAudioResampler_ResamplingRequired,
+                session.DeviceId, session.AudioSetting.SampleRate, GlobalVariables.AudioProcessingSampleRate);
         }
         #endregion
 
@@ -418,7 +445,7 @@ namespace XiaoZhi.Net.Server.Management
         public void BuildAudioEncoder(Session session)
         {
             IAudioEncoder audioEncoder = this.ServiceProvider.GetRequiredService<IAudioEncoder>();
-            if (!audioEncoder.Build(this.Config.AudioSetting))
+            if (!audioEncoder.Build(session.AudioSetting))
             {
                 this.Logger.LogWarning(Lang.ProviderManager_BuildAudioEncoder_BuildFailed, session.SessionId);
             }
@@ -466,6 +493,9 @@ namespace XiaoZhi.Net.Server.Management
                         break;
                     case "huoshan-bidirection":
                         services.AddKeyedTransient<IAsr, HuoshanBidirectionASR>(modelName);
+                        break;
+                    case "aliyun-realtime":
+                        services.AddKeyedTransient<IAsr, AliyunRealtimeASR>(modelName);
                         break;
                     default:
                         throw new ModelBuildException("Invalid asr model.");

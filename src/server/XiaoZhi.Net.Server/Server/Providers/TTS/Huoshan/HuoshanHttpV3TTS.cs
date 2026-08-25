@@ -125,18 +125,18 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                     .WithHeaders(this._headers)
                     .AllowAnyHttpStatus()
                     .PostJsonAsync(ttsReq, cancellationToken: token)
-                    .ConfigureAwait(false);
+                    ;
 
                 if (!response.ResponseMessage.IsSuccessStatusCode)
                 {
-                    string err = await response.GetStringAsync().ConfigureAwait(false);
+                    string err = await response.GetStringAsync();
                     this.Logger.LogError("火山 HTTP TTS 失败：状态={status} 正文={body}", response.StatusCode, err);
                     this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Failed);
                     return;
                 }
 
 
-                await using Stream stream = await response.GetStreamAsync().ConfigureAwait(false);
+                await using Stream stream = await response.GetStreamAsync();
                 using StreamReader reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
 
                 this.TTSEventCallback?.OnSentenceStart(seg.Content, seg.Emotion, seg.SentenceId);
@@ -144,7 +144,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 while (!reader.EndOfStream)
                 {
                     token.ThrowIfCancellationRequested();
-                    string? line = await reader.ReadLineAsync().ConfigureAwait(false);
+                    string? line = await reader.ReadLineAsync();
                     if (string.IsNullOrWhiteSpace(line))
                     {
                         continue;
@@ -184,7 +184,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                     {
                         if (pcmBuffer.Count > 0)
                         {
-                            await this.SaveAudioFileAsync(workflow.DeviceId, seg.SentenceId, pcmBuffer.ToArray()).ConfigureAwait(false);
+                            await this.SaveAudioFileAsync(workflow.DeviceId, seg.SentenceId, pcmBuffer.ToArray());
                         }
 
                         this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Success);

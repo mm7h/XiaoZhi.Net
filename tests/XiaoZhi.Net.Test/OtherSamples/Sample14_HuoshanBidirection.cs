@@ -506,7 +506,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
             var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.ConnectionStarted, cancellationToken, null);
             await this.SendMessageAsync(message);
-            return await waitTask.ConfigureAwait(false);
+            return await waitTask;
         }
 
         private async Task<Message> FinishConnectionAsync(CancellationToken cancellationToken)
@@ -517,7 +517,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
             var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.ConnectionFinished, cancellationToken, null);
             await this.SendMessageAsync(message);
-            return await waitTask.ConfigureAwait(false);
+            return await waitTask;
         }
 
         private async Task<Message> StartSessionAsync(string sessionId, byte[] payload, CancellationToken cancellationToken)
@@ -529,7 +529,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
             var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.SessionStarted, cancellationToken, null);
             await this.SendMessageAsync(message);
-            return await waitTask.ConfigureAwait(false);
+            return await waitTask;
         }
 
         private async Task TaskRequestAsync(string sessionId, byte[] payload)
@@ -550,7 +550,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
             var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.SessionCanceled, cancellationToken, null);
             await this.SendMessageAsync(message);
-            return await waitTask.ConfigureAwait(false);
+            return await waitTask;
         }
 
         private async Task<Message> FinishSessionAsync(string sessionId, CancellationToken cancellationToken)
@@ -562,7 +562,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
             var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.SessionFinished, cancellationToken, null);
             await this.SendMessageAsync(message);
-            return await waitTask.ConfigureAwait(false);
+            return await waitTask;
         }
         #endregion
 

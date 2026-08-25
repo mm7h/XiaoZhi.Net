@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -102,13 +102,13 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             {
                 await this.WaitForAudioPlayerLockAsync(
                     this._musicProviderSetting.CommandTimeout,
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken);
                 lockAcquired = true;
 
                 if (this.PlaybackState != PlaybackState.Idle
                     || Volatile.Read(ref this._activePlaybackCts) is not null)
                 {
-                    await this.StopCoreAsync(cancellationToken).ConfigureAwait(false);
+                    await this.StopCoreAsync(cancellationToken);
                 }
 
                 long generation = Volatile.Read(ref this._playbackGeneration);
@@ -118,7 +118,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                     await ExecuteWithTimeoutAsync(
                         token => this._processingChannel.Writer.WriteAsync(request, token).AsTask(),
                         this._musicProviderSetting.CommandTimeout,
-                        cancellationToken).ConfigureAwait(false);
+                        cancellationToken);
                 }
             }
             finally
@@ -137,7 +137,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             {
                 await this.WaitForAudioPlayerLockAsync(
                     this._musicProviderSetting.CommandTimeout,
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken);
                 lockAcquired = true;
 
                 if (this.PlaybackState == PlaybackState.Idle)
@@ -149,7 +149,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                 await ExecuteWithTimeoutAsync(
                     token => this._urlAudioPlayer.PauseAsync(token),
                     this._musicProviderSetting.CommandTimeout,
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken);
             }
             finally
             {
@@ -167,7 +167,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             {
                 await this.WaitForAudioPlayerLockAsync(
                     this._musicProviderSetting.CommandTimeout,
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken);
                 lockAcquired = true;
 
                 if (this.PlaybackState == PlaybackState.Idle)
@@ -198,10 +198,10 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             {
                 await this.WaitForAudioPlayerLockAsync(
                     this._musicProviderSetting.StopTimeout,
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken);
                 lockAcquired = true;
 
-                await this.StopCoreAsync(cancellationToken).ConfigureAwait(false);
+                await this.StopCoreAsync(cancellationToken);
             }
             finally
             {
@@ -219,7 +219,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             {
                 await this.WaitForAudioPlayerLockAsync(
                     this._musicProviderSetting.CommandTimeout,
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken);
                 lockAcquired = true;
 
                 if (this.PlaybackState == PlaybackState.Idle)
@@ -230,7 +230,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                 await ExecuteWithTimeoutAsync(
                     token => this._urlAudioPlayer.SeekAsync(position, token),
                     this._musicProviderSetting.CommandTimeout,
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken);
             }
             finally
             {
@@ -254,7 +254,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             await ExecuteWithTimeoutAsync(
                 token => this._urlAudioPlayer.StopAsync(token),
                 this._musicProviderSetting.StopTimeout,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken);
         }
 
         private async Task AudioFileProcessingAsync(CancellationToken cancellationToken)
@@ -268,7 +268,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             {
                 await foreach (MusicFileRequest request in this._processingChannel.Reader.ReadAllAsync(cancellationToken))
                 {
-                    await this.AudioFileProcessingAsync(request, cancellationToken).ConfigureAwait(false);
+                    await this.AudioFileProcessingAsync(request, cancellationToken);
                 }
             }
             catch (OperationCanceledException)
@@ -309,7 +309,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                     this._audioSetting.SampleRate,
                     this._audioSetting.Channels,
                     this._audioSetting.FrameDuration,
-                    playbackCts.Token).ConfigureAwait(false);
+                    playbackCts.Token);
 
                 if (!loaded || playbackCts.IsCancellationRequested || !this.IsCurrentGeneration(request.Generation))
                 {
@@ -317,7 +317,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                 }
 
                 this.Logger.LogDebug(Lang.FileMusicPlayer_AudioFileProcessingAsync_Playing, fileName);
-                await this._urlAudioPlayer.PlayAsync(playbackCts.Token).ConfigureAwait(false);
+                await this._urlAudioPlayer.PlayAsync(playbackCts.Token);
                 this.Logger.LogDebug(Lang.FileMusicPlayer_AudioFileProcessingAsync_Completed, fileName);
             }
             catch (OperationCanceledException) when (
@@ -339,7 +339,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
         private async Task WaitForAudioPlayerLockAsync(TimeSpan timeout, CancellationToken cancellationToken)
         {
-            if (!await this._audioPlayerSlim.WaitAsync(timeout, cancellationToken).ConfigureAwait(false))
+            if (!await this._audioPlayerSlim.WaitAsync(timeout, cancellationToken))
             {
                 throw new TimeoutException("等待音乐播放器控制锁超时。");
             }
@@ -355,7 +355,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
             try
             {
-                await operation(timeoutCts.Token).ConfigureAwait(false);
+                await operation(timeoutCts.Token);
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && timeoutCts.IsCancellationRequested)
             {

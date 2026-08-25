@@ -98,7 +98,7 @@ namespace XiaoZhi.Net.Server.Resources.Rag
         {
             this.Logger.LogDebug(Lang.DefaultRag_SearchAsync_QueryReceived, this._knowledgeBaseId, query.Length);
             RagContext context = await this.RetrieveAsync(
-                    new RagRequest(query, this._knowledgeBaseId, this._topK, this._minimumScore), cancellationToken).ConfigureAwait(false);
+                    new RagRequest(query, this._knowledgeBaseId, this._topK, this._minimumScore), cancellationToken);
 
             return context.Hits.Select(hit => new TextSearchProvider.TextSearchResult
             {
@@ -118,7 +118,7 @@ namespace XiaoZhi.Net.Server.Resources.Rag
             }
 
             GeneratedEmbeddings<Embedding<float>> embeddings = await this._embeddingGenerator.GenerateAsync(
-            [request.Query], cancellationToken: cancellationToken).ConfigureAwait(false);
+            [request.Query], cancellationToken: cancellationToken);
             if (embeddings.Count != 1)
             {
                 this.Logger.LogError(Lang.DefaultRag_RetrieveAsync_EmbeddingCountInvalid, embeddings.Count);
@@ -132,7 +132,7 @@ namespace XiaoZhi.Net.Server.Resources.Rag
                     request.Limit,
                     request.MinimumScore,
                     request.MetadataFilter),
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken);
 
             return new RagContext(hits);
         }

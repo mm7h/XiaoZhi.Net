@@ -43,6 +43,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
         public int BatchWaitTimeMs { get; protected set; } = 20;
         public AudioSavingConfig? AudioSavingConfig { get; protected set; }
         public override string ProviderType => "asr";
+        public bool IsStreaming => false;
 
         protected void Build(OfflineRecognizerConfig offlineRecognizerConfig, ModelSetting modelSetting)
         {
@@ -127,7 +128,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                     offlineStream = this._offlineRecognizer.CreateStream();
                     offlineStream.AcceptWaveform(sampleRate, workflow.Data);
 
-                    AsrRequest asrRequest = new AsrRequest(workflow.SessionId, workflow.DeviceId, offlineStream, sampleRate, frameSize, callback, token);
+                    AsrRequest asrRequest = new AsrRequest(workflow.SessionId, workflow.DeviceId, offlineStream, sampleRate, frameSize, workflow.TurnId, callback, token);
 
                     await this._requestChannel.Writer.WriteAsync(asrRequest, token);
                     offlineStream = null;
@@ -249,12 +250,12 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
                                     else
                                     {
                                         string resultText = request.Stream.Result.Text;
-                                        request.Callback.OnSpeechTextConverted(true, resultText);
+                                        request.Callback.OnSpeechTextConverted(request.TurnId, true, resultText);
                                     }
                                 }
                                 catch (Exception ex)
                                 {
-                                    request.Callback.OnSpeechTextConverted(false, string.Empty);
+                                    request.Callback.OnSpeechTextConverted(request.TurnId, false, string.Empty);
                                     this.Logger.LogError(ex, Lang.BaseSherpaAsr_Processing_ResultProcessingError, request.DeviceId);
                                 }
                                 finally

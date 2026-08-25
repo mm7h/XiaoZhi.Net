@@ -1221,4 +1221,91 @@
   <data name="IoTClient_RegisterIoTTools_KernelNull" xml:space="preserve">
     <value>The Kernel is not yet ready to process IOT messages. Device ID: {DeviceId}.</value>
   </data>
+  <data name="BaseHuoshanASR_Build_ConfigIncomplete" xml:space="preserve">
+    <value>Huoshan ASR configuration is incomplete for {ModelName}.</value>
+  </data>
+  <data name="BaseHuoshanASR_Build_SegmentDurationInvalid" xml:space="preserve">
+    <value>Huoshan ASR SegmentDurationMs must be between 100 and 1000 milliseconds.</value>
+  </data>
+  <data name="BaseHuoshanASR_Build_Built" xml:space="preserve">
+    <value>Huoshan ASR provider {ModelName} was built.</value>
+  </data>
+  <data name="BaseHuoshanASR_Build_Failed" xml:space="preserve">
+    <value>Huoshan ASR provider {ModelName} could not be built.</value>
+  </data>
+  <data name="BaseHuoshanASR_FinishUtterance_WaitForFinalResultFailed" xml:space="preserve">
+    <value>Huoshan ASR {ModelName} failed while waiting for the final result.</value>
+  </data>
+  <data name="BaseHuoshanASR_AbortSynchronously_Failed" xml:space="preserve">
+    <value>Huoshan ASR abort during cleanup failed.</value>
+  </data>
+  <data name="Audio2TextHandler_OnSpeechTextConverted_StaleResult" xml:space="preserve">
+    <value>Ignoring stale ASR result for {DeviceId}: result turn {ResultTurnId}, current turn {CurrentTurnId}.</value>
+  </data>
+  <data name="Audio2TextHandler_ObserveSpeechResult_Failed" xml:space="preserve">
+    <value>Failed to process ASR result.</value>
+  </data>
+  <data name="AudioReceiveHandler_OnVoiceDetected_DispatchFailed" xml:space="preserve">
+    <value>Failed to dispatch utterance audio for {DeviceId}.</value>
+  </data>
+  <data name="AudioReceiveHandler_HandleManualStop_DispatchFailed" xml:space="preserve">
+    <value>Failed to dispatch manually captured audio for {DeviceId}.</value>
+  </data>
+  <data name="AudioReceiveHandler_AbortStreamingUtterance_Failed" xml:space="preserve">
+    <value>Failed to abort streaming ASR for {DeviceId}.</value>
+  </data>
+  <data name="AudioReceiveHandler_QueueStreamingOperation_QueueOverflow" xml:space="preserve">
+    <value>Streaming ASR queue overflow for {DeviceId}; aborting the current utterance.</value>
+  </data>
+  <data name="AudioReceiveHandler_SendStreamingOperationSafelyAsync_Failed" xml:space="preserve">
+    <value>Streaming ASR {Operation} failed for {DeviceId}.</value>
+  </data>
+  <data name="HelloMessageHandler_Handle_UnsupportedAudioParameters" xml:space="preserve">
+    <value>Unsupported client audio parameters for {DeviceId}: format={Format}, sampleRate={SampleRate}, channels={Channels}, frameDuration={FrameDuration}.</value>
+  </data>
+  <data name="ProviderManager_BuildOutputAudioResampler_ResamplingRequired" xml:space="preserve">
+    <value>Device {deviceId} requires output audio resampling from {ttsSampleRate} to {deviceSampleRate}.</value>
+  </data>
+  <data name="ProviderManager_BuildOutputAudioResampler_BuildFailed" xml:space="preserve">
+    <value>Session {sessionId} failed to build output audio resampler.</value>
+  </data>
+  <data name="ProviderManager_BuildInputAudioResampler_ResamplingRequired" xml:space="preserve">
+    <value>Client input audio for {deviceId} will be resampled from {inputSampleRate} Hz to {outputSampleRate} Hz.</value>
+  </data>
+  <data name="ProviderManager_BuildInputAudioResampler_BuildFailed" xml:space="preserve">
+    <value>Session {sessionId} failed to build client input audio resampler.</value>
+  </data>
+  <data name="SileroNative_Build_NonCanonicalSampleRate" xml:space="preserve">
+    <value>Silero VAD must use the internal {SampleRate} Hz PCM format, but {ConfiguredSampleRate} Hz was configured.</value>
+  </data>
+  <data name="BaseSherpaVad_Build_NonCanonicalSampleRate" xml:space="preserve">
+    <value>Sherpa VAD must use the internal {SampleRate} Hz PCM format, but {ConfiguredSampleRate} Hz was configured.</value>
+  </data>
+  <data name="DefaultOpusDecoder_DecodeAsync_SampleCountMismatch" xml:space="preserve">
+    <value>Opus decoder output sample count mismatch. Expected {0}, actual {1}.</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_ConfigIncomplete" xml:space="preserve">
+    <value>Aliyun real-time ASR requires ApiKey and a supported ModelName.</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_EndpointInvalid" xml:space="preserve">
+    <value>Aliyun real-time ASR Endpoint must be an absolute wss URL.</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_UnsupportedRegion" xml:space="preserve">
+    <value>Aliyun real-time ASR Region {Region} is unsupported. Use cn-beijing or ap-southeast-1.</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_SegmentDurationInvalid" xml:space="preserve">
+    <value>Aliyun real-time ASR SegmentDurationMs must be between 20 and 1000 milliseconds.</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_Built" xml:space="preserve">
+    <value>Aliyun real-time ASR provider {ModelName} was built.</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_Failed" xml:space="preserve">
+    <value>Aliyun real-time ASR provider could not be built.</value>
+  </data>
+  <data name="AliyunRealtimeASR_FinishUtterance_WaitForFinalResultFailed" xml:space="preserve">
+    <value>Aliyun real-time ASR failed while waiting for the final result.</value>
+  </data>
+  <data name="AliyunRealtimeASR_AbortSynchronously_Failed" xml:space="preserve">
+    <value>Aliyun real-time ASR abort during cleanup failed.</value>
+  </data>
 </root>

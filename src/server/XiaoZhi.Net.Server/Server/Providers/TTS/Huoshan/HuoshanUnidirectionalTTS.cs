@@ -94,7 +94,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             try
             {
                 var waitTask = this.WaitForEventAsync(MsgType.FullServerResponse, EventType.SessionFinished, token, null);
-                await waitTask.ConfigureAwait(false);
+                await waitTask;
 
                 this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Success);
             }

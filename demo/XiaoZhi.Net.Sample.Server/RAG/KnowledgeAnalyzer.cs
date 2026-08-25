@@ -25,7 +25,7 @@ internal sealed class KnowledgeAnalyzer : IKnowledgeAnalyzer
 
         if (config.EmbeddingBatchSize <= 0)
         {
-            throw new ArgumentException("Embedding batch size must be greater than zero.")  ;
+            throw new ArgumentException("Embedding batch size must be greater than zero.");
         }
 
         this._chunkSize = config.ChunkSize;
@@ -104,7 +104,7 @@ internal sealed class KnowledgeAnalyzer : IKnowledgeAnalyzer
         ArgumentException.ThrowIfNullOrWhiteSpace(document.ContentHash);
         ArgumentNullException.ThrowIfNull(embeddingGenerator);
 
-        string? existingHash = await this._vectorStore.GetSourceContentHashAsync(document.KnowledgeBaseId, document.SourceId, cancellationToken).ConfigureAwait(false);
+        string? existingHash = await this._vectorStore.GetSourceContentHashAsync(document.KnowledgeBaseId, document.SourceId, cancellationToken);
         if (string.Equals(existingHash, document.ContentHash, StringComparison.Ordinal))
         {
             return new KnowledgeIndexingResult(document.KnowledgeBaseId, document.SourceId, 0, true);
@@ -112,7 +112,7 @@ internal sealed class KnowledgeAnalyzer : IKnowledgeAnalyzer
 
         if (chunks.Count == 0)
         {
-            await this._vectorStore.DeleteAsync(new VectorDeleteRequest(document.KnowledgeBaseId, document.SourceId), cancellationToken).ConfigureAwait(false);
+            await this._vectorStore.DeleteAsync(new VectorDeleteRequest(document.KnowledgeBaseId, document.SourceId), cancellationToken);
             return new KnowledgeIndexingResult(document.KnowledgeBaseId, document.SourceId, 0, false);
         }
 
@@ -120,7 +120,7 @@ internal sealed class KnowledgeAnalyzer : IKnowledgeAnalyzer
         foreach (KnowledgeChunk[] batch in chunks.Chunk(this._embeddingBatchSize))
         {
             GeneratedEmbeddings<Embedding<float>> embeddings = await embeddingGenerator.GenerateAsync(
-                batch.Select(chunk => chunk.Text), cancellationToken: cancellationToken).ConfigureAwait(false);
+                batch.Select(chunk => chunk.Text), cancellationToken: cancellationToken);
             if (embeddings.Count != batch.Length)
             {
                 throw new InvalidOperationException("The embedding generator returned a different number of embeddings than input chunks.");
@@ -138,10 +138,10 @@ internal sealed class KnowledgeAnalyzer : IKnowledgeAnalyzer
             throw new InvalidOperationException("The embedding generator returned vectors with inconsistent dimensions.");
         }
 
-        await this._vectorStore.EnsureInitializedAsync(new VectorStoreSchema(dimensions), cancellationToken).ConfigureAwait(false);
-        await this._vectorStore.UpsertAsync(records, cancellationToken).ConfigureAwait(false);
+        await this._vectorStore.EnsureInitializedAsync(new VectorStoreSchema(dimensions), cancellationToken);
+        await this._vectorStore.UpsertAsync(records, cancellationToken);
         await this._vectorStore.DeleteAsync(
-            new VectorDeleteRequest(document.KnowledgeBaseId, document.SourceId, document.ContentHash), cancellationToken).ConfigureAwait(false);
+            new VectorDeleteRequest(document.KnowledgeBaseId, document.SourceId, document.ContentHash), cancellationToken);
 
         return new KnowledgeIndexingResult(document.KnowledgeBaseId, document.SourceId, records.Count, false);
     }

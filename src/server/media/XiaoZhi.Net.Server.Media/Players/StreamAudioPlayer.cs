@@ -56,7 +56,7 @@ internal class StreamAudioPlayer(IAudioDecodeScheduler decodeScheduler, ILogger<
 
         bool loaded = await this.LoadInternalAsync(
             workerCancellationToken => this.CreateDecoder(stream, workerCancellationToken),
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken);
 
         if (loaded)
         {

@@ -131,7 +131,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 byte[] bytes = Convert.FromBase64String(ttsHttpResponse.Data);
                 if (audioFs is not null)
                 {
-                    await audioFs.WriteAsync(bytes, token).ConfigureAwait(false);
+                    await audioFs.WriteAsync(bytes, token);
                 }
             }
             else
@@ -143,7 +143,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             {
                 try
                 {
-                    await audioFs.FlushAsync(token).ConfigureAwait(false);
+                    await audioFs.FlushAsync(token);
                 }
                 catch
                 {

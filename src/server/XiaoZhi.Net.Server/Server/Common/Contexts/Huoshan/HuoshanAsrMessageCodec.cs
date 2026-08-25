@@ -28,6 +28,10 @@ namespace XiaoZhi.Net.Server.Common.Contexts.Huoshan
             {
                 throw new InvalidDataException("The Huoshan ASR response is shorter than its header.");
             }
+            if ((data[0] >> 4) != (byte)VersionBits.Version1)
+            {
+                throw new InvalidDataException("The Huoshan ASR response uses an unsupported protocol version.");
+            }
 
             int headerSize = data[0] & 0x0F;
             if (headerSize < 1 || data.Length < headerSize * 4)
@@ -77,6 +81,10 @@ namespace XiaoZhi.Net.Server.Common.Contexts.Huoshan
             offset = payloadLengthOffset + 4;
             EnsureAvailable(data, offset, checked((int)payloadLength));
             byte[] payload = data.AsSpan(offset, checked((int)payloadLength)).ToArray();
+            if (offset + payloadLength != data.Length)
+            {
+                throw new InvalidDataException("The Huoshan ASR response has trailing bytes after its payload.");
+            }
 
             if (compression == CompressionBits.Gzip && payload.Length > 0)
             {

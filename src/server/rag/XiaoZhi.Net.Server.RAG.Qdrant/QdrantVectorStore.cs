@@ -43,10 +43,10 @@ internal sealed class QdrantVectorStore : IVectorStore, IDisposable
             throw new InvalidOperationException($"The Qdrant vector store was initialized with {existingDimensions} dimensions, not {schema.Dimensions}.");
         }
 
-        await this._initializationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await this._initializationLock.WaitAsync(cancellationToken);
         try
         {
-            if (await this._client.CollectionExistsAsync(this._config.CollectionName, cancellationToken).ConfigureAwait(false))
+            if (await this._client.CollectionExistsAsync(this._config.CollectionName, cancellationToken))
             {
                 return;
             }
@@ -55,9 +55,9 @@ internal sealed class QdrantVectorStore : IVectorStore, IDisposable
             {
                 Size = (ulong)schema.Dimensions,
                 Distance = Distance.Cosine
-            }, cancellationToken: cancellationToken).ConfigureAwait(false);
-            await this._client.CreatePayloadIndexAsync(this._config.CollectionName, KnowledgeBaseIdField, PayloadSchemaType.Keyword, cancellationToken: cancellationToken).ConfigureAwait(false);
-            await this._client.CreatePayloadIndexAsync(this._config.CollectionName, SourceIdField, PayloadSchemaType.Keyword, cancellationToken: cancellationToken).ConfigureAwait(false);
+            }, cancellationToken: cancellationToken);
+            await this._client.CreatePayloadIndexAsync(this._config.CollectionName, KnowledgeBaseIdField, PayloadSchemaType.Keyword, cancellationToken: cancellationToken);
+            await this._client.CreatePayloadIndexAsync(this._config.CollectionName, SourceIdField, PayloadSchemaType.Keyword, cancellationToken: cancellationToken);
         }
         finally
         {
@@ -67,7 +67,7 @@ internal sealed class QdrantVectorStore : IVectorStore, IDisposable
 
     public async ValueTask<string?> GetSourceContentHashAsync(string knowledgeBaseId, string sourceId, CancellationToken cancellationToken = default)
     {
-        if (!await this._client.CollectionExistsAsync(this._config.CollectionName, cancellationToken).ConfigureAwait(false))
+        if (!await this._client.CollectionExistsAsync(this._config.CollectionName, cancellationToken))
         {
             return null;
         }
@@ -78,7 +78,7 @@ internal sealed class QdrantVectorStore : IVectorStore, IDisposable
             limit: 1,
             payloadSelector: true,
             vectorsSelector: false,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
+            cancellationToken: cancellationToken);
 
         return response.Result.FirstOrDefault()?.Payload.TryGetValue(ContentHashField, out Value? hash) == true ? hash.StringValue : null;
     }
@@ -96,7 +96,7 @@ internal sealed class QdrantVectorStore : IVectorStore, IDisposable
         }
 
         List<PointStruct> points = records.Select(this.ToPoint).ToList();
-        await this._client.UpsertAsync(this._config.CollectionName, points, cancellationToken: cancellationToken).ConfigureAwait(false);
+        await this._client.UpsertAsync(this._config.CollectionName, points, cancellationToken: cancellationToken);
     }
 
     public async ValueTask DeleteAsync(VectorDeleteRequest request, CancellationToken cancellationToken = default)
@@ -107,7 +107,7 @@ internal sealed class QdrantVectorStore : IVectorStore, IDisposable
             filter.MustNot.Add(MatchKeyword(ContentHashField, request.ExcludeContentHash));
         }
 
-        await this._client.DeleteAsync(this._config.CollectionName, filter, cancellationToken: cancellationToken).ConfigureAwait(false);
+        await this._client.DeleteAsync(this._config.CollectionName, filter, cancellationToken: cancellationToken);
     }
 
     public async ValueTask<IReadOnlyList<VectorSearchHit>> SearchAsync(VectorSearchRequest request, CancellationToken cancellationToken = default)
@@ -139,7 +139,7 @@ internal sealed class QdrantVectorStore : IVectorStore, IDisposable
             limit: (ulong)request.Limit,
             payloadSelector: true,
             scoreThreshold: request.MinimumScore,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
+            cancellationToken: cancellationToken);
 
         return points.Select(ToSearchHit).ToArray();
     }

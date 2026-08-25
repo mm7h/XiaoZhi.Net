@@ -37,7 +37,7 @@ internal sealed class InMemoryVectorStore : IVectorStore
             return;
         }
 
-        await this._writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await this._writeLock.WaitAsync(cancellationToken);
         try
         {
             foreach (VectorRecord record in records)
@@ -55,7 +55,7 @@ internal sealed class InMemoryVectorStore : IVectorStore
 
     public async ValueTask DeleteAsync(VectorDeleteRequest request, CancellationToken cancellationToken = default)
     {
-        await this._writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await this._writeLock.WaitAsync(cancellationToken);
         try
         {
             foreach ((string id, VectorRecord record) in this._records)

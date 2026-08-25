@@ -35,7 +35,7 @@ internal sealed class KnowledgeImportPipeline : IKnowledgeImportPipeline
             }
 
             string sourceId = Path.GetRelativePath(rootDirectory, fullPath).Replace(Path.DirectorySeparatorChar, '/');
-            ParsedDocument parsed = await parser.ParseAsync(new DocumentParseRequest(knowledgeBaseId, sourceId, fullPath), cancellationToken).ConfigureAwait(false);
+            ParsedDocument parsed = await parser.ParseAsync(new DocumentParseRequest(knowledgeBaseId, sourceId, fullPath), cancellationToken);
             string text = NormalizeText(parsed.Text);
             if (string.IsNullOrWhiteSpace(text))
             {
@@ -44,7 +44,7 @@ internal sealed class KnowledgeImportPipeline : IKnowledgeImportPipeline
 
             string contentHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
             KnowledgeDocument document = new KnowledgeDocument(parsed.KnowledgeBaseId, parsed.SourceId, parsed.SourceName, text, contentHash, parsed.Metadata);
-            KnowledgeIndexingResult result = await this.KnowledgeAnalyzer.IndexAsync(embeddingGenerator, document, cancellationToken).ConfigureAwait(false);
+            KnowledgeIndexingResult result = await this.KnowledgeAnalyzer.IndexAsync(embeddingGenerator, document, cancellationToken);
             return KnowledgeImportResult.Succeeded(fullPath, result.ChunkCount, result.WasSkipped);
         }
         catch (OperationCanceledException)
@@ -69,7 +69,7 @@ internal sealed class KnowledgeImportPipeline : IKnowledgeImportPipeline
         foreach (string path in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            results.Add(await this.ImportFileAsync(embeddingGenerator, knowledgeBaseId, root, path, cancellationToken).ConfigureAwait(false));
+            results.Add(await this.ImportFileAsync(embeddingGenerator, knowledgeBaseId, root, path, cancellationToken));
         }
 
         return results;
