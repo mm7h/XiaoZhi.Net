@@ -202,29 +202,46 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Aliyun
         {
             var parameters = new Dictionary<string, object>
             {
-                ["format"] = "pcm",
-                ["sample_rate"] = GlobalVariables.AudioProcessingSampleRate
+                ["Format"] = "pcm",
+                ["SampleRate"] = GlobalVariables.AudioProcessingSampleRate
             };
             if (this._options.LanguageHints.Length > 0)
             {
-                parameters["language_hints"] = this._options.LanguageHints;
+                parameters["LanguageHints"] = this._options.LanguageHints;
             }
 
             return new
             {
-                header = new { action = "run-task", task_id = this._taskId },
-                payload = new
+                Header = new
                 {
-                    model = this._options.ModelName,
-                    input = new { },
-                    parameters
+                    Action = "run-task",
+                    TaskId = this._taskId,
+                    Streaming = "duplex"
+                },
+                Payload = new
+                {
+                    TaskGroup = "audio",
+                    Task = "asr",
+                    Function = "recognition",
+                    Model = this._options.ModelName,
+                    Input = new { },
+                    Parameters = parameters
                 }
             };
         }
 
         private object BuildFinishTaskRequest() => new
         {
-            header = new { action = "finish-task", task_id = this._taskId }
+            Header = new
+            {
+                Action = "finish-task",
+                TaskId = this._taskId,
+                Streaming = "duplex"
+            },
+            Payload = new
+            {
+                Input = new { }
+            }
         };
 
         private void AttachHandlers()
