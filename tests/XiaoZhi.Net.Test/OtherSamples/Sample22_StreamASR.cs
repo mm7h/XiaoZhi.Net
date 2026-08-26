@@ -4,7 +4,6 @@ using System.Net.WebSockets;
 using System.Text.Json.Nodes;
 using NAudio.Wave;
 using XiaoZhi.Net.Test.Socket;
-using XiaoZhi.Test.OtherSamples.Huoshan;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {
@@ -17,12 +16,13 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
         private const string AliyunApiKey = "your api key";
 
+        private const string AliyunEndpoint = "wss://dashscope.aliyuncs.com/api-ws/v1/inference";
+        private const string AliyunModelName = "qwen-audio-3.0-asr-flash-streaming";
+
         private const string HuoshanResourceId = "volc.bigasr.sauc.duration";
         private const string HuoshanApiKey = "your api key";
         private const string HuoshanAccessKey = "your access key";
 
-        private const string AliyunEndpoint = "wss://dashscope.aliyuncs.com/api-ws/v1/inference";
-        private const string AliyunModelName = "qwen-audio-3.0-asr-flash-streaming";
         private const string HuoshanEndpoint = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async";
         private const string HuoshanModelName = "bigmodel";
 

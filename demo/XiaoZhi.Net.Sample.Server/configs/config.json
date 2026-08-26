@@ -100,8 +100,7 @@
       "AliyunRealtime": {
         "ApiKey": "your-api-key",
         "ModelName": "qwen-audio-3.0-asr-flash-streaming",
-        "Region": "cn-beijing",
-        // 可选：开通百炼专属推理后填写 WorkspaceId；也可以直接提供 Endpoint。
+        "Region": "cn-beijing", // 可选：提供 Endpoint 覆盖默认的 WebSocket 地址。
         "WorkspaceId": "",
         "SegmentDurationMs": 100,
         "LanguageHints": "zh,en",
@@ -168,6 +167,56 @@
           "SaveFile": true,
           "SavePath": "./data/tts-cache",
           "Format": "pcm"
+        }
+      },
+      "AliyunRealtimeTTS": {
+        // 文档地址：https://help.aliyun.com/zh/model-studio/real-time-speech-recognition-user-guide
+        // Qwen-Audio-TTS 与 CosyVoice 共用此实时语音合成提供者。
+        // 可替换为 qwen-audio-3.0-tts-flash 等 Qwen-Audio-TTS 模型。
+        "ApiKey": "your-aliyun-api-key",
+        "ModelName": "cosyvoice-v3-flash",
+        "Voice": "longanfengyue", // 音色列表：https://help.aliyun.com/zh/model-studio/qwen-audio-tts-voice-list
+        "Region": "cn-beijing", // 可选：提供 Endpoint 覆盖默认的 WebSocket 地址。
+        "Format": "pcm",
+        "SampleRate": 24000,
+        "Volume": 50,
+        "Rate": 1.0,
+        "Pitch": 1.0,
+        "LanguageHints": "zh",
+        "Instruction": "",
+        "ConnectionTimeoutSeconds": 5,
+        "ResponseTimeoutSeconds": 30,
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/tts-cache",
+          "Format": "mp3"
+        }
+      },
+      "AliyunHttp": {
+        // 文档地址：https://help.aliyun.com/zh/model-studio/non-realtime-tts-user-guide
+        // Qwen-Audio-TTS 与 CosyVoice 共用此非实时 HTTP 语音合成提供者。
+        // 仅支持北京地域；默认使用业务空间专属域名，也可用 Endpoint 覆盖。
+        "ApiKey": "your-aliyun-api-key",
+        // 可选，阿里云百炼业务空间ID
+        // 查看workspace id：登录阿里云百炼控制台https://bailian.console.aliyun.com，选择“业务空间管理”
+        "WorkspaceId": "your-workspace-id",
+        "ModelName": "qwen-audio-3.0-tts-flash",
+        "Voice": "longanfengyue",
+        // false: 返回音频 URL 后下载完整 PCM；true: 使用 SSE 逐块返回 PCM。
+        "Streaming": false,
+        // 当前固定为 pcm，以便直接接入现有播放与重采样链路。
+        "Format": "pcm",
+        "SampleRate": 24000,
+        "Volume": 50,
+        "Rate": 1.0,
+        "Pitch": 1.0,
+        "LanguageHints": "zh",
+        "Instruction": "",
+        "ResponseTimeoutSeconds": 120,
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/tts-cache",
+          "Format": "mp3"
         }
       },
       //废弃单向接口，推荐使用HuoshanBidirection接口

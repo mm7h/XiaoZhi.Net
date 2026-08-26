@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Flurl.Http;
 using Flurl.Http.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -24,7 +25,10 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         private readonly IFlurlClientCache _flurlClientCache;
         private readonly IDictionary<string, string> _headers;
 
-        public HuoshanHttpV3TTS(IAudioEditor audioEditor, IFlurlClientCache flurlClientCache, ILogger<HuoshanHttpV3TTS> logger) : base(audioEditor, logger)
+        public HuoshanHttpV3TTS(
+            IAudioEditor audioEditor,
+            [FromKeyedServices(FLURL_CLIENT_NAME)] IFlurlClientCache flurlClientCache,
+            ILogger<HuoshanHttpV3TTS> logger) : base(audioEditor, logger)
         {
             this._headers = new Dictionary<string, string>();
             this._flurlClientCache = flurlClientCache;

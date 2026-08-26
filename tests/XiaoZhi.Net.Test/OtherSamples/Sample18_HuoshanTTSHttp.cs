@@ -2,11 +2,10 @@
 using Flurl.Http;
 using Flurl.Http.Configuration;
 using XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Models;
-using XiaoZhi.Test.OtherSamples.Huoshan;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {
-    internal class Sample18_HuoshanHttp
+    internal class Sample18_HuoshanTTSHttp
     {
         public static async Task RunAsync()
         {

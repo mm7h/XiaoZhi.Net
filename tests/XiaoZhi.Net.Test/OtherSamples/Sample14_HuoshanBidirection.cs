@@ -1,7 +1,6 @@
 ﻿using XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Enums;
 using XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Models;
 using XiaoZhi.Net.Test.Socket;
-using XiaoZhi.Test.OtherSamples.Huoshan;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {

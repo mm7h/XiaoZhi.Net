@@ -15,7 +15,8 @@ using XiaoZhi.Net.Test.OtherSamples;
 //await Sample19_SaveAudioFile.RunAsync();
 //await Sample20_RAG.RunAsync();
 //await Sample21_ConcurrentAudioPlayer.RunAsync();
-await Sample22_StreamASR.RunAsync();
+//await Sample22_StreamASR.RunAsync();
+await Sample23_AliTTS.RunAsync();
 //ModelsInit();
 
 void ModelsInit()

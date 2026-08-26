@@ -1308,4 +1308,109 @@
   <data name="AliyunRealtimeASR_AbortSynchronously_Failed" xml:space="preserve">
     <value>清理期间中止阿里云实时 ASR 失败。</value>
   </data>
+  <data name="AliyunRealtimeTTS_Build_ConfigInvalid" xml:space="preserve">
+    <value>阿里云实时 TTS 配置无效：必须提供 ApiKey、Voice 和受支持的 Qwen-Audio-TTS 或 CosyVoice ModelName，Format 必须为 pcm。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_UnsupportedSampleRate" xml:space="preserve">
+    <value>不支持阿里云实时 TTS 采样率 {SampleRate}。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_InvalidAudioParameter" xml:space="preserve">
+    <value>阿里云实时 TTS 的 Volume、Rate 或 Pitch 超出支持范围。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_Built" xml:space="preserve">
+    <value>已使用模型 {ModelName} 构建阿里云实时 TTS 提供者。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_Failed" xml:space="preserve">
+    <value>构建阿里云实时 TTS 提供者失败。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_EndpointInvalid" xml:space="preserve">
+    <value>阿里云实时 TTS 的 Endpoint 必须是绝对 wss URL。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_UnsupportedRegion" xml:space="preserve">
+    <value>不支持阿里云实时 TTS 区域 {Region}。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Synthesis_NotRegistered" xml:space="preserve">
+    <value>当前会话未注册阿里云实时 TTS 提供者。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Synthesis_NotBuilt" xml:space="preserve">
+    <value>阿里云实时 TTS 提供者尚未构建。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Synthesis_ClientNotInitialized" xml:space="preserve">
+    <value>阿里云实时 TTS WebSocket 客户端尚未初始化。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Synthesis_MissingFirstSegment" xml:space="preserve">
+    <value>在当前轮次的首个文本片段之前收到了 TTS 文本片段。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Task_Failed" xml:space="preserve">
+    <value>阿里云实时 TTS 任务 {TaskId} 失败。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Task_Failed_Default" xml:space="preserve">
+    <value>阿里云实时 TTS 任务失败。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Abort_Failed" xml:space="preserve">
+    <value>释放提供者时中止阿里云实时 TTS 失败。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Start_ConnectionFailed" xml:space="preserve">
+    <value>无法连接到阿里云实时 TTS WebSocket 服务。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Append_NotAcceptingText" xml:space="preserve">
+    <value>阿里云实时 TTS 任务当前不接受文本。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_WebSocket_UnexpectedClose" xml:space="preserve">
+    <value>阿里云实时 TTS WebSocket 意外关闭：{0} {1}</value>
+  </data>
+  <data name="AliyunRealtimeTTS_WebSocket_Error" xml:space="preserve">
+    <value>阿里云实时 TTS WebSocket 错误 {0}：{1}</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_ConfigInvalid" xml:space="preserve">
+    <value>阿里云 HTTP TTS 配置无效：必须提供 ApiKey、Voice、受支持的 Qwen-Audio-TTS 或 CosyVoice ModelName，且 Format 必须为 pcm。</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_EndpointInvalid" xml:space="preserve">
+    <value>阿里云 HTTP TTS 必须提供 WorkspaceId 或绝对 HTTPS Endpoint。</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_UnsupportedSampleRate" xml:space="preserve">
+    <value>阿里云 HTTP TTS 不支持采样率 {SampleRate}。</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_InvalidAudioParameter" xml:space="preserve">
+    <value>阿里云 HTTP TTS 的 Volume、Rate 或 Pitch 超出支持范围。</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_Built" xml:space="preserve">
+    <value>已使用模型 {ModelName} 构建阿里云 HTTP TTS 提供程序。</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_Failed" xml:space="preserve">
+    <value>构建阿里云 HTTP TTS 提供程序失败。</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_NotRegistered" xml:space="preserve">
+    <value>当前会话未注册阿里云 HTTP TTS 提供程序。</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_NotBuilt" xml:space="preserve">
+    <value>阿里云 HTTP TTS 提供程序尚未构建。</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_MissingSentenceId" xml:space="preserve">
+    <value>阿里云 HTTP TTS 无法合成缺少句子 ID 的片段。</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_RequestFailed" xml:space="preserve">
+    <value>阿里云 HTTP TTS 请求失败：状态={Status}，正文={Body}</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_DownloadFailed" xml:space="preserve">
+    <value>阿里云 HTTP TTS 音频下载失败：状态={Status}，正文={Body}</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_ApiError" xml:space="preserve">
+    <value>阿里云 HTTP TTS API 错误：请求 ID={RequestId}，代码={Code}，消息={Message}</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_InvalidResponse" xml:space="preserve">
+    <value>阿里云 HTTP TTS 返回了无效响应。</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_NoAudio" xml:space="preserve">
+    <value>阿里云 HTTP TTS 已完成但未返回音频数据。</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_Failed" xml:space="preserve">
+    <value>阿里云 HTTP TTS 合成失败。</value>
+  </data>
+  <data name="AliyunHttpTTS_SaveAudioFile_FileSaved" xml:space="preserve">
+    <value>已为设备 {DeviceId} 保存阿里云 HTTP TTS 音频文件 {FileName}。</value>
+  </data>
+  <data name="AliyunHttpTTS_SaveAudioFile_SaveFailed" xml:space="preserve">
+    <value>为设备 {DeviceId} 保存阿里云 HTTP TTS 音频文件 {FileName} 失败。</value>
+  </data>
 </root>

@@ -6,11 +6,10 @@ using System.Threading.Tasks;
 using XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Enums;
 using XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Models;
 using XiaoZhi.Net.Test.Socket;
-using XiaoZhi.Test.OtherSamples.Huoshan;
 
 namespace XiaoZhi.Net.Test.OtherSamples
 {
-    internal class Sample17_HuoshanUnidirectional
+    internal class Sample17_HuoshanTTSUnidirectional
     {
         public static async Task RunAsync()
         {

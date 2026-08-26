@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Flurl.Http;
 using Flurl.Http.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -27,7 +28,10 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         private float? _volumeRatio;
         private float? _pitchRatio;
 
-        public HuoshanHttpTTS(IAudioEditor audioEditor, IFlurlClientCache flurlClientCache, ILogger<HuoshanHttpTTS> logger) : base(audioEditor, logger)
+        public HuoshanHttpTTS(
+            IAudioEditor audioEditor,
+            [FromKeyedServices(FLURL_CLIENT_NAME)] IFlurlClientCache flurlClientCache,
+            ILogger<HuoshanHttpTTS> logger) : base(audioEditor, logger)
         {
             this._flurlClientCache = flurlClientCache;
         }

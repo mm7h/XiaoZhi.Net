@@ -39,6 +39,7 @@ using XiaoZhi.Net.Server.Providers.MCP.McpEndpoint;
 using XiaoZhi.Net.Server.Providers.MCP.ServerMcp;
 using XiaoZhi.Net.Server.Providers.Memory;
 using XiaoZhi.Net.Server.Providers.TTS;
+using XiaoZhi.Net.Server.Providers.TTS.Aliyun;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan;
 using XiaoZhi.Net.Server.Providers.TTS.Sherpa;
 using XiaoZhi.Net.Server.Providers.VAD.Native;
@@ -586,13 +587,17 @@ namespace XiaoZhi.Net.Server.Management
                     case "huoshan-bidirection":
                         services.AddKeyedTransient<ITts, HuoshanBidirectionTTS>(modelName);
                         break;
+                    case "aliyun-realtime-t-t-s":
+                    case "aliyun-realtime-tts":
+                        services.AddKeyedTransient<ITts, AliyunRealtimeTTS>(modelName);
+                        break;
                     /*
                     case "huoshan-unidirectional":
                         services.AddKeyedTransient<ITts, HuoshanUnidirectionalTTS>(modelName);
                         break;
                     */
                     case "huoshan-http":
-                        services.AddSingleton(_ => new FlurlClientCache()
+                        services.AddKeyedSingleton<IFlurlClientCache>(nameof(HuoshanHttpTTS), (_, _) => new FlurlClientCache()
                         .Add(nameof(HuoshanHttpTTS), configure: builder =>
                         {
                             builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
@@ -600,12 +605,20 @@ namespace XiaoZhi.Net.Server.Management
                         services.AddKeyedTransient<ITts, HuoshanHttpTTS>(modelName);
                         break;
                     case "huoshan-http-v3":
-                        services.AddSingleton(_ => new FlurlClientCache()
+                        services.AddKeyedSingleton<IFlurlClientCache>(nameof(HuoshanHttpV3TTS), (_, _) => new FlurlClientCache()
                         .Add(nameof(HuoshanHttpV3TTS), configure: builder =>
                         {
                             builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
                         }));
                         services.AddKeyedTransient<ITts, HuoshanHttpV3TTS>(modelName);
+                        break;
+                    case "aliyun-http":
+                        services.AddKeyedSingleton<IFlurlClientCache>(nameof(AliyunHttpTTS), (_, _) => new FlurlClientCache()
+                        .Add(nameof(AliyunHttpTTS), configure: builder =>
+                        {
+                            builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
+                        }));
+                        services.AddKeyedTransient<ITts, AliyunHttpTTS>(modelName);
                         break;
                     default:
                         throw new ModelBuildException("Invalid tts model.");

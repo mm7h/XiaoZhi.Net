@@ -52,8 +52,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Aliyun
 
                 string serviceEndpoint = this.ResolveEndpoint(
                     modelSetting.Config.GetConfigValueOrDefault<string?>("Endpoint"),
-                    modelSetting.Config.GetConfigValueOrDefault("Region", "cn-beijing"),
-                    modelSetting.Config.GetConfigValueOrDefault<string?>("WorkspaceId"));
+                    modelSetting.Config.GetConfigValueOrDefault("Region", "cn-beijing"));
                 if (string.IsNullOrWhiteSpace(serviceEndpoint))
                 {
                     return false;
@@ -287,7 +286,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Aliyun
             }
         }
 
-        private string ResolveEndpoint(string? endpoint, string region, string? workspaceId)
+        private string ResolveEndpoint(string? endpoint, string region)
         {
             if (!string.IsNullOrWhiteSpace(endpoint))
             {
@@ -303,12 +302,8 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Aliyun
 
             return region.ToLowerInvariant() switch
             {
-                "cn-beijing" => string.IsNullOrWhiteSpace(workspaceId)
-                    ? "wss://dashscope.aliyuncs.com/api-ws/v1/inference"
-                    : $"wss://{workspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/inference",
-                "ap-southeast-1" => string.IsNullOrWhiteSpace(workspaceId)
-                    ? "wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference"
-                    : $"wss://{workspaceId}.ap-southeast-1.maas.aliyuncs.com/api-ws/v1/inference",
+                "cn-beijing" => "wss://dashscope.aliyuncs.com/api-ws/v1/inference",
+                "ap-southeast-1" => "wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference",
                 _ => this.LogUnsupportedRegion(region)
             };
         }

@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
-namespace XiaoZhi.Test.OtherSamples.Huoshan
+namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal static class JsonHelper
     {
@@ -18,34 +18,34 @@ namespace XiaoZhi.Test.OtherSamples.Huoshan
 
         public static string ToJson(this object obj)
         {
-            return JsonSerializer.Serialize(obj, JsonHelper.OPTIONS);
+            return JsonSerializer.Serialize(obj, OPTIONS);
         }
 
         public static JsonNode? ToNode(this object obj)
         {
-            return obj is null ? null : JsonSerializer.SerializeToNode(obj, JsonHelper.OPTIONS);
+            return obj is null ? null : JsonSerializer.SerializeToNode(obj, OPTIONS);
         }
 
         public static string Serialize(object obj)
         {
-            return JsonSerializer.Serialize(obj, JsonHelper.OPTIONS);
+            return JsonSerializer.Serialize(obj, OPTIONS);
         }
 
         public static string Serialize(JsonObject obj)
         {
-            return obj.ToJsonString(JsonHelper.OPTIONS);
+            return obj.ToJsonString(OPTIONS);
         }
 
         public static byte[] SerializeToUtf8Bytes(object obj)
         {
-            return JsonSerializer.SerializeToUtf8Bytes(obj, JsonHelper.OPTIONS);
+            return JsonSerializer.SerializeToUtf8Bytes(obj, OPTIONS);
         }
 
         public static T? Deserialize<T>(string json) where T : class
         {
             try
             {
-                return JsonSerializer.Deserialize<T>(json, JsonHelper.OPTIONS);
+                return JsonSerializer.Deserialize<T>(json, OPTIONS);
             }
             catch
             {
@@ -102,11 +102,11 @@ namespace XiaoZhi.Test.OtherSamples.Huoshan
                         isNextSpace = spanName[position + 1] == 32;
                     }
 
-                    if ((isCurrentSpace) &&
-                        ((isPreviousSpace) ||
-                        (isPreviousSeparator) ||
-                        (isNextUpper) ||
-                        (isNextSpace)))
+                    if (isCurrentSpace &&
+                        (isPreviousSpace ||
+                        isPreviousSeparator ||
+                        isNextUpper ||
+                        isNextSpace))
                     {
                         addCharacter = false;
                     }
@@ -116,20 +116,20 @@ namespace XiaoZhi.Test.OtherSamples.Huoshan
                         var isPreviousLower = spanName[position - 1] > 96 && spanName[position - 1] < 123;
                         var isPreviousNumber = spanName[position - 1] > 47 && spanName[position - 1] < 58;
 
-                        if ((isCurrentUpper) &&
-                        ((isPreviousLower) ||
-                        (isPreviousNumber) ||
-                        (isNextLower) ||
-                        (isNextSpace) ||
-                        (isNextLower && !isPreviousSpace)))
+                        if (isCurrentUpper &&
+                        (isPreviousLower ||
+                        isPreviousNumber ||
+                        isNextLower ||
+                        isNextSpace ||
+                        isNextLower && !isPreviousSpace))
                         {
                             stringBuilder.Append(this._separator);
                         }
                         else
                         {
-                            if ((isCurrentSpace &&
+                            if (isCurrentSpace &&
                                 !isPreviousSpace &&
-                                !isNextSpace))
+                                !isNextSpace)
                             {
                                 stringBuilder.Append(this._separator);
                                 addCharacter = false;

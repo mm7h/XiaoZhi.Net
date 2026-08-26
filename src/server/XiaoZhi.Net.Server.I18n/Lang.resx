@@ -1308,4 +1308,109 @@
   <data name="AliyunRealtimeASR_AbortSynchronously_Failed" xml:space="preserve">
     <value>Aliyun real-time ASR abort during cleanup failed.</value>
   </data>
+  <data name="AliyunRealtimeTTS_Build_ConfigInvalid" xml:space="preserve">
+    <value>Aliyun real-time TTS requires ApiKey, Voice, and a supported Qwen-Audio-TTS or CosyVoice ModelName; Format must be pcm.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_UnsupportedSampleRate" xml:space="preserve">
+    <value>Aliyun real-time TTS sample rate {SampleRate} is unsupported.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_InvalidAudioParameter" xml:space="preserve">
+    <value>Aliyun real-time TTS Volume, Rate, or Pitch is outside the supported range.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_Built" xml:space="preserve">
+    <value>Aliyun real-time TTS provider was built with model {ModelName}.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_Failed" xml:space="preserve">
+    <value>Failed to build the Aliyun real-time TTS provider.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_EndpointInvalid" xml:space="preserve">
+    <value>Aliyun real-time TTS Endpoint must be an absolute wss URL.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_UnsupportedRegion" xml:space="preserve">
+    <value>Aliyun real-time TTS Region {Region} is unsupported.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Synthesis_NotRegistered" xml:space="preserve">
+    <value>The Aliyun real-time TTS provider is not registered for this session.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Synthesis_NotBuilt" xml:space="preserve">
+    <value>The Aliyun real-time TTS provider has not been built.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Synthesis_ClientNotInitialized" xml:space="preserve">
+    <value>The Aliyun real-time TTS WebSocket client has not been initialized.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Synthesis_MissingFirstSegment" xml:space="preserve">
+    <value>Received a TTS text segment before the first segment of its turn.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Task_Failed" xml:space="preserve">
+    <value>Aliyun real-time TTS task {TaskId} failed.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Task_Failed_Default" xml:space="preserve">
+    <value>Aliyun real-time TTS task failed.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Abort_Failed" xml:space="preserve">
+    <value>Failed to abort Aliyun real-time TTS while releasing the provider.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Start_ConnectionFailed" xml:space="preserve">
+    <value>Unable to connect to the Aliyun real-time TTS WebSocket service.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Append_NotAcceptingText" xml:space="preserve">
+    <value>The Aliyun real-time TTS task is not accepting text.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_WebSocket_UnexpectedClose" xml:space="preserve">
+    <value>Aliyun real-time TTS WebSocket closed unexpectedly: {0} {1}</value>
+  </data>
+  <data name="AliyunRealtimeTTS_WebSocket_Error" xml:space="preserve">
+    <value>Aliyun real-time TTS WebSocket error {0}: {1}</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_ConfigInvalid" xml:space="preserve">
+    <value>Invalid Aliyun HTTP TTS configuration: ApiKey, Voice, a supported Qwen-Audio-TTS or CosyVoice ModelName, and Format pcm are required.</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_EndpointInvalid" xml:space="preserve">
+    <value>Aliyun HTTP TTS requires a WorkspaceId or an absolute HTTPS Endpoint.</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_UnsupportedSampleRate" xml:space="preserve">
+    <value>Aliyun HTTP TTS does not support sample rate {SampleRate}.</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_InvalidAudioParameter" xml:space="preserve">
+    <value>Aliyun HTTP TTS Volume, Rate, or Pitch is out of range.</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_Built" xml:space="preserve">
+    <value>Built Aliyun HTTP TTS provider with model {ModelName}.</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_Failed" xml:space="preserve">
+    <value>Failed to build Aliyun HTTP TTS provider.</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_NotRegistered" xml:space="preserve">
+    <value>The current session has not registered the Aliyun HTTP TTS provider.</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_NotBuilt" xml:space="preserve">
+    <value>The Aliyun HTTP TTS provider has not been built.</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_MissingSentenceId" xml:space="preserve">
+    <value>Aliyun HTTP TTS cannot synthesize a segment without a sentence ID.</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_RequestFailed" xml:space="preserve">
+    <value>Aliyun HTTP TTS request failed: status={Status}, body={Body}</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_DownloadFailed" xml:space="preserve">
+    <value>Aliyun HTTP TTS audio download failed: status={Status}, body={Body}</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_ApiError" xml:space="preserve">
+    <value>Aliyun HTTP TTS API error: requestId={RequestId}, code={Code}, message={Message}</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_InvalidResponse" xml:space="preserve">
+    <value>Aliyun HTTP TTS returned an invalid response.</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_NoAudio" xml:space="preserve">
+    <value>Aliyun HTTP TTS completed without audio data.</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_Failed" xml:space="preserve">
+    <value>Aliyun HTTP TTS synthesis failed.</value>
+  </data>
+  <data name="AliyunHttpTTS_SaveAudioFile_FileSaved" xml:space="preserve">
+    <value>Saved Aliyun HTTP TTS audio file {FileName} for device {DeviceId}.</value>
+  </data>
+  <data name="AliyunHttpTTS_SaveAudioFile_SaveFailed" xml:space="preserve">
+    <value>Failed to save Aliyun HTTP TTS audio file {FileName} for device {DeviceId}.</value>
+  </data>
 </root>
