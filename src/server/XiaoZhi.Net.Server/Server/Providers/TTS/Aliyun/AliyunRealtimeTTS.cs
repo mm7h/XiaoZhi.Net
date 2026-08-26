@@ -71,7 +71,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
 
                 string endpoint = this.ResolveEndpoint(
                     modelSetting.Config.GetConfigValueOrDefault<string?>("Endpoint"),
-                    modelSetting.Config.GetConfigValueOrDefault("Region", "cn-beijing"));
+                    modelSetting.Config.GetConfigValueOrDefault("Region", "cn-beijing"),
+                    modelSetting.Config.GetConfigValueOrDefault<string?>("WorkspaceId"));
                 if (string.IsNullOrWhiteSpace(endpoint))
                 {
                     return false;
@@ -318,7 +319,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
             }
         }
 
-        private string ResolveEndpoint(string? endpoint, string region)
+        private string ResolveEndpoint(string? endpoint, string region, string? workspaceId)
         {
             if (!string.IsNullOrWhiteSpace(endpoint))
             {
@@ -326,6 +327,29 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
                     && uri.Scheme == Uri.UriSchemeWss)
                 {
                     return uri.ToString();
+                }
+
+                this.Logger.LogWarning(Lang.AliyunRealtimeTTS_Build_EndpointInvalid);
+                return string.Empty;
+            }
+
+            if (!string.IsNullOrWhiteSpace(workspaceId))
+            {
+                string? workspaceEndpoint = region.ToLowerInvariant() switch
+                {
+                    "cn-beijing" => $"wss://{workspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/inference",
+                    "ap-southeast-1" => $"wss://{workspaceId}.ap-southeast-1.maas.aliyuncs.com/api-ws/v1/inference",
+                    _ => null
+                };
+                if (workspaceEndpoint is null)
+                {
+                    return this.LogUnsupportedRegion(region);
+                }
+
+                if (Uri.TryCreate(workspaceEndpoint, UriKind.Absolute, out Uri? workspaceUri)
+                    && workspaceUri.Scheme == Uri.UriSchemeWss)
+                {
+                    return workspaceUri.ToString();
                 }
 
                 this.Logger.LogWarning(Lang.AliyunRealtimeTTS_Build_EndpointInvalid);

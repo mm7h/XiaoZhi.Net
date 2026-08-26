@@ -16,7 +16,11 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
         private const string AliyunApiKey = "your api key";
 
-        private const string AliyunEndpoint = "wss://dashscope.aliyuncs.com/api-ws/v1/inference";
+        // 可选的显式 Endpoint。未配置时，WorkspaceId 用于选择业务空间专属域名；
+        // 两者均留空时，为兼容存量调用而使用原有的共享 DashScope 域名。
+        private const string AliyunEndpoint = "";
+        private const string AliyunWorkspaceId = "";
+        private const string AliyunRegion = "cn-beijing";
         private const string AliyunModelName = "qwen-audio-3.0-asr-flash-streaming";
 
         private const string HuoshanResourceId = "volc.bigasr.sauc.duration";
@@ -65,7 +69,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
             try
             {
-                await webSocketClient.ConnectAsync(AliyunEndpoint, token);
+                string endpoint = ResolveAliyunEndpoint();
+                Console.WriteLine($"Aliyun realtime ASR endpoint: {endpoint}");
+                await webSocketClient.ConnectAsync(endpoint, token);
                 if (!webSocketClient.IsConnected)
                 {
                     throw new WebSocketException("Unable to connect to the Aliyun ASR WebSocket service.");
@@ -450,10 +456,43 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
         private static void EnsureConfigured(string value, string name)
         {
-            if (string.IsNullOrWhiteSpace(value))
+            if (string.IsNullOrWhiteSpace(value)
+                || value.StartsWith("your ", StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException($"Please set {name} in {nameof(Sample22_StreamASR)} before running this test.");
             }
+        }
+
+        private static string ResolveAliyunEndpoint()
+        {
+            if (!string.IsNullOrWhiteSpace(AliyunEndpoint))
+            {
+                if (Uri.TryCreate(AliyunEndpoint, UriKind.Absolute, out Uri? endpoint)
+                    && endpoint.Scheme == Uri.UriSchemeWss)
+                {
+                    return endpoint.ToString();
+                }
+
+                throw new InvalidOperationException($"{nameof(AliyunEndpoint)} must be an absolute WSS URL.");
+            }
+
+            string resolvedEndpoint = AliyunRegion.ToLowerInvariant() switch
+            {
+                "cn-beijing" when !string.IsNullOrWhiteSpace(AliyunWorkspaceId)
+                    => $"wss://{AliyunWorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/inference",
+                "ap-southeast-1" when !string.IsNullOrWhiteSpace(AliyunWorkspaceId)
+                    => $"wss://{AliyunWorkspaceId}.ap-southeast-1.maas.aliyuncs.com/api-ws/v1/inference",
+                "cn-beijing" => "wss://dashscope.aliyuncs.com/api-ws/v1/inference",
+                "ap-southeast-1" => "wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference",
+                _ => throw new InvalidOperationException($"{nameof(AliyunRegion)} must be cn-beijing or ap-southeast-1.")
+            };
+            if (Uri.TryCreate(resolvedEndpoint, UriKind.Absolute, out Uri? uri)
+                && uri.Scheme == Uri.UriSchemeWss)
+            {
+                return uri.ToString();
+            }
+
+            throw new InvalidOperationException($"{nameof(AliyunWorkspaceId)} does not produce a valid WSS Endpoint.");
         }
 
         private static string? GetString(JsonNode? node) => node is JsonValue value

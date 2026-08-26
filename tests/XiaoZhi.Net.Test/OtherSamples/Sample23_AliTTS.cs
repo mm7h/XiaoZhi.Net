@@ -16,7 +16,11 @@ namespace XiaoZhi.Net.Test.OtherSamples
         private const string AliyunHttpEndpoint = "";
         private const string AliyunWorkspaceId = "your workspace id";
 
-        private const string RealtimeEndpoint = "wss://dashscope.aliyuncs.com/api-ws/v1/inference";
+        // 可选的显式 Endpoint。未配置时，WorkspaceId 用于选择业务空间专属域名；
+        // 两者均留空时，为兼容存量调用而使用原有的共享 DashScope 域名。
+        private const string AliyunRealtimeEndpoint = "";
+        private const string AliyunRealtimeWorkspaceId = "";
+        private const string AliyunRealtimeRegion = "cn-beijing";
         private const string HttpEndpointPath = "/api/v1/services/audio/tts/SpeechSynthesizer";
         private const string ModelName = "qwen-audio-3.0-tts-flash";
         private const string Voice = "longanfengyue";
@@ -69,7 +73,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
 
             try
             {
-                await webSocketClient.ConnectAsync(RealtimeEndpoint, token);
+                string endpoint = ResolveRealtimeEndpoint();
+                Console.WriteLine($"Aliyun realtime TTS endpoint: {endpoint}");
+                await webSocketClient.ConnectAsync(endpoint, token);
                 if (!webSocketClient.IsConnected)
                 {
                     throw new WebSocketException("Unable to connect to the Aliyun TTS WebSocket service.");
@@ -498,7 +504,41 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     $"Please set either {nameof(AliyunHttpEndpoint)} or {nameof(AliyunWorkspaceId)} in {nameof(Sample23_AliTTS)} before running an HTTP TTS test.");
             }
 
+            EnsureConfigured(AliyunWorkspaceId, nameof(AliyunWorkspaceId));
+
             return $"https://{AliyunWorkspaceId}.cn-beijing.maas.aliyuncs.com{HttpEndpointPath}";
+        }
+
+        private static string ResolveRealtimeEndpoint()
+        {
+            if (!string.IsNullOrWhiteSpace(AliyunRealtimeEndpoint))
+            {
+                if (Uri.TryCreate(AliyunRealtimeEndpoint, UriKind.Absolute, out Uri? endpoint)
+                    && endpoint.Scheme == Uri.UriSchemeWss)
+                {
+                    return endpoint.ToString();
+                }
+
+                throw new InvalidOperationException($"{nameof(AliyunRealtimeEndpoint)} must be an absolute WSS URL.");
+            }
+
+            string resolvedEndpoint = AliyunRealtimeRegion.ToLowerInvariant() switch
+            {
+                "cn-beijing" when !string.IsNullOrWhiteSpace(AliyunRealtimeWorkspaceId)
+                    => $"wss://{AliyunRealtimeWorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/inference",
+                "ap-southeast-1" when !string.IsNullOrWhiteSpace(AliyunRealtimeWorkspaceId)
+                    => $"wss://{AliyunRealtimeWorkspaceId}.ap-southeast-1.maas.aliyuncs.com/api-ws/v1/inference",
+                "cn-beijing" => "wss://dashscope.aliyuncs.com/api-ws/v1/inference",
+                "ap-southeast-1" => "wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference",
+                _ => throw new InvalidOperationException($"{nameof(AliyunRealtimeRegion)} must be cn-beijing or ap-southeast-1.")
+            };
+            if (Uri.TryCreate(resolvedEndpoint, UriKind.Absolute, out Uri? uri)
+                && uri.Scheme == Uri.UriSchemeWss)
+            {
+                return uri.ToString();
+            }
+
+            throw new InvalidOperationException($"{nameof(AliyunRealtimeWorkspaceId)} does not produce a valid WSS Endpoint.");
         }
 
         private static T? DeserializeJson<T>(string json, T template) where T : class =>

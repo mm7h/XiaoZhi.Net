@@ -101,7 +101,7 @@
         "ApiKey": "your-api-key",
         "ModelName": "qwen-audio-3.0-asr-flash-streaming",
         "Region": "cn-beijing", // 可选：提供 Endpoint 覆盖默认的 WebSocket 地址。
-        "WorkspaceId": "",
+        "WorkspaceId": "", // 可选：配置后使用业务空间专属 WebSocket 域名；Endpoint 优先，留空则继续使用共享 DashScope 域名。
         "SegmentDurationMs": 100,
         "LanguageHints": "zh,en",
         "ConnectionTimeoutSeconds": 5,
@@ -170,13 +170,14 @@
         }
       },
       "AliyunRealtimeTTS": {
-        // 文档地址：https://help.aliyun.com/zh/model-studio/real-time-speech-recognition-user-guide
+        // 文档地址：https://help.aliyun.com/zh/model-studio/realtime-tts-user-guide
         // Qwen-Audio-TTS 与 CosyVoice 共用此实时语音合成提供者。
         // 可替换为 qwen-audio-3.0-tts-flash 等 Qwen-Audio-TTS 模型。
         "ApiKey": "your-aliyun-api-key",
         "ModelName": "cosyvoice-v3-flash",
         "Voice": "longanfengyue", // 音色列表：https://help.aliyun.com/zh/model-studio/qwen-audio-tts-voice-list
         "Region": "cn-beijing", // 可选：提供 Endpoint 覆盖默认的 WebSocket 地址。
+        "WorkspaceId": "", // 可选：配置后使用业务空间专属 WebSocket 域名；Endpoint 优先，留空则继续使用共享 DashScope 域名。
         "Format": "pcm",
         "SampleRate": 24000,
         "Volume": 50,
