@@ -12,7 +12,6 @@ using XiaoZhi.Net.Server.Abstractions.Common.Contexts;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
-using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
@@ -25,7 +24,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
         private readonly object _chatHistoryLock = new object();
         private readonly List<AgentChatHistoryItem> _chatHistory = [];
 
-        private PrivateProvider? _sessionPrivateProvider;
         private ChatHistorySequence? _chatHistorySequence;
 
         public FunctionCallAgent(IServiceProvider serviceProvider, ILogger<FunctionCallAgent> logger)
@@ -38,7 +36,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
 
         public override bool Build(LLMAgentBuildConfig buildConfig)
         {
-            this._sessionPrivateProvider = buildConfig.SessionPrivateProvider;
             this._chatHistorySequence = buildConfig.ChatHistorySequence;
             lock (this._chatHistoryLock)
             {
@@ -74,8 +71,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
 
             this.AppendHistory(ChatRole.User, detection.UserMessage);
 
-            IList<AITool> tools = this._sessionPrivateProvider?.FunctionTools ?? (IList<AITool>)new List<AITool>();
-
             if (this.ShouldContinueChat(detection.Function))
             {
                 this.Logger.LogDebug("FunctionCallAgent: 未识别到可调用工具，跳过函数调用。");
@@ -85,14 +80,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
 
             FunctionMetadata function = detection.Function!;
 
-            // 按名称查找工具（大小写不敏感）
-            AIFunction? func = tools
-                .OfType<AIFunction>()
-                .FirstOrDefault(f => string.Equals(f.Name, function.Name, StringComparison.OrdinalIgnoreCase));
+            FunctionToolRegistration? registration = detection.ResolvedRegistration;
+            AIFunction? func = registration?.Function;
 
             if (func is null)
             {
-                this.Logger.LogWarning("FunctionCallAgent: 未找到工具 '{FunctionName}'，跳过调用。", function.Name);
+                this.Logger.LogWarning("FunctionCallAgent: 本轮快照中未找到工具 '{FunctionName}'，跳过调用。", function.Name);
                 this.AppendToolHistory(function.Name, "工具未找到。");
                 await context.SendMessageAsync(new FunctionExecutionResult(function.Name, null, ToolAction.Silent, detection.UserMessage), token);
                 return;
@@ -110,7 +103,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                 this.AppendToolHistory(function.Name, ex.Message);
                 throw;
             }
-            FunctionExecutionResult executionResult = this.NormalizeExecutionResult(detection, result);
+            FunctionExecutionResult executionResult = this.NormalizeExecutionResult(detection, result, registration);
             this.AppendToolHistory(executionResult.FunctionName, executionResult.Response ?? "(empty)");
 
             this.Logger.LogDebug("FunctionCallAgent: '{FunctionName}' 调用结果：{Result}", detection.Function?.Name, executionResult.Response ?? "(empty)");
@@ -166,7 +159,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
             return value;
         }
 
-        private FunctionExecutionResult NormalizeExecutionResult(IntentDetectionResult detection, object? result)
+        private FunctionExecutionResult NormalizeExecutionResult(IntentDetectionResult detection, object? result, FunctionToolRegistration? registration)
         {
             if (result is null)
             {
@@ -180,7 +173,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                 return new FunctionExecutionResult(detection.Function?.Name ?? string.Empty, llmResponse, ToolAction.Continue, detection.UserMessage);
             }
 
-            ToolAction action = this.ResolveToolAction(detection.Function?.Name, result);
+            ToolAction action = this.ResolveToolAction(result, registration);
             string? response = this.ResolveResponse(result);
 
             return new FunctionExecutionResult(
@@ -190,7 +183,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                 detection.UserMessage);
         }
 
-        private ToolAction ResolveToolAction(string? functionName, object functionReturn)
+        private ToolAction ResolveToolAction(object functionReturn, FunctionToolRegistration? registration)
         {
             ToolAction? next = functionReturn.GetType().GetProperty("Next")?.GetValue(functionReturn) as ToolAction?;
             if (next.HasValue)
@@ -198,10 +191,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                 return next.Value;
             }
 
-            if (!string.IsNullOrWhiteSpace(functionName)
-                && this._sessionPrivateProvider is not null
-                && this._sessionPrivateProvider.TryGetFunctionToolRegistration(functionName, out FunctionToolRegistration? registration)
-                && registration is not null)
+            if (registration is not null)
             {
                 return registration.DefaultAction;
             }

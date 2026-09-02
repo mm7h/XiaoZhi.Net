@@ -3,6 +3,7 @@ using Microsoft.Extensions.ObjectPool;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
@@ -20,6 +21,7 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ObjectPool<OutSegment> _outSegmentPool;
 
         private ILlm? _llm;
+        private int _mcpInitialWaitWarningLogged;
 
         public DialogueHandler(ObjectPool<Workflow<string>> stringWorkflowPool,
             ObjectPool<Workflow<OutSegment>> outSegmentWorkflowPool,
@@ -39,6 +41,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override bool Build(PrivateProvider privateProvider)
         {
+            Interlocked.Exchange(ref this._mcpInitialWaitWarningLogged, 0);
             Session session = this.SendOutter.GetSession();
             if (privateProvider.Llm is null)
             {
@@ -120,14 +123,11 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 // 若 MCP 已启用但工具列表尚未加载完毕，等待就绪信号（最多 5 秒）
                 // 避免首次对话因竞态而拿到空工具列表
-                Task? mcpReadyTask = session.PrivateProvider.McpClientReadyTask;
-                if (mcpReadyTask is not null && !mcpReadyTask.IsCompleted)
+                Task? mcpReadyTask = session.PrivateProvider.FunctionToolsContext.McpClientReadyTask;
+                if (mcpReadyTask is not null)
                 {
-                    try
-                    {
-                        await mcpReadyTask.WaitAsync(TimeSpan.FromSeconds(5), this.HandlerToken);
-                    }
-                    catch (TimeoutException)
+                    bool mcpToolsReady = await session.PrivateProvider.FunctionToolsContext.WaitForInitialMcpToolsAsync(TimeSpan.FromSeconds(5), this.HandlerToken);
+                    if (!mcpToolsReady && Interlocked.Exchange(ref this._mcpInitialWaitWarningLogged, 1) == 0)
                     {
                         this.Logger.LogWarning(Lang.DialogueHandler_Handle_McpToolsNotReady, session.DeviceId);
                     }

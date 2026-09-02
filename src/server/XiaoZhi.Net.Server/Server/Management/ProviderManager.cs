@@ -657,7 +657,7 @@ namespace XiaoZhi.Net.Server.Management
         public void BuildMCP(Session session)
         {
             // 在发起 MCP 握手前先标记"等待工具列表加载"，防止对话提前使用空工具列表
-            session.PrivateProvider.SetMcpClientPending();
+            session.PrivateProvider.FunctionToolsContext.SetMcpClientPending();
 
             IMcpClient mcpClient = this.ServiceProvider.GetRequiredService<IMcpClient>();
 
@@ -675,6 +675,7 @@ namespace XiaoZhi.Net.Server.Management
             }
             if (!mcpClient.Build(mcpBuildConfigs))
             {
+                session.PrivateProvider.FunctionToolsContext.SetMcpClientFailed(new InvalidOperationException($"MCP client build failed for session '{session.SessionId}'."));
                 this.Logger.LogWarning(Lang.ProviderManager_BuildMCP_BuildFailed, session.SessionId);
             }
             else

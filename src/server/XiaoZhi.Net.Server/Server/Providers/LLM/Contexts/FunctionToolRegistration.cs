@@ -29,7 +29,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Contexts
         }
 
 
-        public AIFunction Function { get; private set; }
+        public AIFunction Function { get; private set; } = null!;
 
         public FunctionMetadata Metadata { get; }
 

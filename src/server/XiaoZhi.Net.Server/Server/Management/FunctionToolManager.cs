@@ -117,6 +117,7 @@ namespace XiaoZhi.Net.Server.Management
                 return Task.CompletedTask;
             }
 
+            List<FunctionToolRegistration> globalRegistrations = [];
             foreach (FunctionTool instance in this._globalFunctionTools)
             {
                 if (!this._globalFunctionToolMethodMetadata.TryGetValue(instance.GetType(), out IEnumerable<FunctionToolMethodMetadata>? methodMetas))
@@ -127,9 +128,10 @@ namespace XiaoZhi.Net.Server.Management
                 foreach (FunctionToolMethodMetadata methodMeta in methodMetas)
                 {
                     FunctionToolRegistration registration = this.BuildRegistration(instance, methodMeta);
-                    session.PrivateProvider.AddFunctionToolRegistration(registration);
+                    globalRegistrations.Add(registration);
                 }
             }
+            session.PrivateProvider.FunctionToolsContext.AddFunctionToolRegistrations(globalRegistrations);
 
             Dictionary<Type, IPrivateFunctionTool> privateFunctionTools = this.ServiceProvider.GetServices<IPrivateFunctionTool>().ToDictionary(i => i.GetType());
             List<Exception> functionExceptions = [];
@@ -144,11 +146,14 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (item.Value is PrivateFunctionTool instance)
                 {
+                    session.PrivateProvider.FunctionToolsContext.AddPrivateFunctionTool(instance);
+                    List<FunctionToolRegistration> registrations = [];
                     foreach (FunctionToolMethodMetadata methodMeta in methodMetas)
                     {
                         FunctionToolRegistration registration = this.BuildRegistration(instance, methodMeta);
-                        session.PrivateProvider.AddFunctionToolRegistration(instance, registration);
+                        registrations.Add(registration);
                     }
+                    session.PrivateProvider.FunctionToolsContext.AddFunctionToolRegistrations(registrations);
 
                     instance.Logger = this._loggerFactory.CreateLogger(instance.GetType());
                     instance.ServerInfo = this.CreateServerInfoAdapter();
@@ -180,14 +185,14 @@ namespace XiaoZhi.Net.Server.Management
 
         public override Task OnSessionClosedAsync(Session session)
         {
-            if (!session.PrivateProvider.PrivateFunctionTools.Any())
+            if (!session.PrivateProvider.FunctionToolsContext.PrivateFunctionTools.Any())
             {
                 return Task.CompletedTask;
             }
 
             try
             {
-                Parallel.ForEach(session.PrivateProvider.PrivateFunctionTools, instance =>
+                Parallel.ForEach(session.PrivateProvider.FunctionToolsContext.PrivateFunctionTools, instance =>
                 {
                     _ = instance.OnSessionClosedAsync().AsTask();
                     _ = instance.OnFunctionToolReleasedAsync().AsTask();
@@ -211,9 +216,9 @@ namespace XiaoZhi.Net.Server.Management
 
         public override Task OnSessionPropertyInitializedAsync(Session session, JsonObject helloMessage)
         {
-            if (session.PrivateProvider.PrivateFunctionTools.Any())
+            if (session.PrivateProvider.FunctionToolsContext.PrivateFunctionTools.Any())
             {
-                _ = Task.WhenAll(session.PrivateProvider.PrivateFunctionTools.Select(instance => instance.OnSessionConnectedAsync().AsTask()));
+                _ = Task.WhenAll(session.PrivateProvider.FunctionToolsContext.PrivateFunctionTools.Select(instance => instance.OnSessionConnectedAsync().AsTask()));
             }
             return Task.CompletedTask;
         }

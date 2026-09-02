@@ -13,10 +13,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
-using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Providers.LLM.AIContextProviders;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 using XiaoZhi.Net.Server.Providers.LLM.Utils;
 using XiaoZhi.Net.Server.Resources;
@@ -51,7 +51,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
         private ChatClientAgent? _chatClientAgent;
 
         private AgentSession? _agentSession;
-        private PrivateProvider? _sessionPrivateProvider;
         private bool _allowFunctionCall;
         private ChatHistorySequence? _chatHistorySequence;
 
@@ -87,8 +86,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                     this._chatHistory.Clear();
                 }
 
-                this._sessionPrivateProvider = agentBuildConfig.SessionPrivateProvider;
-
                 string instructions = this.BuildInstructions(summaryMemory);
                 IChatClient chatClient = this.ServiceProvider.GetRequiredKeyedService<IChatClient>($"LLM_{agentBuildConfig.AgentSetting.ModelName}");
 
@@ -109,6 +106,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                         Temperature = 0.5f,
                         MaxOutputTokens = 40,
                         ResponseFormat = ChatResponseFormat.Text,
+                        ToolMode = this._allowFunctionCall ? ChatToolMode.Auto : ChatToolMode.None,
                         Reasoning = new ReasoningOptions
                         {
                             Effort = ReasoningEffort.None,
@@ -119,15 +117,19 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                     RequirePerServiceCallChatHistoryPersistence = true
                 };
 
+                List<AIContextProvider> contextProviders = [];
                 if (this._rag.IsReady)
                 {
                     TextSearchProvider? textSearchProvider = this._rag.Create();
                     if (textSearchProvider is not null)
                     {
-                        chatClientAgentOptions.AIContextProviders = [textSearchProvider];
+                        contextProviders.Add(textSearchProvider);
                     }
                 }
-                
+                contextProviders.Add(new FunctionToolsContextProvider(
+                    agentBuildConfig.SessionPrivateProvider.FunctionToolsContext,
+                    () => this._allowFunctionCall));
+                chatClientAgentOptions.AIContextProviders = contextProviders;
 
                 this._chatClientAgent = new ChatClientAgent(
                     chatClient: configuredChatClient,
@@ -233,16 +235,9 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             int historyStartIndex = this.GetInMemoryHistory().Count;
             this.AppendHistory(ChatRole.User, userMessage);
 
-            ChatClientAgentRunOptions runOptions = new ChatClientAgentRunOptions(new ChatOptions
-            {
-                ToolMode = this._allowFunctionCall ? ChatToolMode.Auto : ChatToolMode.None,
-                Tools = (this._allowFunctionCall && this._sessionPrivateProvider?.FunctionTools.Count > 0)
-                    ? this._sessionPrivateProvider.FunctionTools
-                    : null
-            });
             try
             {
-                await foreach (AgentResponseUpdate update in this._chatClientAgent.RunStreamingAsync(userMessage, this._agentSession, runOptions, token))
+                await foreach (AgentResponseUpdate update in this._chatClientAgent.RunStreamingAsync(userMessage, this._agentSession, cancellationToken: token))
                 {
                     string content = update.Text ?? string.Empty;
                     string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(content));

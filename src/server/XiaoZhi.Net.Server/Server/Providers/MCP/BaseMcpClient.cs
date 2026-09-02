@@ -157,14 +157,11 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                         {
                             this.IsReady = true;
                             // 将所有 AIFunction 注册到 session 共享工具列表
-                            foreach (FunctionToolRegistration registration in this._mcpToolRegistrations.Values)
-                            {
-                                this.CurrentSession.PrivateProvider.AddFunctionToolRegistration(registration);
-                            }
+                            this.CurrentSession.PrivateProvider.FunctionToolsContext.AddFunctionToolRegistrations(this._mcpToolRegistrations.Values);
                             this.Logger.LogInformation(Lang.BaseMcpClient_HandleMcpMessageAsync_ClientReady);
                             this.Logger.LogInformation(Lang.BaseMcpClient_HandleMcpMessageAsync_ToolCount, this._mcpToolRegistrations.Values.Count);
                             // 通知等待方（DialogueHandler）MCP 工具已全部就绪
-                            this.CurrentSession.PrivateProvider.SetMcpClientReady();
+                            this.CurrentSession.PrivateProvider.FunctionToolsContext.SetMcpClientReady();
                         }
 
                         return;

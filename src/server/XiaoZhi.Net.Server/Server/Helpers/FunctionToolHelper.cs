@@ -2,6 +2,7 @@ using Microsoft.Extensions.AI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 
@@ -12,6 +13,49 @@ namespace XiaoZhi.Net.Server.Helpers
     /// </summary>
     internal static class FunctionToolHelper
     {
+        public static string BuildToolDescriptions(IEnumerable<FunctionToolRegistration> registrations)
+        {
+            StringBuilder descriptions = new StringBuilder();
+            foreach (FunctionToolRegistration registration in registrations)
+            {
+                FunctionMetadata metadata = registration.Metadata;
+                descriptions.AppendLine();
+                descriptions.Append("函数名: ").AppendLine(metadata.Name);
+                if (!string.IsNullOrWhiteSpace(metadata.Description))
+                {
+                    descriptions.Append("描述: ").AppendLine(metadata.Description);
+                }
+
+                if (metadata.Parameters is { Count: > 0 })
+                {
+                    descriptions.AppendLine("参数:");
+                    foreach (FunctionParameter parameter in metadata.Parameters)
+                    {
+                        descriptions.Append("- ").Append(parameter.Name).Append(" (").Append(parameter.Type).Append(")");
+                        if (parameter.Required)
+                        {
+                            descriptions.Append(" [required]");
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(parameter.Description))
+                        {
+                            descriptions.Append(": ").Append(parameter.Description);
+                        }
+
+                        descriptions.AppendLine();
+                    }
+                }
+                else
+                {
+                    descriptions.AppendLine("参数: 不需要参数");
+                }
+
+                descriptions.AppendLine("---");
+            }
+
+            return descriptions.ToString();
+        }
+
         public static FunctionMetadata ToFunctionMetadata(this AIFunction function)
         {
             string? inputJsonSchema = function is AIFunctionDeclaration declaration && declaration.JsonSchema.ValueKind != JsonValueKind.Undefined

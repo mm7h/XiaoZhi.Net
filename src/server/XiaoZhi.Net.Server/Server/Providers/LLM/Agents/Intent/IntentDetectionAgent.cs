@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Common.Configs;
@@ -13,6 +12,7 @@ using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.Providers.LLM.AIContextProviders;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
@@ -58,6 +58,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
 
         private ChatClientAgent? _intentClientAgent;
         private PrivateProvider? _sessionPrivateProvider;
+        private readonly AsyncLocal<string?> _activeIntentInstructions = new AsyncLocal<string?>();
 
         public IntentDetectionAgent(IServiceProvider serviceProvider, ILogger<IntentDetectionAgent> logger)
             : base(SubAgentNames.IntentDetectionAgent, serviceProvider, logger)
@@ -87,6 +88,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
 
                 IChatClient chatClient = this.ServiceProvider.GetRequiredKeyedService<IChatClient>($"LLM_{selectedLLMModel}");
                 this._sessionPrivateProvider = buildConfig.SessionPrivateProvider;
+                this._sessionPrivateProvider.FunctionToolsContext.ConfigureIntentInstructions(INTENT_DETECTION_PROMPT);
                 ChatClientAgentOptions options = new ChatClientAgentOptions
                 {
                     Name = SubAgentNames.IntentDetectionAgent,
@@ -103,6 +105,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                         }
                     }
                 };
+                options.AIContextProviders = [new IntentInstructionsContextProvider(() => this._activeIntentInstructions.Value ?? this._sessionPrivateProvider.FunctionToolsContext.Capture().IntentInstructions)];
 
                 this._intentClientAgent = new ChatClientAgent(
                     chatClient: chatClient,
@@ -142,24 +145,26 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                 return;
             }
 
-            IList<AITool> tools = this._sessionPrivateProvider?.FunctionTools ?? [];
-            if (tools.Count == 0)
+            if (this._sessionPrivateProvider is null)
             {
                 await context.SendMessageAsync(this.CreateEmptyDetectionResult(preInput.UserMessage), token);
                 return;
             }
 
-            string instructions = this.BuildIntentDetectionPrompt(this.BuildToolDescriptions(tools));
-            ChatClientAgentRunOptions runOptions = new ChatClientAgentRunOptions(new ChatOptions
+            var toolContext = this._sessionPrivateProvider.FunctionToolsContext.Capture();
+            if (toolContext.Tools.Count == 0)
             {
-                Instructions = instructions
-            });
+                await context.SendMessageAsync(this.CreateEmptyDetectionResult(preInput.UserMessage), token);
+                return;
+            }
+
+            string? previousIntentInstructions = this._activeIntentInstructions.Value;
+            this._activeIntentInstructions.Value = toolContext.IntentInstructions;
             try
             {
                 AgentResponse<IntentDetectionResult> response = await this._intentClientAgent.RunAsync<IntentDetectionResult>(
                     preInput.UserMessage,
                     serializerOptions: JsonHelper.OPTIONS,
-                    options: runOptions,
                     cancellationToken: token);
 
                 if (response.Result is null || response.Result.Function is null)
@@ -170,8 +175,16 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                 }
                 else
                 {
-                    this.Logger.LogDebug("IntentDetectionAgent: function={Function}", response.Result.Function.Name);
-                    await context.SendMessageAsync(response.Result, token);
+                    IntentDetectionResult result = response.Result;
+                    if (!toolContext.Registrations.TryGetValue(result.Function.Name, out FunctionToolRegistration? registration))
+                    {
+                        this.Logger.LogWarning("IntentDetectionAgent: 工具 '{Function}' 在本轮快照中不存在，已转换为无意图结果。", result.Function.Name);
+                        await context.SendMessageAsync(this.CreateEmptyDetectionResult(preInput.UserMessage), token);
+                        return;
+                    }
+
+                    this.Logger.LogDebug("IntentDetectionAgent: function={Function}", result.Function.Name);
+                    await context.SendMessageAsync(result with { ResolvedRegistration = registration }, token);
                 }
             }
             catch (System.Text.Json.JsonException)
@@ -179,58 +192,10 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                 this.Logger.LogWarning("IntentDetectionAgent: LLM 返回了无效的 JSON（可能被 markdown 包裹），回退为无意图结果。");
                 await context.SendMessageAsync(this.CreateEmptyDetectionResult(preInput.UserMessage), token);
             }
-        }
-
-        private string BuildToolDescriptions(IList<AITool> tools)
-        {
-            StringBuilder sb = new StringBuilder();
-            foreach (AITool tool in tools)
+            finally
             {
-                FunctionMetadata metadata = tool is AIFunction aiFunction
-                    ? aiFunction.ToFunctionMetadata()
-                    : new FunctionMetadata { Name = tool.Name, Description = tool.Description };
-
-                sb.AppendLine();
-                sb.Append("函数名: ").AppendLine(metadata.Name);
-                if (!string.IsNullOrWhiteSpace(metadata.Description))
-                {
-                    sb.Append("描述: ").AppendLine(metadata.Description);
-                }
-
-                if (metadata.Parameters is not null && metadata.Parameters.Count > 0)
-                {
-                    sb.AppendLine("参数:");
-                    foreach (FunctionParameter parameter in metadata.Parameters)
-                    {
-                        sb.Append("- ").Append(parameter.Name).Append(" (").Append(parameter.Type).Append(")");
-                        if (parameter.Required)
-                        {
-                            sb.Append(" [required]");
-                        }
-                        if (!string.IsNullOrWhiteSpace(parameter.Description))
-                        {
-                            sb.Append(": ").Append(parameter.Description);
-                        }
-                        sb.AppendLine();
-                    }
-                }
-                else
-                { 
-                    sb.AppendLine("参数: 不需要参数");
-                }
-
-                sb.AppendLine("---");
+                this._activeIntentInstructions.Value = previousIntentInstructions;
             }
-            return sb.ToString();
-        }
-
-        private string BuildIntentDetectionPrompt(string toolDescriptions)
-        {
-            string resolvedToolDescriptions = string.IsNullOrWhiteSpace(toolDescriptions)
-                ? "当前没有可用函数。"
-                : toolDescriptions;
-
-            return INTENT_DETECTION_PROMPT + resolvedToolDescriptions;
         }
 
         private IntentDetectionResult CreateEmptyDetectionResult(string userMessage)

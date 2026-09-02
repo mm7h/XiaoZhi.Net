@@ -111,6 +111,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
         private void RegisterIoTTools(JsonArray descriptors)
         {
             int index = 1;
+            List<FunctionToolRegistration> registrations = [];
             foreach (JsonNode? descriptor in descriptors)
             {
                 if (descriptor is null)
@@ -165,7 +166,7 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                             string.Format(Lang.IoTClient_RegisterIoTTools_FunctionDescription, propDescription));
 
                         FunctionMetadata propertyMetadata = propertyFunc.ToFunctionMetadata();
-                        this.CurrentSession.PrivateProvider.AddFunctionToolRegistration(new FunctionToolRegistration(propertyFunc, propertyMetadata, ToolAction.Continue));
+                        registrations.Add(new FunctionToolRegistration(propertyFunc, propertyMetadata, ToolAction.Continue));
                         this.RegisterIoTProperties(iotDeviceComponentName, propName, propObj);
                     }
                 }
@@ -217,10 +218,11 @@ namespace XiaoZhi.Net.Server.Providers.IoT
                                 await capturedClient.ExecuteIoTCommandAsync(capturedComponent, capturedMethod, args, capturedParams, ct));
 
                         FunctionMetadata methodMetadata = methodFunc.ToFunctionMetadata();
-                        this.CurrentSession.PrivateProvider.AddFunctionToolRegistration(new FunctionToolRegistration(methodFunc, methodMetadata, ToolAction.Continue));
+                        registrations.Add(new FunctionToolRegistration(methodFunc, methodMetadata, ToolAction.Continue));
                     }
                 }
             }
+            this.CurrentSession.PrivateProvider.FunctionToolsContext.AddFunctionToolRegistrations(registrations);
         }
 
         private void RegisterIoTPropertyStatus(JsonArray states)
