@@ -273,15 +273,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             try
             {
-                if (session.PrivateProvider.OutputAudioResampler is not null && audioData.Length > 0)
-                {
-                    (float[] resampledAudioData, _) = await session.PrivateProvider.OutputAudioResampler.ResampleAsync(audioData, this.HandlerToken);
-                    outAudioSegment.Initialize(audioType: AudioType.TTS, audioData: resampledAudioData, isFirstFrame: isFirstFrame, isLastFrame: isLastFrame);
-                }
-                else
-                {
-                    outAudioSegment.Initialize(audioType: AudioType.TTS, audioData: audioData, isFirstFrame: isFirstFrame, isLastFrame: isLastFrame);
-                }
+                outAudioSegment.Initialize(audioType: AudioType.TTS, audioData: audioData, isFirstFrame: isFirstFrame, isLastFrame: isLastFrame);
 
                 nextWorkflow.Initialize(session, outAudioSegment);
                 await this.NextWriter.WriteAsync(nextWorkflow, this.HandlerToken);

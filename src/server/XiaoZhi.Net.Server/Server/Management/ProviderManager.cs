@@ -389,17 +389,16 @@ namespace XiaoZhi.Net.Server.Management
         }
         public void BuildOutputAudioResampler(Session session)
         {
-            string selectedTtsModelName = ConvertToKebabCase(this.Config.SelectedSettings["TTS"]);
-            int ttsSampleRate = session.PrivateProvider.Tts?.GetTtsSampleRate() ?? this.ServiceProvider.GetRequiredKeyedService<ITts>(selectedTtsModelName).GetTtsSampleRate();
+            int audioProcessorSampleRate = this.Config.AudioSetting.SampleRate;
 
-            if (ttsSampleRate == session.AudioSetting.SampleRate)
+            if (audioProcessorSampleRate == session.AudioSetting.SampleRate)
             {
                 return;
             }
 
-            this.Logger.LogInformation(Lang.ProviderManager_BuildOutputAudioResampler_ResamplingRequired, session.DeviceId, ttsSampleRate, session.AudioSetting.SampleRate);
+            this.Logger.LogInformation(Lang.ProviderManager_BuildOutputAudioResampler_ResamplingRequired, session.DeviceId, audioProcessorSampleRate, session.AudioSetting.SampleRate);
 
-            ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, ttsSampleRate, session.AudioSetting.SampleRate);
+            ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, audioProcessorSampleRate, session.AudioSetting.SampleRate);
             IAudioResampler audioResampler = this.ServiceProvider.GetRequiredService<IAudioResampler>();
             if (!audioResampler.Build(resamplerBuildConfig))
             {

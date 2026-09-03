@@ -67,7 +67,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
 
             if (state == TtsStatus.Start)
             {
-                msg["sample_rate"] = this.XiaoZhiSession.PrivateProvider.Tts.GetTtsSampleRate().ToString();
+                msg["sample_rate"] = this.XiaoZhiSession.AudioSetting.SampleRate.ToString();
             }
 
             if (!string.IsNullOrWhiteSpace(text))

@@ -91,11 +91,11 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         public void RejectIncomingAudio()
         {
-            Interlocked.Exchange(ref this._isAudioProcessing, 0);
+            Interlocked.Exchange(ref this._isAudioProcessing, 1);
         }
         public void AcceptIncomingAudio()
         {
-            Interlocked.Exchange(ref this._isAudioProcessing, 1);
+            Interlocked.Exchange(ref this._isAudioProcessing, 0);
         }
 
         public void Reset()

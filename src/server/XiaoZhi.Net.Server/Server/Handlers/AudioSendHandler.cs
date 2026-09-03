@@ -111,7 +111,13 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 if (audioPacket.Data is not null && audioPacket.Data.Length > 0)
                 {
-                    byte[] opusData = await this._audioEncoder.EncodeAsync(audioPacket.Data, this.HandlerToken);
+                    float[] pcmData = audioPacket.Data;
+                    if (session.PrivateProvider.OutputAudioResampler is not null)
+                    {
+                        (pcmData, _) = await session.PrivateProvider.OutputAudioResampler.ResampleAsync(pcmData, this.HandlerToken);
+                    }
+
+                    byte[] opusData = await this._audioEncoder.EncodeAsync(pcmData, this.HandlerToken);
                     await this.SendOutter.SendAsync(opusData);
                 }
 

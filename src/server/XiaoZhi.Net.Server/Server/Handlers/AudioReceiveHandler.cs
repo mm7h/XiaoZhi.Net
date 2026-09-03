@@ -91,7 +91,7 @@ namespace XiaoZhi.Net.Server.Handlers
             if (session.IsAudioProcessing)
             {
 #if DEBUG
-                this.Logger.LogDebug(Lang.AudioReceiveHandler_Handle_PacketIgnored);
+                //this.Logger.LogDebug(Lang.AudioReceiveHandler_Handle_PacketIgnored);
 #endif
                 return;
             }

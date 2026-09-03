@@ -46,7 +46,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
         private readonly object _chatHistoryLock = new object();
         private readonly List<AgentChatHistoryItem> _chatHistory = [];
-        private readonly IRag _rag;
+        private readonly IRag? _rag;
 
         private ChatClientAgent? _chatClientAgent;
 
@@ -55,11 +55,10 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
         private ChatHistorySequence? _chatHistorySequence;
 
         public ChatAgent(
-            IRag rag,
             IServiceProvider serviceProvider,
             ILogger<ChatAgent> logger) : base(SubAgentNames.ChatAgent, serviceProvider, logger)
         {
-            this._rag = rag;
+            this._rag = serviceProvider.GetService<IRag>();
         }
 
         public override int Order => 10;
@@ -118,7 +117,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                 };
 
                 List<AIContextProvider> contextProviders = [];
-                if (this._rag.IsReady)
+                if (this._rag?.IsReady == true)
                 {
                     TextSearchProvider? textSearchProvider = this._rag.Create();
                     if (textSearchProvider is not null)

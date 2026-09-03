@@ -65,8 +65,8 @@ namespace XiaoZhi.Net.Server.Management
             #endregion
 
             #region RAG
-            IRag rag = this.ServiceProvider.GetRequiredService<IRag>();
-            if (!rag.Load(this.GetSelectedSetting("RAG", this.Config)))
+            IRag? rag = this.ServiceProvider.GetService<IRag>();
+            if (rag is not null && !rag.Load(this.GetSelectedSetting("RAG", this.Config)))
             {
                 return false;
             }
@@ -82,8 +82,13 @@ namespace XiaoZhi.Net.Server.Management
                 this.ServiceProvider.GetRequiredService<IDeviceBinding>(),
                 this.ServiceProvider.GetRequiredService<IMusicFileProvider>(),
                 this.ServiceProvider.GetRequiredService<IVadOnnxModel>(),
-                this.ServiceProvider.GetRequiredService<IRag>()
             };
+
+            IRag? rag = this.ServiceProvider.GetService<IRag>();
+            if (rag is not null)
+            {
+                resources.Add(rag);
+            }
 
             foreach (IDisposable resource in resources)
             {
@@ -93,6 +98,11 @@ namespace XiaoZhi.Net.Server.Management
 
         private static void RegisterRag(IServiceCollection services, XiaoZhiConfig config)
         {
+            if (!HasSelectedRagSetting(config))
+            {
+                return;
+            }
+
             foreach (var llmSettingItem in config.ConfiguredSettings["LLM"])
             {
                 string? type = llmSettingItem.Value.GetConfigValueOrDefault("Type");
@@ -125,7 +135,18 @@ namespace XiaoZhi.Net.Server.Management
 
             }
             services.AddSingleton<IRag, DefaultRag>();
-            
+        }
+
+        private static bool HasSelectedRagSetting(XiaoZhiConfig config)
+        {
+            if (!config.SelectedSettings.TryGetValue("RAG", out string? selectedRag)
+                || string.IsNullOrWhiteSpace(selectedRag)
+                || !config.ConfiguredSettings.TryGetValue("RAG", out Dictionary<string, Dictionary<string, string>>? ragSettings))
+            {
+                return false;
+            }
+
+            return ragSettings.ContainsKey(selectedRag);
         }
     }
 }
