@@ -15,6 +15,7 @@ using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.Providers.LLM.AIContextProviders;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
@@ -43,6 +44,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
 
         private ChatClientAgent? _chatClientAgent;
         private AgentSession? _agentSession;
+        private SessionChatHistoryProvider? _chatHistoryProvider;
         public IntentResponseAgent(IServiceProvider serviceProvider, ILogger<IntentResponseAgent> logger)
             : base(SubAgentNames.IntentResponseAgent, serviceProvider, logger)
         {
@@ -69,6 +71,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                     return false;
                 }
                 IChatClient chatClient = this.ServiceProvider.GetRequiredKeyedService<IChatClient>($"LLM_{selectedLLMModel}");
+                this._chatHistoryProvider = buildConfig.ChatHistoryProvider;
 
                 ChatClientAgentOptions options = new ChatClientAgentOptions
                 {
@@ -145,10 +148,13 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
 
             string userContent = $"用户的问题或指令：{executionResult.UserMessage}{Environment.NewLine}工具名称：{executionResult.FunctionName}{Environment.NewLine}工具执行结果：{executionResult.Response}{Environment.NewLine}请简洁回复。";
 
+            StringBuilder response = new StringBuilder();
             await foreach (string sentence in this.StreamResponseSentencesAsync(userContent, token))
             {
+                response.Append(sentence);
                 await context.YieldOutputAsync(sentence, token);
             }
+            this._chatHistoryProvider?.Append(ChatRole.Assistant, response.ToString());
         }
 
         private async IAsyncEnumerable<string> StreamResponseSentencesAsync(string userMessage, [EnumeratorCancellation] CancellationToken token)

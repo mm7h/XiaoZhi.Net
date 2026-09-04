@@ -5,8 +5,6 @@ using XiaoZhi.Net.Sample.Server.FunctionTools;
 using XiaoZhi.Net.Server;
 using XiaoZhi.Net.Server.Abstractions;
 
-using XiaoZhi.Net.Server.RAG.Abstractions;
-
 Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", "Development");
 
 IHost? serverHost = null;

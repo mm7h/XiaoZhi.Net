@@ -4,7 +4,6 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,17 +13,14 @@ using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.Providers.LLM.AIContextProviders;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
-using XiaoZhi.Net.Server.Providers.LLM.Utils;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
 {
     internal sealed class FunctionCallAgent : BaseAgent<FunctionCallAgent>
     {
-        private readonly object _chatHistoryLock = new object();
-        private readonly List<AgentChatHistoryItem> _chatHistory = [];
-
-        private ChatHistorySequence? _chatHistorySequence;
+        private SessionChatHistoryProvider? _chatHistoryProvider;
 
         public FunctionCallAgent(IServiceProvider serviceProvider, ILogger<FunctionCallAgent> logger)
             : base(SubAgentNames.FunctionCallAgent, serviceProvider, logger)
@@ -36,20 +32,8 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
 
         public override bool Build(LLMAgentBuildConfig buildConfig)
         {
-            this._chatHistorySequence = buildConfig.ChatHistorySequence;
-            lock (this._chatHistoryLock)
-            {
-                this._chatHistory.Clear();
-            }
+            this._chatHistoryProvider = buildConfig.ChatHistoryProvider;
             return true;
-        }
-
-        public override IReadOnlyList<AgentChatHistoryItem> GetChatHistory()
-        {
-            lock (this._chatHistoryLock)
-            {
-                return this._chatHistory.ToList();
-            }
         }
 
         protected override ProtocolBuilder ConfigureProtocol(ProtocolBuilder protocolBuilder)
@@ -69,7 +53,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                 throw new SessionNotInitializedException();
             }
 
-            this.AppendHistory(ChatRole.User, detection.UserMessage);
+            this._chatHistoryProvider?.Append(ChatRole.User, detection.UserMessage);
 
             if (this.ShouldContinueChat(detection.Function))
             {
@@ -86,7 +70,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
             if (func is null)
             {
                 this.Logger.LogWarning("FunctionCallAgent: 本轮快照中未找到工具 '{FunctionName}'，跳过调用。", function.Name);
-                this.AppendToolHistory(function.Name, "工具未找到。");
+                this.AppendToolResult(function.Name, "工具未找到。");
                 await context.SendMessageAsync(new FunctionExecutionResult(function.Name, null, ToolAction.Silent, detection.UserMessage), token);
                 return;
             }
@@ -100,11 +84,11 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
             }
             catch (Exception ex)
             {
-                this.AppendToolHistory(function.Name, ex.Message);
+                this.AppendToolResult(function.Name, ex.Message);
                 throw;
             }
             FunctionExecutionResult executionResult = this.NormalizeExecutionResult(detection, result, registration);
-            this.AppendToolHistory(executionResult.FunctionName, executionResult.Response ?? "(empty)");
+            this.AppendToolResult(executionResult.FunctionName, executionResult.Response ?? "(empty)");
 
             this.Logger.LogDebug("FunctionCallAgent: '{FunctionName}' 调用结果：{Result}", detection.Function?.Name, executionResult.Response ?? "(empty)");
             await context.SendMessageAsync(executionResult, token);
@@ -225,22 +209,9 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
             return JsonHelper.Serialize(result);
         }
 
-        private void AppendToolHistory(string functionName, string result)
+        private void AppendToolResult(string functionName, string result)
         {
-            this.AppendHistory(ChatRole.Tool, $"工具调用：{functionName}\n工具结果：{result}");
-        }
-
-        private void AppendHistory(ChatRole role, string? content)
-        {
-            if (string.IsNullOrWhiteSpace(content) || this._chatHistorySequence is null)
-            {
-                return;
-            }
-
-            lock (this._chatHistoryLock)
-            {
-                this._chatHistory.Add(new AgentChatHistoryItem(this._chatHistorySequence.Next(), new ChatMessage(role, content)));
-            }
+            this._chatHistoryProvider?.Append(ChatRole.Assistant, $"{functionName} 执行结果：{result}");
         }
 
         public override void Dispose() { }

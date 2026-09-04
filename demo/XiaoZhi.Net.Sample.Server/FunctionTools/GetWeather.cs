@@ -30,6 +30,7 @@ namespace XiaoZhi.Net.Sample.Server.FunctionTools
         }
 
         [ToolBehavior(ToolAction.DirectResponse)]
+        [System.ComponentModel.Description("根据城市名称查询当前天气信息")]
         public FunctionReturn<string> GetWeatherInfo(string city)
         {
             // Here you would implement the logic to get weather information for the specified city.

@@ -97,6 +97,14 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             }
         }
 
+        public string GetToolDescriptions()
+        {
+            lock (this._lock)
+            {
+                return this._toolDescriptions;
+            }
+        }
+
         public (long Version, IReadOnlyList<AITool> Tools, IReadOnlyDictionary<string, FunctionToolRegistration> Registrations, string IntentInstructions) Capture()
         {
             lock (this._lock)

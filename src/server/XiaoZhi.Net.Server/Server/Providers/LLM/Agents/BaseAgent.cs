@@ -1,12 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Microsoft.Agents.AI.Workflows;
-using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.I18n;
-using XiaoZhi.Net.Server.Providers.LLM.Contexts;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
@@ -31,11 +28,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
         public abstract void Dispose();
 
         public Executor AsExecutor() => this;
-
-        public virtual IReadOnlyList<AgentChatHistoryItem> GetChatHistory()
-        {
-            return [];
-        }
 
         public virtual void RegisterDevice(string deviceId, string sessionId)
         {

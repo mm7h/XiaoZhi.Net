@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -18,7 +17,6 @@ using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers.LLM.AIContextProviders;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
-using XiaoZhi.Net.Server.Providers.LLM.Utils;
 using XiaoZhi.Net.Server.Resources;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
@@ -44,15 +42,13 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 [Thinking] 这个问题我先替你理一下，结论其实不复杂。
 """;
 
-        private readonly object _chatHistoryLock = new object();
-        private readonly List<AgentChatHistoryItem> _chatHistory = [];
         private readonly IRag? _rag;
 
         private ChatClientAgent? _chatClientAgent;
 
         private AgentSession? _agentSession;
         private bool _allowFunctionCall;
-        private ChatHistorySequence? _chatHistorySequence;
+        private SessionChatHistoryProvider? _chatHistoryProvider;
 
         public ChatAgent(
             IServiceProvider serviceProvider,
@@ -63,14 +59,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 
         public override int Order => 10;
 
-        public override IReadOnlyList<AgentChatHistoryItem> GetChatHistory()
-        {
-            lock (this._chatHistoryLock)
-            {
-                return this._chatHistory.ToList();
-            }
-        }
-
         public override bool Build(LLMAgentBuildConfig agentBuildConfig)
         {
             try
@@ -79,11 +67,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                 string? summaryMemory = agentBuildConfig.AgentSetting.Config.GetValueOrDefault("SummaryMemory");
                 string intentType = agentBuildConfig.AgentSetting.Config.GetConfigValueOrDefault("IntentType", "None");
                 this._allowFunctionCall = string.Compare(FUNCTION_CALL_INTENT_TYPE, intentType, StringComparison.OrdinalIgnoreCase) == 0;
-                this._chatHistorySequence = agentBuildConfig.ChatHistorySequence;
-                lock (this._chatHistoryLock)
-                {
-                    this._chatHistory.Clear();
-                }
+                this._chatHistoryProvider = agentBuildConfig.ChatHistoryProvider;
 
                 string instructions = this.BuildInstructions(summaryMemory);
                 IChatClient chatClient = this.ServiceProvider.GetRequiredKeyedService<IChatClient>($"LLM_{agentBuildConfig.AgentSetting.ModelName}");
@@ -113,7 +97,8 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                         }
                     },
                     UseProvidedChatClientAsIs = true,
-                    RequirePerServiceCallChatHistoryPersistence = true
+                    RequirePerServiceCallChatHistoryPersistence = true,
+                    ChatHistoryProvider = this._chatHistoryProvider
                 };
 
                 List<AIContextProvider> contextProviders = [];
@@ -125,9 +110,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                         contextProviders.Add(textSearchProvider);
                     }
                 }
-                contextProviders.Add(new FunctionToolsContextProvider(
-                    agentBuildConfig.SessionPrivateProvider.FunctionToolsContext,
-                    () => this._allowFunctionCall));
+                contextProviders.Add(new FunctionToolsContextProvider(agentBuildConfig.SessionPrivateProvider.FunctionToolsContext, () => this._allowFunctionCall));
                 chatClientAgentOptions.AIContextProviders = contextProviders;
 
                 this._chatClientAgent = new ChatClientAgent(
@@ -229,109 +212,34 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                 throw new InvalidOperationException(Lang.ChatAgent_GenerateChatResponseAsync_AgentNotBuilt);
             }
 
-            StringBuilder allResponse = new StringBuilder();
             StringBuilder segmentResponse = new StringBuilder();
-            int historyStartIndex = this.GetInMemoryHistory().Count;
-            this.AppendHistory(ChatRole.User, userMessage);
-
-            try
+            await foreach (AgentResponseUpdate update in this._chatClientAgent.RunStreamingAsync(userMessage, this._agentSession, cancellationToken: token))
             {
-                await foreach (AgentResponseUpdate update in this._chatClientAgent.RunStreamingAsync(userMessage, this._agentSession, cancellationToken: token))
+                string content = update.Text ?? string.Empty;
+                string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(content));
+                segmentResponse.Append(text);
+                string currentSegment = segmentResponse.ToString();
+                Match match = DialogueHelper.SENTENCE_SPLIT_REGEX.Match(currentSegment);
+                while (match.Success)
                 {
-                    string content = update.Text ?? string.Empty;
-                    string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(content));
-                    segmentResponse.Append(text);
-                    string currentSegment = segmentResponse.ToString();
-                    Match match = DialogueHelper.SENTENCE_SPLIT_REGEX.Match(currentSegment);
-                    while (match.Success)
-                    {
-                        int splitPosition = match.Index + match.Length;
-                        string sentence = currentSegment.Substring(0, splitPosition);
+                    int splitPosition = match.Index + match.Length;
+                    string sentence = currentSegment.Substring(0, splitPosition);
 
-                        allResponse.Append(sentence);
-                        yield return sentence;
-
-                        string remaining = currentSegment.Substring(splitPosition);
-                        segmentResponse.Clear();
-                        segmentResponse.Append(remaining);
-                        currentSegment = remaining;
-                        match = DialogueHelper.SENTENCE_SPLIT_REGEX.Match(currentSegment);
-                    }
-                }
-
-                // 处理 LLM 回复内容无法被句子分隔的情况
-                if (segmentResponse.Length > 0)
-                {
-                    string sentence = segmentResponse.ToString();
-                    allResponse.Append(sentence);
                     yield return sentence;
+
+                    string remaining = currentSegment.Substring(splitPosition);
+                    segmentResponse.Clear();
+                    segmentResponse.Append(remaining);
+                    currentSegment = remaining;
+                    match = DialogueHelper.SENTENCE_SPLIT_REGEX.Match(currentSegment);
                 }
             }
-            finally
-            {
-                this.AppendAutomaticFunctionHistory(this.GetInMemoryHistory().Skip(historyStartIndex));
-                this.AppendHistory(ChatRole.Assistant, allResponse.ToString());
-            }
-        }
 
-        private List<ChatMessage> GetInMemoryHistory()
-        {
-            if (this._agentSession is null)
+            // 处理 LLM 回复内容无法被句子分隔的情况
+            if (segmentResponse.Length > 0)
             {
-                return [];
-            }
-
-            this._agentSession.TryGetInMemoryChatHistory(out List<ChatMessage>? history, jsonSerializerOptions: JsonHelper.OPTIONS);
-            return history ?? [];
-        }
-
-        /// <summary>
-        /// 把 ChatAgent 内由 SDK 自动执行的工具调用，转换成可供记忆总结使用的简化历史记录
-        /// </summary>
-        /// <param name="messages"></param>
-        private void AppendAutomaticFunctionHistory(IEnumerable<ChatMessage> messages)
-        {
-            Dictionary<string, string> functionNames = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (ChatMessage message in messages)
-            {
-                foreach (AIContent content in message.Contents)
-                {
-                    if (content is FunctionCallContent call)
-                    {
-                        functionNames[call.CallId] = call.Name;
-                    }
-                    else if (content is FunctionResultContent result)
-                    {
-                        string functionName = functionNames.TryGetValue(result.CallId, out string? name) ? name : "unknown";
-                        this.AppendHistory(ChatRole.Tool, $"工具调用：{functionName}\n工具结果：{this.SerializeHistoryResult(result.Result, result.Exception)}");
-                    }
-                }
-            }
-        }
-
-        private string SerializeHistoryResult(object? result, Exception? exception)
-        {
-            if (exception is not null)
-            {
-                return exception.Message;
-            }
-            if (result is null)
-            {
-                return "(empty)";
-            }
-            return result is string text ? text : JsonHelper.Serialize(result);
-        }
-
-        private void AppendHistory(ChatRole role, string? content)
-        {
-            if (string.IsNullOrWhiteSpace(content) || this._chatHistorySequence is null)
-            {
-                return;
-            }
-
-            lock (this._chatHistoryLock)
-            {
-                this._chatHistory.Add(new AgentChatHistoryItem(this._chatHistorySequence.Next(), new ChatMessage(role, content)));
+                string sentence = segmentResponse.ToString();
+                yield return sentence;
             }
         }
 

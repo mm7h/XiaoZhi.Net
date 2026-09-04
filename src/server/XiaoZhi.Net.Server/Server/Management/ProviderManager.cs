@@ -30,6 +30,7 @@ using XiaoZhi.Net.Server.Providers.AudioPlayer.Music;
 using XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification;
 using XiaoZhi.Net.Server.Providers.IoT;
 using XiaoZhi.Net.Server.Providers.LLM;
+using XiaoZhi.Net.Server.Providers.LLM.AIContextProviders;
 using XiaoZhi.Net.Server.Providers.LLM.Agents;
 using XiaoZhi.Net.Server.Providers.LLM.Agents.Intent;
 using XiaoZhi.Net.Server.Providers.LLM.Utils;
@@ -547,7 +548,7 @@ namespace XiaoZhi.Net.Server.Management
             services.AddKeyedTransient<IAgent, ChatAgent>(SubAgentNames.ChatAgent);
             services.AddKeyedTransient<IAgent, OutputAgent>(SubAgentNames.OutputAgent);
             services.AddTransient<ILlm, GenericOpenAI>();
-            services.AddTransient<ChatHistorySequence>();
+            services.AddTransient<SessionChatHistoryProvider>();
         }
         #endregion
 

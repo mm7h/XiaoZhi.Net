@@ -14,8 +14,8 @@ using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Providers.LLM.AIContextProviders;
 using XiaoZhi.Net.Server.Providers.LLM.Contexts;
-using XiaoZhi.Net.Server.Providers.LLM.Utils;
 
 namespace XiaoZhi.Net.Server.Providers.LLM
 {
@@ -25,19 +25,19 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
         private readonly ObjectPool<OutSegment> _outSegmentPool;
         private readonly Dictionary<string, IAgent> _subAgents = new Dictionary<string, IAgent>();
-        private readonly ChatHistorySequence _chatHistorySequence;
+        private readonly SessionChatHistoryProvider _chatHistoryProvider;
 
         private Workflow? _dialogueWorkflow;
         private int _seqParagraphId = 0;
         private int _seqSentenceId = 0;
 
         public GenericOpenAI(IServiceProvider serviceProvider,
-            ChatHistorySequence chatHistorySequence,
+            SessionChatHistoryProvider chatHistoryProvider,
             ObjectPool<OutSegment> outSegmentPool,
             ILogger<GenericOpenAI> logger) : base(logger)
         {
             this._serviceProvider = serviceProvider;
-            this._chatHistorySequence = chatHistorySequence;
+            this._chatHistoryProvider = chatHistoryProvider;
 
             this._outSegmentPool = outSegmentPool;
             this._subAgents = new Dictionary<string, IAgent>();
@@ -76,7 +76,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                     {
                         if (modelSetting.AgentSettings.TryGetValue(agent.AgentName, out ModelSetting? agentSetting))
                         {
-                            return agent.Build(new LLMAgentBuildConfig(agentSetting, modelSetting.SessionPrivateProvider, this._chatHistorySequence));
+                            return agent.Build(new LLMAgentBuildConfig(agentSetting, modelSetting.SessionPrivateProvider, this._chatHistoryProvider));
                         }
                         else
                         {
@@ -166,11 +166,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM
 
         public IReadOnlyList<ChatMessage> GetChatHistory()
         {
-            return this._subAgents.Values
-                .SelectMany(agent => agent.GetChatHistory())
-                .OrderBy(item => item.Sequence)
-                .Select(item => item.Message)
-                .ToList();
+            return this._chatHistoryProvider.GetMessages();
         }
 
         protected override string GenerateId()
