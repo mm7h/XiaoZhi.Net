@@ -28,6 +28,12 @@ namespace XiaoZhi.Net.Server.Abstractions
         /// <exception cref="ArgumentNullException"></exception>
         IServerBuilder Initialize(XiaoZhiConfig config, IStore connectionStore);
         /// <summary>
+        /// 添加 agent 记忆上下文操作
+        /// </summary>
+        /// <typeparam name="TAgentMemory"></typeparam>
+        /// <returns></returns>
+        IServerBuilder WithAgentMemory<TAgentMemory>() where TAgentMemory : class, IAgentMemory;
+        /// <summary>
         /// 注册自定义函数工具。
         /// </summary>
         /// <typeparam name="TFunctionTool">需要注册的函数工具类型。</typeparam>

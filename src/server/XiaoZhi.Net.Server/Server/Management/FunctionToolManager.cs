@@ -159,6 +159,7 @@ namespace XiaoZhi.Net.Server.Management
                     instance.ServerInfo = this.CreateServerInfoAdapter();
                     instance.SessionStore = new SessionStoreAdapter(this._sessionContainer);
                     instance.SessionContext = new SessionContextAdapter(session);
+                    instance.SessionController = new SessionControllerAdapter(session);
                     instance.MediaTool = new MediaToolAdapter(session, this._musicFileProvider);
 
                     try

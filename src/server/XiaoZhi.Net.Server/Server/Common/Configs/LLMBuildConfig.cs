@@ -6,5 +6,6 @@ namespace XiaoZhi.Net.Server.Common.Configs
 {
     internal record LLMBuildConfig(
         Dictionary<string, ModelSetting> AgentSettings,
-        PrivateProvider SessionPrivateProvider);
+        PrivateProvider SessionPrivateProvider,
+        string? MemoryInstruction);
 }

@@ -76,7 +76,11 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                     {
                         if (modelSetting.AgentSettings.TryGetValue(agent.AgentName, out ModelSetting? agentSetting))
                         {
-                            return agent.Build(new LLMAgentBuildConfig(agentSetting, modelSetting.SessionPrivateProvider, this._chatHistoryProvider));
+                            return agent.Build(new LLMAgentBuildConfig(
+                                agentSetting,
+                                modelSetting.SessionPrivateProvider,
+                                this._chatHistoryProvider,
+                                modelSetting.MemoryInstruction));
                         }
                         else
                         {

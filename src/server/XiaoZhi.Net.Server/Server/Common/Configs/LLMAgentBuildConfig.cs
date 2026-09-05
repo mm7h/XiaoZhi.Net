@@ -7,5 +7,6 @@ namespace XiaoZhi.Net.Server.Common.Configs
     internal record LLMAgentBuildConfig(
         ModelSetting AgentSetting,
         PrivateProvider SessionPrivateProvider,
-        SessionChatHistoryProvider ChatHistoryProvider);
+        SessionChatHistoryProvider ChatHistoryProvider,
+        string? MemoryInstruction);
 }

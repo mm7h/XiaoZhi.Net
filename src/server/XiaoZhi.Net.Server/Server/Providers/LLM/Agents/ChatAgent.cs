@@ -64,12 +64,11 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             try
             {
                 this.Prompt = agentBuildConfig.AgentSetting.Config.GetConfigValueOrDefault("Prompt")!;
-                string? summaryMemory = agentBuildConfig.AgentSetting.Config.GetValueOrDefault("SummaryMemory");
                 string intentType = agentBuildConfig.AgentSetting.Config.GetConfigValueOrDefault("IntentType", "None");
                 this._allowFunctionCall = string.Compare(FUNCTION_CALL_INTENT_TYPE, intentType, StringComparison.OrdinalIgnoreCase) == 0;
                 this._chatHistoryProvider = agentBuildConfig.ChatHistoryProvider;
 
-                string instructions = this.BuildInstructions(summaryMemory);
+                string instructions = this.BuildInstructions(agentBuildConfig.MemoryInstruction);
                 IChatClient chatClient = this.ServiceProvider.GetRequiredKeyedService<IChatClient>($"LLM_{agentBuildConfig.AgentSetting.ModelName}");
 
                 ILoggerFactory loggerFactory = this.ServiceProvider.GetRequiredService<ILoggerFactory>();
@@ -130,17 +129,22 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
             }
         }
 
-        private string BuildInstructions(string? summaryMemory)
+        private string BuildInstructions(string? memoryInstruction)
         {
             StringBuilder instructionsBuilder = new StringBuilder();
             instructionsBuilder.Append(this.Prompt);
             instructionsBuilder.Append("\n\n");
             instructionsBuilder.Append(ENHANCED_CHAT_PROMPT);
 
-            if (!string.IsNullOrWhiteSpace(summaryMemory))
+            if (this._allowFunctionCall)
+            {
+                instructionsBuilder.Append("\n10. 当用户明确告别或要求结束当前对话时，如果已提供用于结束会话的工具，必须调用该工具，并传入简短、自然的告别语；询问如何退出或为何结束等说明性问题不得调用。\n");
+            }
+
+            if (!string.IsNullOrWhiteSpace(memoryInstruction))
             {
                 instructionsBuilder.Append("\n\n");
-                instructionsBuilder.Append(summaryMemory);
+                instructionsBuilder.Append(memoryInstruction);
             }
 
             return instructionsBuilder.ToString();

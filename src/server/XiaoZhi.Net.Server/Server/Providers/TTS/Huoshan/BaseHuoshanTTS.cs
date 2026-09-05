@@ -38,6 +38,12 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             this.RegisterDevice(deviceId, sessionId);
         }
 
+        public override void UnregisterDevice(string deviceId, string sessionId)
+        {
+            this.TTSEventCallback = null;
+            base.UnregisterDevice(deviceId, sessionId);
+        }
+
         protected void BuildAudioSavingConfig(ModelSetting modelSetting)
         {
             this.AudioSavingConfig = modelSetting.Config.GetConfigValueOrDefault("FileSavingOption", new AudioSavingConfig(false));

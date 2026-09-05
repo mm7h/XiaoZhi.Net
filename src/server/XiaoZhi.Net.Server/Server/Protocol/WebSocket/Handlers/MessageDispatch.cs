@@ -20,6 +20,11 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
             }
             if (appSession is SocketSession session && session.XiaoZhiSession is not null)
             {
+                if (session.XiaoZhiSession.CloseAfterChat)
+                {
+                    return;
+                }
+
                 switch (package.OpCode)
                 {
                     case OpCode.Text:

@@ -2,6 +2,7 @@
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Hosting;
 using XiaoZhi.Net.Sample.Server.FunctionTools;
+using XiaoZhi.Net.Sample.Server.MemoryStore;
 using XiaoZhi.Net.Server;
 using XiaoZhi.Net.Server.Abstractions;
 
@@ -29,10 +30,13 @@ try
     {
         // 开始初始化服务
         serverHost = serverBuilder.Initialize(config)
+            // 使用 SQLite 保存每台设备最近一次会话的记忆
+            .WithAgentMemory<SqliteAgentMemory>()
             // 添加自定义函数工具
             .WithFunctionTools<GetTime>()
             .WithPrivateFunctionTools<GetWeather>()
             .WithPrivateFunctionTools<MusicPlayer>()
+            .WithPrivateFunctionTools<ExitConversationFunctionTool>()
             // 多媒体文件格式支持
             .WithMedia(useFFmpegAudioMixer: true)
             //.WithManageApi("http://localhost:5118", "your-secret")

@@ -200,7 +200,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     this._audioProcessor.UnregisterDevice(session.DeviceId, session.SessionId);
                 }
-                this._audioProcessor.Dispose();
             }
             
             this.NextWriter.Complete();

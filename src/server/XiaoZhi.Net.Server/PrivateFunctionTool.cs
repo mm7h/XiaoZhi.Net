@@ -11,6 +11,8 @@ namespace XiaoZhi.Net.Server.Abstractions
 
         public ISessionContext SessionContext { get; internal set; } = null!;
 
+        public ISessionController SessionController { get; internal set; } = null!;
+
         public IMediaTool MediaTool { get; internal set; } = null!;
 
         public virtual ValueTask OnSessionConnectedAsync()

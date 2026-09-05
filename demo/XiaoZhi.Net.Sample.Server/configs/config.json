@@ -24,12 +24,11 @@
   },
   "SelectedSettings": {
     "VAD": "SileroNative",
-    "ASR": "SenseVoice",
+    "ASR": "AliyunRealtime",
     "Intent": "IntentLlm",
-    "LLM": "Chatglm",
+    "LLM": "Deepseek",
     "RAG": "QwenEmbedding",
-    "TTS": "HuoshanBidirection",
-    "Memory": "FlashMemory"
+    "TTS": "HuoshanBidirection"
   },
   "ConfiguredSettings": {
     "VAD": {
@@ -98,10 +97,10 @@
         "EnableDdc": true
       },
       "AliyunRealtime": {
-        "ApiKey": "your-api-key",
+        "ApiKey": "to your llm api key",
         "ModelName": "qwen-audio-3.0-asr-flash-streaming",
         "Region": "cn-beijing", // 可选：提供 Endpoint 覆盖默认的 WebSocket 地址。
-        "WorkspaceId": "", // 可选：配置后使用业务空间专属 WebSocket 域名；Endpoint 优先，留空则继续使用共享 DashScope 域名。
+        "WorkspaceId": "to your workspace id", // 可选：配置后使用业务空间专属 WebSocket 域名；Endpoint 优先，留空则继续使用共享 DashScope 域名。
         "SegmentDurationMs": 100,
         "LanguageHints": "zh,en",
         "ConnectionTimeoutSeconds": 5,
@@ -131,7 +130,7 @@
       "Qwen": {
         "BaseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "ApiKey": "to your llm api key",
-        "ModelName": "qwen-flash",
+        "ModelName": "qwen3.8-flash",
         "Type": "chat"
       },
       "ChatglmEmbedding": {
@@ -273,9 +272,6 @@
       "FunctionCall": {
         "Type": "FunctionCall"
       }
-    },
-    "Memory": {
-      "FlashMemory": {}
     }
   },
   "McpSettings": {}

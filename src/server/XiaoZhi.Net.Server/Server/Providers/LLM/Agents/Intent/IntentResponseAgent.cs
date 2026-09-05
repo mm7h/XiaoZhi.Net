@@ -43,7 +43,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
 """;
 
         private ChatClientAgent? _chatClientAgent;
-        private AgentSession? _agentSession;
         private SessionChatHistoryProvider? _chatHistoryProvider;
         public IntentResponseAgent(IServiceProvider serviceProvider, ILogger<IntentResponseAgent> logger)
             : base(SubAgentNames.IntentResponseAgent, serviceProvider, logger)
@@ -90,7 +89,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                     chatClient: chatClient,
                     options: options,
                     services: this.ServiceProvider);
-                this._agentSession = this._chatClientAgent.CreateSessionAsync(buildConfig.SessionPrivateProvider.Token).GetAwaiter().GetResult();
                 return true;
             }
             catch (Exception ex)
@@ -136,13 +134,20 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
             {
                 throw new SessionNotInitializedException();
             }
-            if (this._chatClientAgent is null || this._agentSession is null)
+            if (this._chatClientAgent is null)
             {
                 throw new InvalidOperationException("IntentResponseAgent 未初始化。");
             }
 
             if (executionResult.Action == ToolAction.Silent || string.IsNullOrWhiteSpace(executionResult.Response))
             {
+                return;
+            }
+
+            if (executionResult.Action == ToolAction.DirectResponse)
+            {
+                await context.YieldOutputAsync(executionResult.Response, token);
+                this._chatHistoryProvider?.Append(ChatRole.Assistant, executionResult.Response);
                 return;
             }
 
@@ -159,14 +164,14 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
 
         private async IAsyncEnumerable<string> StreamResponseSentencesAsync(string userMessage, [EnumeratorCancellation] CancellationToken token)
         {
-            if (this._chatClientAgent is null || this._agentSession is null)
+            if (this._chatClientAgent is null)
             {
                 throw new InvalidOperationException("IntentResponseAgent 未初始化。");
             }
 
             StringBuilder segmentResponse = new StringBuilder();
 
-            await foreach (AgentResponseUpdate update in this._chatClientAgent.RunStreamingAsync(userMessage, this._agentSession, cancellationToken: token))
+            await foreach (AgentResponseUpdate update in this._chatClientAgent.RunStreamingAsync(userMessage, cancellationToken: token))
             {
                 string content = update.Text ?? string.Empty;
                 string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(content));

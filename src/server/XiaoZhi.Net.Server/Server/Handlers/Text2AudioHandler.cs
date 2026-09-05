@@ -381,10 +381,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     this._tts.UnregisterDevice(session.DeviceId, session.SessionId);
                 }
-                if (!this._tts.IsSherpaModel)
-                {
-                    this._tts.Dispose();
-                }
             }
             if (this._audioPlayerClient is not null)
             {
@@ -395,7 +391,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
                 this._audioPlayerClient.SystemNotification.OnAudioData -= this.OnNotificationAudioDataAsync;
                 this._audioPlayerClient.MusicPlayer.OnAudioData -= this.OnMusicAudioDataAsync;
-                this._audioPlayerClient.Dispose();
             }
             this.NextWriter.Complete();
             this.NextWriter2.Complete();

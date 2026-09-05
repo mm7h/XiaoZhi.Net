@@ -414,17 +414,17 @@
   <data name="ProviderManager_InitializePrivateConfig_LoadPrivateConfigFailed" xml:space="preserve">
     <value>載入裝置 {deviceId} 工作階段 {sessionId} 的私有模型設定失敗。</value>
   </data>
-  <data name="ProviderManager_SaveMemory_LlmNotInitialized" xml:space="preserve">
-    <value>LLM 提供者未初始化，無法儲存裝置 {deviceId} 的記憶。</value>
+  <data name="ProviderManager_LoadAgentMemory_LoadFailed" xml:space="preserve">
+    <value>載入裝置 {deviceId} 的 Agent 記憶失敗。</value>
   </data>
-  <data name="ProviderManager_SaveMemory_MemorySaved" xml:space="preserve">
-    <value>裝置 {deviceId} 工作階段 {sessionId} 的記憶儲存成功。</value>
+  <data name="ProviderManager_SaveAgentMemory_LlmNotInitialized" xml:space="preserve">
+    <value>LLM 提供者未初始化，無法儲存裝置 {deviceId} 的 Agent 記憶。</value>
   </data>
-  <data name="ProviderManager_SaveMemory_SaveMemoryFailed" xml:space="preserve">
-    <value>儲存裝置 {deviceId} 工作階段 {sessionId} 的記憶失敗。</value>
+  <data name="ProviderManager_SaveAgentMemory_MemorySaved" xml:space="preserve">
+    <value>裝置 {deviceId} 工作階段 {sessionId} 的 Agent 記憶儲存成功。</value>
   </data>
-  <data name="ProviderManager_SaveMemory_ApiClientNotAvailable" xml:space="preserve">
-    <value>ManageApiClient 無法使用，無法儲存裝置 {deviceId} 工作階段 {sessionId} 的記憶。</value>
+  <data name="ProviderManager_SaveAgentMemory_SaveMemoryFailed" xml:space="preserve">
+    <value>儲存裝置 {deviceId} 工作階段 {sessionId} 的 Agent 記憶失敗。</value>
   </data>
   <data name="ProviderManager_BuildAudioResampler_ResamplingRequired" xml:space="preserve">
     <value>裝置 {deviceId} 需要音訊重取樣，從 {ttsSampleRate} 到 {deviceSampleRate}。</value>
@@ -866,9 +866,6 @@
   </data>
   <data name="DefaultRag_RetrieveAsync_EmbeddingCountInvalid" xml:space="preserve">
     <value>預期恰好取得一個查詢嵌入，實際取得 {embeddingCount} 個。</value>
-  </data>
-  <data name="FlashMemory_Build_Built" xml:space="preserve">
-    <value>已建置 {providerType}：{flashMemory}</value>
   </data>
   <data name="HuoshanHttpV3TTS_Build_ConfigIncomplete" xml:space="preserve">
     <value>火山 HTTP V3 TTS 設定不完整，請檢查 AppId、AccessToken、ResourceId 和 speaker。</value>

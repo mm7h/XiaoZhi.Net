@@ -138,10 +138,10 @@ namespace XiaoZhi.Net.Server.I18n
         public static string ProviderManager_InitializePrivateConfig_DeviceNotBinded => ResourceManager.GetString("ProviderManager_InitializePrivateConfig_DeviceNotBinded", s_resourceCulture) ?? "";
         public static string ProviderManager_InitializePrivateConfig_LoadPrivateConfigFailed => ResourceManager.GetString("ProviderManager_InitializePrivateConfig_LoadPrivateConfigFailed", s_resourceCulture) ?? "";
 
-        public static string ProviderManager_SaveMemory_LlmNotInitialized => ResourceManager.GetString("ProviderManager_SaveMemory_LlmNotInitialized", s_resourceCulture) ?? "";
-        public static string ProviderManager_SaveMemory_MemorySaved => ResourceManager.GetString("ProviderManager_SaveMemory_MemorySaved", s_resourceCulture) ?? "";
-        public static string ProviderManager_SaveMemory_SaveMemoryFailed => ResourceManager.GetString("ProviderManager_SaveMemory_SaveMemoryFailed", s_resourceCulture) ?? "";
-        public static string ProviderManager_SaveMemory_ApiClientNotAvailable => ResourceManager.GetString("ProviderManager_SaveMemory_ApiClientNotAvailable", s_resourceCulture) ?? "";
+        public static string ProviderManager_LoadAgentMemory_LoadFailed => ResourceManager.GetString("ProviderManager_LoadAgentMemory_LoadFailed", s_resourceCulture) ?? "";
+        public static string ProviderManager_SaveAgentMemory_LlmNotInitialized => ResourceManager.GetString("ProviderManager_SaveAgentMemory_LlmNotInitialized", s_resourceCulture) ?? "";
+        public static string ProviderManager_SaveAgentMemory_MemorySaved => ResourceManager.GetString("ProviderManager_SaveAgentMemory_MemorySaved", s_resourceCulture) ?? "";
+        public static string ProviderManager_SaveAgentMemory_SaveMemoryFailed => ResourceManager.GetString("ProviderManager_SaveAgentMemory_SaveMemoryFailed", s_resourceCulture) ?? "";
 
         public static string ProviderManager_BuildAudioResampler_ResamplingRequired => ResourceManager.GetString("ProviderManager_BuildAudioResampler_ResamplingRequired", s_resourceCulture) ?? "";
         public static string ProviderManager_BuildAudioResampler_BuildFailed => ResourceManager.GetString("ProviderManager_BuildAudioResampler_BuildFailed", s_resourceCulture) ?? "";
@@ -381,10 +381,6 @@ namespace XiaoZhi.Net.Server.I18n
         public static string DefaultRag_SearchAsync_QueryReceived => ResourceManager.GetString("DefaultRag_SearchAsync_QueryReceived", s_resourceCulture) ?? "";
         public static string DefaultRag_RetrieveAsync_EmbeddingGeneratorNotInitialized => ResourceManager.GetString("DefaultRag_RetrieveAsync_EmbeddingGeneratorNotInitialized", s_resourceCulture) ?? "";
         public static string DefaultRag_RetrieveAsync_EmbeddingCountInvalid => ResourceManager.GetString("DefaultRag_RetrieveAsync_EmbeddingCountInvalid", s_resourceCulture) ?? "";
-        #endregion
-
-        #region FlashMemory
-        public static string FlashMemory_Build_Built => ResourceManager.GetString("FlashMemory_Build_Built", s_resourceCulture) ?? "";
         #endregion
 
         #region BaseHuoshanTTS

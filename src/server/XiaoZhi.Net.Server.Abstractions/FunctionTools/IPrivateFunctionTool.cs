@@ -11,6 +11,10 @@
         /// </summary>
         IMediaTool MediaTool { get; }
         /// <summary>
+        /// 当前Session会话控制器，用于控制会话的行为
+        /// </summary>
+        ISessionController SessionController { get; }
+        /// <summary>
         /// 当Session会话连接时触发
         /// </summary>
         /// <returns></returns>

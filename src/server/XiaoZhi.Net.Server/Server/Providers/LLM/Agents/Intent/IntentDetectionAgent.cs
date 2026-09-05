@@ -46,6 +46,7 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
     5. 如果没有匹配函数，返回 detected:false。
     6. 如果用户一句话里包含多个指令，仍然只选择当前最核心、最明确的一个函数；如果无法唯一确定，则返回 detected:false。
     7. 优先保证函数名和参数准确，无法确认时不要猜测。
+    8. 当用户明确告别或要求结束当前对话（如“再见”“拜拜”“先聊到这”“结束对话”）时，如果可用函数中存在用于结束会话的工具，必须调用该工具，并提供自然、简短的告别语参数。
 
     返回示例：
     1. 普通聊天：{"detected":false,"function":null,"userMessage":"今天我遇到了烦心事，伤透了"}

@@ -22,6 +22,7 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Aliyun
         private readonly SemaphoreSlim _streamLock = new(1, 1);
         private readonly WebSocketClient _webSocketClient = new(null);
 
+        private int _disposed;
         private IAsrEventCallback? _asrEventCallback;
         private AliyunRealtimeAsrOptions? _options;
         private AliyunRealtimeAsrUtteranceSession? _activeSession;
@@ -352,6 +353,11 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Aliyun
 
         public override void Dispose()
         {
+            if (Interlocked.Exchange(ref this._disposed, 1) != 0)
+            {
+                return;
+            }
+
             this.AbortSynchronously();
             this._webSocketClient.Dispose();
             this._streamLock.Dispose();

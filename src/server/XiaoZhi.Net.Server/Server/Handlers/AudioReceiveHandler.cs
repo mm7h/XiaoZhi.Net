@@ -74,7 +74,7 @@ namespace XiaoZhi.Net.Server.Handlers
         public async Task HandleAsync(byte[] opusData)
         {
             Session session = this.SendOutter.GetSession();
-            if (session is null || session.ShouldIgnore())
+            if (session is null || session.ShouldIgnore() || session.CloseAfterChat)
             {
                 return;
             }
@@ -132,7 +132,7 @@ namespace XiaoZhi.Net.Server.Handlers
         public void OnVoiceStarted()
         {
             Session session = this.SendOutter.GetSession();
-            if (session is null || session.ShouldIgnore() || !session.IsDeviceBinded || this._asr?.IsStreaming != true)
+            if (session is null || session.ShouldIgnore() || session.CloseAfterChat || !session.IsDeviceBinded || this._asr?.IsStreaming != true)
             {
                 return;
             }
@@ -143,7 +143,7 @@ namespace XiaoZhi.Net.Server.Handlers
         public void OnVoiceDetected(float[] _)
         {
             Session session = this.SendOutter.GetSession();
-            if (session is null || session.ShouldIgnore())
+            if (session is null || session.ShouldIgnore() || session.CloseAfterChat)
             {
                 return;
             }
@@ -165,7 +165,7 @@ namespace XiaoZhi.Net.Server.Handlers
         public void OnVoiceSilence()
         {
             Session session = this.SendOutter.GetSession();
-            if (session is null || session.ShouldIgnore())
+            if (session is null || session.ShouldIgnore() || session.CloseAfterChat)
             {
                 return;
             }
@@ -180,18 +180,16 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
+            if (!session.TryRequestCloseAfterChat())
+            {
+                return;
+            }
+
             if (this._asr?.IsStreaming == true)
             {
                 this.AbortStreamingUtterance(session);
             }
 
-            session.AudioPacket.Reset();
-            if (session.CloseAfterChat)
-            {
-                return;
-            }
-
-            session.CloseAfterChat = true;
             const string Prompt = "请你以\"时间过得真快\"为来头，用富有感情、依依不舍的话来结束这场对话吧。";
             Workflow<string> workflow = this._stringWorkflowPool.Get();
             try
@@ -207,7 +205,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public void HandleManualStop(Session session)
         {
-            if (session is null || session.ShouldIgnore())
+            if (session is null || session.ShouldIgnore() || session.CloseAfterChat)
             {
                 return;
             }
@@ -224,7 +222,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private async Task HandleVoiceDetectedAsync(Session session, float[] audioData)
         {
-            if (this.HandlerToken.IsCancellationRequested)
+            if (this.HandlerToken.IsCancellationRequested || session.CloseAfterChat)
             {
                 return;
             }
@@ -252,20 +250,11 @@ namespace XiaoZhi.Net.Server.Handlers
         public override void Dispose()
         {
             Session session = this.SendOutter.GetSession();
-            if (session is not null && this._asr?.IsStreaming == true)
-            {
-                this.AbortStreamingUtterance(session);
-            }
-
             if (this._vad is not null)
             {
                 if (session is not null)
                 {
                     this._vad.UnregisterDevice(session.DeviceId, session.SessionId);
-                }
-                if (!this._vad.IsSherpaModel)
-                {
-                    this._vad.Dispose();
                 }
             }
             this.NextWriter.Complete();

@@ -11,6 +11,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
     internal class Session
     {
         private long _isAudioProcessing;
+        private int _closeAfterChatRequested;
         private CancellationTokenSource _sessionCts = null!;
 
         private readonly object _lock = new object();
@@ -52,7 +53,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public string? BindCode { get; set; }
         public DateTime LoginTime { get; }
         public DateTime LastActivityTime { get; private set; }
-        public bool CloseAfterChat { get; set; }
+        public bool CloseAfterChat => Volatile.Read(ref this._closeAfterChatRequested) == 1;
         public long TurnId => Interlocked.Read(ref this._turnId);
 
         public bool IsAudioProcessing => Interlocked.Read(ref this._isAudioProcessing) == 1;
@@ -96,6 +97,18 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public void AcceptIncomingAudio()
         {
             Interlocked.Exchange(ref this._isAudioProcessing, 0);
+        }
+
+        public bool TryRequestCloseAfterChat()
+        {
+            if (Interlocked.CompareExchange(ref this._closeAfterChatRequested, 1, 0) != 0)
+            {
+                return false;
+            }
+
+            this.RejectIncomingAudio();
+            this.AudioPacket.Reset();
+            return true;
         }
 
         public void Reset()

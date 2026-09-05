@@ -1,9 +1,7 @@
 ﻿using Flurl;
 using Flurl.Http;
 using Flurl.Http.Configuration;
-using Microsoft.Extensions.AI;
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Dtos;
 using XiaoZhi.Net.Server.Common.Constants;
@@ -44,11 +42,6 @@ namespace XiaoZhi.Net.Server.Services
                 default:
                     throw new Exception(string.Format(Lang.ManageApiClient_LoadConfigFromApi_UnknownException, response.Msg));
             }
-        }
-
-        public Task SaveMemoryAsync(string deviceId, string sessionId, IReadOnlyList<ChatMessage> chats)
-        {
-            throw new NotImplementedException();
         }
     }
 }

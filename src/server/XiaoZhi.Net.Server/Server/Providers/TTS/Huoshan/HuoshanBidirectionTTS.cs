@@ -141,20 +141,21 @@ namespace XiaoZhi.Net.Server.Providers.TTS
 
         public override void Dispose()
         {
-            try
+            if (this.WebSocketClient?.IsConnected == true)
             {
-                this.FinishConnectionAsync(CancellationToken.None).GetAwaiter().GetResult();
+                try
+                {
+                    this.FinishConnectionAsync(CancellationToken.None).GetAwaiter().GetResult();
+                }
+                catch (Exception ex)
+                {
+                    this.Logger.LogDebug(ex, Lang.HuoshanBidirectionTTS_Dispose_FinishError);
+                }
             }
-            catch (Exception ex)
-            {
-                this.Logger.LogDebug(ex, Lang.HuoshanBidirectionTTS_Dispose_FinishError);
-            }
-            finally
-            {
-                this.FailAllWaits(new OperationCanceledException(Lang.HuoshanBidirectionTTS_Dispose_Disposed));
-                this.ClearAllSessionAudioBuffers();
-                this.TTSEventCallback?.OnProcessed(string.Empty, false, false, TtsGenerateResult.Aborted);
-            }
+
+            this.FailAllWaits(new OperationCanceledException(Lang.HuoshanBidirectionTTS_Dispose_Disposed));
+            this.ClearAllSessionAudioBuffers();
+            this.WebSocketClient?.Dispose();
         }
     }
 }

@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenAI;
+using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Abstractions.Common.Dtos;
 using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Common.Configs;
@@ -30,15 +31,13 @@ using XiaoZhi.Net.Server.Providers.AudioPlayer.Music;
 using XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification;
 using XiaoZhi.Net.Server.Providers.IoT;
 using XiaoZhi.Net.Server.Providers.LLM;
-using XiaoZhi.Net.Server.Providers.LLM.AIContextProviders;
 using XiaoZhi.Net.Server.Providers.LLM.Agents;
 using XiaoZhi.Net.Server.Providers.LLM.Agents.Intent;
-using XiaoZhi.Net.Server.Providers.LLM.Utils;
+using XiaoZhi.Net.Server.Providers.LLM.AIContextProviders;
 using XiaoZhi.Net.Server.Providers.MCP;
 using XiaoZhi.Net.Server.Providers.MCP.DeviceMcp;
 using XiaoZhi.Net.Server.Providers.MCP.McpEndpoint;
 using XiaoZhi.Net.Server.Providers.MCP.ServerMcp;
-using XiaoZhi.Net.Server.Providers.Memory;
 using XiaoZhi.Net.Server.Providers.TTS;
 using XiaoZhi.Net.Server.Providers.TTS.Aliyun;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan;
@@ -64,7 +63,6 @@ namespace XiaoZhi.Net.Server.Management
                 RegisterVad(services, config);
                 RegisterAsr(services, config);
                 RegisterLlm(services, config);
-                RegisterMemory(services, config);
                 RegisterTts(services, config);
 
                 RegisterAudioEncoder(services);
@@ -108,16 +106,6 @@ namespace XiaoZhi.Net.Server.Management
                 }
                 #endregion
 
-                #region Memory
-                string selectedMemoryModelName = ConvertToKebabCase(this.Config.SelectedSettings["Memory"]);
-                IMemory memory = this.ServiceProvider.GetRequiredKeyedService<IMemory>(selectedMemoryModelName);
-                if (!memory.Build(this.GetSelectedSetting("Memory", this.Config)))
-                {
-                    this.Logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, memory.ModelName);
-                    return false;
-                }
-                #endregion
-
                 #region Tts
                 string selectedTtsModelName = ConvertToKebabCase(this.Config.SelectedSettings["TTS"]);
                 if (SherpaModels.TtsModels.Contains(selectedTtsModelName, StringComparer.OrdinalIgnoreCase))
@@ -154,37 +142,58 @@ namespace XiaoZhi.Net.Server.Management
 
         public override async Task OnSessionClosedAsync(Session session)
         {
+            IAgentMemory? agentMemory = this.ServiceProvider.GetService<IAgentMemory>();
+            if (agentMemory is null)
+            {
+                return;
+            }
+
             if (session.PrivateProvider.Llm is null)
             {
-                this.Logger.LogWarning(Lang.ProviderManager_SaveMemory_LlmNotInitialized, session.DeviceId);
+                this.Logger.LogWarning(Lang.ProviderManager_SaveAgentMemory_LlmNotInitialized, session.DeviceId);
                 return;
             }
 
             IReadOnlyList<ChatMessage> chatHistory = session.PrivateProvider.Llm.GetChatHistory();
-            if (chatHistory.Any())
+            if (!chatHistory.Any())
             {
-                ManageApiClient? manageApiClient = this.ServiceProvider.GetService<ManageApiClient>();
-                if (manageApiClient is not null)
-                {
-                    try
-                    {
-                        await manageApiClient.SaveMemoryAsync(session.DeviceId, session.SessionId, chatHistory);
-                        this.Logger.LogInformation(Lang.ProviderManager_SaveMemory_MemorySaved, session.DeviceId, session.SessionId);
-                    }
-                    catch (Exception ex)
-                    {
-                        this.Logger.LogError(ex, Lang.ProviderManager_SaveMemory_SaveMemoryFailed, session.DeviceId, session.SessionId);
-                    }
-                }
-                else
-                {
-                    this.Logger.LogWarning(Lang.ProviderManager_SaveMemory_ApiClientNotAvailable, session.DeviceId, session.SessionId);
-                }
+                return;
+            }
+
+            try
+            {
+                await agentMemory.SaveMemoryAsync(session.DeviceId, session.SessionId, chatHistory);
+                this.Logger.LogInformation(Lang.ProviderManager_SaveAgentMemory_MemorySaved, session.DeviceId, session.SessionId);
+            }
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, Lang.ProviderManager_SaveAgentMemory_SaveMemoryFailed, session.DeviceId, session.SessionId);
+            }
+        }
+
+        private async Task<string?> LoadMemoryInstructionAsync(Session session)
+        {
+            IAgentMemory? agentMemory = this.ServiceProvider.GetService<IAgentMemory>();
+            if (agentMemory is null)
+            {
+                return null;
+            }
+
+            try
+            {
+                return await agentMemory.GetMemoryInstructionAsync(session.DeviceId);
+            }
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, Lang.ProviderManager_LoadAgentMemory_LoadFailed, session.DeviceId);
+                return null;
             }
         }
 
         public override async Task<bool> OnSessionPropertyInitializingAsync(Session session)
         {
+            string? memoryInstruction = await this.LoadMemoryInstructionAsync(session);
+
             try
             {
                 ManageApiClient? manageApiClient = this.ServiceProvider.GetService<ManageApiClient>();
@@ -195,7 +204,7 @@ namespace XiaoZhi.Net.Server.Management
 
                     session.IsDeviceBinded = true; // Assume device is binded if manage API is not available
 
-                    return this.RegisterGlobalProviders(session);
+                    return this.RegisterGlobalProviders(session, memoryInstruction);
                 }
 
                 PrivateModelsConfig? privateModelsConfig = await manageApiClient.LoadConfigFromApi(session.DeviceId, session.SessionId);
@@ -204,7 +213,7 @@ namespace XiaoZhi.Net.Server.Management
                 {
                     this.Logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_NoPrivateConfig, session.DeviceId);
 
-                    return this.RegisterGlobalProviders(session);
+                    return this.RegisterGlobalProviders(session, memoryInstruction);
                 }
 
                 if (privateModelsConfig.VadSetting is not null)
@@ -255,7 +264,8 @@ namespace XiaoZhi.Net.Server.Management
 
                     LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
                         privateModelsConfig.AgentSettings,
-                        session.PrivateProvider);
+                        session.PrivateProvider,
+                        memoryInstruction);
 
                     if (!privateLlm.Build(llmBuildConfig))
                     {
@@ -268,7 +278,7 @@ namespace XiaoZhi.Net.Server.Management
                 }
                 else
                 {
-                    bool llmRegistered = this.RegisterGlobalLlmProviders(session);
+                    bool llmRegistered = this.RegisterGlobalLlmProviders(session, memoryInstruction);
                     if (!llmRegistered)
                     {
                         return false;
@@ -353,9 +363,9 @@ namespace XiaoZhi.Net.Server.Management
             string selectedTtsModelName = ConvertToKebabCase(this.Config.SelectedSettings["TTS"]);
             IList<IDisposable> providers = new List<IDisposable>
             {
-                this.ServiceProvider.GetRequiredKeyedService<IAsr>(selectedVadModelName),
-                this.ServiceProvider.GetRequiredKeyedService<IVad>(selectedAsrModelName),
-                this.ServiceProvider.GetRequiredKeyedService<IMemory>(selectedTtsModelName)
+                this.ServiceProvider.GetRequiredKeyedService<IVad>(selectedVadModelName),
+                this.ServiceProvider.GetRequiredKeyedService<IAsr>(selectedAsrModelName),
+                this.ServiceProvider.GetRequiredKeyedService<ITts>(selectedTtsModelName)
             };
 
             foreach (IDisposable provider in providers)
@@ -552,27 +562,6 @@ namespace XiaoZhi.Net.Server.Management
         }
         #endregion
 
-        #region Memory
-        private static void RegisterMemory(IServiceCollection services, XiaoZhiConfig config)
-        {
-            foreach (var memorySettingItem in config.ConfiguredSettings["Memory"])
-            {
-                string modelName = ConvertToKebabCase(memorySettingItem.Key);
-                switch (modelName)
-                {
-                    case "flash-memory":
-                        services.AddKeyedTransient<IMemory, FlashMemory>(modelName);
-                        break;
-                    case "database":
-                        services.AddKeyedTransient<IMemory, Database>(modelName);
-                        break;
-                    default:
-                        throw new ModelBuildException("Invalid memory model.");
-                }
-            }
-        }
-        #endregion
-
         #region TTS
         private static void RegisterTts(IServiceCollection services, XiaoZhiConfig config)
         {
@@ -728,11 +717,11 @@ namespace XiaoZhi.Net.Server.Management
         #endregion
         #endregion
 
-        private bool RegisterGlobalProviders(Session session)
+        private bool RegisterGlobalProviders(Session session, string? memoryInstruction)
         {
             bool vadRegistered = this.RegisterGlobalVadProviders(session);
             bool asrRegistered = this.RegisterGlobalAsrProviders(session);
-            bool llmRegistered = this.RegisterGlobalLlmProviders(session);
+            bool llmRegistered = this.RegisterGlobalLlmProviders(session, memoryInstruction);
             bool ttsRegistered = this.RegisterGlobalTtsProviders(session);
 
             return vadRegistered && asrRegistered && llmRegistered && ttsRegistered;
@@ -766,7 +755,7 @@ namespace XiaoZhi.Net.Server.Management
             return true;
         }
 
-        private bool RegisterGlobalLlmProviders(Session session)
+        private bool RegisterGlobalLlmProviders(Session session, string? memoryInstruction)
         {
             ILlm genericLlm = this.ServiceProvider.GetRequiredService<ILlm>();
 
@@ -810,7 +799,8 @@ namespace XiaoZhi.Net.Server.Management
 
             LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
                 agentSettings,
-                session.PrivateProvider);
+                session.PrivateProvider,
+                memoryInstruction);
 
             if (!genericLlm.Build(llmBuildConfig))
             {

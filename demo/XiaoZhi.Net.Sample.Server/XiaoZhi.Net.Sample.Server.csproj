@@ -13,6 +13,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\server\rag\XiaoZhi.Net.Server.RAG.Qdrant\XiaoZhi.Net.Server.RAG.Qdrant.csproj" />
     <ProjectReference Include="..\..\src\server\XiaoZhi.Net.Server\XiaoZhi.Net.Server.csproj" />
   </ItemGroup>

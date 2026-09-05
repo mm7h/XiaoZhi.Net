@@ -157,7 +157,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     this._audioEncoder.UnregisterDevice(session.DeviceId, session.SessionId);
                 }
-                this._audioEncoder.Dispose();
             }
             base.Dispose();
         }

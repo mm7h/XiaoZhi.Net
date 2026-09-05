@@ -39,6 +39,12 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public async void HandleAsync(string data)
         {
+            Session session = this.SendOutter.GetSession();
+            if (session.CloseAfterChat)
+            {
+                return;
+            }
+
             JsonNode? jsonObject = JsonNode.Parse(data);
 
             // 判断是否是整数
@@ -97,6 +103,11 @@ namespace XiaoZhi.Net.Server.Handlers
         private async void HandleListenAsync(JsonObject jsonObject)
         {
             Session session = this.SendOutter.GetSession();
+            if (session.CloseAfterChat)
+            {
+                return;
+            }
+
             string? mode = jsonObject["mode"]?.GetValue<string>()?.ToLower();
             if (!string.IsNullOrWhiteSpace(mode))
             {

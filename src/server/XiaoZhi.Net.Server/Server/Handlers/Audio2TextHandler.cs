@@ -181,10 +181,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     this._asr.UnregisterDevice(session.DeviceId, session.SessionId);
                 }
-                if (!this._asr.IsSherpaModel)
-                {
-                    this._asr.Dispose();
-                }
             }
 
             this.NextWriter.Complete();

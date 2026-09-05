@@ -6,15 +6,16 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using OpenAI.Responses;
 using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Abstractions.FunctionTools;
 using XiaoZhi.Net.Server.Abstractions.Store;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Management;
+using XiaoZhi.Net.Server.RAG.Abstractions;
 using XiaoZhi.Net.Server.Services;
 using XiaoZhi.Net.Server.Store;
-using XiaoZhi.Net.Server.RAG.Abstractions;
 
 namespace XiaoZhi.Net.Server
 {
@@ -68,6 +69,15 @@ namespace XiaoZhi.Net.Server
             this.HostBuilder.UseEnvironment("Production");
 #endif
 
+            return this;
+        }
+
+        public IServerBuilder WithAgentMemory<TAgentMemory>() where TAgentMemory : class, IAgentMemory
+        {
+            this.HostBuilder.ConfigureServices((context, services) =>
+            {
+                services.AddSingleton<IAgentMemory, TAgentMemory>();
+            });
             return this;
         }
 

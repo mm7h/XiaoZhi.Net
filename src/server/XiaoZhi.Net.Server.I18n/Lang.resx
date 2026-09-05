@@ -414,17 +414,17 @@
   <data name="ProviderManager_InitializePrivateConfig_LoadPrivateConfigFailed" xml:space="preserve">
     <value>Failed to load private models config for device: {deviceId} with session: {sessionId}.</value>
   </data>
-  <data name="ProviderManager_SaveMemory_LlmNotInitialized" xml:space="preserve">
-    <value>LLM provider is not initialized, cannot save memory for device: {deviceId}.</value>
+  <data name="ProviderManager_LoadAgentMemory_LoadFailed" xml:space="preserve">
+    <value>Failed to load agent memory for device: {deviceId}.</value>
   </data>
-  <data name="ProviderManager_SaveMemory_MemorySaved" xml:space="preserve">
-    <value>Memory saved successfully for device: {deviceId} with session: {sessionId}.</value>
+  <data name="ProviderManager_SaveAgentMemory_LlmNotInitialized" xml:space="preserve">
+    <value>LLM provider is not initialized, cannot save agent memory for device: {deviceId}.</value>
   </data>
-  <data name="ProviderManager_SaveMemory_SaveMemoryFailed" xml:space="preserve">
-    <value>Failed to save memory for device: {deviceId} with session: {sessionId}.</value>
+  <data name="ProviderManager_SaveAgentMemory_MemorySaved" xml:space="preserve">
+    <value>Agent memory saved successfully for device: {deviceId} with session: {sessionId}.</value>
   </data>
-  <data name="ProviderManager_SaveMemory_ApiClientNotAvailable" xml:space="preserve">
-    <value>ManageApiClient is not available, cannot save memory for device: {deviceId} with session: {sessionId}.</value>
+  <data name="ProviderManager_SaveAgentMemory_SaveMemoryFailed" xml:space="preserve">
+    <value>Failed to save agent memory for device: {deviceId} with session: {sessionId}.</value>
   </data>
   <data name="ProviderManager_BuildAudioResampler_ResamplingRequired" xml:space="preserve">
     <value>Device {deviceId} requires audio resampling from {ttsSampleRate} to {deviceSampleRate}.</value>
@@ -866,9 +866,6 @@
   </data>
   <data name="DefaultRag_RetrieveAsync_EmbeddingCountInvalid" xml:space="preserve">
     <value>Expected exactly one query embedding but received {embeddingCount}.</value>
-  </data>
-  <data name="FlashMemory_Build_Built" xml:space="preserve">
-    <value>Builded the default {providerType}: {flashMemory}</value>
   </data>
   <data name="HuoshanHttpV3TTS_Build_ConfigIncomplete" xml:space="preserve">
     <value>Huoshan http v3 TTS configuration is incomplete, please check AppId, AccessToken, ResourceId and speaker.</value>
