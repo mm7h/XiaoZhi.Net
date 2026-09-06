@@ -20,12 +20,15 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;
         private readonly object _streamingQueueGate = new();
 
+        private const int MinimumSpeechDurationMilliseconds = 500;
+
         private IVad? _vad;
         private IAudioDecoder? _audioDecoder;
         private IAudioResampler? _inputAudioResampler;
         private IAsr? _asr;
         private Task _streamingOperationTail = Task.CompletedTask;
         private bool _streamingUtteranceActive;
+        private long _streamingUtteranceTurnId = -1;
         private int _maxQueuedStreamingAudioFrames = 1;
         private int _queuedStreamingAudioFrames;
 
@@ -91,7 +94,7 @@ namespace XiaoZhi.Net.Server.Handlers
             if (session.IsAudioProcessing)
             {
 #if DEBUG
-                this.Logger.LogDebug(Lang.AudioReceiveHandler_Handle_PacketIgnored);
+                //this.Logger.LogDebug(Lang.AudioReceiveHandler_Handle_PacketIgnored);
 #endif
                 return;
             }
@@ -140,7 +143,7 @@ namespace XiaoZhi.Net.Server.Handlers
             this.StartStreamingUtterance(session);
         }
 
-        public void OnVoiceDetected(float[] _)
+        public void OnVoiceDetected(float[] audioData)
         {
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore() || session.CloseAfterChat)
@@ -148,18 +151,34 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
-            session.RejectIncomingAudio();
             session.AudioPacket.VoiceStop = true;
+
+            if (audioData.Length < GlobalVariables.AudioProcessingSampleRate * MinimumSpeechDurationMilliseconds / 1000)
+            {
+                this.Logger.LogDebug(Lang.AudioReceiveHandler_HandleVoiceDetected_VoiceTooShort, session.SessionId);
+                session.AudioPacket.ResetAudioBuffer();
+                if (this._asr?.IsStreaming == true && session.IsDeviceBinded)
+                {
+                    this.AbortStreamingUtterance(session);
+                }
+                session.Reset();
+                return;
+            }
 
             if (this._asr?.IsStreaming == true && session.IsDeviceBinded)
             {
                 session.AudioPacket.ResetAudioBuffer();
-                this.FinishStreamingUtterance(session);
+                if (!this.FinishStreamingUtterance(session))
+                {
+                    session.Reset();
+                }
                 return;
             }
 
-            float[] utteranceAudio = session.AudioPacket.TakeAllAudio();
-            this.ObserveTask(this.HandleVoiceDetectedAsync(session, utteranceAudio), Lang.AudioReceiveHandler_OnVoiceDetected_DispatchFailed, session.DeviceId);
+            long turnId = session.TurnId;
+            session.RejectIncomingAudio(turnId);
+            session.AudioPacket.ResetAudioBuffer();
+            this.ObserveTask(this.HandleVoiceDetectedAsync(session, audioData, turnId), Lang.AudioReceiveHandler_OnVoiceDetected_DispatchFailed, session.DeviceId);
         }
 
         public void OnVoiceSilence()
@@ -212,31 +231,47 @@ namespace XiaoZhi.Net.Server.Handlers
 
             if (this._asr?.IsStreaming == true && session.IsDeviceBinded)
             {
-                this.FinishStreamingUtterance(session);
+                if (!this.FinishStreamingUtterance(session))
+                {
+                    session.Reset();
+                }
                 return;
             }
 
             float[] utteranceAudio = session.AudioPacket.TakeAllAudio();
-            this.ObserveTask(this.HandleVoiceDetectedAsync(session, utteranceAudio), Lang.AudioReceiveHandler_HandleManualStop_DispatchFailed, session.DeviceId);
+            long turnId = session.TurnId;
+            session.RejectIncomingAudio(turnId);
+            this.ObserveTask(this.HandleVoiceDetectedAsync(session, utteranceAudio, turnId), Lang.AudioReceiveHandler_HandleManualStop_DispatchFailed, session.DeviceId);
         }
 
-        private async Task HandleVoiceDetectedAsync(Session session, float[] audioData)
+        private async Task HandleVoiceDetectedAsync(Session session, float[] audioData, long turnId)
         {
             if (this.HandlerToken.IsCancellationRequested || session.CloseAfterChat)
             {
                 return;
             }
 
-            if (audioData.Length < 50)
+            if (audioData.Length < GlobalVariables.AudioProcessingSampleRate * MinimumSpeechDurationMilliseconds / 1000)
             {
                 this.Logger.LogDebug(Lang.AudioReceiveHandler_HandleVoiceDetected_VoiceTooShort, session.SessionId);
-                session.Reset();
+                if (turnId == session.TurnId)
+                {
+                    session.Reset();
+                }
+                else
+                {
+                    session.AcceptIncomingAudio(turnId);
+                }
                 return;
             }
 
             session.RefreshLastActivityTime();
             Workflow<float[]> workflow = this._audioBufferWorkflowPool.Get();
-            workflow.Initialize(session, audioData);
+            workflow.Initialize(
+                session.SessionId,
+                session.DeviceId,
+                audioData,
+                turnId);
             try
             {
                 await this.NextWriter.WriteAsync(workflow, this.HandlerToken);
@@ -283,7 +318,11 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
-            this.QueueStreamingOperation(session, pcmData, StreamingAsrOperation.Audio);
+            this.QueueStreamingOperation(
+                session,
+                pcmData,
+                StreamingAsrOperation.Audio,
+                this._streamingUtteranceTurnId);
         }
 
         private void StartStreamingUtterance(Session session)
@@ -294,22 +333,30 @@ namespace XiaoZhi.Net.Server.Handlers
             }
 
             this._streamingUtteranceActive = true;
+            this._streamingUtteranceTurnId = session.TurnId;
             int preRollSamples = GlobalVariables.AudioProcessingSampleRate * GlobalVariables.StreamingAsrPreRollMilliseconds / 1000;
             this.QueueStreamingOperation(
                 session,
                 session.AudioPacket.GetLatestAudio(preRollSamples),
-                StreamingAsrOperation.Start);
+                StreamingAsrOperation.Start,
+                this._streamingUtteranceTurnId);
         }
 
-        private void FinishStreamingUtterance(Session session)
+        private bool FinishStreamingUtterance(Session session)
         {
             if (this._asr is null || !this._streamingUtteranceActive)
             {
-                return;
+                return false;
             }
 
             this._streamingUtteranceActive = false;
-            this.QueueStreamingOperation(session, Array.Empty<float>(), StreamingAsrOperation.Finish);
+            session.RejectIncomingAudio(this._streamingUtteranceTurnId);
+            this.QueueStreamingOperation(
+                session,
+                Array.Empty<float>(),
+                StreamingAsrOperation.Finish,
+                this._streamingUtteranceTurnId);
+            return true;
         }
 
         private void AbortStreamingUtterance(Session session)
@@ -322,12 +369,20 @@ namespace XiaoZhi.Net.Server.Handlers
             this._streamingUtteranceActive = false;
             // Abort must be allowed to cancel a Finish that is waiting for a remote final result.
             this.ObserveTask(
-                this.SendStreamingOperationAsync(session, Array.Empty<float>(), StreamingAsrOperation.Abort),
+                this.SendStreamingOperationAsync(
+                    session,
+                    Array.Empty<float>(),
+                    StreamingAsrOperation.Abort,
+                    this._streamingUtteranceTurnId),
                 Lang.AudioReceiveHandler_AbortStreamingUtterance_Failed,
                 session.DeviceId);
         }
 
-        private void QueueStreamingOperation(Session session, float[] audioData, StreamingAsrOperation operation)
+        private void QueueStreamingOperation(
+            Session session,
+            float[] audioData,
+            StreamingAsrOperation operation,
+            long turnId)
         {
             if (this._asr is null)
             {
@@ -347,7 +402,11 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 this._streamingOperationTail = this._streamingOperationTail
                     .ContinueWith(
-                        _ => this.SendStreamingOperationSafelyAsync(session, audioData, operation),
+                        _ => this.SendStreamingOperationSafelyAsync(
+                            session,
+                            audioData,
+                            operation,
+                            turnId),
                         CancellationToken.None,
                         TaskContinuationOptions.None,
                         TaskScheduler.Default)
@@ -355,17 +414,26 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        private async Task SendStreamingOperationSafelyAsync(Session session, float[] audioData, StreamingAsrOperation operation)
+        private async Task SendStreamingOperationSafelyAsync(
+            Session session,
+            float[] audioData,
+            StreamingAsrOperation operation,
+            long turnId)
         {
             try
             {
-                await this.SendStreamingOperationAsync(session, audioData, operation);
+                await this.SendStreamingOperationAsync(
+                    session,
+                    audioData,
+                    operation,
+                    turnId);
             }
             catch (OperationCanceledException)
             {
                 if (operation == StreamingAsrOperation.Start)
                 {
                     this._streamingUtteranceActive = false;
+                    this._streamingUtteranceTurnId = -1;
                 }
             }
             catch (Exception ex)
@@ -373,6 +441,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 if (operation == StreamingAsrOperation.Start)
                 {
                     this._streamingUtteranceActive = false;
+                    this._streamingUtteranceTurnId = -1;
                 }
                 this.Logger.LogError(ex, Lang.AudioReceiveHandler_SendStreamingOperationSafelyAsync_Failed, operation, session.DeviceId);
             }
@@ -385,7 +454,11 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        private async Task SendStreamingOperationAsync(Session session, float[] audioData, StreamingAsrOperation operation)
+        private async Task SendStreamingOperationAsync(
+            Session session,
+            float[] audioData,
+            StreamingAsrOperation operation,
+            long turnId)
         {
             if (this._asr is null)
             {
@@ -395,7 +468,11 @@ namespace XiaoZhi.Net.Server.Handlers
             Workflow<float[]> workflow = this._audioBufferWorkflowPool.Get();
             try
             {
-                workflow.Initialize(session, audioData);
+                workflow.Initialize(
+                    session.SessionId,
+                    session.DeviceId,
+                    audioData,
+                    turnId);
                 await this._asr.ConvertSpeechTextStreamingAsync(
                     workflow,
                     GlobalVariables.AudioProcessingSampleRate,

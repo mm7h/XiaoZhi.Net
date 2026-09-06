@@ -113,8 +113,12 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
                         .Subscribe(e =>
                         {
                             e.CancelReconnection = true;
-                            this.OnClose?.Invoke(e.CloseStatus, e.CloseStatusDescription);
+                            if (e.Exception is not null)
+                            {
+                                this.OnError?.Invoke(WebSocketError.ConnectionClosedPrematurely, e.Exception.Message);
+                            }
 
+                            this.OnClose?.Invoke(e.CloseStatus, e.CloseStatusDescription);
                         });
                 }
 
@@ -148,14 +152,13 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
 
         public async Task CloseAsync(WebSocketCloseStatus webSocketCloseStatus = WebSocketCloseStatus.Empty, string statusDescription = "")
         {
-            if (!this.IsConnected)
-            {
-                return;
-            }
+            bool lockTaken = false;
             try
             {
-                this.OnClose?.Invoke(webSocketCloseStatus, statusDescription);
-                if (this._socket is not null)
+                await this._socketSemaphore.WaitAsync();
+                lockTaken = true;
+
+                if (this._socket?.IsRunning == true)
                 {
                     await this._socket.StopOrFail(webSocketCloseStatus, statusDescription);
                 }
@@ -163,6 +166,13 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
             catch (Exception)
             {
                 this.OnError?.Invoke(WebSocketError.ConnectionClosedPrematurely, Lang.WebSocketClient_CloseAsync_CloseFailed);
+            }
+            finally
+            {
+                if (lockTaken)
+                {
+                    this._socketSemaphore.Release();
+                }
             }
         }
 

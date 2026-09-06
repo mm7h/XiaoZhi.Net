@@ -10,7 +10,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 {
     internal class Session
     {
-        private long _isAudioProcessing;
+        private long _audioProcessingTurnId = -1;
         private int _closeAfterChatRequested;
         private CancellationTokenSource _sessionCts = null!;
 
@@ -56,7 +56,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public bool CloseAfterChat => Volatile.Read(ref this._closeAfterChatRequested) == 1;
         public long TurnId => Interlocked.Read(ref this._turnId);
 
-        public bool IsAudioProcessing => Interlocked.Read(ref this._isAudioProcessing) == 1;
+        public bool IsAudioProcessing => Interlocked.Read(ref this._audioProcessingTurnId) >= 0;
 
         public bool ShouldIgnore() => this._isReseting;
 
@@ -92,11 +92,19 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         public void RejectIncomingAudio()
         {
-            Interlocked.Exchange(ref this._isAudioProcessing, 1);
+            this.RejectIncomingAudio(this.TurnId);
+        }
+        public void RejectIncomingAudio(long turnId)
+        {
+            Interlocked.Exchange(ref this._audioProcessingTurnId, turnId);
         }
         public void AcceptIncomingAudio()
         {
-            Interlocked.Exchange(ref this._isAudioProcessing, 0);
+            Interlocked.Exchange(ref this._audioProcessingTurnId, -1);
+        }
+        public bool AcceptIncomingAudio(long turnId)
+        {
+            return Interlocked.CompareExchange(ref this._audioProcessingTurnId, -1, turnId) == turnId;
         }
 
         public bool TryRequestCloseAfterChat()

@@ -132,6 +132,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             if (turnId != session.TurnId)
             {
+                session.AcceptIncomingAudio(turnId);
                 this.Logger.LogDebug(Lang.Audio2TextHandler_OnSpeechTextConverted_StaleResult,
                     session.DeviceId, turnId, session.TurnId);
                 return;
@@ -140,6 +141,7 @@ namespace XiaoZhi.Net.Server.Handlers
             if (!success)
             {
                 this.Logger.LogError(Lang.Audio2TextHandler_OnSpeechTextConverted_ConvertFailed);
+                session.Reset();
                 return;
             }
             if (string.IsNullOrWhiteSpace(speechText) || string.IsNullOrWhiteSpace(DialogueHelper.GetStringNoPunctuationOrEmoji(speechText)))

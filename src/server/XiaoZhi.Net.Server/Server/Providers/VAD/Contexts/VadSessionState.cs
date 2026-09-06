@@ -22,6 +22,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Contexts
         private readonly int _voiceWindowSize;
 
         private readonly List<float> _pendingAudio = [];
+        private readonly List<float> _speechAudio = [];
 
         /// <summary>
         /// Latest time when voice was detected (Unix timestamp in milliseconds).
@@ -79,6 +80,26 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Contexts
             this.ProcessedSamplesSinceReset += sampleCount;
         }
 
+        public void AppendSpeechAudio(float[] audioData)
+        {
+            if (audioData.Length > 0)
+            {
+                this._speechAudio.AddRange(audioData);
+            }
+        }
+
+        public float[] TakeSpeechAudio()
+        {
+            float[] speechAudio = this._speechAudio.ToArray();
+            this._speechAudio.Clear();
+            return speechAudio;
+        }
+
+        public void ResetSpeechAudio()
+        {
+            this._speechAudio.Clear();
+        }
+
         /// <summary>
         /// Adds a voice detection result to the sliding window.
         /// </summary>
@@ -119,6 +140,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Contexts
             this.ProcessedSamplesSinceReset = 0;
             this.VoiceWindow.Clear();
             this._pendingAudio.Clear();
+            this._speechAudio.Clear();
         }
     }
 }

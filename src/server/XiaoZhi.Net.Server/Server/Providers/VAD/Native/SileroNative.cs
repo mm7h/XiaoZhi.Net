@@ -136,6 +136,10 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
                     }
 
                     this._vadSessionState.LastIsVoice = isSpeechDetected;
+                    if (isSpeechDetected)
+                    {
+                        this._vadSessionState.AppendSpeechAudio(chunk);
+                    }
 
                     this._vadSessionState.AddToVoiceWindow(isSpeechDetected);
 
@@ -149,7 +153,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
                             this.Logger.LogDebug(Lang.SileroNative_AnalysisVoiceAsync_VoiceStopped, deviceId, stopDuration);
                             this._vadSessionState.VoiceStop = true;
 
-                            this._vadEventCallback?.OnVoiceDetected(audioData);
+                            this._vadEventCallback?.OnVoiceDetected(this._vadSessionState.TakeSpeechAudio());
                             this._vadSessionState.Reset();
                             return Task.CompletedTask;
                         }
@@ -160,6 +164,11 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
                         this._vadSessionState.HaveVoice = true;
                         this._vadSessionState.HaveVoiceLatestTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
                         this._vadEventCallback?.OnVoiceStarted();
+                    }
+
+                    if (!this._vadSessionState.HaveVoice && this._vadSessionState.CountVoiceInWindow() == 0)
+                    {
+                        this._vadSessionState.ResetSpeechAudio();
                     }
                 }
 
