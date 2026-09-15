@@ -267,6 +267,9 @@
   <data name="Text2AudioHandler_Handle_Cancelled" xml:space="preserve">
     <value>TTS synthesis cancelled for device {DeviceId}</value>
   </data>
+  <data name="Text2AudioHandler_EnqueueCachedAudio_CacheUnavailable" xml:space="preserve">
+    <value>Cached system notification audio is unavailable: {audioCacheKey}.</value>
+  </data>
   <data name="Text2AudioHandler_CheckBindDevice_PlayerNotBuilt" xml:space="preserve">
     <value>AudioPlayerClient is not built for the device {deviceId} yet</value>
   </data>
@@ -659,24 +662,6 @@
   </data>
   <data name="DefaultAudioProcessor_Build_InvalidSettings" xml:space="preserve">
     <value>Invalid model settings for {providerType}: {modelName}</value>
-  </data>
-  <data name="NotificationPlayer_Build_FFmpegInitFailed" xml:space="preserve">
-    <value>Failed to initialize FFmpeg, please check your the ffmpeg path configuration.</value>
-  </data>
-  <data name="NotificationPlayer_PlayBindCodeAsync_NotBuilt" xml:space="preserve">
-    <value>The audio player is not built yet.</value>
-  </data>
-  <data name="NotificationPlayer_PlayBindCodeAsync_StreamNull" xml:space="preserve">
-    <value>Failed to get the bind code audio stream.</value>
-  </data>
-  <data name="NotificationPlayer_PlayNotFoundAsync_NotBuilt" xml:space="preserve">
-    <value>The audio player is not built yet.</value>
-  </data>
-  <data name="NotificationPlayer_PlayNotFoundAsync_StreamNull" xml:space="preserve">
-    <value>Failed to get the not found audio stream.</value>
-  </data>
-  <data name="NotificationPlayer_StopAsync_Skip" xml:space="preserve">
-    <value>The audio player status is {status}, skip the stopping.</value>
   </data>
   <data name="ChatAgent_Build_Built" xml:space="preserve">
     <value>Built chat agent {agentName} using model {modelName}.</value>
@@ -1137,47 +1122,29 @@
   <data name="MusicProvider_UpdateMusicFiles_SettingsNotInitialized" xml:space="preserve">
     <value>Cannot update music files because the settings are not initialized.</value>
   </data>
-  <data name="DefaultDeviceBinding_Load_BindCodePromptNotExist" xml:space="preserve">
+  <data name="AudioFileCaching_Load_BindCodePromptNotExist" xml:space="preserve">
     <value>The bind code prompt file does not exist: {filePath}</value>
   </data>
-  <data name="DefaultDeviceBinding_Load_BindNotFoundNotExist" xml:space="preserve">
+  <data name="AudioFileCaching_Load_BindNotFoundNotExist" xml:space="preserve">
     <value>The bind not found file does not exist: {filePath}</value>
   </data>
-  <data name="DefaultDeviceBinding_Load_DigitFilesCountError" xml:space="preserve">
+  <data name="AudioFileCaching_Load_DigitFilesCountError" xml:space="preserve">
     <value>The digit files folder must contain exactly 10 files for digits 0-9.</value>
   </data>
-  <data name="DefaultDeviceBinding_Load_InvalidDigitFile" xml:space="preserve">
+  <data name="AudioFileCaching_Load_InvalidDigitFile" xml:space="preserve">
     <value>Invalid digit file: {fileName}</value>
   </data>
-  <data name="DefaultDeviceBinding_Load_InvalidResourceLoading" xml:space="preserve">
+  <data name="AudioFileCaching_Load_InvalidResourceLoading" xml:space="preserve">
     <value>Invalid resource loadings for {resourceName}</value>
   </data>
-  <data name="DefaultDeviceBinding_GetDeviceNotFoundAudioStream_NotLoaded" xml:space="preserve">
-    <value>The bind not found audio file is not loaded.</value>
+  <data name="AudioFileCaching_CacheAudioFile_DecodeFailed" xml:space="preserve">
+    <value>Unable to decode audio resource: {filePath}.</value>
   </data>
-  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_InvalidBindCode" xml:space="preserve">
-    <value>Invalid bind code: {bindCode}, it must be a 6-digit numeric string.</value>
+  <data name="AudioFileCaching_CacheAudioFile_NoPcmData" xml:space="preserve">
+    <value>Audio resource produced no PCM data: {filePath}.</value>
   </data>
-  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_PromptNotLoaded" xml:space="preserve">
-    <value>The bind code prompt audio file is not loaded.</value>
-  </data>
-  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_DigitNotLoaded" xml:space="preserve">
-    <value>The audio file for digit '{digit}' is not loaded.</value>
-  </data>
-  <data name="DefaultDeviceBinding_CombinedStream_ListEmpty" xml:space="preserve">
-    <value>WAV files list cannot be null or empty</value>
-  </data>
-  <data name="DefaultDeviceBinding_CombinedStream_FirstFileInvalid" xml:space="preserve">
-    <value>First file is not a valid WAV file</value>
-  </data>
-  <data name="DefaultDeviceBinding_CombinedStream_FileInvalid" xml:space="preserve">
-    <value>One of the files is not a valid WAV file</value>
-  </data>
-  <data name="DefaultDeviceBinding_CombinedStream_BufferOverflow" xml:space="preserve">
-    <value>The sum of offset and count is larger than the buffer length.</value>
-  </data>
-  <data name="DefaultDeviceBinding_CombinedStream_InvalidOrigin" xml:space="preserve">
-    <value>Invalid seek origin</value>
+  <data name="AudioFileCaching_CacheAudioFile_Failed" xml:space="preserve">
+    <value>Failed to cache audio resource: {filePath}.</value>
   </data>
   <data name="BaseOnnxModel_CheckModelExist_NotFound" xml:space="preserve">
     <value>Cannot found the onnx model file in path: {modelFilePath}.</value>

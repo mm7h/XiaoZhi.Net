@@ -28,7 +28,6 @@ using XiaoZhi.Net.Server.Providers.AudioCodec;
 using XiaoZhi.Net.Server.Providers.AudioMixer;
 using XiaoZhi.Net.Server.Providers.AudioPlayer;
 using XiaoZhi.Net.Server.Providers.AudioPlayer.Music;
-using XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification;
 using XiaoZhi.Net.Server.Providers.IoT;
 using XiaoZhi.Net.Server.Providers.LLM;
 using XiaoZhi.Net.Server.Providers.LLM.Agents;
@@ -678,7 +677,6 @@ namespace XiaoZhi.Net.Server.Management
         private static void RegisterAudioPlayer(IServiceCollection services)
         {
             services.AddTransient<IMusicPlayer, FileMusicPlayer>();
-            services.AddTransient<ISystemNotification, NotificationPlayer>();
             services.AddTransient<IAudioPlayerClient, AudioPlayerClient>();
         }
 

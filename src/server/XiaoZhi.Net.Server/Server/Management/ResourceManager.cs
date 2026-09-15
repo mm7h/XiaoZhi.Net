@@ -10,7 +10,7 @@ using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Resources;
-using XiaoZhi.Net.Server.Resources.DeviceBinding;
+using XiaoZhi.Net.Server.Resources.AudioCaching;
 using XiaoZhi.Net.Server.Resources.Musics;
 using XiaoZhi.Net.Server.Resources.OnnxModels;
 using XiaoZhi.Net.Server.Resources.OnnxModels.VAD;
@@ -28,7 +28,7 @@ namespace XiaoZhi.Net.Server.Management
         {
             return builder.ConfigureServices((context, services) =>
             {
-                services.AddSingleton<IDeviceBinding, DefaultDeviceBinding>();
+                services.AddSingleton<IAudioFileCaching, AudioFileCaching>();
                 services.AddSingleton<IMusicFileProvider, MusicProvider>();
                 services.AddSingleton<IVadOnnxModel, SileroOnnx>();
 
@@ -40,9 +40,9 @@ namespace XiaoZhi.Net.Server.Management
 
         public override bool BuildComponent()
         {
-            #region DeviceBinding
-            IDeviceBinding deviceBinding = this.ServiceProvider.GetRequiredService<IDeviceBinding>();
-            if (!deviceBinding.Load(this.Config.DeviceBindSetting))
+            #region AudioCaching
+            IAudioFileCaching audioFileCaching = this.ServiceProvider.GetRequiredService<IAudioFileCaching>();
+            if (!audioFileCaching.Load(this.Config.DeviceBindSetting))
             {
                 return false;
             }
@@ -79,7 +79,7 @@ namespace XiaoZhi.Net.Server.Management
         {
             IList<IDisposable> resources = new List<IDisposable>
             {
-                this.ServiceProvider.GetRequiredService<IDeviceBinding>(),
+                this.ServiceProvider.GetRequiredService<IAudioFileCaching>(),
                 this.ServiceProvider.GetRequiredService<IMusicFileProvider>(),
                 this.ServiceProvider.GetRequiredService<IVadOnnxModel>(),
             };

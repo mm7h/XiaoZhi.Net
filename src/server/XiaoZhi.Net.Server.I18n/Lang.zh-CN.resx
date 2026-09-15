@@ -267,6 +267,9 @@
   <data name="Text2AudioHandler_Handle_Cancelled" xml:space="preserve">
     <value>TTS 合成已取消，设备 {DeviceId}</value>
   </data>
+  <data name="Text2AudioHandler_EnqueueCachedAudio_CacheUnavailable" xml:space="preserve">
+    <value>系统提示音缓存不可用：{audioCacheKey}。</value>
+  </data>
   <data name="Text2AudioHandler_CheckBindDevice_PlayerNotBuilt" xml:space="preserve">
     <value>AudioPlayerClient 尚未为设备 {deviceId} 构建。</value>
   </data>
@@ -659,24 +662,6 @@
   </data>
   <data name="DefaultAudioProcessor_Build_InvalidSettings" xml:space="preserve">
     <value>{providerType} 模型设置无效: {modelName}</value>
-  </data>
-  <data name="NotificationPlayer_Build_FFmpegInitFailed" xml:space="preserve">
-    <value>FFmpeg 初始化失败，请检查 FFmpeg 路径配置。</value>
-  </data>
-  <data name="NotificationPlayer_PlayBindCodeAsync_NotBuilt" xml:space="preserve">
-    <value>音频播放器尚未构建。</value>
-  </data>
-  <data name="NotificationPlayer_PlayBindCodeAsync_StreamNull" xml:space="preserve">
-    <value>无法获取绑定码音频流。</value>
-  </data>
-  <data name="NotificationPlayer_PlayNotFoundAsync_NotBuilt" xml:space="preserve">
-    <value>音频播放器尚未构建。</value>
-  </data>
-  <data name="NotificationPlayer_PlayNotFoundAsync_StreamNull" xml:space="preserve">
-    <value>无法获取未找到音频流。</value>
-  </data>
-  <data name="NotificationPlayer_StopAsync_Skip" xml:space="preserve">
-    <value>音频播放器状态为 {status}，跳过停止。</value>
   </data>
   <data name="ChatAgent_Build_Built" xml:space="preserve">
     <value>聊天代理 {agentName} 已使用模型 {modelName} 构建。</value>
@@ -1137,47 +1122,29 @@
   <data name="MusicProvider_UpdateMusicFiles_SettingsNotInitialized" xml:space="preserve">
     <value>无法更新音乐文件，因为设置未初始化。</value>
   </data>
-  <data name="DefaultDeviceBinding_Load_BindCodePromptNotExist" xml:space="preserve">
+  <data name="AudioFileCaching_Load_BindCodePromptNotExist" xml:space="preserve">
     <value>绑定码提示文件不存在：{filePath}</value>
   </data>
-  <data name="DefaultDeviceBinding_Load_BindNotFoundNotExist" xml:space="preserve">
+  <data name="AudioFileCaching_Load_BindNotFoundNotExist" xml:space="preserve">
     <value>绑定未找到文件不存在：{filePath}</value>
   </data>
-  <data name="DefaultDeviceBinding_Load_DigitFilesCountError" xml:space="preserve">
+  <data name="AudioFileCaching_Load_DigitFilesCountError" xml:space="preserve">
     <value>数字文件文件夹必须正好包含 10 个数字 0-9 的文件。</value>
   </data>
-  <data name="DefaultDeviceBinding_Load_InvalidDigitFile" xml:space="preserve">
+  <data name="AudioFileCaching_Load_InvalidDigitFile" xml:space="preserve">
     <value>无效的数字文件：{fileName}</value>
   </data>
-  <data name="DefaultDeviceBinding_Load_InvalidResourceLoading" xml:space="preserve">
+  <data name="AudioFileCaching_Load_InvalidResourceLoading" xml:space="preserve">
     <value>资源加载无效：{resourceName}</value>
   </data>
-  <data name="DefaultDeviceBinding_GetDeviceNotFoundAudioStream_NotLoaded" xml:space="preserve">
-    <value>未加载绑定未找到音频文件。</value>
+  <data name="AudioFileCaching_CacheAudioFile_DecodeFailed" xml:space="preserve">
+    <value>无法解码音频资源：{filePath}。</value>
   </data>
-  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_InvalidBindCode" xml:space="preserve">
-    <value>无效的绑定码：{bindCode}，必须是 6 位数字字符串。</value>
+  <data name="AudioFileCaching_CacheAudioFile_NoPcmData" xml:space="preserve">
+    <value>音频资源未生成 PCM 数据：{filePath}。</value>
   </data>
-  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_PromptNotLoaded" xml:space="preserve">
-    <value>未加载绑定码提示音频文件。</value>
-  </data>
-  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_DigitNotLoaded" xml:space="preserve">
-    <value>未加载数字 '{digit}' 的音频文件。</value>
-  </data>
-  <data name="DefaultDeviceBinding_CombinedStream_ListEmpty" xml:space="preserve">
-    <value>WAV 文件列表不能为空</value>
-  </data>
-  <data name="DefaultDeviceBinding_CombinedStream_FirstFileInvalid" xml:space="preserve">
-    <value>第一个文件不是有效的 WAV 文件</value>
-  </data>
-  <data name="DefaultDeviceBinding_CombinedStream_FileInvalid" xml:space="preserve">
-    <value>其中一个文件不是有效的 WAV 文件</value>
-  </data>
-  <data name="DefaultDeviceBinding_CombinedStream_BufferOverflow" xml:space="preserve">
-    <value>偏移量和计数之和大于缓冲区长度。</value>
-  </data>
-  <data name="DefaultDeviceBinding_CombinedStream_InvalidOrigin" xml:space="preserve">
-    <value>无效的搜索原点</value>
+  <data name="AudioFileCaching_CacheAudioFile_Failed" xml:space="preserve">
+    <value>缓存音频资源失败：{filePath}。</value>
   </data>
   <data name="BaseOnnxModel_CheckModelExist_NotFound" xml:space="preserve">
     <value>在路径：{modelFilePath} 中未找到 onnx 模型文件。</value>

@@ -66,6 +66,12 @@ internal class StreamAudioPlayer(IAudioDecodeScheduler decodeScheduler, ILogger<
         return loaded;
     }
 
+    /// <inheritdoc />
+    public Task DecodeAsync(CancellationToken cancellationToken = default)
+    {
+        return this.PlayWithoutPacingAsync(cancellationToken);
+    }
+
 
     /// <summary>
     /// 创建 <see cref="IAudioDecoder"/> 实例。

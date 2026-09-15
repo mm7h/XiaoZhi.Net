@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
@@ -9,6 +11,8 @@ using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Providers;
 using XiaoZhi.Net.Server.Providers.TTS;
+using XiaoZhi.Net.Server.Resources;
+using XiaoZhi.Net.Server.Resources.AudioCaching;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
@@ -18,6 +22,7 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ObjectPool<OutAudioSegment> _outAudioSegmentPool;
         private readonly ObjectPool<Workflow<OutAudioSegment>> _outAudioSegmentWorkflowPool;
         private readonly ObjectPool<Workflow<OutSegment>> _outSegmentWorkflowPool;
+        private readonly IAudioFileCaching _audioFileCaching;
 
         private ITts? _tts;
         private IAudioPlayerClient? _audioPlayerClient;
@@ -27,6 +32,7 @@ namespace XiaoZhi.Net.Server.Handlers
             ObjectPool<OutAudioSegment> outAudioSegmentPool,
             ObjectPool<Workflow<OutAudioSegment>> outAudioSegmentWorkflowPool,
             ObjectPool<Workflow<OutSegment>> outSegmentWorkflowPool,
+            IAudioFileCaching audioFileCaching,
             XiaoZhiConfig config,
             ILogger<Text2AudioHandler> logger) : base(config, logger)
         {
@@ -34,6 +40,7 @@ namespace XiaoZhi.Net.Server.Handlers
             this._outAudioSegmentPool = outAudioSegmentPool;
             this._outAudioSegmentWorkflowPool = outAudioSegmentWorkflowPool;
             this._outSegmentWorkflowPool = outSegmentWorkflowPool;
+            this._audioFileCaching = audioFileCaching;
         }
 
         public override bool Build(PrivateProvider privateProvider)
@@ -55,20 +62,11 @@ namespace XiaoZhi.Net.Server.Handlers
             this._tts.RegisterDevice(session.DeviceId, session.SessionId, this);
 
             this._audioPlayerClient = privateProvider.AudioPlayerClient;
-            this._audioPlayerClient.SystemNotification.OnAudioData += this.OnNotificationAudioDataAsync;
             this._audioPlayerClient.MusicPlayer.OnAudioData += this.OnMusicAudioDataAsync;
             this._audioPlayerClient.RegisterDevice(session.DeviceId, session.SessionId);
             this.RegisterCancellationToken();
             this.Builded = true;
             return true;
-        }
-
-        protected override async void OnHandlerTokenChanged()
-        {
-            if (this._audioPlayerClient is not null)
-            {
-                await this._audioPlayerClient.SystemNotification.StopAsync();
-            }
         }
 
         public override string HandlerName => nameof(Text2AudioHandler);
@@ -141,26 +139,19 @@ namespace XiaoZhi.Net.Server.Handlers
 
         private async Task CheckBindDeviceAsync(Session session)
         {
-            if (this._audioPlayerClient is null)
+            if (!string.IsNullOrWhiteSpace(session.BindCode) && session.BindCode.Length == 6 && session.BindCode.All(char.IsDigit))
             {
-                this.Logger.LogError(Lang.Text2AudioHandler_CheckBindDevice_PlayerNotBuilt, session.DeviceId);
-                return;
-            }
-
-            if (!string.IsNullOrWhiteSpace(session.BindCode) && session.BindCode.Length == 6)
-            {
-                if (session.BindCode.Length != 6)
-                {
-                    this.Logger.LogError(Lang.Text2AudioHandler_CheckBindDevice_InvalidBindCode, session.BindCode, session.DeviceId);
-                    string bindErrorMsg = Lang.Text2AudioHandler_CheckBindDevice_BindCodeFormatError;
-                    await session.SendOutter.SendSttMessageAsync(bindErrorMsg);
-                    return;
-                }
-
                 string text = string.Format(Lang.Text2AudioHandler_CheckBindDevice_BindDevicePrompt, session.BindCode);
                 await session.SendOutter.SendSttMessageAsync(text);
 
-                await this._audioPlayerClient.SystemNotification.PlayBindCodeAsync(session.BindCode);
+                string[] cacheKeys = new string[session.BindCode.Length + 1];
+                cacheKeys[0] = AudioFileCaching.BindCodePromptKey;
+                for (int index = 0; index < session.BindCode.Length; index++)
+                {
+                    cacheKeys[index + 1] = session.BindCode[index].ToString();
+                }
+
+                await this.EnqueueCachedAudioAsync(session, cacheKeys);
             }
             else
             {
@@ -168,37 +159,49 @@ namespace XiaoZhi.Net.Server.Handlers
                 string text = Lang.Text2AudioHandler_CheckBindDevice_VersionNotFound;
                 await session.SendOutter.SendSttMessageAsync(text);
 
-                await this._audioPlayerClient.SystemNotification.PlayNotFoundAsync();
+                await this.EnqueueCachedAudioAsync(session, [AudioFileCaching.BindNotFoundKey]);
             }
         }
 
-        private async void OnNotificationAudioDataAsync(float[] pcmData, bool isFirst, bool isLast)
+        private async Task EnqueueCachedAudioAsync(Session session, IReadOnlyList<string> cacheKeys)
         {
-            if (this.HandlerToken.IsCancellationRequested)
+            List<float[]> audioParts = new(cacheKeys.Count);
+            foreach (string cacheKey in cacheKeys)
             {
-                return;
+                if (!this._audioFileCaching.TryGetAudioData(cacheKey, out float[]? audioData) || audioData is null)
+                {
+                    this.Logger.LogError(Lang.Text2AudioHandler_EnqueueCachedAudio_CacheUnavailable, cacheKey);
+                    return;
+                }
+
+                audioParts.Add(audioData);
             }
 
-            Session session = this.SendOutter.GetSession();
-            if (session is null || session.ShouldIgnore())
+            for (int index = 0; index < audioParts.Count; index++)
             {
-                return;
-            }
+                bool isFirstAudioPart = index == 0;
+                bool isLastAudioPart = index == audioParts.Count - 1;
+                OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
+                Workflow<OutAudioSegment> workflow = this._outAudioSegmentWorkflowPool.Get();
 
-            OutAudioSegment outAudioSegment = this._outAudioSegmentPool.Get();
-            Workflow<OutAudioSegment> workflow = this._outAudioSegmentWorkflowPool.Get();
+                outAudioSegment.Initialize(
+                    audioParts[index],
+                    AudioType.SystemNotification,
+                    isFirstFrame: isFirstAudioPart,
+                    isLastFrame: isLastAudioPart,
+                    isLastSegment: isLastAudioPart);
+                workflow.Initialize(session, outAudioSegment);
 
-            outAudioSegment.Initialize(pcmData, AudioType.SystemNotification, isFirstFrame: isFirst, isLastFrame: isLast, isLastSegment: isLast);
-            workflow.Initialize(session, outAudioSegment);
-
-            try
-            {
-                await this.NextWriter3.WriteAsync(workflow, this.HandlerToken);
-            }
-            catch (OperationCanceledException)
-            {
-                this._outAudioSegmentPool.Return(outAudioSegment);
-                this._outAudioSegmentWorkflowPool.Return(workflow);
+                try
+                {
+                    await this.NextWriter3.WriteAsync(workflow, this.HandlerToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    this._outAudioSegmentPool.Return(outAudioSegment);
+                    this._outAudioSegmentWorkflowPool.Return(workflow);
+                    return;
+                }
             }
         }
 
@@ -389,7 +392,6 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     this._audioPlayerClient.UnregisterDevice(session.DeviceId, session.SessionId);
                 }
-                this._audioPlayerClient.SystemNotification.OnAudioData -= this.OnNotificationAudioDataAsync;
                 this._audioPlayerClient.MusicPlayer.OnAudioData -= this.OnMusicAudioDataAsync;
             }
             this.NextWriter.Complete();

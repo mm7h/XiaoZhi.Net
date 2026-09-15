@@ -105,6 +105,16 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
 
     public Task PlayAsync(CancellationToken cancellationToken = default)
     {
+        return this.StartAsync(playbackInRealTime: true, cancellationToken);
+    }
+
+    protected Task PlayWithoutPacingAsync(CancellationToken cancellationToken = default)
+    {
+        return this.StartAsync(playbackInRealTime: false, cancellationToken);
+    }
+
+    private Task StartAsync(bool playbackInRealTime, CancellationToken cancellationToken)
+    {
         AudioPlaybackContext? contextToStart = null;
         Action<PlaybackState>? stateChangedHandler = null;
         PlaybackState stateChangedTo = PlaybackState.Idle;
@@ -170,7 +180,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
 
         if (requiresRecovery)
         {
-            return this.RecoverAndPlayAsync(cancellationToken);
+            return this.RecoverAndPlayAsync(playbackInRealTime, cancellationToken);
         }
 
         if (contextToStart is not null)
@@ -180,7 +190,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
                 try
                 {
                     this._decodeScheduler.Schedule(contextToStart, AudioDecodeWorkPriority.Refill);
-                    contextToStart.EngineTask = this.RunEngineAsync(contextToStart);
+                    contextToStart.EngineTask = this.RunEngineAsync(contextToStart, playbackInRealTime);
                     contextToStart.PlaybackTask = this.RunPlaybackAsync(contextToStart);
                     playbackTask = contextToStart.PlaybackTask;
                 }
@@ -617,7 +627,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         return context.CanDecodeMore() ? AudioDecodeBatchResult.Refill : AudioDecodeBatchResult.Completed;
     }
 
-    private async Task RunEngineAsync(AudioPlaybackContext context)
+    private async Task RunEngineAsync(AudioPlaybackContext context, bool playbackInRealTime)
     {
         PlaybackAudioFrame? pendingFrame = null;
         long playbackStartTimestamp = TimeProvider.System.GetTimestamp();
@@ -673,7 +683,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
                 + ToTimestampTicks(TimeSpan.FromMilliseconds(playbackFrame.Frame.PresentationTime))
                 + totalPauseTicks;
             TimeSpan delay = TimeProvider.System.GetElapsedTime(TimeProvider.System.GetTimestamp(), targetTimestamp);
-            if (delay > TimeSpan.Zero)
+            if (playbackInRealTime && delay > TimeSpan.Zero)
             {
                 await Task.Delay(delay, context.Token);
             }
@@ -859,7 +869,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         }
     }
 
-    private async Task RecoverAndPlayAsync(CancellationToken cancellationToken)
+    private async Task RecoverAndPlayAsync(bool playbackInRealTime, CancellationToken cancellationToken)
     {
         TimeSpan position;
         lock (this._syncRoot)
@@ -868,7 +878,7 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
         }
 
         await this.EnsureDecoderRecoveredAsync(position, cancellationToken);
-        await this.PlayAsync(cancellationToken);
+        await this.StartAsync(playbackInRealTime, cancellationToken);
     }
 
     private async Task EnsureDecoderRecoveredAsync(TimeSpan position, CancellationToken cancellationToken)

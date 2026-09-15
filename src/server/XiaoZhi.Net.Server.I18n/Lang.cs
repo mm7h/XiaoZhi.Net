@@ -85,6 +85,7 @@ namespace XiaoZhi.Net.Server.I18n
         public static string Text2AudioHandler_CheckBindDevice_BindDevicePrompt => ResourceManager.GetString("Text2AudioHandler_CheckBindDevice_BindDevicePrompt", s_resourceCulture) ?? "";
         public static string Text2AudioHandler_CheckBindDevice_VersionNotFound => ResourceManager.GetString("Text2AudioHandler_CheckBindDevice_VersionNotFound", s_resourceCulture) ?? "";
         public static string Text2AudioHandler_Handle_Cancelled => ResourceManager.GetString("Text2AudioHandler_Handle_Cancelled", s_resourceCulture) ?? "";
+        public static string Text2AudioHandler_EnqueueCachedAudio_CacheUnavailable => ResourceManager.GetString("Text2AudioHandler_EnqueueCachedAudio_CacheUnavailable", s_resourceCulture) ?? "";
 
         public static string TextHandler_Handle_ReceivedText => ResourceManager.GetString("TextHandler_Handle_ReceivedText", s_resourceCulture) ?? "";
         public static string TextHandler_Handle_InvalidType => ResourceManager.GetString("TextHandler_Handle_InvalidType", s_resourceCulture) ?? "";
@@ -269,15 +270,6 @@ namespace XiaoZhi.Net.Server.I18n
         public static string DefaultAudioProcessor_Build_Initialized => ResourceManager.GetString("DefaultAudioProcessor_Build_Initialized", s_resourceCulture) ?? "";
         public static string DefaultAudioProcessor_Build_InvalidSettings => ResourceManager.GetString("DefaultAudioProcessor_Build_InvalidSettings", s_resourceCulture) ?? "";
         public static string DefaultAudioProcessor_FireOnMixedAudioData_InvokeError => ResourceManager.GetString("DefaultAudioProcessor_FireOnMixedAudioData_InvokeError", s_resourceCulture) ?? "";
-        #endregion
-
-        #region NotificationPlayer
-        public static string NotificationPlayer_Build_FFmpegInitFailed => ResourceManager.GetString("NotificationPlayer_Build_FFmpegInitFailed", s_resourceCulture) ?? "";
-        public static string NotificationPlayer_PlayBindCodeAsync_NotBuilt => ResourceManager.GetString("NotificationPlayer_PlayBindCodeAsync_NotBuilt", s_resourceCulture) ?? "";
-        public static string NotificationPlayer_PlayBindCodeAsync_StreamNull => ResourceManager.GetString("NotificationPlayer_PlayBindCodeAsync_StreamNull", s_resourceCulture) ?? "";
-        public static string NotificationPlayer_PlayNotFoundAsync_NotBuilt => ResourceManager.GetString("NotificationPlayer_PlayNotFoundAsync_NotBuilt", s_resourceCulture) ?? "";
-        public static string NotificationPlayer_PlayNotFoundAsync_StreamNull => ResourceManager.GetString("NotificationPlayer_PlayNotFoundAsync_StreamNull", s_resourceCulture) ?? "";
-        public static string NotificationPlayer_StopAsync_Skip => ResourceManager.GetString("NotificationPlayer_StopAsync_Skip", s_resourceCulture) ?? "";
         #endregion
 
         #region ChatAgent
@@ -515,21 +507,15 @@ namespace XiaoZhi.Net.Server.I18n
         public static string MusicProvider_UpdateMusicFiles_SettingsNotInitialized => ResourceManager.GetString("MusicProvider_UpdateMusicFiles_SettingsNotInitialized", s_resourceCulture) ?? "";
         #endregion
 
-        #region DefaultDeviceBinding
-        public static string DefaultDeviceBinding_Load_BindCodePromptNotExist => ResourceManager.GetString("DefaultDeviceBinding_Load_BindCodePromptNotExist", s_resourceCulture) ?? "";
-        public static string DefaultDeviceBinding_Load_BindNotFoundNotExist => ResourceManager.GetString("DefaultDeviceBinding_Load_BindNotFoundNotExist", s_resourceCulture) ?? "";
-        public static string DefaultDeviceBinding_Load_DigitFilesCountError => ResourceManager.GetString("DefaultDeviceBinding_Load_DigitFilesCountError", s_resourceCulture) ?? "";
-        public static string DefaultDeviceBinding_Load_InvalidDigitFile => ResourceManager.GetString("DefaultDeviceBinding_Load_InvalidDigitFile", s_resourceCulture) ?? "";
-        public static string DefaultDeviceBinding_Load_InvalidResourceLoading => ResourceManager.GetString("DefaultDeviceBinding_Load_InvalidResourceLoading", s_resourceCulture) ?? "";
-        public static string DefaultDeviceBinding_GetDeviceNotFoundAudioStream_NotLoaded => ResourceManager.GetString("DefaultDeviceBinding_GetDeviceNotFoundAudioStream_NotLoaded", s_resourceCulture) ?? "";
-        public static string DefaultDeviceBinding_GetDeviceBindCodeAudioStream_InvalidBindCode => ResourceManager.GetString("DefaultDeviceBinding_GetDeviceBindCodeAudioStream_InvalidBindCode", s_resourceCulture) ?? "";
-        public static string DefaultDeviceBinding_GetDeviceBindCodeAudioStream_PromptNotLoaded => ResourceManager.GetString("DefaultDeviceBinding_GetDeviceBindCodeAudioStream_PromptNotLoaded", s_resourceCulture) ?? "";
-        public static string DefaultDeviceBinding_GetDeviceBindCodeAudioStream_DigitNotLoaded => ResourceManager.GetString("DefaultDeviceBinding_GetDeviceBindCodeAudioStream_DigitNotLoaded", s_resourceCulture) ?? "";
-        public static string DefaultDeviceBinding_CombinedStream_ListEmpty => ResourceManager.GetString("DefaultDeviceBinding_CombinedStream_ListEmpty", s_resourceCulture) ?? "";
-        public static string DefaultDeviceBinding_CombinedStream_FirstFileInvalid => ResourceManager.GetString("DefaultDeviceBinding_CombinedStream_FirstFileInvalid", s_resourceCulture) ?? "";
-        public static string DefaultDeviceBinding_CombinedStream_FileInvalid => ResourceManager.GetString("DefaultDeviceBinding_CombinedStream_FileInvalid", s_resourceCulture) ?? "";
-        public static string DefaultDeviceBinding_CombinedStream_BufferOverflow => ResourceManager.GetString("DefaultDeviceBinding_CombinedStream_BufferOverflow", s_resourceCulture) ?? "";
-        public static string DefaultDeviceBinding_CombinedStream_InvalidOrigin => ResourceManager.GetString("DefaultDeviceBinding_CombinedStream_InvalidOrigin", s_resourceCulture) ?? "";
+        #region AudioFileCaching
+        public static string AudioFileCaching_Load_BindCodePromptNotExist => ResourceManager.GetString("AudioFileCaching_Load_BindCodePromptNotExist", s_resourceCulture) ?? "";
+        public static string AudioFileCaching_Load_BindNotFoundNotExist => ResourceManager.GetString("AudioFileCaching_Load_BindNotFoundNotExist", s_resourceCulture) ?? "";
+        public static string AudioFileCaching_Load_DigitFilesCountError => ResourceManager.GetString("AudioFileCaching_Load_DigitFilesCountError", s_resourceCulture) ?? "";
+        public static string AudioFileCaching_Load_InvalidDigitFile => ResourceManager.GetString("AudioFileCaching_Load_InvalidDigitFile", s_resourceCulture) ?? "";
+        public static string AudioFileCaching_Load_InvalidResourceLoading => ResourceManager.GetString("AudioFileCaching_Load_InvalidResourceLoading", s_resourceCulture) ?? "";
+        public static string AudioFileCaching_CacheAudioFile_DecodeFailed => ResourceManager.GetString("AudioFileCaching_CacheAudioFile_DecodeFailed", s_resourceCulture) ?? "";
+        public static string AudioFileCaching_CacheAudioFile_NoPcmData => ResourceManager.GetString("AudioFileCaching_CacheAudioFile_NoPcmData", s_resourceCulture) ?? "";
+        public static string AudioFileCaching_CacheAudioFile_Failed => ResourceManager.GetString("AudioFileCaching_CacheAudioFile_Failed", s_resourceCulture) ?? "";
         #endregion
 
         #region BaseOnnxModel
