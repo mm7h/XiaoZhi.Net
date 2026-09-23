@@ -41,8 +41,11 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 
             this._closeConnectionNoVoiceTime = modelSetting.Config.GetConfigValueOrDefault("CloseConnectionNoVoiceTime", 120_000);
             vadModelConfig.SampleRate = GlobalVariables.AudioProcessingSampleRate;
+            vadModelConfig.NumThreads = modelSetting.Config.GetConfigValueOrDefault("NumThreads", 1);
+            vadModelConfig.Provider = modelSetting.Config.GetConfigValueOrDefault("Provider", "cpu");
+            vadModelConfig.Debug = modelSetting.Config.GetConfigValueOrDefault("Debug", 0);
             this._vadModelConfig = vadModelConfig;
-            this.FrameSize = 512;
+            this.FrameSize = vadModelConfig.TenVad.Model.Length == 0 ? 512 : vadModelConfig.TenVad.WindowSize;
             return true;
         }
 
@@ -54,17 +57,18 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
             }
 
             var context = new SherpaVadSessionState(new VadSessionState(), callback, new VoiceActivityDetector(this._vadModelConfig.Value, 60));
-            if (this._vadSessions.TryGetValue(deviceId, out SherpaVadSessionState? previous))
+            string sessionKey = GetSessionKey(deviceId, sessionId);
+            if (this._vadSessions.TryGetValue(sessionKey, out SherpaVadSessionState? previous))
             {
                 previous.Detector.Dispose();
             }
-            this._vadSessions[deviceId] = context;
+            this._vadSessions[sessionKey] = context;
             this.Logger.LogDebug(Lang.BaseSherpaVad_RegisterDevice_Registered, deviceId, sessionId);
         }
 
         public override void UnregisterDevice(string deviceId, string sessionId)
         {
-            if (this._vadSessions.TryRemove(deviceId, out SherpaVadSessionState? context))
+            if (this._vadSessions.TryRemove(GetSessionKey(deviceId, sessionId), out SherpaVadSessionState? context))
             {
                 context.Detector.Dispose();
                 this.Logger.LogDebug(Lang.BaseSherpaVad_UnregisterDevice_Unregistered, deviceId, sessionId);
@@ -73,7 +77,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 
         public void ResetSessionState(string deviceId, string sessionId)
         {
-            if (this._vadSessions.TryGetValue(deviceId, out SherpaVadSessionState? context))
+            if (this._vadSessions.TryGetValue(GetSessionKey(deviceId, sessionId), out SherpaVadSessionState? context))
             {
                 context.State.Reset();
                 context.Detector.Reset();
@@ -83,7 +87,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
 
         public override bool CheckDeviceRegistered(string deviceId, string sessionId)
         {
-            return this._vadSessions.ContainsKey(deviceId);
+            return this._vadSessions.ContainsKey(GetSessionKey(deviceId, sessionId));
         }
 
         public Task AnalysisVoiceAsync(string deviceId, string sessionId, float[] audioData, CancellationToken token)
@@ -93,7 +97,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Sherpa
                 throw new SessionNotInitializedException();
             }
 
-            if (!this._vadSessions.TryGetValue(deviceId, out SherpaVadSessionState? context))
+            if (!this._vadSessions.TryGetValue(GetSessionKey(deviceId, sessionId), out SherpaVadSessionState? context))
             {
                 throw new InvalidOperationException(string.Format(Lang.BaseSherpaVad_AnalysisVoiceAsync_SessionStateNotFound, deviceId, sessionId));
             }

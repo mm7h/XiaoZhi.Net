@@ -19,21 +19,18 @@ internal sealed class AudioCache
     public IReadOnlyDictionary<string, CachedAudio> Entries { get; }
     public CachedAudio Selected { get; }
 
+    public static IReadOnlyList<string> GetAudioNamesFromOutputDirectory(string outputDirectory)
+    {
+        string audioDirectory = GetAudioDirectory(outputDirectory);
+        return GetAudioPaths(audioDirectory)
+            .Select(path => Path.GetFileName(path)!)
+            .ToArray();
+    }
+
     public static AudioCache LoadFromOutputDirectory(string outputDirectory, string? selector)
     {
-        string audioDirectory = Path.Combine(outputDirectory, "audios");
-        if (!Directory.Exists(audioDirectory))
-        {
-            throw new DirectoryNotFoundException($"找不到音频目录: {audioDirectory}");
-        }
-
-        string[] paths = Directory.EnumerateFiles(audioDirectory, "*.wav", SearchOption.TopDirectoryOnly)
-            .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        if (paths.Length == 0)
-        {
-            throw new InvalidOperationException($"音频目录中没有 WAV 文件: {audioDirectory}");
-        }
+        string audioDirectory = GetAudioDirectory(outputDirectory);
+        string[] paths = GetAudioPaths(audioDirectory);
 
         Dictionary<string, CachedAudio> entries = new(StringComparer.OrdinalIgnoreCase);
         AudioFormat? expectedFormat = null;
@@ -52,6 +49,30 @@ internal sealed class AudioCache
 
         CachedAudio selected = SelectAudio(entries, audioDirectory, selector);
         return new AudioCache(entries, selected);
+    }
+
+    private static string GetAudioDirectory(string outputDirectory)
+    {
+        string audioDirectory = Path.Combine(outputDirectory, "audios");
+        if (!Directory.Exists(audioDirectory))
+        {
+            throw new DirectoryNotFoundException($"找不到音频目录: {audioDirectory}");
+        }
+
+        return audioDirectory;
+    }
+
+    private static string[] GetAudioPaths(string audioDirectory)
+    {
+        string[] paths = Directory.EnumerateFiles(audioDirectory, "*.wav", SearchOption.TopDirectoryOnly)
+            .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (paths.Length == 0)
+        {
+            throw new InvalidOperationException($"音频目录中没有 WAV 文件: {audioDirectory}");
+        }
+
+        return paths;
     }
 
     private static CachedAudio SelectAudio(IReadOnlyDictionary<string, CachedAudio> entries, string audioDirectory, string? selector)

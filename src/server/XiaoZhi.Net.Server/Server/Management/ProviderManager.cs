@@ -82,7 +82,7 @@ namespace XiaoZhi.Net.Server.Management
                 #region Vad
                 string selectedVadModelName = ConvertToKebabCase(this.Config.SelectedSettings["VAD"]);
                 IVad vad = this.ServiceProvider.GetRequiredKeyedService<IVad>(selectedVadModelName);
-                if (SherpaModels.VadModels.Contains(selectedVadModelName, StringComparer.OrdinalIgnoreCase))
+                if (SherpaModels.IsSherpaModel("vad", selectedVadModelName))
                 {
                     if (!vad.Build(this.GetSelectedSetting("VAD", this.Config)))
                     {
@@ -94,7 +94,7 @@ namespace XiaoZhi.Net.Server.Management
 
                 #region Asr
                 string selectedAsrModelName = ConvertToKebabCase(this.Config.SelectedSettings["ASR"]);
-                if (SherpaModels.AsrModels.Contains(selectedAsrModelName, StringComparer.OrdinalIgnoreCase))
+                if (SherpaModels.IsSherpaModel("asr", selectedAsrModelName))
                 {
                     IAsr asr = this.ServiceProvider.GetRequiredKeyedService<IAsr>(selectedAsrModelName);
                     if (!asr.Build(this.GetSelectedSetting("ASR", this.Config)))
@@ -107,7 +107,7 @@ namespace XiaoZhi.Net.Server.Management
 
                 #region Tts
                 string selectedTtsModelName = ConvertToKebabCase(this.Config.SelectedSettings["TTS"]);
-                if (SherpaModels.TtsModels.Contains(selectedTtsModelName, StringComparer.OrdinalIgnoreCase))
+                if (SherpaModels.IsSherpaModel("tts", selectedTtsModelName))
                 {
                     ITts tts = this.ServiceProvider.GetRequiredKeyedService<ITts>(selectedTtsModelName);
                     if (!tts.Build(this.GetSelectedSetting("TTS", this.Config)))
@@ -217,8 +217,13 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig.VadSetting is not null)
                 {
-                    IVad privateVad = this.ServiceProvider.GetRequiredKeyedService<IVad>(privateModelsConfig.VadSetting.ModelName);
-                    if (!privateVad.Build(privateModelsConfig.VadSetting))
+                    IVad privateVad = this.ServiceProvider.GetRequiredKeyedService<IVad>(ConvertToKebabCase(privateModelsConfig.VadSetting.ModelName));
+                    if (privateVad.IsSherpaModel && !this.IsSelectedSherpaModel("VAD", privateModelsConfig.VadSetting.ModelName))
+                    {
+                        this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateSherpaVadModelMismatch, privateModelsConfig.VadSetting.ModelName);
+                        return false;
+                    }
+                    if (!privateVad.IsSherpaModel && !privateVad.Build(privateModelsConfig.VadSetting))
                     {
                         this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateVadBuildFailed, session.DeviceId);
                         return false;
@@ -238,8 +243,13 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig.AsrSetting is not null)
                 {
-                    IAsr privateAsr = this.ServiceProvider.GetRequiredKeyedService<IAsr>(privateModelsConfig.AsrSetting.ModelName);
-                    if (!privateAsr.Build(privateModelsConfig.AsrSetting))
+                    IAsr privateAsr = this.ServiceProvider.GetRequiredKeyedService<IAsr>(ConvertToKebabCase(privateModelsConfig.AsrSetting.ModelName));
+                    if (privateAsr.IsSherpaModel && !this.IsSelectedSherpaModel("ASR", privateModelsConfig.AsrSetting.ModelName))
+                    {
+                        this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateSherpaAsrModelMismatch, privateModelsConfig.AsrSetting.ModelName);
+                        return false;
+                    }
+                    if (!privateAsr.IsSherpaModel && !privateAsr.Build(privateModelsConfig.AsrSetting))
                     {
                         this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateAsrBuildFailed, session.DeviceId);
                         return false;
@@ -286,8 +296,13 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig.TtsSetting is not null)
                 {
-                    ITts privateTts = this.ServiceProvider.GetRequiredKeyedService<ITts>(privateModelsConfig.TtsSetting.ModelName);
-                    if (!privateTts.Build(privateModelsConfig.TtsSetting))
+                    ITts privateTts = this.ServiceProvider.GetRequiredKeyedService<ITts>(ConvertToKebabCase(privateModelsConfig.TtsSetting.ModelName));
+                    if (privateTts.IsSherpaModel && !this.IsSelectedSherpaModel("TTS", privateModelsConfig.TtsSetting.ModelName))
+                    {
+                        this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateSherpaTtsModelMismatch, privateModelsConfig.TtsSetting.ModelName);
+                        return false;
+                    }
+                    if (!privateTts.IsSherpaModel && !privateTts.Build(privateModelsConfig.TtsSetting))
                     {
                         this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateTtsBuildFailed, session.DeviceId);
                         return false;
@@ -357,21 +372,6 @@ namespace XiaoZhi.Net.Server.Management
 
         public override void Dispose()
         {
-            string selectedVadModelName = ConvertToKebabCase(this.Config.SelectedSettings["VAD"]);
-            string selectedAsrModelName = ConvertToKebabCase(this.Config.SelectedSettings["ASR"]);
-            string selectedTtsModelName = ConvertToKebabCase(this.Config.SelectedSettings["TTS"]);
-            IList<IDisposable> providers = new List<IDisposable>
-            {
-                this.ServiceProvider.GetRequiredKeyedService<IVad>(selectedVadModelName),
-                this.ServiceProvider.GetRequiredKeyedService<IAsr>(selectedAsrModelName),
-                this.ServiceProvider.GetRequiredKeyedService<ITts>(selectedTtsModelName)
-            };
-
-            foreach (IDisposable provider in providers)
-            {
-                provider.Dispose();
-            }
-
         }
 
         #region Register providers
@@ -466,14 +466,17 @@ namespace XiaoZhi.Net.Server.Management
         #region VAD
         private static void RegisterVad(IServiceCollection services, XiaoZhiConfig config)
         {
+            services.AddKeyedSingleton<IVad, Silero>(ConvertToKebabCase(nameof(Silero)));
+            services.AddKeyedSingleton<IVad, TenVad>(ConvertToKebabCase(nameof(TenVad)));
             foreach (var vadSettingItem in config.ConfiguredSettings["VAD"])
             {
                 string modelName = ConvertToKebabCase(vadSettingItem.Key);
+                if (SherpaModels.IsSherpaModel("vad", modelName))
+                {
+                    continue;
+                }
                 switch (modelName)
                 {
-                    case "silero":
-                        services.AddKeyedSingleton<IVad, Silero>(modelName);
-                        break;
                     case "silero-native":
                         services.AddKeyedTransient<IVad, SileroNative>(modelName);
                         break;
@@ -487,17 +490,40 @@ namespace XiaoZhi.Net.Server.Management
         #region ASR
         private static void RegisterAsr(IServiceCollection services, XiaoZhiConfig config)
         {
+            services.AddKeyedSingleton<IAsr, SenseVoice>(ConvertToKebabCase(nameof(SenseVoice)));
+            services.AddKeyedSingleton<IAsr, Paraformer>(ConvertToKebabCase(nameof(Paraformer)));
+            services.AddKeyedSingleton<IAsr, OfflineTransducer>(ConvertToKebabCase(nameof(OfflineTransducer)));
+            services.AddKeyedSingleton<IAsr, NemoCtc>(ConvertToKebabCase(nameof(NemoCtc)));
+            services.AddKeyedSingleton<IAsr, Whisper>(ConvertToKebabCase(nameof(Whisper)));
+            services.AddKeyedSingleton<IAsr, Tdnn>(ConvertToKebabCase(nameof(Tdnn)));
+            services.AddKeyedSingleton<IAsr, TeleSpeechCtc>(ConvertToKebabCase(nameof(TeleSpeechCtc)));
+            services.AddKeyedSingleton<IAsr, Moonshine>(ConvertToKebabCase(nameof(Moonshine)));
+            services.AddKeyedSingleton<IAsr, FireRedAsr>(ConvertToKebabCase(nameof(FireRedAsr)));
+            services.AddKeyedSingleton<IAsr, Dolphin>(ConvertToKebabCase(nameof(Dolphin)));
+            services.AddKeyedSingleton<IAsr, ZipformerCtc>(ConvertToKebabCase(nameof(ZipformerCtc)));
+            services.AddKeyedSingleton<IAsr, Canary>(ConvertToKebabCase(nameof(Canary)));
+            services.AddKeyedSingleton<IAsr, WenetCtc>(ConvertToKebabCase(nameof(WenetCtc)));
+            services.AddKeyedSingleton<IAsr, OmnilingualAsrCtc>(ConvertToKebabCase(nameof(OmnilingualAsrCtc)));
+            services.AddKeyedSingleton<IAsr, MedAsrCtc>(ConvertToKebabCase(nameof(MedAsrCtc)));
+            services.AddKeyedSingleton<IAsr, FunAsrNano>(ConvertToKebabCase(nameof(FunAsrNano)));
+            services.AddKeyedSingleton<IAsr, FireRedAsrCtc>(ConvertToKebabCase(nameof(FireRedAsrCtc)));
+            services.AddKeyedSingleton<IAsr, Qwen3Asr>(ConvertToKebabCase(nameof(Qwen3Asr)));
+            services.AddKeyedSingleton<IAsr, CohereTranscribe>(ConvertToKebabCase(nameof(CohereTranscribe)));
+            services.AddKeyedSingleton<IAsr, OnlineTransducer>(ConvertToKebabCase(nameof(OnlineTransducer)));
+            services.AddKeyedSingleton<IAsr, OnlineParaformer>(ConvertToKebabCase(nameof(OnlineParaformer)));
+            services.AddKeyedSingleton<IAsr, OnlineZipformer2Ctc>(ConvertToKebabCase(nameof(OnlineZipformer2Ctc)));
+            services.AddKeyedSingleton<IAsr, OnlineNemoCtc>(ConvertToKebabCase(nameof(OnlineNemoCtc)));
+            services.AddKeyedSingleton<IAsr, OnlineToneCtc>(ConvertToKebabCase(nameof(OnlineToneCtc)));
+
             foreach (var asrSettingItem in config.ConfiguredSettings["ASR"])
             {
                 string modelName = ConvertToKebabCase(asrSettingItem.Key);
+                if (SherpaModels.IsSherpaModel("asr", modelName))
+                {
+                    continue;
+                }
                 switch (modelName)
                 {
-                    case "sense-voice":
-                        services.AddKeyedSingleton<IAsr, SenseVoice>(modelName);
-                        break;
-                    case "paraformer":
-                        services.AddKeyedSingleton<IAsr, Paraformer>(modelName);
-                        break;
                     case "huoshan-unidirectional":
                         services.AddKeyedTransient<IAsr, HuoshanUnidirectionalASR>(modelName);
                         break;
@@ -564,14 +590,23 @@ namespace XiaoZhi.Net.Server.Management
         #region TTS
         private static void RegisterTts(IServiceCollection services, XiaoZhiConfig config)
         {
+            services.AddKeyedSingleton<ITts, Kokoro>(ConvertToKebabCase(nameof(Kokoro)));
+            services.AddKeyedSingleton<ITts, Vits>(ConvertToKebabCase(nameof(Vits)));
+            services.AddKeyedSingleton<ITts, Matcha>(ConvertToKebabCase(nameof(Matcha)));
+            services.AddKeyedSingleton<ITts, Kitten>(ConvertToKebabCase(nameof(Kitten)));
+            services.AddKeyedSingleton<ITts, ZipVoice>(ConvertToKebabCase(nameof(ZipVoice)));
+            services.AddKeyedSingleton<ITts, Pocket>(ConvertToKebabCase(nameof(Pocket)));
+            services.AddKeyedSingleton<ITts, Supertonic>(ConvertToKebabCase(nameof(Supertonic)));
+
             foreach (var ttsSettingItem in config.ConfiguredSettings["TTS"])
             {
                 string modelName = ConvertToKebabCase(ttsSettingItem.Key);
+                if (SherpaModels.IsSherpaModel("tts", modelName))
+                {
+                    continue;
+                }
                 switch (modelName)
                 {
-                    case "kokoro":
-                        services.AddKeyedSingleton<ITts, Kokoro>(modelName);
-                        break;
                     case "huoshan-bidirection":
                         services.AddKeyedTransient<ITts, HuoshanBidirectionTTS>(modelName);
                         break;
@@ -823,6 +858,13 @@ namespace XiaoZhi.Net.Server.Management
             session.PrivateProvider.SetTts(genericTts);
             this.Logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_TtsInitialized, session.DeviceId, genericTts.ModelName);
             return true;
+        }
+
+        private bool IsSelectedSherpaModel(string settingType, string modelName)
+        {
+            string selectedModelName = this.Config.SelectedSettings[settingType];
+            return SherpaModels.IsSherpaModel(settingType, selectedModelName)
+                && string.Equals(ConvertToKebabCase(selectedModelName), ConvertToKebabCase(modelName), StringComparison.OrdinalIgnoreCase);
         }
     }
 }

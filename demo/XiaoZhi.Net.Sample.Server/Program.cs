@@ -1,21 +1,22 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
+using Figgle.Fonts;
 using Microsoft.Extensions.Hosting;
+using XiaoZhi.Net.Sample.Server.Configs;
 using XiaoZhi.Net.Sample.Server.FunctionTools;
 using XiaoZhi.Net.Sample.Server.MemoryStore;
 using XiaoZhi.Net.Server;
 using XiaoZhi.Net.Server.Abstractions;
 
 Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", "Development");
+PrintBanner();
 
 IHost? serverHost = null;
 // 获取服务引擎构建器
 IServerBuilder serverBuilder = EngineFactory.CreateXiaoZhiServerBuilder();
 try
 {
-    Console.WriteLine("Hello, Xiao Zhi!");
-
-    string configJson = File.ReadAllText(Path.Combine(Environment.CurrentDirectory, "configs", "config.json"));
+    string configJson = ConfigMerger.Merge(Path.Combine(Environment.CurrentDirectory, "Configs"));
 
     // 快速从json文件中获取配置信息
     var options = new JsonSerializerOptions
@@ -70,6 +71,18 @@ finally
     Console.WriteLine("The server stopped.");
     Console.WriteLine("Press any key to exit...");
     Console.ReadKey();
+}
+
+static void PrintBanner()
+{
+    string version = typeof(EngineFactory).Assembly.GetName().Version?.ToString()
+        ?? "unknown";
+    string serverInfo = $"XiaoZhi.Net.Server v{version} \t by mm7h";
+    Console.WriteLine(FiggleFonts.Swampland.Render("XiaoZhi.Net"));
+    Console.WriteLine($"{new string(' ', Math.Max(0, (Console.WindowWidth - serverInfo.Length) / 2))}{serverInfo}");
+    Console.WriteLine();
+    Console.WriteLine(new string('=', Math.Max(1, Console.WindowWidth - 1)));
+    Console.WriteLine();
 }
 
 public class LenientStringConverter : JsonConverter<string>

@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using XiaoZhi.Net.Sample.OTA.Server.Helpers;
 using XiaoZhi.Net.Server;
 using XiaoZhi.Net.Server.Abstractions.Common.Dtos;
 
@@ -20,11 +21,14 @@ namespace XiaoZhi.Net.Sample.OTA.Server.Controllers
         public XiaoZhiConfig GetConfig()
         {
             this._logger.LogInformation("Got the request to get the xiao zhi config.");
-            string configPath = Path.GetFullPath(Path.Combine(this._env.ContentRootPath, "..", "XiaoZhi.Net.Sample.Server", "configs", "config.json"));
+            string configDirectory = Path.GetFullPath(Path.Combine(this._env.ContentRootPath, "..", "XiaoZhi.Net.Sample.Server", "Configs"));
+            string configPath = Path.Combine(configDirectory, "config.json");
             if (!System.IO.File.Exists(configPath))
+            {
                 throw new FileNotFoundException($"The file not found: {configPath}");
+            }
 
-            string configJson = System.IO.File.ReadAllText(configPath);
+            string configJson = ConfigHelper.Merge(configDirectory);
 
             XiaoZhiConfig? config = Newtonsoft.Json.JsonConvert.DeserializeObject<XiaoZhiConfig>(configJson);
             if (config is not null)

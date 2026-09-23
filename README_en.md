@@ -15,7 +15,7 @@ try
 {
     Console.WriteLine("Hello, Xiao Zhi!");
 
-    string configJson = File.ReadAllText(Path.Combine(Environment.CurrentDirectory, "configs", "config.json"));
+    string configJson = ConfigMerger.Merge(Path.Combine(Environment.CurrentDirectory, "Configs"));
 
     // Quickly get configuration information from the json file
     XiaoZhiConfig? config = JsonSerializer.Deserialize<XiaoZhiConfig>(configJson); // Some custom settings for System.Text.Json are omitted here
@@ -124,6 +124,7 @@ public class GetTime
 | Platform / Model Name | Remarks |
 |:-:|:-|
 | [Kokoro](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources) | Based on [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) implementation |
+| Sherpa-onnx | Built-in Kokoro, Vits, Matcha, Kitten, ZipVoice, Pocket, and Supertonic; see the [model guide](docs/02.sherpa-models.md) for layouts |
 | Volcano Engine | Supports bidirectional websocket streaming, http calling |
 
 ---
@@ -133,6 +134,7 @@ public class GetTime
 | Model Name | Remarks |
 |:-:|:-|
 | [SileroVAD](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources) | Based on [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) implementation |
+| TenVad | Based on sherpa-onnx and uses a 256-sample window |
 | SileroNative | Based on Microsoft.ML.OnnxRuntime implementation |
 
 ---
@@ -143,6 +145,7 @@ public class GetTime
 |:-:|:-|
 | [Sense Voice](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources) | Based on [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) implementation |
 | [Paraformer](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources) | Based on [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) implementation |
+| Sherpa-onnx | Built-in 19 offline and 5 streaming ASR models; see the [model guide](docs/02.sherpa-models.md) for layouts |
 
 
 ---
@@ -161,13 +164,18 @@ public class GetTime
 
 ```
 .
-├── configs
+├── Configs
 │   ├── assets # System voice audio files
 │   │   ├── bind_codes # Number broadcast audio files
 │   │   ├── bind_code.wav
 │   │   ├── bind_not_found.wav
 │   │   └── ...
-│   └── config.json # Main configuration file
+│   ├── config.json # Common configuration file
+│   ├── config_vad.json # VAD configuration file
+│   ├── config_asr.json # ASR configuration file
+│   ├── config_intent.json # Intent configuration file
+│   ├── config_llm.json # LLM and RAG configuration file
+│   └── config_tts.json # TTS configuration file
 ├── data
 │   ├── asr-cache  # When saving audio files for asr recognition is enabled, user speech audio will be saved here
 │   └── tts-cache # When saving tts generated files is enabled, generated voice will be saved here
@@ -208,7 +216,7 @@ Download the packaged model resources directly in [Resource Files](https://githu
 
 If you need to access custom models, please refer to the [How to Extend Custom Models](docs/01.extend-custom-model.md) document.
 
-\* Note that the model file `.onnx` needs to be uniformly named `model.onnx`
+For the fixed layouts and filenames of built-in Sherpa models (not all are `model.onnx`), see the [model guide](docs/02.sherpa-models.md).
 
 ### 3. Program Running
 

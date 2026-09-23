@@ -3,6 +3,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
@@ -16,6 +17,8 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ObjectPool<Workflow<float[]>> _audioBufferWorkflowPool;
         private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;
         private IAsr? _asr;
+
+        private int _frameSize = 960;
 
         public Audio2TextHandler(ObjectPool<Workflow<float[]>> circularBufferWorkflowPool,
             ObjectPool<Workflow<string>> stringWorkflowPool,
@@ -40,6 +43,9 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             this._asr = privateProvider.Asr;
             this._asr.RegisterDevice(session.DeviceId, session.SessionId, this);
+
+            this._frameSize = GlobalVariables.AudioProcessingSampleRate * session.AudioSetting.FrameDuration * GlobalVariables.AudioProcessingChannels / 1000;
+
             this.RegisterCancellationToken();
             this.Builded = true;
             return true;
@@ -101,7 +107,11 @@ namespace XiaoZhi.Net.Server.Handlers
                     return;
                 }
 
-                await this._asr.ConvertSpeechTextAsync(workflow, session.AudioSetting.SampleRate, session.AudioSetting.FrameSize, this.HandlerToken);
+                await this._asr.ConvertSpeechTextAsync(
+                    workflow,
+                    GlobalVariables.AudioProcessingSampleRate,
+                    this._frameSize,
+                    this.HandlerToken);
             }
             catch (OperationCanceledException)
             {

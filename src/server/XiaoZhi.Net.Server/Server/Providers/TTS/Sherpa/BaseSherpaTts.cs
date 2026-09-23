@@ -1,12 +1,12 @@
-﻿using Microsoft.Extensions.Logging;
-using SherpaOnnx;
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using SherpaOnnx;
 using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Contexts;
@@ -22,12 +22,15 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
     {
         private readonly IAudioEditor _audioEditor;
         private readonly ConcurrentDictionary<string, ITtsEventCallback> _ttsSessions;
+        private readonly SemaphoreSlim _generationGate;
         private OfflineTts? _offlineTts;
+        private OfflineTtsGenerationConfig _generationConfig = new OfflineTtsGenerationConfig();
 
         protected BaseSherpaTts(IAudioEditor audioEditor, ILogger<TLogger> logger) : base(logger)
         {
             this._audioEditor = audioEditor;
             this._ttsSessions = new ConcurrentDictionary<string, ITtsEventCallback>();
+            this._generationGate = new SemaphoreSlim(1, 1);
         }
         public override string ProviderType => "tts";
         public AudioSavingConfig? AudioSavingConfig { get; protected set; }
@@ -40,10 +43,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
             return this._offlineTts?.SampleRate ?? 24000;
         }
 
-        protected void Build(OfflineTtsConfig offlineTtsConfig, ModelSetting modelSetting)
+        protected void Build(OfflineTtsConfig offlineTtsConfig, ModelSetting modelSetting, OfflineTtsGenerationConfig? generationConfig = null)
         {
-            offlineTtsConfig.Model.NumThreads = 2;
-            offlineTtsConfig.Model.Provider = "cpu";
+            offlineTtsConfig.Model.NumThreads = modelSetting.Config.GetConfigValueOrDefault("NumThreads", 2);
+            offlineTtsConfig.Model.Provider = modelSetting.Config.GetConfigValueOrDefault("Provider", "cpu");
+            offlineTtsConfig.Model.Debug = modelSetting.Config.GetConfigValueOrDefault("Debug", 0);
 
             this.SpeechRate = modelSetting.Config.GetConfigValueOrDefault("SpeechRate", 1.0f);
             this.SpeakerId = modelSetting.Config.GetConfigValueOrDefault("SpeakerId", 50);
@@ -52,17 +56,42 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
             {
                 Directory.CreateDirectory(this.AudioSavingConfig.SavePath);
             }
+            this._generationConfig = generationConfig ?? new OfflineTtsGenerationConfig();
+            this._generationConfig.Speed = this.SpeechRate;
+            this._generationConfig.Sid = this.SpeakerId;
             this._offlineTts = new OfflineTts(offlineTtsConfig);
+        }
+
+        protected string OptionalFilePath(string name)
+        {
+            string path = Path.Combine(this.ModelFileFoler, name);
+            return File.Exists(path) ? path : string.Empty;
+        }
+
+        protected string OptionalDirectoryPath(string name)
+        {
+            string path = Path.Combine(this.ModelFileFoler, name);
+            return Directory.Exists(path) ? path : string.Empty;
+        }
+
+        protected void LogBuilt()
+        {
+            this.Logger.LogInformation(Lang.BaseSherpaTts_Build_Built, this.ModelName);
+        }
+
+        protected void LogBuildError(Exception ex)
+        {
+            this.Logger.LogError(ex, Lang.BaseSherpaTts_Build_Failed, this.ModelName);
         }
 
         public void RegisterDevice(string deviceId, string sessionId, ITtsEventCallback callback)
         {
-            this._ttsSessions.TryAdd(deviceId, callback);
+            this._ttsSessions.AddOrUpdate(GetSessionKey(deviceId, sessionId), callback, (_, _) => callback);
         }
 
         public override void UnregisterDevice(string deviceId, string sessionId)
         {
-            if (this._ttsSessions.TryRemove(deviceId, out _))
+            if (this._ttsSessions.TryRemove(GetSessionKey(deviceId, sessionId), out _))
             {
                 this.Logger.LogDebug(Lang.BaseSherpaTts_UnregisterDevice_Unregistered, deviceId, sessionId);
             }
@@ -70,7 +99,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 
         public override bool CheckDeviceRegistered(string deviceId, string sessionId)
         {
-            return this._ttsSessions.ContainsKey(deviceId);
+            return this._ttsSessions.ContainsKey(GetSessionKey(deviceId, sessionId));
         }
 
         public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
@@ -94,7 +123,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
                     return;
                 }
 
-                if (this._ttsSessions.TryGetValue(workflow.DeviceId, out ITtsEventCallback? sessionCallback) && sessionCallback is not null)
+                if (this._ttsSessions.TryGetValue(GetSessionKey(workflow.DeviceId, workflow.SessionId), out ITtsEventCallback? sessionCallback) && sessionCallback is not null)
                 {
                     Stopwatch timer = Stopwatch.StartNew();
 
@@ -102,29 +131,39 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 
                     sessionCallback.OnBeforeProcessing(segment.Content, segment.IsFirstSegment, segment.IsLastSegment);
 
-                    OfflineTtsGeneratedAudio audio = this._offlineTts.GenerateWithCallbackProgress(segment.Content, this.SpeechRate, this.SpeakerId, (nint samples, int n, float progress) =>
+                    OfflineTtsGeneratedAudio audio;
+                    await this._generationGate.WaitAsync(token);
+                    try
                     {
-                        if (token.IsCancellationRequested)
+                        // ponytail: 全局锁；若单模型吞吐量成为瓶颈，再按可安全并发的原生实例扩展。
+                        audio = this._offlineTts.GenerateWithConfig(segment.Content, this._generationConfig, (nint samples, int n, float progress, nint _) =>
                         {
-                            return 0;
-                        }
-                        float[] data = new float[n];
-                        Marshal.Copy(samples, data, 0, n);
+                            if (token.IsCancellationRequested)
+                            {
+                                return 0;
+                            }
+                            float[] data = new float[n];
+                            Marshal.Copy(samples, data, 0, n);
 
-                        if (!firstFrameSent)
-                        {
-                            sessionCallback.OnSentenceStart(segment.Content, segment.Emotion, segment.SentenceId);
-                            firstFrameSent = true;
-                        }
+                            if (!firstFrameSent)
+                            {
+                                sessionCallback.OnSentenceStart(segment.Content, segment.Emotion, segment.SentenceId);
+                                firstFrameSent = true;
+                            }
 
-                        if (progress == 1.0f)
-                        {
-                            sessionCallback.OnSentenceEnd(segment.Content, segment.Emotion, segment.SentenceId);
-                        }
+                            if (progress == 1.0f)
+                            {
+                                sessionCallback.OnSentenceEnd(segment.Content, segment.Emotion, segment.SentenceId);
+                            }
 
-                        sessionCallback.OnProcessing(data, false, false);
-                        return 1;
-                    });
+                            sessionCallback.OnProcessing(data, false, false);
+                            return 1;
+                        });
+                    }
+                    finally
+                    {
+                        this._generationGate.Release();
+                    }
 
                     if (token.IsCancellationRequested)
                     {
@@ -135,30 +174,38 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
                         sessionCallback.OnProcessed(segment.Content, segment.IsFirstSegment, segment.IsLastSegment, TtsGenerateResult.Success);
                     }
 
-                    double duration = Math.Max((this.CalculateDuration(audio.SampleRate, audio.NumSamples) * 1000 - (workflow.Data.IsFirstSegment ? 300 + timer.ElapsedMilliseconds : 0)), 0);
-
-
-                    if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile)
+                    try
                     {
-                        string fileName = $"{this.ProviderType}_{segment.SentenceId}.{this.AudioSavingConfig.Format}";
-                        string filePath = Path.Combine(this.AudioSavingConfig.SavePath, fileName);
-                        if (File.Exists(filePath))
-                            File.Delete(filePath);
-                        bool saved = await this._audioEditor.SaveAudioFileAsync(filePath, audio.Samples, this.GetTtsSampleRate(), 1, 128000);
-                        if (saved)
+                        double duration = Math.Max((this.CalculateDuration(audio.SampleRate, audio.NumSamples) * 1000 - (workflow.Data.IsFirstSegment ? 300 + timer.ElapsedMilliseconds : 0)), 0);
+
+                        if (this.AudioSavingConfig is not null && this.AudioSavingConfig.SaveFile)
                         {
-                            this.Logger.LogDebug(Lang.BaseSherpaTts_SynthesisAsync_FileSaved, fileName, this.FormatDuration(duration));
+                            string fileName = $"{this.ProviderType}_{segment.SentenceId}.{this.AudioSavingConfig.Format}";
+                            string filePath = Path.Combine(this.AudioSavingConfig.SavePath, fileName);
+                            if (File.Exists(filePath))
+                            {
+                                File.Delete(filePath);
+                            }
+
+                            bool saved = await this._audioEditor.SaveAudioFileAsync(filePath, audio.Samples, this.GetTtsSampleRate(), 1, 128000);
+                            if (saved)
+                            {
+                                this.Logger.LogDebug(Lang.BaseSherpaTts_SynthesisAsync_FileSaved, fileName, this.FormatDuration(duration));
+                            }
+                            else
+                            {
+                                this.Logger.LogDebug(Lang.BaseSherpaTts_SynthesisAsync_SaveFailed, fileName);
+                            }
                         }
                         else
                         {
-                            this.Logger.LogDebug(Lang.BaseSherpaTts_SynthesisAsync_SaveFailed, fileName);
+                            this.Logger.LogDebug(Lang.BaseSherpaTts_SynthesisAsync_Generated, this.FormatDuration(duration));
                         }
                     }
-                    else
+                    finally
                     {
-                        this.Logger.LogDebug(Lang.BaseSherpaTts_SynthesisAsync_Generated, this.FormatDuration(duration));
+                        audio.Dispose();
                     }
-                    audio.Dispose();
                     timer.Stop();
                 }
                 else

@@ -1,13 +1,18 @@
 ﻿// thanks https://github.com/joey-zhou/xiaozhi-concurrent
 
+using Figgle;
+using Figgle.Fonts;
 using McMaster.Extensions.CommandLineUtils;
 using Serilog;
+using Sharprompt.Fluent;
+using SharpromptPrompt = Sharprompt.Prompt;
 using XiaoZhi.Net.PerformanceTest.Audio;
 using XiaoZhi.Net.PerformanceTest.Configuration;
 using XiaoZhi.Net.PerformanceTest.Execution;
 using XiaoZhi.Net.PerformanceTest.Reporting;
 
 using CancellationTokenSource shutdown = new();
+PrintBanner();
 Console.CancelKeyPress += (_, eventArgs) =>
 {
     eventArgs.Cancel = true;
@@ -45,11 +50,16 @@ app.OnExecuteAsync(async cancellationToken =>
 
     try
     {
+        IReadOnlyList<string> audioNames = AudioCache.GetAudioNamesFromOutputDirectory(AppContext.BaseDirectory);
+        string selectedAudio = SharpromptPrompt.Select<string>(options => options
+            .WithMessage("选择测试音频")
+            .WithItems(audioNames)
+            .WithDefaultValue(GetDefaultAudio(audioOption.Value(), audioNames)));
         TestOptions options = TestOptions.Parse(
-            serverOption.Value(),
-            clientsOption.Value(),
-            roundsOption.Value(),
-            audioOption.Value());
+            SharpromptPrompt.Input<string>("WebSocket 服务端地址", serverOption.Value() ?? TestOptions.DefaultServer),
+            SharpromptPrompt.Input<string>("并发客户端数", clientsOption.Value() ?? TestOptions.DefaultClients.ToString()),
+            SharpromptPrompt.Input<string>("每个客户端执行轮数", roundsOption.Value() ?? TestOptions.DefaultRounds.ToString()),
+            selectedAudio);
 
         string runDirectory = Path.Combine(AppContext.BaseDirectory, "logs");
         Directory.CreateDirectory(runDirectory);
@@ -99,4 +109,23 @@ catch (CommandParsingException exception)
 {
     Console.Error.WriteLine($"命令行参数无效: {exception.Message}");
     return 2;
+}
+
+static void PrintBanner()
+{
+    Console.WriteLine(FiggleFonts.Standard.Render("XiaoZhi.Net"));
+    Console.WriteLine("Performance Test");
+    Console.WriteLine("author mm7h");
+    Console.WriteLine("XiaoZhi.Net.Server v0.1.0");
+    Console.WriteLine();
+}
+
+static string GetDefaultAudio(string? configuredAudio, IReadOnlyList<string> audioNames)
+{
+    string? configuredName = string.IsNullOrWhiteSpace(configuredAudio)
+        ? null
+        : Path.GetFileName(configuredAudio);
+    return configuredName is not null && audioNames.Contains(configuredName, StringComparer.OrdinalIgnoreCase)
+        ? configuredName
+        : audioNames[0];
 }

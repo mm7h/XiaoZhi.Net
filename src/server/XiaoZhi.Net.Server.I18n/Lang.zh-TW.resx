@@ -363,6 +363,15 @@
   <data name="ProviderManager_InitializePrivateConfig_PrivateVadBuildFailed" xml:space="preserve">
     <value>無法為裝置 {deviceId} 建置私有 VAD 模型。</value>
   </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateSherpaVadModelMismatch" xml:space="preserve">
+    <value>私有 VAD 模型 {modelName} 與全域 Sherpa 模型不一致。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateSherpaAsrModelMismatch" xml:space="preserve">
+    <value>私有 ASR 模型 {modelName} 與全域 Sherpa 模型不一致。</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateSherpaTtsModelMismatch" xml:space="preserve">
+    <value>私有 TTS 模型 {modelName} 與全域 Sherpa 模型不一致。</value>
+  </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateVadInitialized" xml:space="preserve">
     <value>私有 VAD {modelName} 模型已為裝置 {deviceId} 初始化。</value>
   </data>
@@ -521,6 +530,18 @@
   </data>
   <data name="BaseSherpaAsr_RegisterDevice_Registered" xml:space="preserve">
     <value>已註冊 ASR 工作階段，裝置: {deviceId}，工作階段: {sessionId}</value>
+  </data>
+  <data name="BaseSherpaAsr_Build_OfflineBuilt" xml:space="preserve">
+    <value>已建置 Sherpa 離線 ASR 模型：{modelName}。</value>
+  </data>
+  <data name="BaseSherpaAsr_Build_OfflineFailed" xml:space="preserve">
+    <value>建置 Sherpa 離線 ASR 模型 {modelName} 失敗。</value>
+  </data>
+  <data name="BaseSherpaAsr_Build_StreamingBuilt" xml:space="preserve">
+    <value>已建置 Sherpa 串流 ASR 模型：{modelName}。</value>
+  </data>
+  <data name="BaseSherpaAsr_Build_StreamingFailed" xml:space="preserve">
+    <value>建置 Sherpa 串流 ASR 模型 {modelName} 失敗。</value>
   </data>
   <data name="BaseSherpaAsr_UnregisterDevice_Unregistered" xml:space="preserve">
     <value>已登出 ASR 工作階段，裝置: {deviceId}，工作階段: {sessionId}</value>
@@ -960,6 +981,12 @@
   <data name="BaseSherpaTts_UnregisterDevice_Unregistered" xml:space="preserve">
     <value>已取消註冊裝置 {deviceId} 的 TTS 工作階段，工作階段：{sessionId}</value>
   </data>
+  <data name="BaseSherpaTts_Build_Built" xml:space="preserve">
+    <value>已建置 Sherpa TTS 模型：{modelName}。</value>
+  </data>
+  <data name="BaseSherpaTts_Build_Failed" xml:space="preserve">
+    <value>建置 Sherpa TTS 模型 {modelName} 失敗。</value>
+  </data>
   <data name="BaseSherpaTts_SynthesisAsync_ProviderNotBuilt" xml:space="preserve">
     <value>請先建置 TTS 提供者。</value>
   </data>
@@ -1244,6 +1271,9 @@
   </data>
   <data name="BaseSherpaVad_Build_NonCanonicalSampleRate" xml:space="preserve">
     <value>Sherpa VAD 必須使用內部 {SampleRate} Hz PCM 格式，但設定的是 {ConfiguredSampleRate} Hz。</value>
+  </data>
+  <data name="TenVad_Build_Failed" xml:space="preserve">
+    <value>建置 TenVad 失敗。</value>
   </data>
   <data name="DefaultOpusDecoder_DecodeAsync_SampleCountMismatch" xml:space="preserve">
     <value>Opus 解碼輸出樣本數不相符。預期 {0}，實際 {1}。</value>

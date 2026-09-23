@@ -1,0 +1,237 @@
+{
+  "SelectedSettings": {
+    "TTS": "HuoshanBidirection"
+  },
+  "ConfiguredSettings": {
+    "TTS": {
+      "Kokoro": {
+        "NumThreads": 2,
+        "Provider": "cpu",
+        "Debug": 0,
+        "SpeechRate": 1.0,
+        "SpeakerId": 50,
+        "Lexicons": "./lexicon/lexicon-zh.txt,./lexicon/lexicon-us-en.txt",
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/tts-cache",
+          "Format": "pcm",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      // 下列 Sherpa 模型使用 models/tts/{模型-kebab-case} 内的固定文件名，详见 docs/02.sherpa-models.md。
+      "Vits": {
+        "NumThreads": 2,
+        "Provider": "cpu",
+        "Debug": 0,
+        "SpeechRate": 1.0,
+        "SpeakerId": 50,
+        "NoiseScale": 0.667,
+        "NoiseScaleW": 0.8,
+        "LengthScale": 1.0,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "Matcha": {
+        "NumThreads": 2,
+        "Provider": "cpu",
+        "Debug": 0,
+        "SpeechRate": 1.0,
+        "SpeakerId": 50,
+        "NoiseScale": 0.667,
+        "LengthScale": 1.0,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "Kitten": {
+        "NumThreads": 2,
+        "Provider": "cpu",
+        "Debug": 0,
+        "SpeechRate": 1.0,
+        "SpeakerId": 50,
+        "LengthScale": 1.0,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "ZipVoice": {
+        "NumThreads": 2,
+        "Provider": "cpu",
+        "Debug": 0,
+        "SpeechRate": 1.0,
+        "SpeakerId": 50,
+        "FeatScale": 0.1,
+        "Tshift": 0.5,
+        "TargetRms": 0.1,
+        "GuidanceScale": 1.0,
+        "NumSteps": 4,
+        "MinCharInSentence": "10",
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "Pocket": {
+        "NumThreads": 2,
+        "Provider": "cpu",
+        "Debug": 0,
+        "SpeechRate": 1.0,
+        "SpeakerId": 50,
+        "VoiceEmbeddingCacheCapacity": 50,
+        "MaxReferenceAudioLength": 12,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "Supertonic": {
+        "NumThreads": 2,
+        "Provider": "cpu",
+        "Debug": 0,
+        "SpeechRate": 1.0,
+        "SpeakerId": 50,
+        "NumSteps": 8,
+        "Language": "en",
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "HuoshanBidirection": {
+        "AppId": "to your api id",
+        "AccessToken": "to your access token",
+        "ResourceId": "volc.service_type.10029",
+        "Speaker": "zh_female_cancan_mars_bigtts",
+        "SpeechRate": 0,
+        "LoudnessRate": 0,
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/tts-cache",
+          "Format": "pcm"
+        }
+      },
+      "AliyunRealtimeTTS": {
+        // 文档地址：https://help.aliyun.com/zh/model-studio/realtime-tts-user-guide
+        // Qwen-Audio-TTS 与 CosyVoice 共用此实时语音合成提供者。
+        // 可替换为 qwen-audio-3.0-tts-flash 等 Qwen-Audio-TTS 模型。
+        "ApiKey": "your-aliyun-api-key",
+        "ModelName": "cosyvoice-v3-flash",
+        "Voice": "longanfengyue", // 音色列表：https://help.aliyun.com/zh/model-studio/qwen-audio-tts-voice-list
+        "Region": "cn-beijing", // 可选：提供 Endpoint 覆盖默认的 WebSocket 地址。
+        "WorkspaceId": "", // 可选：配置后使用业务空间专属 WebSocket 域名；Endpoint 优先，留空则继续使用共享 DashScope 域名。
+        "Format": "pcm",
+        "SampleRate": 24000,
+        "Volume": 50,
+        "Rate": 1.0,
+        "Pitch": 1.0,
+        "LanguageHints": "zh",
+        "Instruction": "",
+        "ConnectionTimeoutSeconds": 5,
+        "ResponseTimeoutSeconds": 30,
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/tts-cache",
+          "Format": "mp3"
+        }
+      },
+      "AliyunHttp": {
+        // 文档地址：https://help.aliyun.com/zh/model-studio/non-realtime-tts-user-guide
+        // Qwen-Audio-TTS 与 CosyVoice 共用此非实时 HTTP 语音合成提供者。
+        // 仅支持北京地域；默认使用业务空间专属域名，也可用 Endpoint 覆盖。
+        "ApiKey": "your-aliyun-api-key",
+        // 可选，阿里云百炼业务空间ID
+        // 查看workspace id：登录阿里云百炼控制台https://bailian.console.aliyun.com，选择“业务空间管理”
+        "WorkspaceId": "your-workspace-id",
+        "ModelName": "qwen-audio-3.0-tts-flash",
+        "Voice": "longanfengyue",
+        // false: 返回音频 URL 后下载完整 PCM；true: 使用 SSE 逐块返回 PCM。
+        "Streaming": false,
+        // 当前固定为 pcm，以便直接接入现有播放与重采样链路。
+        "Format": "pcm",
+        "SampleRate": 24000,
+        "Volume": 50,
+        "Rate": 1.0,
+        "Pitch": 1.0,
+        "LanguageHints": "zh",
+        "Instruction": "",
+        "ResponseTimeoutSeconds": 120,
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/tts-cache",
+          "Format": "mp3"
+        }
+      },
+      //废弃单向接口，推荐使用HuoshanBidirection接口
+      //"HuoshanUnidirectional": {
+      //  "AppId": "to your api id",
+      //  "AccessToken": "to your access token",
+      //  "ResourceId": "volc.service_type.10029",
+      //  "Speaker": "zh_female_cancan_mars_bigtts",
+      //  "SpeechRate": 0,
+      //  "LoudnessRate": 0,
+      //  "FileSavingOption": {
+      //    "SaveFile": true,
+      //    "SavePath": "./data/tts-cache",
+      //    "Format": "mp3"
+      //  }
+      //},
+      "HuoshanHttp": {
+        "AppId": "to your api id",
+        "AccessToken": "to your access token",
+        "Cluster": "volcano_tts",
+        "Speaker": "zh_female_cancan_mars_bigtts",
+        "SpeedRatio": 1.0,
+        "VolumeRatio": 1.0,
+        "PitchRatio": 1.0,
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/tts-cache",
+          "Format": "mp3"
+        }
+      },
+      "HuoshanHttpV3": {
+        "AppId": "to your api id",
+        "AccessToken": "to your access token",
+        "ResourceId": "volc.service_type.10029",
+        "Speaker": "zh_female_cancan_mars_bigtts",
+        "SpeechRate": 0,
+        "LoudnessRate": 0,
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/tts-cache",
+          "Format": "mp3"
+        }
+      }
+    }
+  }
+}

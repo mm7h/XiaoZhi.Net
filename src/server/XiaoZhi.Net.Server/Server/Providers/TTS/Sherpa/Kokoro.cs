@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
-using SherpaOnnx;
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging;
+using SherpaOnnx;
 using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
@@ -12,7 +12,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 {
     internal class Kokoro : BaseSherpaTts<Kokoro>, ITts
     {
-       
+
 
         public Kokoro(IAudioEditor audioEditor, ILogger<Kokoro> logger) : base(audioEditor, logger)
         {
@@ -24,7 +24,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
         {
             try
             {
-                if (!this.CheckModelExist())
+                if (!this.CheckModelFiles("model.onnx", "voices.bin", "tokens.txt") || !this.CheckModelDirectories("espeak-ng-data", "dict"))
                 {
                     return false;
                 }

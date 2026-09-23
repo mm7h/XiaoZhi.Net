@@ -1,4 +1,4 @@
-using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+﻿using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Abstractions.Common.Attributes
 {
@@ -14,7 +14,7 @@ namespace XiaoZhi.Net.Server.Abstractions.Common.Attributes
 
         public ToolBehaviorAttribute(ToolAction defaultAction)
         {
-            DefaultAction = defaultAction;
+            this.DefaultAction = defaultAction;
         }
 
         /// <summary>

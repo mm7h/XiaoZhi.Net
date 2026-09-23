@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
-using System.Linq;
 using System.Text.RegularExpressions;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.I18n;
@@ -53,13 +52,42 @@ namespace XiaoZhi.Net.Server.Providers
 
         protected bool CheckModelExist()
         {
-            string modelFilePath = Path.Combine(this.ModelFileFoler, "model.onnx");
-            bool exist = File.Exists(modelFilePath);
-            if (!exist)
+            return this.CheckModelFiles("model.onnx");
+        }
+
+        protected bool CheckModelFiles(params string[] fileNames)
+        {
+            bool exist = true;
+            foreach (string fileName in fileNames)
             {
-                this.Logger.LogError(Lang.BaseProvider_CheckModelExist_NotFound, modelFilePath);
+                string modelFilePath = Path.Combine(this.ModelFileFoler, fileName);
+                if (!File.Exists(modelFilePath))
+                {
+                    this.Logger.LogError(Lang.BaseProvider_CheckModelExist_NotFound, modelFilePath);
+                    exist = false;
+                }
             }
             return exist;
+        }
+
+        protected bool CheckModelDirectories(params string[] directoryNames)
+        {
+            bool exist = true;
+            foreach (string directoryName in directoryNames)
+            {
+                string directoryPath = Path.Combine(this.ModelFileFoler, directoryName);
+                if (!Directory.Exists(directoryPath))
+                {
+                    this.Logger.LogError(Lang.BaseProvider_CheckModelExist_NotFound, directoryPath);
+                    exist = false;
+                }
+            }
+            return exist;
+        }
+
+        protected static string GetSessionKey(string deviceId, string sessionId)
+        {
+            return string.Concat(deviceId, "\u001f", sessionId);
         }
 
         protected virtual string GenerateId()
@@ -80,14 +108,7 @@ namespace XiaoZhi.Net.Server.Providers
 
         private bool CheckIsSherpaModel()
         {
-            switch (this.ProviderType.ToLower())
-            {
-                case "vad" when SherpaModels.VadModels.Contains(this.ModelName):
-                case "asr" when SherpaModels.AsrModels.Contains(this.ModelName):
-                case "tts" when SherpaModels.TtsModels.Contains(this.ModelName):
-                    return true;
-            }
-            return false;
+            return SherpaModels.IsSherpaModel(this.ProviderType, this.ModelName);
         }
 
         private string ConvertToKebabCase(string input)

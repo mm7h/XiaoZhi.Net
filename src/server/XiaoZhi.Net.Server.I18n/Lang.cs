@@ -120,6 +120,9 @@ namespace XiaoZhi.Net.Server.I18n
         public static string ProviderManager_InitializePrivateConfig_RemoteServiceUnavailable => ResourceManager.GetString("ProviderManager_InitializePrivateConfig_RemoteServiceUnavailable", s_resourceCulture) ?? "";
         public static string ProviderManager_InitializePrivateConfig_NoPrivateConfig => ResourceManager.GetString("ProviderManager_InitializePrivateConfig_NoPrivateConfig", s_resourceCulture) ?? "";
         public static string ProviderManager_InitializePrivateConfig_PrivateVadBuildFailed => ResourceManager.GetString("ProviderManager_InitializePrivateConfig_PrivateVadBuildFailed", s_resourceCulture) ?? "";
+        public static string ProviderManager_InitializePrivateConfig_PrivateSherpaVadModelMismatch => ResourceManager.GetString("ProviderManager_InitializePrivateConfig_PrivateSherpaVadModelMismatch", s_resourceCulture) ?? "";
+        public static string ProviderManager_InitializePrivateConfig_PrivateSherpaAsrModelMismatch => ResourceManager.GetString("ProviderManager_InitializePrivateConfig_PrivateSherpaAsrModelMismatch", s_resourceCulture) ?? "";
+        public static string ProviderManager_InitializePrivateConfig_PrivateSherpaTtsModelMismatch => ResourceManager.GetString("ProviderManager_InitializePrivateConfig_PrivateSherpaTtsModelMismatch", s_resourceCulture) ?? "";
         public static string ProviderManager_InitializePrivateConfig_PrivateVadInitialized => ResourceManager.GetString("ProviderManager_InitializePrivateConfig_PrivateVadInitialized", s_resourceCulture) ?? "";
         public static string ProviderManager_InitializePrivateConfig_GenericVadBuildFailed => ResourceManager.GetString("ProviderManager_InitializePrivateConfig_GenericVadBuildFailed", s_resourceCulture) ?? "";
         public static string ProviderManager_InitializePrivateConfig_GenericVadInitialized => ResourceManager.GetString("ProviderManager_InitializePrivateConfig_GenericVadInitialized", s_resourceCulture) ?? "";
@@ -196,6 +199,10 @@ namespace XiaoZhi.Net.Server.I18n
         #region BaseSherpaAsr
         public static string BaseSherpaAsr_RegisterDevice_Registered => ResourceManager.GetString("BaseSherpaAsr_RegisterDevice_Registered", s_resourceCulture) ?? "";
         public static string BaseSherpaAsr_UnregisterDevice_Unregistered => ResourceManager.GetString("BaseSherpaAsr_UnregisterDevice_Unregistered", s_resourceCulture) ?? "";
+        public static string BaseSherpaAsr_Build_OfflineBuilt => ResourceManager.GetString("BaseSherpaAsr_Build_OfflineBuilt", s_resourceCulture) ?? "";
+        public static string BaseSherpaAsr_Build_OfflineFailed => ResourceManager.GetString("BaseSherpaAsr_Build_OfflineFailed", s_resourceCulture) ?? "";
+        public static string BaseSherpaAsr_Build_StreamingBuilt => ResourceManager.GetString("BaseSherpaAsr_Build_StreamingBuilt", s_resourceCulture) ?? "";
+        public static string BaseSherpaAsr_Build_StreamingFailed => ResourceManager.GetString("BaseSherpaAsr_Build_StreamingFailed", s_resourceCulture) ?? "";
         public static string BaseSherpaAsr_ConvertSpeechTextAsync_ProviderNotBuilt => ResourceManager.GetString("BaseSherpaAsr_ConvertSpeechTextAsync_ProviderNotBuilt", s_resourceCulture) ?? "";
         public static string BaseSherpaAsr_ConvertSpeechTextAsync_UnexpectedError => ResourceManager.GetString("BaseSherpaAsr_ConvertSpeechTextAsync_UnexpectedError", s_resourceCulture) ?? "";
         public static string BaseSherpaAsr_Processing_ProviderNotBuilt => ResourceManager.GetString("BaseSherpaAsr_Processing_ProviderNotBuilt", s_resourceCulture) ?? "";
@@ -429,6 +436,8 @@ namespace XiaoZhi.Net.Server.I18n
         #endregion
 
         #region BaseSherpaTts
+        public static string BaseSherpaTts_Build_Built => ResourceManager.GetString("BaseSherpaTts_Build_Built", s_resourceCulture) ?? "";
+        public static string BaseSherpaTts_Build_Failed => ResourceManager.GetString("BaseSherpaTts_Build_Failed", s_resourceCulture) ?? "";
         public static string BaseSherpaTts_UnregisterDevice_Unregistered => ResourceManager.GetString("BaseSherpaTts_UnregisterDevice_Unregistered", s_resourceCulture) ?? "";
         public static string BaseSherpaTts_SynthesisAsync_ProviderNotBuilt => ResourceManager.GetString("BaseSherpaTts_SynthesisAsync_ProviderNotBuilt", s_resourceCulture) ?? "";
         public static string BaseSherpaTts_SynthesisAsync_MissingIds => ResourceManager.GetString("BaseSherpaTts_SynthesisAsync_MissingIds", s_resourceCulture) ?? "";
@@ -482,6 +491,10 @@ namespace XiaoZhi.Net.Server.I18n
         public static string BaseSherpaVad_CheckLongTermSilence_Detected => ResourceManager.GetString("BaseSherpaVad_CheckLongTermSilence_Detected", s_resourceCulture) ?? "";
         public static string BaseSherpaVad_AnalysisVoiceAsync_VadNotBuilt => ResourceManager.GetString("BaseSherpaVad_AnalysisVoiceAsync_VadNotBuilt", s_resourceCulture) ?? "";
         public static string BaseSherpaVad_AnalysisVoiceAsync_SessionStateNotFound => ResourceManager.GetString("BaseSherpaVad_AnalysisVoiceAsync_SessionStateNotFound", s_resourceCulture) ?? "";
+        #endregion
+
+        #region TenVad
+        public static string TenVad_Build_Failed => ResourceManager.GetString("TenVad_Build_Failed", s_resourceCulture) ?? "";
         #endregion
 
         #region SileroModelState

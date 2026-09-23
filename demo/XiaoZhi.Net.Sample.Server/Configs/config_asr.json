@@ -1,0 +1,468 @@
+{
+  "SelectedSettings": {
+    "ASR": "AliyunRealtime"
+  },
+  "ConfiguredSettings": {
+    "ASR": {
+      "SenseVoice": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "UseInverseTextNormalization": 1,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        // MaxBatchSize和BatchWaitTimeMs两个参数谁先满足就会触发ASR识别
+        "MaxBatchSize": 10, //对于批量ASR识别，每轮处理周期最大能够处理的音频数量
+        "BatchWaitTimeMs": 50, //对于批量ASR识别，每轮处理周期最大的等待时间，单位毫秒
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/asr-cache",
+          "Format": "mp3",
+          //需要与用户设备设置的采样率和声道保持一致，否则将无法正常保存音频文件
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "Paraformer": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "FileSavingOption": {
+          "SaveFile": true,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      // 下列 Sherpa 模型使用 models/asr/{模型-kebab-case} 内的固定文件名，详见 docs/02.sherpa-models.md。
+      "OfflineTransducer": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "NemoCtc": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "Whisper": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "Language": "",
+        "Task": "transcribe",
+        "TailPaddings": -1,
+        "EnableTokenTimestamps": 0,
+        "EnableSegmentTimestamps": 0,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "Tdnn": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "TeleSpeechCtc": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "Moonshine": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "FireRedAsr": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "Dolphin": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "ZipformerCtc": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "Canary": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "SourceLanguage": "en",
+        "TargetLanguage": "en",
+        "UsePunctuation": 1,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "WenetCtc": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "OmnilingualAsrCtc": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "MedAsrCtc": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "FunAsrNano": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "SystemPrompt": "You are a helpful assistant.",
+        "UserPrompt": "语音转写：",
+        "MaxNewTokens": 512,
+        "Temperature": 0.000001,
+        "TopP": 0.8,
+        "Seed": 42,
+        "Language": "",
+        "UseInverseTextNormalization": 0,
+        "Hotwords": "",
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "FireRedAsrCtc": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "Qwen3Asr": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "MaxTotalLen": 512,
+        "MaxNewTokens": 128,
+        "Temperature": 0.000001,
+        "TopP": 0.8,
+        "Seed": 42,
+        "Hotwords": "",
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "CohereTranscribe": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "HotwordsFile": "",
+        "HotwordsScore": 1.5,
+        "MaxActivePaths": 4,
+        "MaxBatchSize": 10,
+        "BatchWaitTimeMs": 20,
+        "Language": "",
+        "UsePunctuation": 1,
+        "UseInverseTextNormalization": 1,
+        "FileSavingOption": {
+          "SaveFile": false,
+          "SavePath": "./data/audio-cache",
+          "Format": "wav",
+          "SampleRate": 16000,
+          "Channels": 1,
+          "BitRate": 128000
+        }
+      },
+      "OnlineTransducer": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "DecodingMethod": "greedy_search",
+        "MaxActivePaths": 4,
+        "EnableEndpoint": 0,
+        "Rule1MinTrailingSilence": 1.2,
+        "Rule2MinTrailingSilence": 2.4,
+        "Rule3MinUtteranceLength": 20.0,
+        "HotwordsScore": 1.5
+      },
+      "OnlineParaformer": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "DecodingMethod": "greedy_search",
+        "MaxActivePaths": 4,
+        "EnableEndpoint": 0,
+        "Rule1MinTrailingSilence": 1.2,
+        "Rule2MinTrailingSilence": 2.4,
+        "Rule3MinUtteranceLength": 20.0,
+        "HotwordsScore": 1.5
+      },
+      "OnlineZipformer2Ctc": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "DecodingMethod": "greedy_search",
+        "MaxActivePaths": 4,
+        "EnableEndpoint": 0,
+        "Rule1MinTrailingSilence": 1.2,
+        "Rule2MinTrailingSilence": 2.4,
+        "Rule3MinUtteranceLength": 20.0,
+        "HotwordsScore": 1.5
+      },
+      "OnlineNemoCtc": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "DecodingMethod": "greedy_search",
+        "MaxActivePaths": 4,
+        "EnableEndpoint": 0,
+        "Rule1MinTrailingSilence": 1.2,
+        "Rule2MinTrailingSilence": 2.4,
+        "Rule3MinUtteranceLength": 20.0,
+        "HotwordsScore": 1.5
+      },
+      "OnlineToneCtc": {
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "DecodingMethod": "greedy_search",
+        "MaxActivePaths": 4,
+        "EnableEndpoint": 0,
+        "Rule1MinTrailingSilence": 1.2,
+        "Rule2MinTrailingSilence": 2.4,
+        "Rule3MinUtteranceLength": 20.0,
+        "HotwordsScore": 1.5
+      },
+      "HuoshanUnidirectional": {
+        "ApiKey": "your-api-key",
+        "ResourceId": "your-resource-id",
+        "SegmentDurationMs": 200,
+        "Language": "zh-CN",
+        "EnableItn": true,
+        "EnablePunc": true,
+        "EnableDdc": true
+      },
+      "HuoshanBidirection": {
+        "ApiKey": "your-api-key",
+        "ResourceId": "your-resource-id",
+        "SegmentDurationMs": 200,
+        "EnableItn": true,
+        "EnablePunc": true,
+        "EnableDdc": true
+      },
+      "AliyunRealtime": {
+        "ApiKey": "to your llm api key",
+        "ModelName": "qwen-audio-3.0-asr-flash-streaming",
+        "Region": "cn-beijing", // 可选：提供 Endpoint 覆盖默认的 WebSocket 地址。
+        "WorkspaceId": "to your workspace id", // 可选：配置后使用业务空间专属 WebSocket 域名；Endpoint 优先，留空则继续使用共享 DashScope 域名。
+        "SegmentDurationMs": 100,
+        "LanguageHints": "zh,en",
+        "ConnectionTimeoutSeconds": 5,
+        "ResponseTimeoutSeconds": 15
+      }
+    }
+  }
+}

@@ -15,7 +15,7 @@ try
 {
     Console.WriteLine("Hello, Xiao Zhi!");
 
-    string configJson = File.ReadAllText(Path.Combine(Environment.CurrentDirectory, "configs", "config.json"));
+    string configJson = ConfigMerger.Merge(Path.Combine(Environment.CurrentDirectory, "Configs"));
 
     // 快速从json文件中获取配置信息
     XiaoZhiConfig? config = JsonSerializer.Deserialize<XiaoZhiConfig>(configJson); // 此次省略了对System.Text.Json的一些自定义设置
@@ -124,6 +124,7 @@ public class GetTime
 |平台 / 模型名称|备注|
 |:-:|:-|
 |[Kokoro](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources)|基于 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 实现|
+|Sherpa-onnx|内置 Kokoro、Vits、Matcha、Kitten、ZipVoice、Pocket、Supertonic；目录和文件清单见 [模型文档](docs/02.sherpa-models.md)|
 |火山引擎|支持双向websocket流式、http调用|
 
 ---
@@ -133,6 +134,7 @@ public class GetTime
 |模型名称|备注|
 |:-:|:-|
 |[SileroVAD](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources)|基于 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 实现|
+|TenVad|基于 sherpa-onnx 实现，使用 256 样本窗口|
 |SileroNative|基于 Microsoft.ML.OnnxRuntime 实现|
 
 ---
@@ -143,6 +145,7 @@ public class GetTime
 |:-:|:-|
 |[Sense Voice](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources)|基于 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 实现|
 |[Paraformer](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources)|基于 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 实现|
+|Sherpa-onnx|内置 19 个离线模型与 5 个流式模型；目录和文件清单见 [模型文档](docs/02.sherpa-models.md)|
 
 
 ---
@@ -161,13 +164,18 @@ public class GetTime
 
 ```
 .
-├── configs
+├── Configs
 │   ├── assets # 系统语音音频文件
 │   │   ├── bind_codes # 数字播报音频文件
 │   │   ├── bind_code.wav
 │   │   ├── bind_not_found.wav
 │   │   └── ...
-│   └── config.json # 主配置文件
+│   ├── config.json # 公共配置文件
+│   ├── config_vad.json # VAD 配置文件
+│   ├── config_asr.json # ASR 配置文件
+│   ├── config_intent.json # Intent 配置文件
+│   ├── config_llm.json # LLM 与 RAG 配置文件
+│   └── config_tts.json # TTS 配置文件
 ├── data
 │   ├── asr-cache  # 当开启保存用于asr识别的音频文件后，用户说话的音频将会保存在这里
 │   └── tts-cache # 当开启保存tts生成的文件后，生成的语音将会保存在这里
@@ -208,7 +216,7 @@ public class GetTime
 
 若需要接入自定义模型，请参阅 [如何扩展自定义模型](docs/01.extend-custom-model.md) 文档。
 
-\* 注意模型文件`.onnx`需要统一命名为`model.onnx`
+Sherpa 内置模型的固定目录和文件名（并非全部为 `model.onnx`）请参阅 [模型文档](docs/02.sherpa-models.md)。
 
 ### 三、程序运行
 

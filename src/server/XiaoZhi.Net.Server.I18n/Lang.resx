@@ -363,6 +363,15 @@
   <data name="ProviderManager_InitializePrivateConfig_PrivateVadBuildFailed" xml:space="preserve">
     <value>Failed to build private VAD model for device: {deviceId}.</value>
   </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateSherpaVadModelMismatch" xml:space="preserve">
+    <value>Private VAD model {modelName} does not match the global Sherpa model.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateSherpaAsrModelMismatch" xml:space="preserve">
+    <value>Private ASR model {modelName} does not match the global Sherpa model.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateSherpaTtsModelMismatch" xml:space="preserve">
+    <value>Private TTS model {modelName} does not match the global Sherpa model.</value>
+  </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateVadInitialized" xml:space="preserve">
     <value>Private VAD {modelName} model initialized for device: {deviceId}.</value>
   </data>
@@ -521,6 +530,18 @@
   </data>
   <data name="BaseSherpaAsr_RegisterDevice_Registered" xml:space="preserve">
     <value>Registered ASR session for device: {deviceId}, session: {sessionId}</value>
+  </data>
+  <data name="BaseSherpaAsr_Build_OfflineBuilt" xml:space="preserve">
+    <value>Built Sherpa offline ASR model: {modelName}.</value>
+  </data>
+  <data name="BaseSherpaAsr_Build_OfflineFailed" xml:space="preserve">
+    <value>Failed to build Sherpa offline ASR model: {modelName}.</value>
+  </data>
+  <data name="BaseSherpaAsr_Build_StreamingBuilt" xml:space="preserve">
+    <value>Built Sherpa streaming ASR model: {modelName}.</value>
+  </data>
+  <data name="BaseSherpaAsr_Build_StreamingFailed" xml:space="preserve">
+    <value>Failed to build Sherpa streaming ASR model: {modelName}.</value>
   </data>
   <data name="BaseSherpaAsr_UnregisterDevice_Unregistered" xml:space="preserve">
     <value>Unregistered ASR session for device: {deviceId}, session: {sessionId}</value>
@@ -960,6 +981,12 @@
   <data name="BaseSherpaTts_UnregisterDevice_Unregistered" xml:space="preserve">
     <value>Unregistered TTS session for device: {deviceId}, session: {sessionId}</value>
   </data>
+  <data name="BaseSherpaTts_Build_Built" xml:space="preserve">
+    <value>Built Sherpa TTS model: {modelName}.</value>
+  </data>
+  <data name="BaseSherpaTts_Build_Failed" xml:space="preserve">
+    <value>Failed to build Sherpa TTS model: {modelName}.</value>
+  </data>
   <data name="BaseSherpaTts_SynthesisAsync_ProviderNotBuilt" xml:space="preserve">
     <value>Please build tts provider first.</value>
   </data>
@@ -1244,6 +1271,9 @@
   </data>
   <data name="BaseSherpaVad_Build_NonCanonicalSampleRate" xml:space="preserve">
     <value>Sherpa VAD must use the internal {SampleRate} Hz PCM format, but {ConfiguredSampleRate} Hz was configured.</value>
+  </data>
+  <data name="TenVad_Build_Failed" xml:space="preserve">
+    <value>Failed to build TenVad.</value>
   </data>
   <data name="DefaultOpusDecoder_DecodeAsync_SampleCountMismatch" xml:space="preserve">
     <value>Opus decoder output sample count mismatch. Expected {0}, actual {1}.</value>

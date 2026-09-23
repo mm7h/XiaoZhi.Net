@@ -1,0 +1,40 @@
+{
+  "SelectedSettings": {
+    "VAD": "SileroNative"
+  },
+  "ConfiguredSettings": {
+    "VAD": {
+      "Silero": {
+        "SampleRate": 16000,
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "Threshold": 0.5,
+        "SilenceThresholdSecond": 0.7,
+        "MinSpeechDurationSecond": 0.5,
+        "MaxSpeechDurationSecond": 60,
+        // 间隔多久没有检测到声音就断开连接，单位毫秒
+        "CloseConnectionNoVoiceTime": 120000
+      },
+      "SileroNative": {
+        "SampleRate": 16000,
+        "SilenceThresholdSecond": 0.7,
+        "Threshold": 0.5,
+        "ThresholdLow": 0.2,
+        "CloseConnectionNoVoiceTime": 120000
+      },
+      "TenVad": {
+        "SampleRate": 16000,
+        "NumThreads": 1,
+        "Provider": "cpu",
+        "Debug": 0,
+        "Threshold": 0.5,
+        "SilenceThresholdSecond": 0.5,
+        "MinSpeechDurationSecond": 0.25,
+        "MaxSpeechDurationSecond": 5,
+        "WindowSize": 256,
+        "CloseConnectionNoVoiceTime": 120000
+      }
+    }
+  }
+}

@@ -17,6 +17,7 @@ using XiaoZhi.Net.Test.OtherSamples;
 //await Sample21_ConcurrentAudioPlayer.RunAsync();
 //await Sample22_StreamASR.RunAsync();
 await Sample23_AliTTS.RunAsync();
+await Sample24_SherpaModel.RunAsync();
 //ModelsInit();
 
 void ModelsInit()
