@@ -898,7 +898,7 @@
     <value>Huoshan HTTP TTS synthesis failed.</value>
   </data>
   <data name="HuoshanHttpTTS_Build_ConfigIncomplete" xml:space="preserve">
-    <value>Huoshan bidirection TTS configuration is incomplete, please check AppId, AccessToken, Cluster and speaker.</value>
+    <value>Huoshan HTTP TTS configuration is incomplete, please check AppId, AccessToken, Cluster and speaker.</value>
   </data>
   <data name="HuoshanHttpTTS_Build_Built" xml:space="preserve">
     <value>Builded the {providerType} model: {modelName}</value>
@@ -1406,5 +1406,44 @@
   </data>
   <data name="AliyunHttpTTS_SaveAudioFile_SaveFailed" xml:space="preserve">
     <value>Failed to save Aliyun HTTP TTS audio file {FileName} for device {DeviceId}.</value>
+  </data>
+  <data name="BaseHuoshanTTS_Rebuild_Failed" xml:space="preserve">
+    <value>Failed to read Huoshan TTS runtime rebuild parameters for model {modelName}.</value>
+  </data>
+  <data name="HuoshanStreamTTS_Rebuild_Succeeded" xml:space="preserve">
+    <value>Huoshan streaming TTS runtime settings were rebuilt for model {modelName}.</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_Rebuild_Succeeded" xml:space="preserve">
+    <value>Huoshan HTTP V3 TTS runtime settings were rebuilt for model {modelName}.</value>
+  </data>
+  <data name="HuoshanHttpTTS_Rebuild_Succeeded" xml:space="preserve">
+    <value>Huoshan HTTP TTS runtime settings were rebuilt for model {modelName}.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Rebuild_Rejected" xml:space="preserve">
+    <value>Aliyun real-time TTS runtime rebuild was rejected because the requested parameters are unsupported or invalid for model {modelName}.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Rebuild_Succeeded" xml:space="preserve">
+    <value>Aliyun real-time TTS runtime settings were rebuilt for model {modelName}.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Rebuild_Failed" xml:space="preserve">
+    <value>Aliyun real-time TTS runtime rebuild failed for model {modelName}.</value>
+  </data>
+  <data name="AliyunHttpTTS_Rebuild_Rejected" xml:space="preserve">
+    <value>Aliyun HTTP TTS runtime rebuild was rejected because the requested parameters are unsupported or invalid for model {modelName}.</value>
+  </data>
+  <data name="AliyunHttpTTS_Rebuild_Succeeded" xml:space="preserve">
+    <value>Aliyun HTTP TTS runtime settings were rebuilt for model {modelName}.</value>
+  </data>
+  <data name="AliyunHttpTTS_Rebuild_Failed" xml:space="preserve">
+    <value>Aliyun HTTP TTS runtime rebuild failed for model {modelName}.</value>
+  </data>
+  <data name="HuoshanStreamTTS_Rebuild_Rejected" xml:space="preserve">
+    <value>Huoshan streaming TTS runtime rebuild was rejected because the requested parameters are unsupported or invalid for model {modelName}.</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_Rebuild_Rejected" xml:space="preserve">
+    <value>Huoshan HTTP V3 TTS runtime rebuild was rejected because the requested parameters are unsupported or invalid for model {modelName}.</value>
+  </data>
+  <data name="HuoshanHttpTTS_Rebuild_Rejected" xml:space="preserve">
+    <value>Huoshan HTTP TTS runtime rebuild was rejected because the requested parameters are unsupported or invalid for model {modelName}.</value>
   </data>
 </root>

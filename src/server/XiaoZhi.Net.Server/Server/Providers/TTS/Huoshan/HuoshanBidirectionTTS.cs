@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums.Tts;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Contexts.Huoshan.Enums;
 using XiaoZhi.Net.Server.Common.Enums;
@@ -24,6 +25,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS
         }
 
         public override string ModelName => nameof(HuoshanBidirectionTTS);
+
+        protected override TtsProviderType RuntimeProviderType => TtsProviderType.HuoshanBidirection;
 
 
 
@@ -55,6 +58,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS
             this.ProcessingSegments.TryAdd(seg.SentenceId, workflow.Data);
 
             this.StreamingActive = true;
+            (string speakerId, int speechRate, int loudnessRate) = this.SnapshotRuntimeSettings();
             Dictionary<string, object> startReq = new Dictionary<string, object>
             {
                 { "User", new { Uid = workflow.DeviceId } },
@@ -62,13 +66,13 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 { "Namespace", TTS_NAMESPACE },
                 { "ReqParams",
                     new {
-                        Speaker = this.SpeakerId,
+                        Speaker = speakerId,
                         AudioParams = new {
                             Format = this.AudioEncoding,
                             SampleRate = this.GetTtsSampleRate(),
                             EnableTimestamp = false,
-                            this.SpeechRate,
-                            this.LoudnessRate,
+                            SpeechRate = speechRate,
+                            LoudnessRate = loudnessRate,
                         }
                     }
                 },
@@ -96,13 +100,13 @@ namespace XiaoZhi.Net.Server.Providers.TTS
                 { "ReqParams",
                     new {
                         Text = seg.Content,
-                        Speaker = this.SpeakerId,
+                        Speaker = speakerId,
                         AudioParams = new {
                             Format = this.AudioEncoding,
                             SampleRate = this.GetTtsSampleRate(),
                             EnableTimestamp = false,
-                            this.SpeechRate,
-                            this.LoudnessRate,
+                            SpeechRate = speechRate,
+                            LoudnessRate = loudnessRate,
                             Emotion = this.ConvertEmotion(seg.Emotion)
                         }
                     }

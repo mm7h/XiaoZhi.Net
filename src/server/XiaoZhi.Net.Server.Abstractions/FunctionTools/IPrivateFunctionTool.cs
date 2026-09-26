@@ -15,6 +15,10 @@
         /// </summary>
         ISessionController SessionController { get; }
         /// <summary>
+        /// 当前会话的 TTS 控制器。
+        /// </summary>
+        ITtsController TtsController { get; }
+        /// <summary>
         /// 当Session会话连接时触发
         /// </summary>
         /// <returns></returns>

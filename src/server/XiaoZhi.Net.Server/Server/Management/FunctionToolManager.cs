@@ -147,13 +147,6 @@ namespace XiaoZhi.Net.Server.Management
                 if (item.Value is PrivateFunctionTool instance)
                 {
                     session.PrivateProvider.FunctionToolsContext.AddPrivateFunctionTool(instance);
-                    List<FunctionToolRegistration> registrations = [];
-                    foreach (FunctionToolMethodMetadata methodMeta in methodMetas)
-                    {
-                        FunctionToolRegistration registration = this.BuildRegistration(instance, methodMeta);
-                        registrations.Add(registration);
-                    }
-                    session.PrivateProvider.FunctionToolsContext.AddFunctionToolRegistrations(registrations);
 
                     instance.Logger = this._loggerFactory.CreateLogger(instance.GetType());
                     instance.ServerInfo = this.CreateServerInfoAdapter();
@@ -161,6 +154,15 @@ namespace XiaoZhi.Net.Server.Management
                     instance.SessionContext = new SessionContextAdapter(session);
                     instance.SessionController = new SessionControllerAdapter(session);
                     instance.MediaTool = new MediaToolAdapter(session, this._musicFileProvider);
+                    instance.TtsController = new TtsControllerAdapter(session);
+
+                    List<FunctionToolRegistration> registrations = [];
+                    foreach (FunctionToolMethodMetadata methodMeta in methodMetas)
+                    {
+                        FunctionToolRegistration registration = this.BuildRegistration(instance, methodMeta);
+                        registrations.Add(registration);
+                    }
+                    session.PrivateProvider.FunctionToolsContext.AddFunctionToolRegistrations(registrations);
 
                     try
                     {

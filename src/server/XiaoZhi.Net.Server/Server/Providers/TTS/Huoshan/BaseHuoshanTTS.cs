@@ -2,8 +2,11 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.Common.Dtos.Tts;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums.Tts;
 using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
+using XiaoZhi.Net.Server.Abstractions.FunctionTools;
 using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
@@ -17,6 +20,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         private const int SAMPLE_RATE = 24000;
 
         private readonly IAudioEditor _audioEditor;
+        private readonly object _rebuildSync = new();
 
         public BaseHuoshanTTS(IAudioEditor audioEditor, ILogger<TLogger> logger) : base(logger)
         {
@@ -31,6 +35,101 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         public AudioSavingConfig? AudioSavingConfig { get; protected set; }
         protected ITtsEventCallback? TTSEventCallback { get; set; }
         public int GetTtsSampleRate() => SAMPLE_RATE;
+
+        protected virtual TtsProviderType RuntimeProviderType => TtsProviderType.Unknown;
+
+        public virtual TtsRuntimeState GetRuntimeState()
+        {
+            lock (this._rebuildSync)
+            {
+                bool canRebuild = this.RuntimeProviderType != TtsProviderType.Unknown
+                    && !string.IsNullOrWhiteSpace(this.SpeakerId);
+                return new TtsRuntimeState(
+                    this.RuntimeProviderType,
+                    new TtsRuntimeSettings(this.SpeakerId, this.SpeechRate, null),
+                    canRebuild);
+            }
+        }
+
+        protected object RebuildSync => this._rebuildSync;
+
+        protected bool TryReadRebuildSettings(
+            ModelSetting modelSetting,
+            bool supportsSpeechRate,
+            bool supportsPitch,
+            Func<float, bool>? speechRateValidator,
+            Func<float, bool>? pitchValidator,
+            out bool failedToRead,
+            out string? voice,
+            out float? speechRate,
+            out float? pitch)
+        {
+            failedToRead = false;
+            voice = null;
+            speechRate = null;
+            pitch = null;
+            if (modelSetting is null || !string.Equals(modelSetting.ModelName, this.ModelName, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            try
+            {
+                bool hasVoice = modelSetting.Config.ContainsKey("Voice");
+                bool hasSpeechRate = modelSetting.Config.ContainsKey("SpeechRate");
+                bool hasPitch = modelSetting.Config.ContainsKey("Pitch");
+                if (!hasVoice && !hasSpeechRate && !hasPitch)
+                {
+                    return false;
+                }
+
+                if (hasVoice)
+                {
+                    voice = modelSetting.Config.GetConfigValueOrDefault("Voice");
+                    if (string.IsNullOrWhiteSpace(voice))
+                    {
+                        return false;
+                    }
+                }
+                if (hasSpeechRate)
+                {
+                    speechRate = modelSetting.Config.GetConfigValueOrDefault<float?>("SpeechRate");
+                    if (!supportsSpeechRate
+                        || !speechRate.HasValue
+                        || !float.IsFinite(speechRate.Value)
+                        || (speechRateValidator is not null && !speechRateValidator(speechRate.Value)))
+                    {
+                        return false;
+                    }
+                }
+                if (hasPitch)
+                {
+                    pitch = modelSetting.Config.GetConfigValueOrDefault<float?>("Pitch");
+                    if (!supportsPitch
+                        || !pitch.HasValue
+                        || !float.IsFinite(pitch.Value)
+                        || (pitchValidator is not null && !pitchValidator(pitch.Value)))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                failedToRead = true;
+                this.Logger.LogWarning(ex, Lang.BaseHuoshanTTS_Rebuild_Failed, this.ModelName);
+                return false;
+            }
+        }
+
+        protected (string SpeakerId, int SpeechRate, int LoudnessRate) SnapshotRuntimeSettings()
+        {
+            lock (this._rebuildSync)
+            {
+                return (this.SpeakerId, this.SpeechRate, this.LoudnessRate);
+            }
+        }
 
         public void RegisterDevice(string deviceId, string sessionId, ITtsEventCallback callback)
         {

@@ -898,7 +898,7 @@
     <value>火山 HTTP TTS 合成失败。</value>
   </data>
   <data name="HuoshanHttpTTS_Build_ConfigIncomplete" xml:space="preserve">
-    <value>火山双向 TTS 配置不完整，请检查 AppId、AccessToken、Cluster 和 speaker。</value>
+    <value>火山 HTTP TTS 配置不完整，请检查 AppId、AccessToken、Cluster 和 speaker。</value>
   </data>
   <data name="HuoshanHttpTTS_Build_Built" xml:space="preserve">
     <value>已构建 {providerType} 模型：{modelName}</value>
@@ -1406,5 +1406,44 @@
   </data>
   <data name="AliyunHttpTTS_SaveAudioFile_SaveFailed" xml:space="preserve">
     <value>为设备 {DeviceId} 保存阿里云 HTTP TTS 音频文件 {FileName} 失败。</value>
+  </data>
+  <data name="BaseHuoshanTTS_Rebuild_Failed" xml:space="preserve">
+    <value>读取火山 TTS 模型 {modelName} 的动态重建参数失败。</value>
+  </data>
+  <data name="HuoshanStreamTTS_Rebuild_Succeeded" xml:space="preserve">
+    <value>已完成火山流式 TTS 模型 {modelName} 的运行时参数重建。</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_Rebuild_Succeeded" xml:space="preserve">
+    <value>已完成火山 HTTP V3 TTS 模型 {modelName} 的运行时参数重建。</value>
+  </data>
+  <data name="HuoshanHttpTTS_Rebuild_Succeeded" xml:space="preserve">
+    <value>已完成火山 HTTP TTS 模型 {modelName} 的运行时参数重建。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Rebuild_Rejected" xml:space="preserve">
+    <value>阿里云实时 TTS 模型 {modelName} 拒绝动态重建：请求参数不受支持或不符合要求。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Rebuild_Succeeded" xml:space="preserve">
+    <value>已完成阿里云实时 TTS 模型 {modelName} 的运行时参数重建。</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Rebuild_Failed" xml:space="preserve">
+    <value>阿里云实时 TTS 模型 {modelName} 的动态重建失败。</value>
+  </data>
+  <data name="AliyunHttpTTS_Rebuild_Rejected" xml:space="preserve">
+    <value>阿里云 HTTP TTS 模型 {modelName} 拒绝动态重建：请求参数不受支持或不符合要求。</value>
+  </data>
+  <data name="AliyunHttpTTS_Rebuild_Succeeded" xml:space="preserve">
+    <value>已完成阿里云 HTTP TTS 模型 {modelName} 的运行时参数重建。</value>
+  </data>
+  <data name="AliyunHttpTTS_Rebuild_Failed" xml:space="preserve">
+    <value>阿里云 HTTP TTS 模型 {modelName} 的动态重建失败。</value>
+  </data>
+  <data name="HuoshanStreamTTS_Rebuild_Rejected" xml:space="preserve">
+    <value>火山流式 TTS 模型 {modelName} 拒绝动态重建：请求参数不受支持或不符合要求。</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_Rebuild_Rejected" xml:space="preserve">
+    <value>火山 HTTP V3 TTS 模型 {modelName} 拒绝动态重建：请求参数不受支持或不符合要求。</value>
+  </data>
+  <data name="HuoshanHttpTTS_Rebuild_Rejected" xml:space="preserve">
+    <value>火山 HTTP TTS 模型 {modelName} 拒绝动态重建：请求参数不受支持或不符合要求。</value>
   </data>
 </root>

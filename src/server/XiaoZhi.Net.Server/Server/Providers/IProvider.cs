@@ -8,6 +8,7 @@ namespace XiaoZhi.Net.Server.Providers
         string ModelName { get; }
         bool IsSherpaModel { get; }
         bool Build(TSettings settings);
+        bool Rebuild(TSettings settings);
         void RegisterDevice(string deviceId, string sessionId);
         void UnregisterDevice(string deviceId, string sessionId);
     }

@@ -38,6 +38,7 @@ try
             .WithPrivateFunctionTools<GetWeather>()
             .WithPrivateFunctionTools<MusicPlayer>()
             .WithPrivateFunctionTools<ExitConversationFunctionTool>()
+            .WithPrivateFunctionTools<TtsSettingsFunctionTool>()
             // 多媒体文件格式支持
             .WithMedia(useFFmpegAudioMixer: true)
             //.WithManageApi("http://localhost:5118", "your-secret")

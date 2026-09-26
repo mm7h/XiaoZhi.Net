@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums.Tts;
 using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Contexts.Huoshan.Enums;
@@ -78,6 +79,41 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 this.Logger.LogError(ex, Lang.HuoshanStreamTTS_Build_Failed, this.ModelName);
                 return false;
             }
+        }
+
+        public override bool Rebuild(ModelSetting modelSetting)
+        {
+            if (!this.TryReadRebuildSettings(
+                modelSetting,
+                supportsSpeechRate: true,
+                supportsPitch: false,
+                speechRateValidator: static value => value is >= -50F and <= 100F && value == MathF.Truncate(value),
+                pitchValidator: null,
+                out bool failedToRead,
+                out string? voice,
+                out float? speechRate,
+                out _))
+            {
+                if (!failedToRead)
+                {
+                    this.Logger.LogWarning(Lang.HuoshanStreamTTS_Rebuild_Rejected, this.ModelName);
+                }
+                return false;
+            }
+
+            lock (this.RebuildSync)
+            {
+                if (voice is not null)
+                {
+                    this.SpeakerId = voice;
+                }
+                if (speechRate.HasValue)
+                {
+                    this.SpeechRate = (int)speechRate.Value;
+                }
+            }
+            this.Logger.LogInformation(Lang.HuoshanStreamTTS_Rebuild_Succeeded, this.ModelName);
+            return true;
         }
 
         #region Huoshan TTS services API

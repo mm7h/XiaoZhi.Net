@@ -5,11 +5,14 @@ using Flurl.Http;
 using Flurl.Http.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using XiaoZhi.Net.Server.Abstractions.Common.Dtos.Tts;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums.Tts;
 using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Contexts.Huoshan.Models;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
+using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media.Abstractions;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
@@ -37,6 +40,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         }
         public override string ModelName => nameof(HuoshanHttpTTS);
 
+        protected override TtsProviderType RuntimeProviderType => TtsProviderType.HuoshanHttp;
+
         public override bool Build(ModelSetting modelSetting)
         {
             try
@@ -48,7 +53,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
                 if (string.IsNullOrWhiteSpace(appId) || string.IsNullOrWhiteSpace(accessToken) || string.IsNullOrWhiteSpace(cluster) || string.IsNullOrWhiteSpace(speaker))
                 {
-                    this.Logger.LogWarning("火山双向 TTS 配置不完整，请检查 AppId、AccessToken、Cluster 和 speaker。");
+                    this.Logger.LogWarning(Lang.HuoshanHttpTTS_Build_ConfigIncomplete);
                     return false;
                 }
 
@@ -63,13 +68,64 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 
                 this.BuildAudioSavingConfig(modelSetting);
 
-                this.Logger.LogInformation("已构建 {providerType} 模型：{modelName}", this.ProviderType, this.ModelName);
+                this.Logger.LogInformation(Lang.HuoshanHttpTTS_Build_Built, this.ProviderType, this.ModelName);
                 return true;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "构建 {modelName} 失败。", this.ModelName);
+                this.Logger.LogError(ex, Lang.HuoshanHttpTTS_Build_Failed, this.ModelName);
                 return false;
+            }
+        }
+
+        public override bool Rebuild(ModelSetting modelSetting)
+        {
+            if (!this.TryReadRebuildSettings(
+                modelSetting,
+                supportsSpeechRate: true,
+                supportsPitch: true,
+                speechRateValidator: static value => value is >= 0.1F and <= 2.0F,
+                pitchValidator: static value => value is >= 0.1F and <= 2.0F,
+                out bool failedToRead,
+                out string? voice,
+                out float? speechRate,
+                out float? pitch))
+            {
+                if (!failedToRead)
+                {
+                    this.Logger.LogWarning(Lang.HuoshanHttpTTS_Rebuild_Rejected, this.ModelName);
+                }
+                return false;
+            }
+
+            lock (this.RebuildSync)
+            {
+                if (voice is not null)
+                {
+                    this.SpeakerId = voice;
+                }
+                if (speechRate.HasValue)
+                {
+                    this._speedRatio = speechRate.Value;
+                }
+                if (pitch.HasValue)
+                {
+                    this._pitchRatio = pitch.Value;
+                }
+            }
+            this.Logger.LogInformation(Lang.HuoshanHttpTTS_Rebuild_Succeeded, this.ModelName);
+            return true;
+        }
+
+        public override TtsRuntimeState GetRuntimeState()
+        {
+            lock (this.RebuildSync)
+            {
+                bool canRebuild = !string.IsNullOrWhiteSpace(this.SpeakerId);
+                return new TtsRuntimeState(
+                    TtsProviderType.HuoshanHttp,
+                    new TtsRuntimeSettings(this.SpeakerId, this._speedRatio, this._pitchRatio),
+                    canRebuild);
             }
         }
 
@@ -88,8 +144,20 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             OutSegment seg = workflow.Data;
             if (string.IsNullOrWhiteSpace(seg.SentenceId))
             {
-                this.Logger.LogWarning("由于缺少句子 ID，处理片段失败。");
+                this.Logger.LogWarning(Lang.HuoshanHttpTTS_SynthesisAsync_MissingSentenceId);
                 return;
+            }
+
+            string speakerId;
+            float? speedRatio;
+            float? volumeRatio;
+            float? pitchRatio;
+            lock (this.RebuildSync)
+            {
+                speakerId = this.SpeakerId;
+                speedRatio = this._speedRatio;
+                volumeRatio = this._volumeRatio;
+                pitchRatio = this._pitchRatio;
             }
 
             var ttsReq = new
@@ -103,11 +171,11 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 User = new { Uid = workflow.DeviceId },
                 Audio = new
                 {
-                    VoiceType = this.SpeakerId,
+                    VoiceType = speakerId,
                     Encoding = this.AudioEncoding,
-                    SpeedRatio = this._speedRatio,
-                    VolumeRatio = this._volumeRatio,
-                    PitchRatio = this._pitchRatio,
+                    SpeedRatio = speedRatio,
+                    VolumeRatio = volumeRatio,
+                    PitchRatio = pitchRatio,
                     Rate = this.GetTtsSampleRate(),
                     EnableEmotion = true,
                     Emotion = this.ConvertEmotion(seg.Emotion)
@@ -150,7 +218,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 if (!response.ResponseMessage.IsSuccessStatusCode)
                 {
                     string err = await response.GetStringAsync();
-                    this.Logger.LogError("火山 HTTP TTS 失败：状态={status} 正文={body}", response.StatusCode, err);
+                    this.Logger.LogError(Lang.HuoshanHttpTTS_SynthesisAsync_RequestFailed, response.StatusCode, err);
                     this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Failed);
                     return;
                 }
@@ -173,7 +241,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 }
                 else
                 {
-                    this.Logger.LogError("火山 HTTP TTS 错误：代码={code} 消息={message}", ttsHttpResponse.Code, ttsHttpResponse.Message);
+                    this.Logger.LogError(Lang.HuoshanHttpTTS_SynthesisAsync_ApiError, ttsHttpResponse.Code, ttsHttpResponse.Message);
                     this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Failed);
                 }
             }
@@ -184,7 +252,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, "火山 HTTP TTS 合成失败。");
+                this.Logger.LogError(ex, Lang.HuoshanHttpTTS_SynthesisAsync_GeneralFailed);
                 this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Failed);
                 throw;
             }

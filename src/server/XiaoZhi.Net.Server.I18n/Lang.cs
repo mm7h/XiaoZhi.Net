@@ -385,12 +385,15 @@ namespace XiaoZhi.Net.Server.I18n
         #region BaseHuoshanTTS
         public static string BaseHuoshanTTS_SaveAudioFile_FileSaved => ResourceManager.GetString("BaseHuoshanTTS_SaveAudioFile_FileSaved", s_resourceCulture) ?? "";
         public static string BaseHuoshanTTS_SaveAudioFile_SaveFailed => ResourceManager.GetString("BaseHuoshanTTS_SaveAudioFile_SaveFailed", s_resourceCulture) ?? "";
+        public static string BaseHuoshanTTS_Rebuild_Failed => ResourceManager.GetString("BaseHuoshanTTS_Rebuild_Failed", s_resourceCulture) ?? "";
         #endregion
 
         #region HuoshanHttpV3TTS
         public static string HuoshanHttpV3TTS_Build_ConfigIncomplete => ResourceManager.GetString("HuoshanHttpV3TTS_Build_ConfigIncomplete", s_resourceCulture) ?? "";
         public static string HuoshanHttpV3TTS_Build_Built => ResourceManager.GetString("HuoshanHttpV3TTS_Build_Built", s_resourceCulture) ?? "";
         public static string HuoshanHttpV3TTS_Build_Failed => ResourceManager.GetString("HuoshanHttpV3TTS_Build_Failed", s_resourceCulture) ?? "";
+        public static string HuoshanHttpV3TTS_Rebuild_Succeeded => ResourceManager.GetString("HuoshanHttpV3TTS_Rebuild_Succeeded", s_resourceCulture) ?? "";
+        public static string HuoshanHttpV3TTS_Rebuild_Rejected => ResourceManager.GetString("HuoshanHttpV3TTS_Rebuild_Rejected", s_resourceCulture) ?? "";
         public static string HuoshanHttpV3TTS_SynthesisAsync_DevNotReg => ResourceManager.GetString("HuoshanHttpV3TTS_SynthesisAsync_DevNotReg", s_resourceCulture) ?? "";
         public static string HuoshanHttpV3TTS_SynthesisAsync_MissingSentenceId => ResourceManager.GetString("HuoshanHttpV3TTS_SynthesisAsync_MissingSentenceId", s_resourceCulture) ?? "";
         public static string HuoshanHttpV3TTS_SynthesisAsync_RequestFailed => ResourceManager.GetString("HuoshanHttpV3TTS_SynthesisAsync_RequestFailed", s_resourceCulture) ?? "";
@@ -402,6 +405,8 @@ namespace XiaoZhi.Net.Server.I18n
         public static string HuoshanHttpTTS_Build_ConfigIncomplete => ResourceManager.GetString("HuoshanHttpTTS_Build_ConfigIncomplete", s_resourceCulture) ?? "";
         public static string HuoshanHttpTTS_Build_Built => ResourceManager.GetString("HuoshanHttpTTS_Build_Built", s_resourceCulture) ?? "";
         public static string HuoshanHttpTTS_Build_Failed => ResourceManager.GetString("HuoshanHttpTTS_Build_Failed", s_resourceCulture) ?? "";
+        public static string HuoshanHttpTTS_Rebuild_Succeeded => ResourceManager.GetString("HuoshanHttpTTS_Rebuild_Succeeded", s_resourceCulture) ?? "";
+        public static string HuoshanHttpTTS_Rebuild_Rejected => ResourceManager.GetString("HuoshanHttpTTS_Rebuild_Rejected", s_resourceCulture) ?? "";
         public static string HuoshanHttpTTS_SynthesisAsync_ModelNotBuilt => ResourceManager.GetString("HuoshanHttpTTS_SynthesisAsync_ModelNotBuilt", s_resourceCulture) ?? "";
         public static string HuoshanHttpTTS_SynthesisAsync_DevNotReg => ResourceManager.GetString("HuoshanHttpTTS_SynthesisAsync_DevNotReg", s_resourceCulture) ?? "";
         public static string HuoshanHttpTTS_SynthesisAsync_MissingSentenceId => ResourceManager.GetString("HuoshanHttpTTS_SynthesisAsync_MissingSentenceId", s_resourceCulture) ?? "";
@@ -453,6 +458,8 @@ namespace XiaoZhi.Net.Server.I18n
         public static string HuoshanStreamTTS_Build_ConfigIncomplete => ResourceManager.GetString("HuoshanStreamTTS_Build_ConfigIncomplete", s_resourceCulture) ?? "";
         public static string HuoshanStreamTTS_Build_Built => ResourceManager.GetString("HuoshanStreamTTS_Build_Built", s_resourceCulture) ?? "";
         public static string HuoshanStreamTTS_Build_Failed => ResourceManager.GetString("HuoshanStreamTTS_Build_Failed", s_resourceCulture) ?? "";
+        public static string HuoshanStreamTTS_Rebuild_Succeeded => ResourceManager.GetString("HuoshanStreamTTS_Rebuild_Succeeded", s_resourceCulture) ?? "";
+        public static string HuoshanStreamTTS_Rebuild_Rejected => ResourceManager.GetString("HuoshanStreamTTS_Rebuild_Rejected", s_resourceCulture) ?? "";
         public static string HuoshanStreamTTS_ConnectAsync_ClientNotInitLog => ResourceManager.GetString("HuoshanStreamTTS_ConnectAsync_ClientNotInitLog", s_resourceCulture) ?? "";
         public static string HuoshanStreamTTS_ConnectAsync_ClientNotInitEx => ResourceManager.GetString("HuoshanStreamTTS_ConnectAsync_ClientNotInitEx", s_resourceCulture) ?? "";
         public static string HuoshanStreamTTS_WaitForEventAsync_Timeout => ResourceManager.GetString("HuoshanStreamTTS_WaitForEventAsync_Timeout", s_resourceCulture) ?? "";
@@ -559,6 +566,9 @@ namespace XiaoZhi.Net.Server.I18n
         public static string AliyunRealtimeTTS_Build_InvalidAudioParameter => ResourceManager.GetString("AliyunRealtimeTTS_Build_InvalidAudioParameter", s_resourceCulture) ?? "";
         public static string AliyunRealtimeTTS_Build_Built => ResourceManager.GetString("AliyunRealtimeTTS_Build_Built", s_resourceCulture) ?? "";
         public static string AliyunRealtimeTTS_Build_Failed => ResourceManager.GetString("AliyunRealtimeTTS_Build_Failed", s_resourceCulture) ?? "";
+        public static string AliyunRealtimeTTS_Rebuild_Rejected => ResourceManager.GetString("AliyunRealtimeTTS_Rebuild_Rejected", s_resourceCulture) ?? "";
+        public static string AliyunRealtimeTTS_Rebuild_Succeeded => ResourceManager.GetString("AliyunRealtimeTTS_Rebuild_Succeeded", s_resourceCulture) ?? "";
+        public static string AliyunRealtimeTTS_Rebuild_Failed => ResourceManager.GetString("AliyunRealtimeTTS_Rebuild_Failed", s_resourceCulture) ?? "";
         public static string AliyunRealtimeTTS_Build_EndpointInvalid => ResourceManager.GetString("AliyunRealtimeTTS_Build_EndpointInvalid", s_resourceCulture) ?? "";
         public static string AliyunRealtimeTTS_Build_UnsupportedRegion => ResourceManager.GetString("AliyunRealtimeTTS_Build_UnsupportedRegion", s_resourceCulture) ?? "";
         public static string AliyunRealtimeTTS_Synthesis_NotRegistered => ResourceManager.GetString("AliyunRealtimeTTS_Synthesis_NotRegistered", s_resourceCulture) ?? "";
@@ -578,6 +588,9 @@ namespace XiaoZhi.Net.Server.I18n
         public static string AliyunHttpTTS_Build_InvalidAudioParameter => ResourceManager.GetString("AliyunHttpTTS_Build_InvalidAudioParameter", s_resourceCulture) ?? "";
         public static string AliyunHttpTTS_Build_Built => ResourceManager.GetString("AliyunHttpTTS_Build_Built", s_resourceCulture) ?? "";
         public static string AliyunHttpTTS_Build_Failed => ResourceManager.GetString("AliyunHttpTTS_Build_Failed", s_resourceCulture) ?? "";
+        public static string AliyunHttpTTS_Rebuild_Rejected => ResourceManager.GetString("AliyunHttpTTS_Rebuild_Rejected", s_resourceCulture) ?? "";
+        public static string AliyunHttpTTS_Rebuild_Succeeded => ResourceManager.GetString("AliyunHttpTTS_Rebuild_Succeeded", s_resourceCulture) ?? "";
+        public static string AliyunHttpTTS_Rebuild_Failed => ResourceManager.GetString("AliyunHttpTTS_Rebuild_Failed", s_resourceCulture) ?? "";
         public static string AliyunHttpTTS_Synthesis_NotRegistered => ResourceManager.GetString("AliyunHttpTTS_Synthesis_NotRegistered", s_resourceCulture) ?? "";
         public static string AliyunHttpTTS_Synthesis_NotBuilt => ResourceManager.GetString("AliyunHttpTTS_Synthesis_NotBuilt", s_resourceCulture) ?? "";
         public static string AliyunHttpTTS_Synthesis_MissingSentenceId => ResourceManager.GetString("AliyunHttpTTS_Synthesis_MissingSentenceId", s_resourceCulture) ?? "";

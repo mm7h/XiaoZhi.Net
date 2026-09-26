@@ -15,6 +15,8 @@ namespace XiaoZhi.Net.Server.Abstractions
 
         public IMediaTool MediaTool { get; internal set; } = null!;
 
+        public ITtsController TtsController { get; internal set; } = null!;
+
         public virtual ValueTask OnSessionConnectedAsync()
         {
             return ValueTask.CompletedTask;

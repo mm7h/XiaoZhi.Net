@@ -24,6 +24,11 @@ namespace XiaoZhi.Net.Server.Providers
         protected string SessionId { get; set; } = string.Empty;
         protected string DeviceId { get; set; } = string.Empty;
         public abstract bool Build(TSettings settings);
+        /// <summary>
+        /// Updates a provider's supported runtime settings without rebuilding its
+        /// model or transport. Providers opt in explicitly.
+        /// </summary>
+        public virtual bool Rebuild(TSettings settings) => false;
         public abstract void Dispose();
 
         public virtual void RegisterDevice(string deviceId, string sessionId)

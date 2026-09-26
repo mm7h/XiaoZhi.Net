@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using XiaoZhi.Net.Server.Abstractions.Common.Dtos.Tts;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums.Tts;
 using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Contexts.Aliyun;
@@ -36,6 +38,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
 
         public override bool Build(ModelSetting modelSetting)
         {
+            this._options = null;
             try
             {
                 string apiKey = modelSetting.Config.GetConfigValueOrDefault("ApiKey", string.Empty);
@@ -108,6 +111,84 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
                 this.Logger.LogError(ex, Lang.AliyunRealtimeTTS_Build_Failed);
                 return false;
             }
+        }
+
+        public TtsRuntimeState GetRuntimeState()
+        {
+            AliyunRealtimeTtsOptions? options = this._options;
+            return options is null
+                ? TtsRuntimeState.Unsupported
+                : new TtsRuntimeState(
+                    TtsProviderType.AliyunRealtime,
+                    new TtsRuntimeSettings(options.Voice, options.Rate, options.Pitch),
+                    true);
+        }
+
+        public override bool Rebuild(ModelSetting modelSetting)
+        {
+            AliyunRealtimeTtsOptions? options = this._options;
+            if (options is null
+                || modelSetting is null
+                || !string.Equals(modelSetting.ModelName, this.ModelName, StringComparison.OrdinalIgnoreCase))
+            {
+                return this.RejectRebuild();
+            }
+
+            try
+            {
+                bool hasVoice = modelSetting.Config.ContainsKey("Voice");
+                bool hasSpeechRate = modelSetting.Config.ContainsKey("SpeechRate");
+                bool hasPitch = modelSetting.Config.ContainsKey("Pitch");
+                if (!hasVoice && !hasSpeechRate && !hasPitch)
+                {
+                    return this.RejectRebuild();
+                }
+
+                string voice = options.Voice;
+                float rate = options.Rate;
+                float pitch = options.Pitch;
+                if (hasVoice)
+                {
+                    voice = modelSetting.Config.GetConfigValueOrDefault("Voice") ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(voice))
+                    {
+                        return this.RejectRebuild();
+                    }
+                }
+                if (hasSpeechRate)
+                {
+                    float? value = modelSetting.Config.GetConfigValueOrDefault<float?>("SpeechRate");
+                    if (!value.HasValue || !float.IsFinite(value.Value) || value.Value is < 0.5F or > 2.0F)
+                    {
+                        return this.RejectRebuild();
+                    }
+                    rate = value.Value;
+                }
+                if (hasPitch)
+                {
+                    float? value = modelSetting.Config.GetConfigValueOrDefault<float?>("Pitch");
+                    if (!value.HasValue || !float.IsFinite(value.Value) || value.Value is < 0.5F or > 2.0F)
+                    {
+                        return this.RejectRebuild();
+                    }
+                    pitch = value.Value;
+                }
+
+                this._options = options with { Voice = voice, Rate = rate, Pitch = pitch };
+                this.Logger.LogInformation(Lang.AliyunRealtimeTTS_Rebuild_Succeeded, this.ModelName);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                this.Logger.LogWarning(ex, Lang.AliyunRealtimeTTS_Rebuild_Failed, this.ModelName);
+                return false;
+            }
+        }
+
+        private bool RejectRebuild()
+        {
+            this.Logger.LogWarning(Lang.AliyunRealtimeTTS_Rebuild_Rejected, this.ModelName);
+            return false;
         }
 
         public void RegisterDevice(string deviceId, string sessionId, ITtsEventCallback callback)
