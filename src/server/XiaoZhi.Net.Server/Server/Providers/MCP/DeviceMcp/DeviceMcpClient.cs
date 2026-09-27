@@ -1,8 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Protocol;
-using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
+using XiaoZhi.Net.Server.Abstractions.Mcp;
 using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Helpers;
@@ -12,11 +13,13 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
 {
     internal class DeviceMcpClient : BaseMcpClient<DeviceMcpClient>, ISubMcpClient
     {
-        private string? _visionUrl;
-        private string? _visionToken;
+        private readonly IEnumerable<IDeviceMcpCapabilityContributor> _capabilityContributors;
+        private readonly List<IDeviceMcpCapabilityLease> _capabilityLeases = [];
+        private readonly Dictionary<string, object?> _capabilities = new(StringComparer.OrdinalIgnoreCase);
 
-        public DeviceMcpClient(ILogger<DeviceMcpClient> logger) : base(logger)
+        public DeviceMcpClient(IEnumerable<IDeviceMcpCapabilityContributor> capabilityContributors, ILogger<DeviceMcpClient> logger) : base(logger)
         {
+            this._capabilityContributors = capabilityContributors;
         }
 
         public override string ModelName => SubMCPClientTypeNames.DeviceMcpClient;
@@ -24,14 +27,44 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
 
         public override bool Build(MCPClientBuildConfig config)
         {
+            this.ReleaseCapabilities();
             this.InitSession(config);
-            ModelSetting modelSetting = config.ModelSetting;
+            this._capabilities.Clear();
+            this._capabilities["roots"] = new
+            {
+                listChanged = true
+            };
+            this._capabilities["sampling"] = new { };
 
-            this._visionUrl = modelSetting.Config.GetConfigValueOrDefault("VisionUrl", string.Empty);
-            this._visionToken = modelSetting.Config.GetConfigValueOrDefault("VisionToken", string.Empty);
+            try
+            {
+                DeviceMcpCapabilityContext context = new DeviceMcpCapabilityContext(config.Session.SessionId, config.Session.DeviceId);
+                foreach (IDeviceMcpCapabilityContributor contributor in this._capabilityContributors)
+                {
+                    IDeviceMcpCapabilityLease? lease = contributor.CreateCapability(context);
+                    if (lease is null)
+                    {
+                        continue;
+                    }
 
+                    if (string.IsNullOrWhiteSpace(lease.CapabilityName)
+                        || lease.Capability is null
+                        || this._capabilities.ContainsKey(lease.CapabilityName))
+                    {
+                        lease.Dispose();
+                        throw new InvalidOperationException("An MCP capability contributor returned an invalid or duplicate capability name.");
+                    }
 
-
+                    this._capabilityLeases.Add(lease);
+                    this._capabilities.Add(lease.CapabilityName, lease.Capability);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.ReleaseCapabilities();
+                this.Logger.LogError(ex, Lang.DeviceMcpClient_Build_CreateCapabilitiesFailed, config.Session.DeviceId);
+                return false;
+            }
 
             _ = this.SendMcpInitializeAsync();
             _ = this.RequestToolsListAsync();
@@ -41,25 +74,10 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
 
         public override async Task SendMcpInitializeAsync()
         {
-
-            var vision = new
-            {
-                Url = this._visionUrl,
-                Token = this._visionToken
-            };
-
             var @params = new
             {
                 ProtocolVersion = "2024-11-05",
-                Capabilities = new
-                {
-                    Roots = new
-                    {
-                        ListChanged = true
-                    },
-                    Sampling = new { },
-                    Vision = vision
-                },
+                Capabilities = this._capabilities,
                 clientInfo = new
                 {
                     Name = this.ProviderType,
@@ -94,7 +112,25 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
 
         public override void Dispose()
         {
+            this.ReleaseCapabilities();
+            this._capabilities.Clear();
+        }
 
+        private void ReleaseCapabilities()
+        {
+            foreach (IDeviceMcpCapabilityLease lease in this._capabilityLeases)
+            {
+                try
+                {
+                    lease.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    this.Logger.LogWarning(ex, Lang.DeviceMcpClient_ReleaseCapabilities_ReleaseFailed, lease.CapabilityName);
+                }
+            }
+
+            this._capabilityLeases.Clear();
         }
     }
 }

@@ -828,6 +828,15 @@
   <data name="DeviceMcpClient_SendMcpInitializeAsync_SendingInit" xml:space="preserve">
     <value>会话 {sessionId} 发送 MCP 初始化请求。</value>
   </data>
+  <data name="DeviceMcpClient_Build_CreateCapabilitiesFailed" xml:space="preserve">
+    <value>为设备 {deviceId} 创建 MCP 能力失败。</value>
+  </data>
+  <data name="DeviceMcpClient_ReleaseCapabilities_ReleaseFailed" xml:space="preserve">
+    <value>释放 MCP 能力 {capabilityName} 失败。</value>
+  </data>
+  <data name="VisionEndpoint_HandlePostAsync_ProcessFailed" xml:space="preserve">
+    <value>处理视觉请求失败。</value>
+  </data>
   <data name="GenericOpenAI_Build_InvalidSettings" xml:space="preserve">
     <value>{providerType} 配置无效：{modelName}</value>
   </data>

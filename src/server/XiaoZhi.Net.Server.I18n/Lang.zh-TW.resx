@@ -828,6 +828,15 @@
   <data name="DeviceMcpClient_SendMcpInitializeAsync_SendingInit" xml:space="preserve">
     <value>工作階段 {sessionId} 發送 MCP 初始化請求。</value>
   </data>
+  <data name="DeviceMcpClient_Build_CreateCapabilitiesFailed" xml:space="preserve">
+    <value>為裝置 {deviceId} 建立 MCP 能力失敗。</value>
+  </data>
+  <data name="DeviceMcpClient_ReleaseCapabilities_ReleaseFailed" xml:space="preserve">
+    <value>釋放 MCP 能力 {capabilityName} 失敗。</value>
+  </data>
+  <data name="VisionEndpoint_HandlePostAsync_ProcessFailed" xml:space="preserve">
+    <value>處理視覺請求失敗。</value>
+  </data>
   <data name="GenericOpenAI_Build_InvalidSettings" xml:space="preserve">
     <value>{providerType} 設定無效：{modelName}</value>
   </data>

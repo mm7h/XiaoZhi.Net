@@ -146,7 +146,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             {
                 this.Tts.Dispose();
             }
-
             this.InputAudioResampler?.Dispose();
             this.OutputAudioResampler?.Dispose();
             this.AudioEncoder?.Dispose();

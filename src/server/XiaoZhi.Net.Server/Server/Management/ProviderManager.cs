@@ -756,7 +756,6 @@ namespace XiaoZhi.Net.Server.Management
             bool asrRegistered = this.RegisterGlobalAsrProviders(session);
             bool llmRegistered = this.RegisterGlobalLlmProviders(session, memoryInstruction);
             bool ttsRegistered = this.RegisterGlobalTtsProviders(session);
-
             return vadRegistered && asrRegistered && llmRegistered && ttsRegistered;
         }
 

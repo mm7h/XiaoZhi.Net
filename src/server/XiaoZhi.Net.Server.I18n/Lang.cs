@@ -358,7 +358,13 @@ namespace XiaoZhi.Net.Server.I18n
         #endregion
 
         #region DeviceMcpClient
+        public static string DeviceMcpClient_Build_CreateCapabilitiesFailed => ResourceManager.GetString("DeviceMcpClient_Build_CreateCapabilitiesFailed", s_resourceCulture) ?? "";
+        public static string DeviceMcpClient_ReleaseCapabilities_ReleaseFailed => ResourceManager.GetString("DeviceMcpClient_ReleaseCapabilities_ReleaseFailed", s_resourceCulture) ?? "";
         public static string DeviceMcpClient_SendMcpInitializeAsync_SendingInit => ResourceManager.GetString("DeviceMcpClient_SendMcpInitializeAsync_SendingInit", s_resourceCulture) ?? "";
+        #endregion
+
+        #region VisionEndpoint
+        public static string VisionEndpoint_HandlePostAsync_ProcessFailed => ResourceManager.GetString("VisionEndpoint_HandlePostAsync_ProcessFailed", s_resourceCulture) ?? "";
         #endregion
 
         #region GenericOpenAI

@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\server\rag\XiaoZhi.Net.Server.RAG.Qdrant\XiaoZhi.Net.Server.RAG.Qdrant.csproj" />
     <ProjectReference Include="..\..\src\server\XiaoZhi.Net.Server\XiaoZhi.Net.Server.csproj" />
+    <ProjectReference Include="..\..\src\server\vision\XiaoZhi.Net.Server.Vision\XiaoZhi.Net.Server.Vision.csproj" />
   </ItemGroup>
 
   <ItemGroup>

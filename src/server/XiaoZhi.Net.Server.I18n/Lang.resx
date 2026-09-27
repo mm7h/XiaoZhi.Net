@@ -828,6 +828,15 @@
   <data name="DeviceMcpClient_SendMcpInitializeAsync_SendingInit" xml:space="preserve">
     <value>Session {sessionId} sending MCP Initialize request.</value>
   </data>
+  <data name="DeviceMcpClient_Build_CreateCapabilitiesFailed" xml:space="preserve">
+    <value>Failed to create MCP capabilities for device {deviceId}.</value>
+  </data>
+  <data name="DeviceMcpClient_ReleaseCapabilities_ReleaseFailed" xml:space="preserve">
+    <value>Failed to release the {capabilityName} MCP capability.</value>
+  </data>
+  <data name="VisionEndpoint_HandlePostAsync_ProcessFailed" xml:space="preserve">
+    <value>Failed to process a vision request.</value>
+  </data>
   <data name="GenericOpenAI_Build_InvalidSettings" xml:space="preserve">
     <value>Invalid model settings for {providerType}: {modelName}</value>
   </data>

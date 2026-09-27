@@ -41,6 +41,16 @@ try
             .WithPrivateFunctionTools<TtsSettingsFunctionTool>()
             // 多媒体文件格式支持
             .WithMedia(useFFmpegAudioMixer: true)
+            // 视觉模块独立管理 HTTP 上传、设备令牌和模型配置；主服务只下发 MCP capability。
+            //.WithVision(options =>
+            //{
+            //    options.ListenUrl = "http://0.0.0.0:8003";
+            //    options.PublicExplainUrl = "https://your-public-host/mcp/vision/explain";
+            //    options.UploadTokenSigningKey = "replace-with-at-least-32-byte-secret";
+            //    options.Model.Endpoint = "https://your-openai-compatible-endpoint/v1";
+            //    options.Model.ApiKey = "read-from-a-secret-store";
+            //    options.Model.ModelName = "your-vision-model";
+            //})
             //.WithManageApi("http://localhost:5118", "your-secret")
             // 设置日志输出语言
             .WithCulture("zh-CN")
