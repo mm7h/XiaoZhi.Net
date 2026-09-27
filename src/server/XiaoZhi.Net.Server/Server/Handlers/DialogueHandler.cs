@@ -226,6 +226,10 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override void Dispose()
         {
+            if (this.IsDisposed)
+            {
+                return;
+            }
             if (this._llm is not null)
             {
                 this._llm.OnBeforeTokenGenerate -= this.OnBeforeTokenGenerate;
@@ -236,9 +240,8 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     this._llm.UnregisterDevice(session.DeviceId, session.SessionId);
                 }
-                this._llm.Dispose();
             }
-            this.NextWriter.Complete();
+            this.NextWriter?.TryComplete();
             base.Dispose();
         }
     }

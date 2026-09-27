@@ -76,10 +76,6 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                 SingleReader = true
             };
             this._processingChannel = Channel.CreateBounded<MusicFileRequest>(boundedChannelOptions);
-
-            this._processingCts = new CancellationTokenSource();
-            this._processingTask = Task.Run(() => this.AudioFileProcessingAsync(this._processingCts.Token));
-
             return true;
         }
 
@@ -104,6 +100,12 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                     this._musicProviderSetting.CommandTimeout,
                     cancellationToken);
                 lockAcquired = true;
+
+                if (this._processingTask is null)
+                {
+                    this._processingCts = new CancellationTokenSource();
+                    this._processingTask = this.AudioFileProcessingAsync(this._processingCts.Token);
+                }
 
                 if (this.PlaybackState != PlaybackState.Idle
                     || Volatile.Read(ref this._activePlaybackCts) is not null)

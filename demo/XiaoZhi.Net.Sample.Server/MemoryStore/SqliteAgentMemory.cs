@@ -12,9 +12,11 @@ namespace XiaoZhi.Net.Sample.Server.MemoryStore
     {
         private static readonly string s_databasePath = Path.Combine(AppContext.BaseDirectory, "data", "memory", "agent-memory.db");
         private static readonly string s_connectionString = new SqliteConnectionStringBuilder { DataSource = s_databasePath }.ToString();
+        private readonly Lazy<Task> _initialize = new(InitializeAsync);
 
         public async Task SaveMemoryAsync(string deviceId, string sessionId, IReadOnlyList<ChatMessage> chatMessages)
         {
+            await this._initialize.Value;
             string memoryText = BuildMemoryText(chatMessages);
             if (string.IsNullOrWhiteSpace(memoryText))
             {
@@ -41,6 +43,7 @@ namespace XiaoZhi.Net.Sample.Server.MemoryStore
 
         public async Task<string?> GetMemoryInstructionAsync(string deviceId)
         {
+            await this._initialize.Value;
             await using SqliteConnection connection = await OpenConnectionAsync();
             await using SqliteCommand command = connection.CreateCommand();
             command.CommandText = "SELECT memory_text FROM agent_memory WHERE device_id = @deviceId;";
@@ -57,11 +60,15 @@ namespace XiaoZhi.Net.Sample.Server.MemoryStore
 
         private static async Task<SqliteConnection> OpenConnectionAsync()
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(s_databasePath)!);
-
             var connection = new SqliteConnection(s_connectionString);
             await connection.OpenAsync();
+            return connection;
+        }
 
+        private static async Task InitializeAsync()
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(s_databasePath)!);
+            await using SqliteConnection connection = await OpenConnectionAsync();
             await using SqliteCommand command = connection.CreateCommand();
             command.CommandText = """
                 CREATE TABLE IF NOT EXISTS agent_memory (
@@ -72,8 +79,6 @@ namespace XiaoZhi.Net.Sample.Server.MemoryStore
                 );
                 """;
             await command.ExecuteNonQueryAsync();
-
-            return connection;
         }
 
         private static string BuildMemoryText(IReadOnlyList<ChatMessage> chatMessages)

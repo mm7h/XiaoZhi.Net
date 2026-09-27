@@ -109,12 +109,12 @@ namespace XiaoZhi.Net.Server.Management
             }
         }
 
-        public override Task OnSessionConnectedAsync(Session session)
+        public override async Task OnSessionConnectedAsync(Session session)
         {
             if (!this._hasFunctionTools)
             {
                 //log
-                return Task.CompletedTask;
+                return;
             }
 
             List<FunctionToolRegistration> globalRegistrations = [];
@@ -133,7 +133,7 @@ namespace XiaoZhi.Net.Server.Management
             }
             session.PrivateProvider.FunctionToolsContext.AddFunctionToolRegistrations(globalRegistrations);
 
-            Dictionary<Type, IPrivateFunctionTool> privateFunctionTools = this.ServiceProvider.GetServices<IPrivateFunctionTool>().ToDictionary(i => i.GetType());
+            Dictionary<Type, IPrivateFunctionTool> privateFunctionTools = session.ServiceProvider.GetServices<IPrivateFunctionTool>().ToDictionary(i => i.GetType());
             List<Exception> functionExceptions = [];
 
             foreach (var item in privateFunctionTools)
@@ -166,7 +166,7 @@ namespace XiaoZhi.Net.Server.Management
 
                     try
                     {
-                        _ = instance.OnFunctionToolInitializedAsync().AsTask();
+                        await instance.OnFunctionToolInitializedAsync();
                     }
                     catch (Exception ex)
                     {
@@ -181,29 +181,24 @@ namespace XiaoZhi.Net.Server.Management
                 this.Logger.LogError(aggregateException, "FunctionToolManager.OnSessionConnectedAsync 处理函数工具时发生异常");
             }
 
-            return Task.CompletedTask;
         }
 
 
 
-        public override Task OnSessionClosedAsync(Session session)
+        public override async Task OnSessionClosedAsync(Session session)
         {
             if (!session.PrivateProvider.FunctionToolsContext.PrivateFunctionTools.Any())
             {
-                return Task.CompletedTask;
+                return;
             }
 
             try
             {
-                Parallel.ForEach(session.PrivateProvider.FunctionToolsContext.PrivateFunctionTools, instance =>
+                foreach (IPrivateFunctionTool instance in session.PrivateProvider.FunctionToolsContext.PrivateFunctionTools)
                 {
-                    _ = instance.OnSessionClosedAsync().AsTask();
-                    _ = instance.OnFunctionToolReleasedAsync().AsTask();
-                    if (instance is IDisposable disposable)
-                    {
-                        disposable.Dispose();
-                    }
-                });
+                    await instance.OnSessionClosedAsync();
+                    await instance.OnFunctionToolReleasedAsync();
+                }
             }
             catch (AggregateException ae)
             {
@@ -214,16 +209,14 @@ namespace XiaoZhi.Net.Server.Management
                 this.Logger.LogError(ex, "FunctionToolManager.OnSessionClosedAsync 处理函数工具时发生异常");
             }
 
-            return Task.CompletedTask;
         }
 
-        public override Task OnSessionPropertyInitializedAsync(Session session, JsonObject helloMessage)
+        public override async Task OnSessionPropertyInitializedAsync(Session session, JsonObject helloMessage)
         {
             if (session.PrivateProvider.FunctionToolsContext.PrivateFunctionTools.Any())
             {
-                _ = Task.WhenAll(session.PrivateProvider.FunctionToolsContext.PrivateFunctionTools.Select(instance => instance.OnSessionConnectedAsync().AsTask()));
+                await Task.WhenAll(session.PrivateProvider.FunctionToolsContext.PrivateFunctionTools.Select(instance => instance.OnSessionConnectedAsync().AsTask()));
             }
-            return Task.CompletedTask;
         }
 
         public override void Dispose()

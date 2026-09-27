@@ -10,6 +10,7 @@ namespace XiaoZhi.Net.PerformanceTest.Execution;
 
 internal sealed class XiaoZhiPerformanceClient : IAsyncDisposable
 {
+    private static readonly AudioFormat s_helloOnlyAudioFormat = new(16000, 1, 16, 60);
     private static readonly JsonSerializerOptions s_jsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
@@ -24,7 +25,8 @@ internal sealed class XiaoZhiPerformanceClient : IAsyncDisposable
 
     private readonly Uri _serverUri;
     private readonly string _deviceId;
-    private readonly CachedAudio _audio;
+    private readonly CachedAudio? _audio;
+    private readonly AudioFormat _audioFormat;
     private readonly ILogger _logger;
     private readonly ClientWebSocket _socket = new();
     private readonly TaskCompletionSource<HelloResponse> _hello = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -39,16 +41,22 @@ internal sealed class XiaoZhiPerformanceClient : IAsyncDisposable
     private int _phase = (int)ConversationPhase.Initial;
     private int _earlyAudioBeforeStop;
 
-    public XiaoZhiPerformanceClient(Uri serverUri, string deviceId, CachedAudio audio, ILogger logger)
+    public XiaoZhiPerformanceClient(Uri serverUri, string deviceId, CachedAudio? audio, ILogger logger)
     {
         this._serverUri = serverUri;
         this._deviceId = deviceId;
         this._audio = audio;
+        this._audioFormat = audio?.Format ?? s_helloOnlyAudioFormat;
         this._logger = logger;
         this._socket.Options.SetRequestHeader("device-id", deviceId);
     }
 
-    public async Task<RoundResult> ExecuteAsync(int clientNumber, int roundNumber, CancellationToken cancellationToken)
+    public async Task<RoundResult> ExecuteAsync(
+        int clientNumber,
+        int roundNumber,
+        bool helloOnly,
+        Func<RoundResult, Task>? beforeDisposeAsync,
+        CancellationToken cancellationToken)
     {
         RoundResult result = new(clientNumber, roundNumber);
         try
@@ -78,9 +86,9 @@ internal sealed class XiaoZhiPerformanceClient : IAsyncDisposable
                     audio_params = new
                     {
                         format = "opus",
-                        sample_rate = this._audio.Format.SampleRate,
-                        channels = this._audio.Format.Channels,
-                        frame_duration = this._audio.Format.FrameDurationMilliseconds
+                        sample_rate = this._audioFormat.SampleRate,
+                        channels = this._audioFormat.Channels,
+                        frame_duration = this._audioFormat.FrameDurationMilliseconds
                     }
                 }, cancellationToken);
                 HelloResponse hello = await WaitForAsync(this._hello.Task, s_helloTimeout, "Hello", cancellationToken);
@@ -91,6 +99,12 @@ internal sealed class XiaoZhiPerformanceClient : IAsyncDisposable
             {
                 result.Hello = StageMeasurement.Failed(Elapsed(helloStart), DescribeException("hello", exception));
                 result.Failure = result.Hello.Failure;
+                return result;
+            }
+
+            if (helloOnly)
+            {
+                result.Completed = true;
                 return result;
             }
 
@@ -166,14 +180,24 @@ internal sealed class XiaoZhiPerformanceClient : IAsyncDisposable
         }
         finally
         {
-            await this.DisposeAsync();
+            try
+            {
+                if (beforeDisposeAsync is not null)
+                {
+                    await beforeDisposeAsync(result);
+                }
+            }
+            finally
+            {
+                await this.DisposeAsync();
+            }
         }
     }
 
     private async Task SendAudioFramesAsync(CancellationToken cancellationToken)
     {
         long scheduleStart = Stopwatch.GetTimestamp();
-        for (int index = 0; index < this._audio.OpusFrames.Count; index++)
+        for (int index = 0; index < this._audio!.OpusFrames.Count; index++)
         {
             await this._socket.SendAsync(this._audio.OpusFrames[index], WebSocketMessageType.Binary, true, cancellationToken);
             if (index >= this._audio.OpusFrames.Count - 1)

@@ -47,7 +47,7 @@ namespace XiaoZhi.Net.Server.Management
 
         public override Task OnSessionConnectedAsync(Session session)
         {
-            var helloMessageHandler = this.ServiceProvider.GetRequiredService<HelloMessageHandler>();
+            var helloMessageHandler = session.ServiceProvider.GetRequiredService<HelloMessageHandler>();
             this.InitializeSendOutter(session, helloMessageHandler);
 
             session.HandlerPipeline.InitHelloMessageHandler(helloMessageHandler);
@@ -56,13 +56,13 @@ namespace XiaoZhi.Net.Server.Management
 
         public override Task<bool> OnSessionPropertyInitializingAsync(Session session)
         {
-            var textHandler = this.ServiceProvider.GetRequiredService<TextHandler>();
-            var audioReceiveHandler = this.ServiceProvider.GetRequiredService<AudioReceiveHandler>();
-            var audio2TextHandler = this.ServiceProvider.GetRequiredService<Audio2TextHandler>();
-            var dialogueHandler = this.ServiceProvider.GetRequiredService<DialogueHandler>();
-            var text2AudioHandler = this.ServiceProvider.GetRequiredService<Text2AudioHandler>();
-            var audioProcessorHandler = this.ServiceProvider.GetRequiredService<AudioProcessorHandler>();
-            var audioSendHandler = this.ServiceProvider.GetRequiredService<AudioSendHandler>();
+            var textHandler = session.ServiceProvider.GetRequiredService<TextHandler>();
+            var audioReceiveHandler = session.ServiceProvider.GetRequiredService<AudioReceiveHandler>();
+            var audio2TextHandler = session.ServiceProvider.GetRequiredService<Audio2TextHandler>();
+            var dialogueHandler = session.ServiceProvider.GetRequiredService<DialogueHandler>();
+            var text2AudioHandler = session.ServiceProvider.GetRequiredService<Text2AudioHandler>();
+            var audioProcessorHandler = session.ServiceProvider.GetRequiredService<AudioProcessorHandler>();
+            var audioSendHandler = session.ServiceProvider.GetRequiredService<AudioSendHandler>();
 
             IDictionary<string, IHandler> handlerContainer = new Dictionary<string, IHandler>
             {
@@ -94,10 +94,7 @@ namespace XiaoZhi.Net.Server.Management
             this.ScheduleOnAbort(audioProcessorHandler);
             this.ScheduleOnAbort(audioSendHandler);
 
-            bool buildResults = handlerContainer.Values
-               .AsParallel()
-               .Select(h => h.Build(session.PrivateProvider))
-               .All(result => result);
+            bool buildResults = handlerContainer.Values.All(h => h.Build(session.PrivateProvider));
 
             if (!buildResults)
             {
@@ -105,13 +102,12 @@ namespace XiaoZhi.Net.Server.Management
                 return Task.FromResult(false);
             }
 
-            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, audioReceiveHandler, audio2TextHandler);
-            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, textHandler, audio2TextHandler, dialogueHandler);
-            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, dialogueHandler, text2AudioHandler);
-            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, text2AudioHandler, audioProcessorHandler);
-            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, audioProcessorHandler, audioSendHandler);
-
             session.HandlerPipeline.InitHandlerPipeline(handlerContainer);
+            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, audioReceiveHandler, audio2TextHandler, session.HandlerPipeline);
+            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, textHandler, audio2TextHandler, dialogueHandler, session.HandlerPipeline);
+            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, dialogueHandler, text2AudioHandler, session.HandlerPipeline);
+            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, text2AudioHandler, audioProcessorHandler, session.HandlerPipeline);
+            this.BuildHandlersWorkflow(CHANNEL_CAPACITY, audioProcessorHandler, audioSendHandler, session.HandlerPipeline);
 
             return Task.FromResult(true);
         }
@@ -121,7 +117,7 @@ namespace XiaoZhi.Net.Server.Management
             outHandler.SendOutter = session.SendOutter;
         }
 
-        private void BuildHandlersWorkflow<T>(int channelCapacity, IOutHandler<T> previous, IInHandler<T> next)
+        private void BuildHandlersWorkflow<T>(int channelCapacity, IOutHandler<T> previous, IInHandler<T> next, HandlerPipeline pipeline)
         {
             BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(channelCapacity)
             {
@@ -133,11 +129,11 @@ namespace XiaoZhi.Net.Server.Management
             previous.NextWriter = channel.Writer;
             next.PreviousReader = channel.Reader;
 
-            Task.Run(next.HandleAsync);
+            pipeline.Track(next.HandleAsync(), channel.Writer);
             this.Logger?.LogDebug(Lang.HandlerManager_BuildHandlersWorkflow_BuiltWorkflow, previous.GetType().Name, next.GetType().Name);
         }
 
-        private void BuildHandlersWorkflow<T1, T2, T3>(int channelCapacity, IOutHandler<T1, T2, T3> previous, IInHandler<T1, T2, T3> next)
+        private void BuildHandlersWorkflow<T1, T2, T3>(int channelCapacity, IOutHandler<T1, T2, T3> previous, IInHandler<T1, T2, T3> next, HandlerPipeline pipeline)
         {
             BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(channelCapacity)
             {
@@ -148,22 +144,22 @@ namespace XiaoZhi.Net.Server.Management
             Channel<Workflow<T1>> channel = Channel.CreateBounded<Workflow<T1>>(boundedChannelOptions);
             previous.NextWriter = channel.Writer;
             next.PreviousReader = channel.Reader;
-            Task.Run(next.HandleAsync);
+            pipeline.Track(next.HandleAsync(), channel.Writer);
 
             Channel<Workflow<T2>> channel2 = Channel.CreateBounded<Workflow<T2>>(boundedChannelOptions);
             previous.NextWriter2 = channel2.Writer;
             next.PreviousReader2 = channel2.Reader;
-            Task.Run(next.Handle2Async);
+            pipeline.Track(next.Handle2Async(), channel2.Writer);
 
             Channel<Workflow<T3>> channel3 = Channel.CreateBounded<Workflow<T3>>(boundedChannelOptions);
             previous.NextWriter3 = channel3.Writer;
             next.PreviousReader3 = channel3.Reader;
-            Task.Run(next.Handle3Async);
+            pipeline.Track(next.Handle3Async(), channel3.Writer);
 
             this.Logger?.LogDebug(Lang.HandlerManager_BuildHandlersWorkflow_BuiltWorkflow, previous.GetType().Name, next.GetType().Name);
         }
 
-        private void BuildHandlersWorkflow<T>(int channelCapacity, IOutHandler<T> previous1, IOutHandler<T> previous2, IInHandler<T, T> next)
+        private void BuildHandlersWorkflow<T>(int channelCapacity, IOutHandler<T> previous1, IOutHandler<T> previous2, IInHandler<T, T> next, HandlerPipeline pipeline)
         {
             BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(channelCapacity)
             {
@@ -174,12 +170,12 @@ namespace XiaoZhi.Net.Server.Management
             Channel<Workflow<T>> channel1 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous1.NextWriter = channel1.Writer;
             next.PreviousReader = channel1.Reader;
-            Task.Run(next.HandleAsync);
+            pipeline.Track(next.HandleAsync(), channel1.Writer);
 
             Channel<Workflow<T>> channel2 = Channel.CreateBounded<Workflow<T>>(boundedChannelOptions);
             previous2.NextWriter = channel2.Writer;
             next.PreviousReader2 = channel2.Reader;
-            Task.Run(next.Handle2Async);
+            pipeline.Track(next.Handle2Async(), channel2.Writer);
 
             this.Logger?.LogDebug(Lang.HandlerManager_BuildHandlersWorkflow_BuiltWorkflow, previous1.GetType().Name, next.GetType().Name);
             this.Logger?.LogDebug(Lang.HandlerManager_BuildHandlersWorkflow_BuiltWorkflow, previous2.GetType().Name, next.GetType().Name);

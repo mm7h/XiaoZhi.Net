@@ -71,7 +71,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM
                 this._subAgents[outputAgent.AgentName] = outputAgent;
 
                 bool buildSuccess = this._subAgents.Values
-                    .AsParallel()
                     .Select(agent =>
                     {
                         if (modelSetting.AgentSettings.TryGetValue(agent.AgentName, out ModelSetting? agentSetting))

@@ -150,6 +150,10 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override void Dispose()
         {
+            if (this.IsDisposed)
+            {
+                return;
+            }
             if (this._audioEncoder is not null)
             {
                 Session session = this.SendOutter.GetSession();

@@ -121,38 +121,11 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         {
             this._audioProcessor = audioProcessor;
         }
+        // 会话 Provider 由 Session 的 DI 作用域统一释放。
         public void Release()
         {
-            if (this._session is not null)
-            {
-                this._session.SessionCtsTokenChanged -= this.OnSessionCtsTokenChanged;
-            }
-            try
-            {
-                this._providerCts?.Dispose();
-            }
-            catch (ObjectDisposedException)
-            {
-            }
-            if (this.Vad is not null && !this.Vad.IsSherpaModel)
-            {
-                this.Vad.Dispose();
-            }
-            if (this.Asr is not null && !this.Asr.IsSherpaModel)
-            {
-                this.Asr.Dispose();
-            }
-            if (this.Tts is not null && !this.Tts.IsSherpaModel)
-            {
-                this.Tts.Dispose();
-            }
-            this.InputAudioResampler?.Dispose();
-            this.OutputAudioResampler?.Dispose();
-            this.AudioEncoder?.Dispose();
-            this._iotClient?.Dispose();
-            this._mcpClient?.Dispose();
-            this._audioPlayerClient?.Dispose();
-            this._audioProcessor?.Dispose();
+            this._session.SessionCtsTokenChanged -= this.OnSessionCtsTokenChanged;
+            this._providerCts?.Dispose();
             this.FunctionToolsContext.Release();
         }
     }

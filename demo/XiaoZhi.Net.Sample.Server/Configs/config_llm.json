@@ -15,7 +15,7 @@
       "Deepseek": {
         "BaseUrl": "https://api.deepseek.com",
         "ApiKey": "to your llm api key",
-        "ModelName": "deepseek-v4.1-flash",
+        "ModelName": "deepseek-flash",
         "Type": "chat"
       },
       "Doubao": {

@@ -24,7 +24,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
 
         public override void Dispose()
         {
-            this._musicPlayer.Dispose();
+            // 音乐播放器由会话 DI 作用域释放。
         }
     }
 }

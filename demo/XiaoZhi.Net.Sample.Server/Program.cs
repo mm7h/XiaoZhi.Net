@@ -75,13 +75,12 @@ catch (Exception ex)
 }
 finally
 {
-    if (serverHost is not null)
-    {
-        await serverHost.StopAsync();
-    }
     Console.WriteLine("The server stopped.");
-    Console.WriteLine("Press any key to exit...");
-    Console.ReadKey();
+    if (!Console.IsInputRedirected)
+    {
+        Console.WriteLine("Press any key to exit...");
+        Console.ReadKey();
+    }
 }
 
 static void PrintBanner()
@@ -89,10 +88,19 @@ static void PrintBanner()
     string version = typeof(EngineFactory).Assembly.GetName().Version?.ToString()
         ?? "unknown";
     string serverInfo = $"XiaoZhi.Net.Server v{version} \t by mm7h";
+    int consoleWidth;
+    try
+    {
+        consoleWidth = Console.WindowWidth;
+    }
+    catch (IOException)
+    {
+        consoleWidth = 80;
+    }
     Console.WriteLine(FiggleFonts.Swampland.Render("XiaoZhi.Net"));
-    Console.WriteLine($"{new string(' ', Math.Max(0, (Console.WindowWidth - serverInfo.Length) / 2))}{serverInfo}");
+    Console.WriteLine($"{new string(' ', Math.Max(0, (consoleWidth - serverInfo.Length) / 2))}{serverInfo}");
     Console.WriteLine();
-    Console.WriteLine(new string('=', Math.Max(1, Console.WindowWidth - 1)));
+    Console.WriteLine(new string('=', Math.Max(1, consoleWidth - 1)));
     Console.WriteLine();
 }
 

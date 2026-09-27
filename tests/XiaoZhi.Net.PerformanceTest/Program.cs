@@ -41,25 +41,35 @@ CommandOption audioOption = app.Option(
     "-a|--audio <FILE>",
     "audios 目录中的 WAV 文件名或路径；目录仅有一个 WAV 时可省略。",
     CommandOptionType.SingleValue);
+CommandOption helloOnlyOption = app.Option(
+    "--hello-only",
+    "仅测试 WebSocket 连接与 Hello 返回，不加载或发送音频。",
+    CommandOptionType.NoValue);
+bool unattended = false;
 
 app.OnExecuteAsync(async cancellationToken =>
 {
-    using CancellationTokenSource linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
-        cancellationToken,
-        shutdown.Token);
+    using CancellationTokenSource linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, shutdown.Token);
 
     try
     {
-        IReadOnlyList<string> audioNames = AudioCache.GetAudioNamesFromOutputDirectory(AppContext.BaseDirectory);
-        string selectedAudio = SharpromptPrompt.Select<string>(options => options
-            .WithMessage("选择测试音频")
-            .WithItems(audioNames)
-            .WithDefaultValue(GetDefaultAudio(audioOption.Value(), audioNames)));
+        unattended = helloOnlyOption.HasValue() && serverOption.HasValue() && clientsOption.HasValue() && roundsOption.HasValue();
+        bool helloOnly = unattended || SharpromptPrompt.Confirm("仅测试连接与 Hello", helloOnlyOption.HasValue());
+        string? selectedAudio = null;
+        if (!helloOnly)
+        {
+            IReadOnlyList<string> audioNames = AudioCache.GetAudioNamesFromOutputDirectory(AppContext.BaseDirectory);
+            selectedAudio = SharpromptPrompt.Select<string>(options => options
+                .WithMessage("选择测试音频")
+                .WithItems(audioNames)
+                .WithDefaultValue(GetDefaultAudio(audioOption.Value(), audioNames)));
+        }
         TestOptions options = TestOptions.Parse(
-            SharpromptPrompt.Input<string>("WebSocket 服务端地址", serverOption.Value() ?? TestOptions.DefaultServer),
-            SharpromptPrompt.Input<string>("并发客户端数", clientsOption.Value() ?? TestOptions.DefaultClients.ToString()),
-            SharpromptPrompt.Input<string>("每个客户端执行轮数", roundsOption.Value() ?? TestOptions.DefaultRounds.ToString()),
-            selectedAudio);
+            unattended ? serverOption.Value() : SharpromptPrompt.Input<string>("WebSocket 服务端地址", serverOption.Value() ?? TestOptions.DefaultServer),
+            unattended ? clientsOption.Value() : SharpromptPrompt.Input<string>("并发客户端数", clientsOption.Value() ?? TestOptions.DefaultClients.ToString()),
+            unattended ? roundsOption.Value() : SharpromptPrompt.Input<string>("每个客户端执行轮数", roundsOption.Value() ?? TestOptions.DefaultRounds.ToString()),
+            selectedAudio,
+            helloOnly);
 
         string runDirectory = Path.Combine(AppContext.BaseDirectory, "logs");
         Directory.CreateDirectory(runDirectory);
@@ -72,13 +82,20 @@ app.OnExecuteAsync(async cancellationToken =>
 
         try
         {
-            AudioCache audioCache = AudioCache.LoadFromOutputDirectory(AppContext.BaseDirectory, options.AudioSelector);
+            CachedAudio? audio = options.HelloOnly ? null : AudioCache.LoadFromOutputDirectory(AppContext.BaseDirectory, options.AudioSelector).Selected;
             Console.WriteLine($"服务端: {options.ServerUri}");
             Console.WriteLine($"并发客户端: {options.ClientCount}；每客户端轮数: {options.Rounds}；总轮次: {options.TotalRounds}");
-            Console.WriteLine($"音频: {audioCache.Selected.Name}，{audioCache.Selected.FrameCount} 个 Opus 帧，{audioCache.Selected.Format.SampleRate} Hz 单声道");
+            if (audio is null)
+            {
+                Console.WriteLine("模式: 仅连接与 Hello；成功连接保留至本轮所有客户端完成 Hello 尝试");
+            }
+            else
+            {
+                Console.WriteLine($"音频: {audio.Name}，{audio.FrameCount} 个 Opus 帧，{audio.Format.SampleRate} Hz 单声道");
+            }
             Console.WriteLine($"日志: {logPath}");
 
-            PerformanceTestRunner runner = new(options, audioCache.Selected, Log.Logger);
+            PerformanceTestRunner runner = new(options, audio, Log.Logger);
             TestRunReport report = await runner.RunAsync(linkedCancellation.Token);
             Console.WriteLine();
             Console.WriteLine(report.Render());
@@ -109,6 +126,14 @@ catch (CommandParsingException exception)
 {
     Console.Error.WriteLine($"命令行参数无效: {exception.Message}");
     return 2;
+}
+finally
+{
+    if (!unattended)
+    {
+        Console.WriteLine("\n按 Enter 键关闭控制台。");
+        Console.ReadLine();
+    }
 }
 
 static void PrintBanner()

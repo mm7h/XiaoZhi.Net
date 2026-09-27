@@ -7,11 +7,13 @@ internal sealed class TestRunReport
 {
     private readonly TestOptions _options;
     private readonly IReadOnlyList<RoundResult> _results;
+    private readonly int _peakHelloConnections;
 
-    public TestRunReport(TestOptions options, IReadOnlyList<RoundResult> results)
+    public TestRunReport(TestOptions options, IReadOnlyList<RoundResult> results, int peakHelloConnections)
     {
         this._options = options;
         this._results = results;
+        this._peakHelloConnections = peakHelloConnections;
     }
 
     public string Render()
@@ -28,10 +30,18 @@ internal sealed class TestRunReport
             "XiaoZhi.Net 性能测试最终报告",
             $"计划轮次: {this._options.TotalRounds}；已返回结果: {this._results.Count}；完整轮次: {completed}/{this._options.TotalRounds} ({Rate(completed, this._options.TotalRounds)})",
             connection.Render(),
-            hello.Render(),
-            detect.Render(),
-            audio.Render()
+            hello.Render()
         ];
+
+        if (!this._options.HelloOnly)
+        {
+            lines.Add(detect.Render());
+            lines.Add(audio.Render());
+        }
+        else
+        {
+            lines.Add($"Hello 成功后的峰值同时在线连接: {this._peakHelloConnections}");
+        }
 
         if (missing > 0)
         {

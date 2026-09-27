@@ -75,27 +75,6 @@ namespace XiaoZhi.Net.Server.Management
             return true;
         }
 
-        public override void Dispose()
-        {
-            IList<IDisposable> resources = new List<IDisposable>
-            {
-                this.ServiceProvider.GetRequiredService<IAudioFileCaching>(),
-                this.ServiceProvider.GetRequiredService<IMusicFileProvider>(),
-                this.ServiceProvider.GetRequiredService<IVadOnnxModel>(),
-            };
-
-            IRag? rag = this.ServiceProvider.GetService<IRag>();
-            if (rag is not null)
-            {
-                resources.Add(rag);
-            }
-
-            foreach (IDisposable resource in resources)
-            {
-                resource.Dispose();
-            }
-        }
-
         private static void RegisterRag(IServiceCollection services, XiaoZhiConfig config)
         {
             if (!HasSelectedRagSetting(config))

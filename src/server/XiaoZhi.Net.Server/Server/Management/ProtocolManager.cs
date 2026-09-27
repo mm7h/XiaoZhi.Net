@@ -38,7 +38,8 @@ namespace XiaoZhi.Net.Server.Management
                         {
                             Ip = webSocketOption.IP,
                             Port = webSocketOption.Port,
-                            Path = webSocketOption.Path
+                            Path = webSocketOption.Path,
+                            BackLog = 128
                         };
 
                         if (webSocketOption.WssOption is not null)

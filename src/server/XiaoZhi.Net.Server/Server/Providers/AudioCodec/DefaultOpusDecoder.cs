@@ -71,8 +71,9 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
 
         public override void Dispose()
         {
-            this._decoder?.ResetState();
-            this._decoder?.Dispose();
+            IOpusDecoder? decoder = Interlocked.Exchange(ref this._decoder, null);
+            decoder?.ResetState();
+            decoder?.Dispose();
         }
     }
 }

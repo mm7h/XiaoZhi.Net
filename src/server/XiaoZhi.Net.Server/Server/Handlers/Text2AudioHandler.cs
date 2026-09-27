@@ -377,6 +377,10 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override void Dispose()
         {
+            if (this.IsDisposed)
+            {
+                return;
+            }
             if (this._tts is not null)
             {
                 Session session = this.SendOutter.GetSession();
@@ -394,9 +398,9 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
                 this._audioPlayerClient.MusicPlayer.OnAudioData -= this.OnMusicAudioDataAsync;
             }
-            this.NextWriter.Complete();
-            this.NextWriter2.Complete();
-            this.NextWriter3.Complete();
+            this.NextWriter?.TryComplete();
+            this.NextWriter2?.TryComplete();
+            this.NextWriter3?.TryComplete();
             base.Dispose();
         }
     }

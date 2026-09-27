@@ -2,6 +2,7 @@
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Protocol;
@@ -13,13 +14,22 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private long _audioProcessingTurnId = -1;
         private int _closeAfterChatRequested;
         private CancellationTokenSource _sessionCts = null!;
+        private readonly IServiceScope _serviceScope;
 
         private readonly object _lock = new object();
         private volatile bool _isReseting = false;
+        private int _isClosing;
         private long _turnId = 0;
 
-        public Session(string sessionId, string deviceId, string authToken, IPEndPoint userEndPoint, IBizSendOutter sendOutter)
+        public Session(
+            string sessionId,
+            string deviceId,
+            string authToken,
+            IPEndPoint userEndPoint,
+            IBizSendOutter sendOutter,
+            IServiceScope serviceScope)
         {
+            this._serviceScope = serviceScope;
             this.SessionId = sessionId;
             this.DeviceId = deviceId;
             this.AuthToken = authToken;
@@ -48,6 +58,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public CancellationToken SessionCtsToken => this._sessionCts.Token;
         public HandlerPipeline HandlerPipeline { get; }
         public IBizSendOutter SendOutter { get; }
+        public IServiceProvider ServiceProvider => this._serviceScope.ServiceProvider;
         public PrivateProvider PrivateProvider { get; }
         public bool IsDeviceBinded { get; set; }
         public string? BindCode { get; set; }
@@ -129,7 +140,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         {
             lock (this._lock)
             {
-                if (this._isReseting)
+                if (this._isReseting || Volatile.Read(ref this._isClosing) != 0)
                 {
                     return;
                 }
@@ -143,6 +154,10 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             {
                 lock (this._lock)
                 {
+                    if (this._isClosing != 0)
+                    {
+                        return;
+                    }
                     this.Reset();
                     this._isReseting = false;
                     this.CreateCancellationTokenSource();
@@ -161,14 +176,41 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.LocalEndPoint = localEndPoint;
         }
 
-        public void Release()
+        public async Task ReleaseAsync()
         {
-            this.Reset();
-            this.AudioPacket.Release();
-            this._sessionCts.Cancel();
-            this.HandlerPipeline.Release();
-            this.PrivateProvider.Release();
-            this._sessionCts.Dispose();
+            lock (this._lock)
+            {
+                if (this._isClosing != 0)
+                {
+                    return;
+                }
+                this._isClosing = 1;
+            }
+            try
+            {
+                this.Reset();
+                this.AudioPacket.Release();
+                this._sessionCts.Cancel();
+                await this.HandlerPipeline.ReleaseAsync();
+            }
+            finally
+            {
+                try
+                {
+                    this.PrivateProvider.Release();
+                }
+                finally
+                {
+                    try
+                    {
+                        this._sessionCts.Dispose();
+                    }
+                    finally
+                    {
+                        this._serviceScope.Dispose();
+                    }
+                }
+            }
         }
 
         private void CreateCancellationTokenSource()
@@ -177,9 +219,18 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._sessionCts.Token.Register(async () =>
             {
                 await Task.Yield();
+
+                if (Volatile.Read(ref this._isClosing) != 0)
+                {
+                    return;
+                }
                 
                 lock (this._lock)
                 {
+                    if (this._isClosing != 0)
+                    {
+                        return;
+                    }
                     this.Reset();
                     this._isReseting = false;
 

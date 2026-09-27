@@ -217,7 +217,7 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig.VadSetting is not null)
                 {
-                    IVad privateVad = this.ServiceProvider.GetRequiredKeyedService<IVad>(ConvertToKebabCase(privateModelsConfig.VadSetting.ModelName));
+                    IVad privateVad = session.ServiceProvider.GetRequiredKeyedService<IVad>(ConvertToKebabCase(privateModelsConfig.VadSetting.ModelName));
                     if (privateVad.IsSherpaModel && !this.IsSelectedSherpaModel("VAD", privateModelsConfig.VadSetting.ModelName))
                     {
                         this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateSherpaVadModelMismatch, privateModelsConfig.VadSetting.ModelName);
@@ -243,7 +243,7 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig.AsrSetting is not null)
                 {
-                    IAsr privateAsr = this.ServiceProvider.GetRequiredKeyedService<IAsr>(ConvertToKebabCase(privateModelsConfig.AsrSetting.ModelName));
+                    IAsr privateAsr = session.ServiceProvider.GetRequiredKeyedService<IAsr>(ConvertToKebabCase(privateModelsConfig.AsrSetting.ModelName));
                     if (privateAsr.IsSherpaModel && !this.IsSelectedSherpaModel("ASR", privateModelsConfig.AsrSetting.ModelName))
                     {
                         this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateSherpaAsrModelMismatch, privateModelsConfig.AsrSetting.ModelName);
@@ -269,7 +269,7 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig.AgentSettings.Any())
                 {
-                    ILlm privateLlm = this.ServiceProvider.GetRequiredService<ILlm>();
+                    ILlm privateLlm = session.ServiceProvider.GetRequiredService<ILlm>();
 
                     LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
                         privateModelsConfig.AgentSettings,
@@ -296,7 +296,7 @@ namespace XiaoZhi.Net.Server.Management
 
                 if (privateModelsConfig.TtsSetting is not null)
                 {
-                    ITts privateTts = this.ServiceProvider.GetRequiredKeyedService<ITts>(ConvertToKebabCase(privateModelsConfig.TtsSetting.ModelName));
+                    ITts privateTts = session.ServiceProvider.GetRequiredKeyedService<ITts>(ConvertToKebabCase(privateModelsConfig.TtsSetting.ModelName));
                     if (privateTts.IsSherpaModel && !this.IsSelectedSherpaModel("TTS", privateModelsConfig.TtsSetting.ModelName))
                     {
                         this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateSherpaTtsModelMismatch, privateModelsConfig.TtsSetting.ModelName);
@@ -383,7 +383,7 @@ namespace XiaoZhi.Net.Server.Management
 
         public void BuildAudioDecoder(Session session)
         {
-            IAudioDecoder audioDecoder = this.ServiceProvider.GetRequiredService<IAudioDecoder>();
+            IAudioDecoder audioDecoder = session.ServiceProvider.GetRequiredService<IAudioDecoder>();
             if (!audioDecoder.Build(session.AudioSetting))
             {
                 this.Logger.LogWarning(Lang.ProviderManager_BuildAudioDecoder_BuildFailed, session.SessionId);
@@ -409,7 +409,7 @@ namespace XiaoZhi.Net.Server.Management
             this.Logger.LogInformation(Lang.ProviderManager_BuildOutputAudioResampler_ResamplingRequired, session.DeviceId, audioProcessorSampleRate, session.AudioSetting.SampleRate);
 
             ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, audioProcessorSampleRate, session.AudioSetting.SampleRate);
-            IAudioResampler audioResampler = this.ServiceProvider.GetRequiredService<IAudioResampler>();
+            IAudioResampler audioResampler = session.ServiceProvider.GetRequiredService<IAudioResampler>();
             if (!audioResampler.Build(resamplerBuildConfig))
             {
                 this.Logger.LogWarning(Lang.ProviderManager_BuildOutputAudioResampler_BuildFailed, session.SessionId);
@@ -432,7 +432,7 @@ namespace XiaoZhi.Net.Server.Management
                 GlobalVariables.AudioProcessingChannels,
                 session.AudioSetting.SampleRate,
                 GlobalVariables.AudioProcessingSampleRate);
-            IAudioResampler inputAudioResampler = this.ServiceProvider.GetRequiredService<IAudioResampler>();
+            IAudioResampler inputAudioResampler = session.ServiceProvider.GetRequiredService<IAudioResampler>();
             if (!inputAudioResampler.Build(resamplerBuildConfig))
             {
                 this.Logger.LogWarning(Lang.ProviderManager_BuildInputAudioResampler_BuildFailed, session.SessionId);
@@ -454,7 +454,7 @@ namespace XiaoZhi.Net.Server.Management
 
         public void BuildAudioEncoder(Session session)
         {
-            IAudioEncoder audioEncoder = this.ServiceProvider.GetRequiredService<IAudioEncoder>();
+            IAudioEncoder audioEncoder = session.ServiceProvider.GetRequiredService<IAudioEncoder>();
             if (!audioEncoder.Build(session.AudioSetting))
             {
                 this.Logger.LogWarning(Lang.ProviderManager_BuildAudioEncoder_BuildFailed, session.SessionId);
@@ -657,7 +657,7 @@ namespace XiaoZhi.Net.Server.Management
         }
         public void BuildIoT(Session session)
         {
-            IIoTClient iotClient = this.ServiceProvider.GetRequiredService<IIoTClient>();
+            IIoTClient iotClient = session.ServiceProvider.GetRequiredService<IIoTClient>();
             if (!iotClient.Build(session))
             {
                 this.Logger.LogWarning(Lang.ProviderManager_BuildIoT_BuildFailed, session.SessionId);
@@ -682,7 +682,7 @@ namespace XiaoZhi.Net.Server.Management
             // 在发起 MCP 握手前先标记"等待工具列表加载"，防止对话提前使用空工具列表
             session.PrivateProvider.FunctionToolsContext.SetMcpClientPending();
 
-            IMcpClient mcpClient = this.ServiceProvider.GetRequiredService<IMcpClient>();
+            IMcpClient mcpClient = session.ServiceProvider.GetRequiredService<IMcpClient>();
 
             Dictionary<string, MCPClientBuildConfig> mcpBuildConfigs = new Dictionary<string, MCPClientBuildConfig>();
             if (this.Config.McpSettings is null || !this.Config.McpSettings.Any())
@@ -717,7 +717,7 @@ namespace XiaoZhi.Net.Server.Management
 
         public void BuildAudioPlayer(Session session)
         {
-            IAudioPlayerClient audioPlayerClient = this.ServiceProvider.GetRequiredService<IAudioPlayerClient>();
+            IAudioPlayerClient audioPlayerClient = session.ServiceProvider.GetRequiredService<IAudioPlayerClient>();
             if (!audioPlayerClient.Build(this.Config.AudioSetting))
             {
                 this.Logger.LogWarning(Lang.ProviderManager_BuildAudioPlayer_BuildFailed, session.SessionId);
@@ -737,7 +737,7 @@ namespace XiaoZhi.Net.Server.Management
 
         public void BuildAudioProcessor(Session session)
         {
-            IAudioProcessor audioProcessor = this.ServiceProvider.GetRequiredService<IAudioProcessor>();
+            IAudioProcessor audioProcessor = session.ServiceProvider.GetRequiredService<IAudioProcessor>();
             if (!audioProcessor.Build(this.Config.AudioSetting))
             {
                 this.Logger.LogWarning(Lang.ProviderManager_BuildAudioProcessor_BuildFailed, session.SessionId);
@@ -762,7 +762,7 @@ namespace XiaoZhi.Net.Server.Management
         private bool RegisterGlobalVadProviders(Session session)
         {
             string selectedVadModelName = ConvertToKebabCase(this.Config.SelectedSettings["VAD"]);
-            IVad genericVad = this.ServiceProvider.GetRequiredKeyedService<IVad>(selectedVadModelName);
+            IVad genericVad = session.ServiceProvider.GetRequiredKeyedService<IVad>(selectedVadModelName);
             if (!genericVad.IsSherpaModel && !genericVad.Build(this.GetSelectedSetting("VAD", this.Config)))
             {
                 this.Logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_VadBuildFailed, genericVad.ModelName);
@@ -776,7 +776,7 @@ namespace XiaoZhi.Net.Server.Management
         private bool RegisterGlobalAsrProviders(Session session)
         {
             string selectedAsrModelName = ConvertToKebabCase(this.Config.SelectedSettings["ASR"]);
-            IAsr genericAsr = this.ServiceProvider.GetRequiredKeyedService<IAsr>(selectedAsrModelName);
+            IAsr genericAsr = session.ServiceProvider.GetRequiredKeyedService<IAsr>(selectedAsrModelName);
             if (!genericAsr.IsSherpaModel && !genericAsr.Build(this.GetSelectedSetting("ASR", this.Config)))
             {
                 this.Logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_AsrBuildFailed, genericAsr.ModelName);
@@ -789,7 +789,7 @@ namespace XiaoZhi.Net.Server.Management
 
         private bool RegisterGlobalLlmProviders(Session session, string? memoryInstruction)
         {
-            ILlm genericLlm = this.ServiceProvider.GetRequiredService<ILlm>();
+            ILlm genericLlm = session.ServiceProvider.GetRequiredService<ILlm>();
 
             ModelSetting selectedIntentLLMModelSetting = this.GetSelectedSetting("Intent", this.Config);
             string intentType = selectedIntentLLMModelSetting.Config.GetConfigValueOrDefault("Type", "None");
@@ -848,7 +848,7 @@ namespace XiaoZhi.Net.Server.Management
         private bool RegisterGlobalTtsProviders(Session session)
         {
             string selectedTtsModelName = ConvertToKebabCase(this.Config.SelectedSettings["TTS"]);
-            ITts genericTts = this.ServiceProvider.GetRequiredKeyedService<ITts>(selectedTtsModelName);
+            ITts genericTts = session.ServiceProvider.GetRequiredKeyedService<ITts>(selectedTtsModelName);
             if (!genericTts.IsSherpaModel && !genericTts.Build(this.GetSelectedSetting("TTS", this.Config)))
             {
                 this.Logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_TtsBuildFailed, genericTts.ModelName);

@@ -186,6 +186,10 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override void Dispose()
         {
+            if (this.IsDisposed)
+            {
+                return;
+            }
             if (this._asr is not null)
             {
                 Session session = this.SendOutter.GetSession();
@@ -195,7 +199,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
             }
 
-            this.NextWriter.Complete();
+            this.NextWriter?.TryComplete();
             base.Dispose();
         }
     }

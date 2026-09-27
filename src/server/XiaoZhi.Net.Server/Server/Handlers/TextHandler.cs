@@ -176,7 +176,11 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override void Dispose()
         {
-            this.NextWriter.Complete();
+            if (this.IsDisposed)
+            {
+                return;
+            }
+            this.NextWriter?.TryComplete();
             base.Dispose();
         }
     }

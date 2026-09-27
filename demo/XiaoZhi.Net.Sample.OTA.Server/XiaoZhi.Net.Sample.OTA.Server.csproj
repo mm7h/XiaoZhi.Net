@@ -13,10 +13,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Compile Include="..\XiaoZhi.Net.Sample.Server\ConfigMerger.cs" Link="ConfigMerger.cs" />
-	</ItemGroup>
-
-	<ItemGroup>
 		<ProjectReference Include="..\..\src\server\XiaoZhi.Net.Server.Abstractions\XiaoZhi.Net.Server.Abstractions.csproj" />
 	</ItemGroup>
 	

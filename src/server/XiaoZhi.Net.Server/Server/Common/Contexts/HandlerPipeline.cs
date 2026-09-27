@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Handlers;
 
@@ -13,6 +14,8 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private AudioReceiveHandler? _audioReceiveHandler;
 
         private IDictionary<string, IHandler>? _handlerContainer;
+        private readonly List<Task> _backgroundTasks = [];
+        private readonly List<Action> _completeChannels = [];
 
         public void InitHelloMessageHandler(HelloMessageHandler helloMessageHandler)
         {
@@ -24,6 +27,12 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this._handlerContainer = handlerContainer;
             this._textHandler = handlerContainer[nameof(TextHandler)] as TextHandler ?? throw new ArgumentNullException(nameof(TextHandler));
             this._audioReceiveHandler = handlerContainer[nameof(AudioReceiveHandler)] as AudioReceiveHandler ?? throw new ArgumentNullException(nameof(AudioReceiveHandler));
+        }
+
+        public void Track<T>(Task task, ChannelWriter<Workflow<T>> writer)
+        {
+            this._backgroundTasks.Add(task);
+            this._completeChannels.Add(() => writer.TryComplete());
         }
 
         public async ValueTask HandleHelloMessageAsync(JsonObject helloMessage)
@@ -62,17 +71,30 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             }
         }
 
-        public void Release()
+        public async Task ReleaseAsync()
         {
             if (this._handlerContainer is null || this._handlerContainer.Count == 0)
             {
                 return;
             }
-            foreach (IDisposable handler in this._handlerContainer.Values)
+            foreach (Action completeChannel in this._completeChannels)
             {
-                handler.Dispose();
+                completeChannel();
             }
-            this._handlerContainer.Clear();
+            try
+            {
+                await Task.WhenAll(this._backgroundTasks);
+            }
+            finally
+            {
+                foreach (IDisposable handler in this._handlerContainer.Values)
+                {
+                    handler.Dispose();
+                }
+                this._handlerContainer.Clear();
+                this._backgroundTasks.Clear();
+                this._completeChannels.Clear();
+            }
         }
 
 

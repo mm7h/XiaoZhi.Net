@@ -1,6 +1,6 @@
 namespace XiaoZhi.Net.PerformanceTest.Configuration;
 
-internal sealed record TestOptions(Uri ServerUri, int ClientCount, int Rounds, string? AudioSelector)
+internal sealed record TestOptions(Uri ServerUri, int ClientCount, int Rounds, string? AudioSelector, bool HelloOnly)
 {
     public const string DefaultServer = "ws://localhost:4530/xiaozhi/v1/";
     public const int DefaultClients = 20;
@@ -8,7 +8,12 @@ internal sealed record TestOptions(Uri ServerUri, int ClientCount, int Rounds, s
 
     public int TotalRounds => checked(this.ClientCount * this.Rounds);
 
-    public static TestOptions Parse(string? server, string? clients, string? rounds, string? audioSelector)
+    public static TestOptions Parse(
+        string? server,
+        string? clients,
+        string? rounds,
+        string? audioSelector,
+        bool helloOnly)
     {
         string serverValue = string.IsNullOrWhiteSpace(server) ? DefaultServer : server.Trim();
         if (!Uri.TryCreate(serverValue, UriKind.Absolute, out Uri? serverUri)
@@ -29,7 +34,7 @@ internal sealed record TestOptions(Uri ServerUri, int ClientCount, int Rounds, s
             throw new ArgumentException("--clients 与 --rounds 的乘积过大。");
         }
 
-        return new TestOptions(serverUri, clientCount, roundCount, string.IsNullOrWhiteSpace(audioSelector) ? null : audioSelector.Trim());
+        return new TestOptions(serverUri, clientCount, roundCount, string.IsNullOrWhiteSpace(audioSelector) ? null : audioSelector.Trim(), helloOnly);
     }
 
     private static int ParsePositiveInt(string? value, int defaultValue, string optionName)

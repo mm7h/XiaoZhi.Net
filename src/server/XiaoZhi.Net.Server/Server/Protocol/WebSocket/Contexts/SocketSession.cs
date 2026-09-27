@@ -1,10 +1,12 @@
 ﻿using Microsoft.Extensions.Logging;
+using System;
 using SuperSocket.WebSocket;
 using SuperSocket.WebSocket.Server;
 using System.Collections.Generic;
 using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
@@ -19,12 +21,18 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         private readonly HandlerManager _handlerManager;
         private readonly ProviderManager _providerManager;
         private readonly FunctionToolManager _functionToolManager;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
 
-        public SocketSession(HandlerManager handlerManager, ProviderManager providerManager, FunctionToolManager functionToolManager)
+        public SocketSession(
+            HandlerManager handlerManager,
+            ProviderManager providerManager,
+            FunctionToolManager functionToolManager,
+            IServiceScopeFactory serviceScopeFactory)
         {
             this._handlerManager = handlerManager;
             this._providerManager = providerManager;
             this._functionToolManager = functionToolManager;
+            this._serviceScopeFactory = serviceScopeFactory;
         }
 
         public Session? XiaoZhiSession { get; set; }
@@ -141,7 +149,14 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
             string token = this.HttpHeader.Items.Get("authorization")!;
             IPEndPoint userEndPoint = (this.RemoteEndPoint as IPEndPoint)!;
 
-            Session session = new Session(this.SessionId, deviceId, token, userEndPoint, this);
+            IServiceScope serviceScope = this._serviceScopeFactory.CreateScope();
+            Session session = new Session(
+                this.SessionId,
+                deviceId,
+                token,
+                userEndPoint,
+                this,
+                serviceScope);
             if (this.LocalEndPoint is IPEndPoint localEndPoint)
             {
                 session.SetLocalEndPoint(localEndPoint);
@@ -158,11 +173,16 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         {
             if (this.XiaoZhiSession is not null)
             {
-                await this._handlerManager.OnSessionClosedAsync(this.XiaoZhiSession);
-                await this._providerManager.OnSessionClosedAsync(this.XiaoZhiSession);
-                await this._functionToolManager.OnSessionClosedAsync(this.XiaoZhiSession);
-
-                this.XiaoZhiSession.Release();
+                try
+                {
+                    await this._handlerManager.OnSessionClosedAsync(this.XiaoZhiSession);
+                    await this._providerManager.OnSessionClosedAsync(this.XiaoZhiSession);
+                    await this._functionToolManager.OnSessionClosedAsync(this.XiaoZhiSession);
+                }
+                finally
+                {
+                    await this.XiaoZhiSession.ReleaseAsync();
+                }
 
                 this.Logger.LogDebug(Lang.SocketSession_OnSessionClosedAsync_ClientOffline, this.XiaoZhiSession.DeviceId, this.XiaoZhiSession.SessionId, e.Reason);
             }

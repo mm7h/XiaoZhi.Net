@@ -284,6 +284,10 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override void Dispose()
         {
+            if (this.IsDisposed)
+            {
+                return;
+            }
             Session session = this.SendOutter.GetSession();
             if (this._vad is not null)
             {
@@ -292,7 +296,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     this._vad.UnregisterDevice(session.DeviceId, session.SessionId);
                 }
             }
-            this.NextWriter.Complete();
+            this.NextWriter?.TryComplete();
             base.Dispose();
         }
 
