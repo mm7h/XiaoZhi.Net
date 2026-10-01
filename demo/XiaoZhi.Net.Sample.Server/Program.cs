@@ -55,7 +55,7 @@ try
         //    options.Model.ApiKey = "read-from-a-secret-store";
         //    options.Model.ModelName = "your-vision-model";
         //})
-        //.WithManageApi("http://localhost:5118", "your-secret")
+        //.WithManageApi("http://localhost:4531", "your-secret")
         //使用 RAG
         //.WithRagVectorStore(KnowledgeBaseBuilder.VectorStore)
         // 设置日志输出语言
@@ -77,7 +77,8 @@ try
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"Got an error: {ex.Message}");
+    Console.Error.WriteLine($"Got an error: {ex}");
+    Environment.ExitCode = 1;
 }
 finally
 {

@@ -3,6 +3,14 @@ using Newtonsoft.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// launchSettings.json is not used by a published application.
+if (string.IsNullOrWhiteSpace(builder.Configuration["urls"])
+    && string.IsNullOrWhiteSpace(builder.Configuration["HTTP_PORTS"])
+    && string.IsNullOrWhiteSpace(builder.Configuration["HTTPS_PORTS"]))
+{
+    builder.WebHost.UseUrls("http://0.0.0.0:4531");
+}
+
 // Add services to the container.
 
 builder.Services.AddControllers()
@@ -33,5 +41,6 @@ if (app.Environment.IsDevelopment())
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.Run();

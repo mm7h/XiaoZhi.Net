@@ -3,6 +3,7 @@
 /.vs/
 *.user
 *.pubxml
+!demo/XiaoZhi.Net.Sample.Server/Properties/PublishProfiles/*.pubxml
 *.vssscc
 *.vspscc
 
@@ -13,3 +14,11 @@ src/api/XiaoZhi.Net.WebApi/logs/
 src/api/XiaoZhi.Net.WebApi/appsettings.Development.json
 
 AGENTS.md
+
+# Local Docker resources, deployment settings, and verification artifacts.
+/docker/runtime/
+/docker/.verification/
+/docker/.env
+
+# Platform-specific native binaries are supplied locally when publishing.
+/demo/XiaoZhi.Net.Sample.Server/NativeLibraries/

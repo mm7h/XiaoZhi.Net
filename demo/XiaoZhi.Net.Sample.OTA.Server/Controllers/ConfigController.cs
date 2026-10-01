@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using XiaoZhi.Net.Sample.OTA.Server.Helpers;
+using Microsoft.Extensions.Options;
+using Demo.OTA.Server.Models;
 using XiaoZhi.Net.Server;
 using XiaoZhi.Net.Server.Abstractions.Common.Dtos;
 
@@ -11,34 +13,28 @@ namespace XiaoZhi.Net.Sample.OTA.Server.Controllers
     {
         private readonly IWebHostEnvironment _env;
         private readonly ILogger<ConfigController> _logger;
-        public ConfigController(IWebHostEnvironment env, ILogger<ConfigController> logger)
+        private readonly XiaoZhiOptions _options;
+        public ConfigController(IWebHostEnvironment env, ILogger<ConfigController> logger, IOptions<XiaoZhiOptions> options)
         {
             this._env = env;
             this._logger = logger;
+            this._options = options.Value;
         }
 
         [HttpGet]
         public XiaoZhiConfig GetConfig()
         {
             this._logger.LogInformation("Got the request to get the xiao zhi config.");
-            string configDirectory = Path.GetFullPath(Path.Combine(this._env.ContentRootPath, "..", "XiaoZhi.Net.Sample.Server", "Configs"));
+            string configDirectory = string.IsNullOrWhiteSpace(this._options.ConfigDirectory)
+                ? Path.GetFullPath(Path.Combine(this._env.ContentRootPath, "..", "XiaoZhi.Net.Sample.Server", "Configs"))
+                : Path.GetFullPath(this._options.ConfigDirectory, this._env.ContentRootPath);
             string configPath = Path.Combine(configDirectory, "config.json");
             if (!System.IO.File.Exists(configPath))
             {
                 throw new FileNotFoundException($"The file not found: {configPath}");
             }
 
-            string configJson = ConfigHelper.Merge(configDirectory);
-
-            XiaoZhiConfig? config = Newtonsoft.Json.JsonConvert.DeserializeObject<XiaoZhiConfig>(configJson);
-            if (config is not null)
-            {
-                return config;
-            }
-            else
-            {
-                throw new Exception("Cannot read the config settings.");
-            }
+            return ConfigHelper.Load(configDirectory, this._env.EnvironmentName);
         }
         [HttpGet("private-config")]
         public ApiResponse<PrivateModelsConfig> GetPrivateConfig(string deviceId, string sessionId)

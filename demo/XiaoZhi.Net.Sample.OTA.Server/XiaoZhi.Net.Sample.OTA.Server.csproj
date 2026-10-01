@@ -7,9 +7,17 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.12" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.12" />
 		<PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="8.0.21" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+	</ItemGroup>
+
+	<!-- Share the sample server's typed and legacy dictionary configuration conversion. -->
+	<ItemGroup>
+		<Compile Include="..\XiaoZhi.Net.Sample.Server\Configs\XiaoZhiConfigurationExtensions.cs" Link="Helpers\XiaoZhiConfigurationExtensions.cs" />
+		<Compile Include="..\XiaoZhi.Net.Sample.Server\Configs\LenientStringConverter.cs" Link="Helpers\LenientStringConverter.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

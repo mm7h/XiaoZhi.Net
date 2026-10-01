@@ -1,0 +1,23 @@
+# Only the two sample projects and their server dependencies are build inputs.
+**
+!demo/
+!demo/XiaoZhi.Net.Sample.Server/
+!demo/XiaoZhi.Net.Sample.Server/**
+!demo/XiaoZhi.Net.Sample.OTA.Server/
+!demo/XiaoZhi.Net.Sample.OTA.Server/**
+!src/
+!src/server/
+!src/server/**
+!docker/
+!docker/Dockerfile
+**/bin/**
+**/obj/**
+**/logs/**
+**/data/**
+**/models/**
+**/musics/**
+**/.env*
+**/*.user
+# Server credentials are supplied exclusively by the configuration mount.
+demo/XiaoZhi.Net.Sample.Server/Configs/config*.json
+demo/XiaoZhi.Net.Sample.OTA.Server/appsettings.Development.json

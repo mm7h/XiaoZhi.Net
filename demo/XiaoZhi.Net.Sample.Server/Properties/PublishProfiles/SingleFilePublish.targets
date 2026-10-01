@@ -1,0 +1,80 @@
+<Project>
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
+    <Platform Condition="'$(Platform)' == ''">Any CPU</Platform>
+    <TargetFramework Condition="'$(TargetFramework)' == ''">net8.0</TargetFramework>
+    <PublishProtocol Condition="'$(PublishProtocol)' == ''">FileSystem</PublishProtocol>
+    <_TargetId Condition="'$(_TargetId)' == ''">Folder</_TargetId>
+    <PublishDir Condition="'$(PublishDir)' == ''">$(MSBuildProjectDirectory)/bin/$(Configuration)/$(TargetFramework)/publish/$(RuntimeIdentifier)/</PublishDir>
+    <PublishUrl Condition="'$(PublishUrl)' == ''">$(PublishDir)</PublishUrl>
+    <SelfContained Condition="'$(SelfContained)' == ''">true</SelfContained>
+    <UseAppHost Condition="'$(UseAppHost)' == ''">true</UseAppHost>
+    <PublishSingleFile Condition="'$(PublishSingleFile)' == ''">true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract Condition="'$(IncludeNativeLibrariesForSelfExtract)' == ''">true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType Condition="'$(DebugType)' == ''">embedded</DebugType>
+    <PublishReadyToRun Condition="'$(PublishReadyToRun)' == ''">false</PublishReadyToRun>
+    <PublishTrimmed Condition="'$(PublishTrimmed)' == ''">false</PublishTrimmed>
+    <BundleFFmpeg Condition="'$(BundleFFmpeg)' == ''">true</BundleFFmpeg>
+    <FFmpegBinariesPath Condition="'$(FFmpegBinariesPath)' == ''">$(MSBuildProjectDirectory)/NativeLibraries/$(RuntimeIdentifier)/ffmpeg</FFmpegBinariesPath>
+    <_SingleFilePublishToolsDirectory>$(MSBuildThisFileDirectory)</_SingleFilePublishToolsDirectory>
+  </PropertyGroup>
+
+  <!-- Configuration and resources remain editable beside the executable. -->
+  <ItemGroup>
+    <None Update="Configs/config*.json;Configs/assets/**/*" ExcludeFromSingleFile="true" />
+  </ItemGroup>
+
+  <Target Name="PrepareSingleFileNativeLibraries" BeforeTargets="_ComputeFilesToBundle"
+          Condition="'$(PublishSingleFile)' == 'true'">
+    <Error Condition="'$(RuntimeIdentifier)' != 'win-x64' and '$(RuntimeIdentifier)' != 'win-arm64' and '$(RuntimeIdentifier)' != 'linux-x64' and '$(RuntimeIdentifier)' != 'linux-arm64' and '$(RuntimeIdentifier)' != 'osx-x64' and '$(RuntimeIdentifier)' != 'osx-arm64'"
+           Text="Unsupported single-file runtime: $(RuntimeIdentifier). Use win-x64, win-arm64, linux-x64, linux-arm64, osx-x64 or osx-arm64." />
+
+    <!-- Import/static libraries and external debug symbols are not runtime dependencies. -->
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="'%(ResolvedFileToPublish.Extension)' == '.lib' or '%(ResolvedFileToPublish.Extension)' == '.a' or '%(ResolvedFileToPublish.Extension)' == '.exp' or '%(ResolvedFileToPublish.Extension)' == '.pdb'" />
+    </ItemGroup>
+
+    <PropertyGroup>
+      <_SingleFileUnix Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-')) or $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx-'))">true</_SingleFileUnix>
+      <_SherpaNativeExtension Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-'))">.so</_SherpaNativeExtension>
+      <_SherpaNativeExtension Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx-'))">.dylib</_SherpaNativeExtension>
+      <_PreparedSherpaPath>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'single-file-native', '$(RuntimeIdentifier)'))</_PreparedSherpaPath>
+    </PropertyGroup>
+    <ItemGroup Condition="'$(_SingleFileUnix)' == 'true'">
+      <_SherpaApi Include="@(ResolvedFileToPublish)" Condition="'%(Filename)%(Extension)' == 'libsherpa-onnx-c-api$(_SherpaNativeExtension)'" />
+    </ItemGroup>
+    <Error Condition="'$(_SingleFileUnix)' == 'true' and '@(_SherpaApi)' == ''" Text="The Sherpa native API library was not resolved for $(RuntimeIdentifier)." />
+    <PropertyGroup Condition="'$(_SingleFileUnix)' == 'true'">
+      <_SherpaPackagePath>$([System.IO.Path]::GetDirectoryName('@(_SherpaApi)'))</_SherpaPackagePath>
+    </PropertyGroup>
+    <Error Condition="'$(_SingleFileUnix)' == 'true' and '$(SherpaNativeLibrariesPath)' == '' and !$([MSBuild]::IsOSPlatform('Linux')) and !$([MSBuild]::IsOSPlatform('OSX'))"
+           Text="Publishing $(RuntimeIdentifier) requires prepared Sherpa libraries. Publish on the target OS, or set SherpaNativeLibrariesPath to the output of prepare-sherpa.sh run on that OS. See docs/04.single-file-publish.md." />
+    <Exec Condition="'$(_SingleFileUnix)' == 'true' and '$(SherpaNativeLibrariesPath)' == ''"
+          Command="sh &quot;$(_SingleFilePublishToolsDirectory)prepare-sherpa.sh&quot; &quot;$(RuntimeIdentifier)&quot; &quot;$(_SherpaPackagePath)&quot; &quot;$(_PreparedSherpaPath)&quot;" />
+    <PropertyGroup Condition="'$(_SingleFileUnix)' == 'true' and '$(SherpaNativeLibrariesPath)' == ''">
+      <SherpaNativeLibrariesPath>$(_PreparedSherpaPath)</SherpaNativeLibrariesPath>
+    </PropertyGroup>
+    <Error Condition="'$(_SingleFileUnix)' == 'true' and (!Exists('$(SherpaNativeLibrariesPath)/libsherpa-onnx-c-api$(_SherpaNativeExtension)') or !Exists('$(SherpaNativeLibrariesPath)/sherpa/libsherpa-onnxruntime$(_SherpaNativeExtension)'))"
+           Text="SherpaNativeLibrariesPath must contain libsherpa-onnx-c-api$(_SherpaNativeExtension) and sherpa/libsherpa-onnxruntime$(_SherpaNativeExtension)." />
+    <ItemGroup Condition="'$(_SingleFileUnix)' == 'true'">
+      <ResolvedFileToPublish Remove="@(_SherpaApi)" />
+      <ResolvedFileToPublish Include="$(SherpaNativeLibrariesPath)/libsherpa-onnx-c-api$(_SherpaNativeExtension)" RelativePath="libsherpa-onnx-c-api$(_SherpaNativeExtension)" CopyToPublishDirectory="PreserveNewest" />
+      <ResolvedFileToPublish Include="$(SherpaNativeLibrariesPath)/sherpa/libsherpa-onnxruntime$(_SherpaNativeExtension)" RelativePath="sherpa/libsherpa-onnxruntime$(_SherpaNativeExtension)" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+
+    <PropertyGroup Condition="'$(BundleFFmpeg)' == 'true'">
+      <_FFmpegAvutil Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">avutil-59.dll</_FFmpegAvutil>
+      <_FFmpegAvutil Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-'))">libavutil.so.59</_FFmpegAvutil>
+      <_FFmpegAvutil Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx-'))">libavutil.59.dylib</_FFmpegAvutil>
+    </PropertyGroup>
+    <Error Condition="'$(BundleFFmpeg)' == 'true' and !Exists('$(FFmpegBinariesPath)/$(_FFmpegAvutil)')"
+           Text="FFmpeg 7.1 shared libraries for $(RuntimeIdentifier) are missing: $(FFmpegBinariesPath)/$(_FFmpegAvutil). Supply FFmpegBinariesPath, or use BundleFFmpeg=false for external FFmpeg libraries." />
+    <ItemGroup Condition="'$(BundleFFmpeg)' == 'true'">
+      <_FFmpegNative Include="$(FFmpegBinariesPath)/*.dll" Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))" />
+      <_FFmpegNative Include="$(FFmpegBinariesPath)/*.so*" Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-'))" />
+      <_FFmpegNative Include="$(FFmpegBinariesPath)/*.dylib" Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx-'))" />
+      <ResolvedFileToPublish Include="@(_FFmpegNative)" RelativePath="ffmpeg/%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+</Project>

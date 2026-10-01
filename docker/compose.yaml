@@ -1,0 +1,75 @@
+services:
+  sample-server:
+    image: ${XIAOZHI_PROJECT_NAME:-xiaozhi-samples}/sample-server:local
+    platform: linux/amd64
+    build:
+      context: ${XIAOZHI_BUILD_CONTEXT:?Run deploy.ps1 to provide the repository path}
+      dockerfile: docker/Dockerfile
+      target: sample-server
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${XIAOZHI_WS_PORT:-4530}:4530"
+    volumes:
+      - type: bind
+        source: ${XIAOZHI_RUNTIME_DIR:?Run deploy.ps1 to provide the resource path}/Configs
+        target: /app/Configs
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${XIAOZHI_RUNTIME_DIR}/models
+        target: /app/models
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${XIAOZHI_RUNTIME_DIR}/musics
+        target: /app/musics
+        read_only: true
+        bind:
+          create_host_path: false
+      - server-data:/app/data
+      - server-logs:/app/logs
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/4530"]
+      interval: 10s
+      timeout: 3s
+      start_period: 120s
+      retries: 6
+
+  ota-server:
+    image: ${XIAOZHI_PROJECT_NAME:-xiaozhi-samples}/ota-server:local
+    platform: linux/amd64
+    build:
+      context: ${XIAOZHI_BUILD_CONTEXT}
+      dockerfile: docker/Dockerfile
+      target: ota-server
+    restart: unless-stopped
+    init: true
+    environment:
+      XiaoZhi__ConfigDirectory: /app/Configs
+      XiaoZhi__Websocket__Url: ws://${XIAOZHI_PUBLIC_HOST:?Specify -PublicHost on first deployment}:${XIAOZHI_WS_PORT:-4530}/xiaozhi/v1/
+    ports:
+      - "${XIAOZHI_OTA_PORT:-4531}:4531"
+    volumes:
+      - type: bind
+        source: ${XIAOZHI_RUNTIME_DIR}/Configs
+        target: /app/Configs
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - "exec 3<>/dev/tcp/127.0.0.1/4531; printf 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3; head -n 1 <&3 | grep -q ' 200 '"
+      interval: 10s
+      timeout: 3s
+      start_period: 15s
+      retries: 6
+
+volumes:
+  server-data:
+  server-logs:

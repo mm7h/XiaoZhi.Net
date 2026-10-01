@@ -1,10 +1,30 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Configuration;
+using XiaoZhi.Net.Sample.Server.Configs;
+using XiaoZhi.Net.Server;
 
 namespace XiaoZhi.Net.Sample.OTA.Server.Helpers
 {
     public class ConfigHelper
     {
+        public static XiaoZhiConfig Load(string configDirectory, string environmentName)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(configDirectory);
+            var builder = new ConfigurationBuilder()
+                .SetBasePath(configDirectory)
+                .AddJsonFile("config.json", optional: false, reloadOnChange: false);
+            foreach (string path in Directory.EnumerateFiles(configDirectory, "config_*.json")
+                .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase))
+            {
+                builder.AddJsonFile(Path.GetFileName(path), optional: false, reloadOnChange: false);
+            }
+            using var configuration = (ConfigurationRoot)builder
+                .AddJsonFile($"config.{environmentName}.json", optional: true, reloadOnChange: false)
+                .Build();
+            return configuration.GetXiaoZhiConfig();
+        }
+
         private static readonly JsonNodeOptions s_nodeOptions = new JsonNodeOptions
         {
             PropertyNameCaseInsensitive = true
@@ -16,7 +36,7 @@ namespace XiaoZhi.Net.Sample.OTA.Server.Helpers
             AllowTrailingCommas = true
         };
 
-        public static string Merge(string configDirectory)
+        public static string Merge(string configDirectory, string? environmentName = null)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(configDirectory);
 
@@ -29,6 +49,15 @@ namespace XiaoZhi.Net.Sample.OTA.Server.Helpers
             foreach (string fragmentPath in fragmentPaths)
             {
                 MergeObject(mergedConfig, ParseConfig(fragmentPath));
+            }
+
+            if (!string.IsNullOrWhiteSpace(environmentName))
+            {
+                string environmentPath = Path.Combine(configDirectory, $"config.{environmentName}.json");
+                if (File.Exists(environmentPath))
+                {
+                    MergeObject(mergedConfig, ParseConfig(environmentPath));
+                }
             }
 
             return mergedConfig.ToJsonString();

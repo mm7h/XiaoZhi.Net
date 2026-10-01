@@ -30,9 +30,34 @@ namespace XiaoZhi.Net.Server.Media.Utilities
 
             lock (s_syncLock)
             {
-                ffmpeg.RootPath = FFmpegRootPath = ffmpegBinariesPath;
+                ffmpeg.RootPath = FFmpegRootPath = ResolveFFmpegPath(ffmpegBinariesPath);
                 Volatile.Write(ref s_initializer, CreateInitializer());
             }
+        }
+
+        private static string ResolveFFmpegPath(string requestedPath)
+        {
+            // Explicit custom paths keep their existing behavior. Bundled libraries are
+            // a fallback for the default path, which is absent in single-file deployments.
+            if (requestedPath != "./ffmpeg/" || Directory.Exists(requestedPath))
+            {
+                return requestedPath;
+            }
+
+            if (AppContext.GetData("NATIVE_DLL_SEARCH_DIRECTORIES") is string nativeDirectories)
+            {
+                foreach (string directory in nativeDirectories.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    string candidate = Path.Combine(directory, "ffmpeg");
+                    if (Directory.Exists(candidate))
+                    {
+                        return candidate;
+                    }
+                }
+            }
+
+            string applicationDirectory = Path.Combine(AppContext.BaseDirectory, "ffmpeg");
+            return Directory.Exists(applicationDirectory) ? applicationDirectory : requestedPath;
         }
 
         public static bool CheckFFmpegInstalled(out string message)
