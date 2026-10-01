@@ -8,52 +8,25 @@
 ### Quickly Create Xiao Zhi Service 👇️
 
 ```csharp
-IHost? serverHost = null;
-// Get the server engine builder
+using XiaoZhi.Net.Sample.Server.Configs;
+using XiaoZhi.Net.Sample.Server.FunctionTools;
+using XiaoZhi.Net.Server;
+using XiaoZhi.Net.Server.Abstractions;
+
+XiaoZhiConfig config = new(); // to your xiaozhi config
 IServerBuilder serverBuilder = EngineFactory.CreateXiaoZhiServerBuilder();
-try
-{
-    Console.WriteLine("Hello, Xiao Zhi!");
-
-    string configJson = ConfigMerger.Merge(Path.Combine(Environment.CurrentDirectory, "Configs"));
-
-    // Quickly get configuration information from the json file
-    XiaoZhiConfig? config = JsonSerializer.Deserialize<XiaoZhiConfig>(configJson); // Some custom settings for System.Text.Json are omitted here
-    if (config is not null)
+serverBuilder.Initialize(config)
+    .WithFunctionTools<GetTime>()
+    .WithMedia(useFFmpegAudioMixer: true)
+    .WithCulture("zh-CN");
+serverBuilder.HostBuilder.UseEnvironment(environmentName)
+    .ConfigureAppConfiguration((_, hostConfiguration) =>
     {
-        // Start initializing the service
-        serverHost = serverBuilder.Initialize(config)
-            // Add plugin
-            .WithPlugin<GetTime>(nameof(GetTime))
-            // Multimedia file format support
-            .WithMedia(useFFmpeg: true)
-            //.WithManageApi("http://localhost:5118", "your-secret") // Please refer to the 'XiaoZhi.Net.Sample.OTA.Server' example
-            // Set the language for log output
-            .WithCulture("en-US") // optional, defaults to the current environment language
-            // Build the server engine
-            .Build();
-
-        await serverHost.RunAsync();
-    }
-    else
-    {
-        Console.WriteLine("Cannot read the config settings.");
-    }
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"Got an error: {ex.Message}");
-}
-finally
-{
-    if (serverHost is not null)
-    {
-        await serverHost.StopAsync();
-    }
-    Console.WriteLine("The server stopped.");
-    Console.WriteLine("Press any key to exit...");
-    Console.ReadKey();
-}
+        hostConfiguration.Sources.Clear();
+        hostConfiguration.AddConfiguration(configuration, shouldDisposeConfiguration: false);
+    });
+using IHost serverHost = serverBuilder.Build();
+await serverHost.RunAsync();
 ```
 
 ### Custom Plugins 👇️
@@ -175,7 +148,8 @@ public class GetTime
 │   ├── config_asr.json # ASR configuration file
 │   ├── config_intent.json # Intent configuration file
 │   ├── config_llm.json # LLM and RAG configuration file
-│   └── config_tts.json # TTS configuration file
+│   ├── config_tts.json # TTS configuration file
+│   └── config.{Environment}.json # Optional environment-specific override file
 ├── data
 │   ├── asr-cache  # When saving audio files for asr recognition is enabled, user speech audio will be saved here
 │   └── tts-cache # When saving tts generated files is enabled, generated voice will be saved here

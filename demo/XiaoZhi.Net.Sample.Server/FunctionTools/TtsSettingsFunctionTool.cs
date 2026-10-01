@@ -1,20 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
+﻿using System.ComponentModel;
+using XiaoZhi.Net.Sample.Server.FunctionTools.TtsModels;
 using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Abstractions.Common.Contexts;
 using XiaoZhi.Net.Server.Abstractions.Common.Dtos.Tts;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums.Tts;
-using XiaoZhi.Net.Server.Abstractions.FunctionTools;
-using XiaoZhi.Net.Sample.Server.FunctionTools.TtsModels;
 
 namespace XiaoZhi.Net.Sample.Server.FunctionTools
 {
     /// <summary>
-    /// Demonstrates an opt-in, session-scoped TTS settings tool.
-    /// Keep the curated presets here so applications can own their LLM policy.
+    /// 修改TTS音色、语速和音调的扩展。
+    /// 不支持 Sherpa 的全局单例模型
     /// </summary>
     internal sealed class TtsSettingsFunctionTool : PrivateFunctionTool
     {

@@ -8,52 +8,25 @@
 ### 快速创建 Xiao Zhi 服务 👇️
 
 ```csharp
-IHost? serverHost = null;
-// 获取服务引擎构建器
+using XiaoZhi.Net.Sample.Server.Configs;
+using XiaoZhi.Net.Sample.Server.FunctionTools;
+using XiaoZhi.Net.Server;
+using XiaoZhi.Net.Server.Abstractions;
+
+XiaoZhiConfig config = new(); // to your xiaozhi config
 IServerBuilder serverBuilder = EngineFactory.CreateXiaoZhiServerBuilder();
-try
-{
-    Console.WriteLine("Hello, Xiao Zhi!");
-
-    string configJson = ConfigMerger.Merge(Path.Combine(Environment.CurrentDirectory, "Configs"));
-
-    // 快速从json文件中获取配置信息
-    XiaoZhiConfig? config = JsonSerializer.Deserialize<XiaoZhiConfig>(configJson); // 此次省略了对System.Text.Json的一些自定义设置
-    if (config is not null)
+serverBuilder.Initialize(config)
+    .WithFunctionTools<GetTime>()
+    .WithMedia(useFFmpegAudioMixer: true)
+    .WithCulture("zh-CN");
+serverBuilder.HostBuilder.UseEnvironment(environmentName)
+    .ConfigureAppConfiguration((_, hostConfiguration) =>
     {
-        // 开始初始化服务
-        serverHost = serverBuilder.Initialize(config)
-            // 添加插件
-            .WithPlugin<GetTime>(nameof(GetTime))
-            // 多媒体文件格式支持
-            .WithMedia(useFFmpeg: true)
-            //.WithManageApi("http://localhost:5118", "your-secret") // 请参考 'XiaoZhi.Net.Sample.OTA.Server' 示例
-            // 设置日志输出的语言
-            .WithCulture("zh-CN") // 可选，默认为当前环境语言
-            // 构建服务引擎
-            .Build();
-
-        await serverHost.RunAsync();
-    }
-    else
-    {
-        Console.WriteLine("Cannot read the config settings.");
-    }
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"Got an error: {ex.Message}");
-}
-finally
-{
-    if (serverHost is not null)
-    {
-        await serverHost.StopAsync();
-    }
-    Console.WriteLine("The server stopped.");
-    Console.WriteLine("Press any key to exit...");
-    Console.ReadKey();
-}
+        hostConfiguration.Sources.Clear();
+        hostConfiguration.AddConfiguration(configuration, shouldDisposeConfiguration: false);
+    });
+using IHost serverHost = serverBuilder.Build();
+await serverHost.RunAsync();
 ```
 
 ### 自定义插件 👇️
@@ -175,7 +148,8 @@ public class GetTime
 │   ├── config_asr.json # ASR 配置文件
 │   ├── config_intent.json # Intent 配置文件
 │   ├── config_llm.json # LLM 与 RAG 配置文件
-│   └── config_tts.json # TTS 配置文件
+│   ├── config_tts.json # TTS 配置文件
+│   └── config.{Environment}.json # 示例服务端程序下，可选的不同部署环境下的配置文件
 ├── data
 │   ├── asr-cache  # 当开启保存用于asr识别的音频文件后，用户说话的音频将会保存在这里
 │   └── tts-cache # 当开启保存tts生成的文件后，生成的语音将会保存在这里
