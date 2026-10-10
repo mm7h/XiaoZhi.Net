@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
+using Serilog.Filters;
 using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 
 namespace XiaoZhi.Net.Server.Management
@@ -13,10 +14,6 @@ namespace XiaoZhi.Net.Server.Management
         {
             return builder.ConfigureLogging((context, loggerBuilder) =>
             {
-#if !DEBUG
-                loggerBuilder.AddFilter("XiaoZhi.Net.Server.Media", LogLevel.None);
-                loggerBuilder.AddFilter("XiaoZhi.Net.Server.Media.Abstractions", LogLevel.None);
-#endif
                 LogSetting logSetting = config.LogSetting;
                 LoggingLevelSwitch levelSwitch = new LoggingLevelSwitch();
                 levelSwitch.MinimumLevel = ConvertLogLevel(logSetting.LogLevel);
@@ -25,6 +22,14 @@ namespace XiaoZhi.Net.Server.Management
                     .MinimumLevel.ControlledBy(levelSwitch)
 #if DEBUG
                     .MinimumLevel.Override("Microsoft.SemanticKernel", LogEventLevel.Warning)
+#else
+                    // 在 Serilog 层过滤，避免 AddSerilog 的提供器规则覆盖通用 AddFilter。
+                    .Filter.ByIncludingOnly(Matching.FromSource("XiaoZhi.Net.Server"))
+                    .Filter.ByExcluding(Matching.FromSource("XiaoZhi.Net.Server.Media"))
+                    .Filter.ByExcluding(Matching.FromSource("XiaoZhi.Net.Server.Abstractions"))
+                    .Filter.ByExcluding(Matching.FromSource("XiaoZhi.Net.Server.RAG"))
+                    .Filter.ByExcluding(Matching.FromSource("XiaoZhi.Net.Server.Vision"))
+                    .Filter.ByExcluding(Matching.FromSource("XiaoZhi.Net.Server.I18n"))
 #endif
                     .WriteTo.Async(a => a.File
                     (
