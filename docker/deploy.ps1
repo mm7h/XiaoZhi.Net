@@ -7,6 +7,9 @@ param(
     [ValidateRange(1, 65535)] [int] $WebSocketPort = 4530,
     [ValidateRange(1, 65535)] [int] $OtaPort = 4531,
     [string] $ResourceSource,
+    [ValidateSet('Source', 'Release')]
+    [string] $Mode = 'Source',
+    [string] $PackageDirectory,
     [string] $RuntimeDirectory = (Join-Path $PSScriptRoot 'runtime'),
     [ValidatePattern('^[a-z0-9][a-z0-9_-]*$')]
     [string] $ProjectName = 'xiaozhi-samples',
@@ -74,7 +77,8 @@ function Initialize-Resources {
         return
     }
     if (-not $ResourceSource) {
-        $script:ResourceSource = Join-Path $repositoryRoot 'demo/XiaoZhi.Net.Sample.Server/bin/Debug/net8.0'
+        $script:ResourceSource = if ($Mode -eq 'Release') { Join-Path $PackageDirectory 'server' }
+            else { Join-Path $repositoryRoot 'demo/XiaoZhi.Net.Sample.Server/bin/Debug/net8.0' }
     }
     $source = [IO.Path]::GetFullPath($ResourceSource)
     if (-not (Test-Path -LiteralPath $source -PathType Container)) {
@@ -111,9 +115,29 @@ function Initialize-Resources {
     foreach ($name in @('models', 'musics', 'Configs')) {
         Move-Item -LiteralPath (Join-Path $staging $name) -Destination (Join-Path $RuntimeDirectory $name)
     }
-    # Only remove the now-empty, explicitly created staging directory.
-    Remove-Item -LiteralPath $staging -Force
+    # 保留空的暂存目录，避免部署入口执行目录删除。
     Write-Host "Imported configuration, models and music into $RuntimeDirectory"
+}
+
+function Test-ReleasePackage {
+    $manifest = Read-JsonObject (Join-Path $PackageDirectory 'package.json')
+    if ($manifest['RuntimeIdentifier'] -ne 'linux-x64') {
+        throw 'Release Docker 部署仅支持 linux-x64 运行包。'
+    }
+    foreach ($path in @('server/XiaoZhi.Net.Sample.Server', 'ota/XiaoZhi.Net.Sample.OTA.Server')) {
+        $file = Join-Path $PackageDirectory $path
+        if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "运行包缺少程序：$path" }
+        # 校验 ELF64/x86-64，不能只信任运行包的架构标记。
+        $stream = [IO.File]::OpenRead($file)
+        try {
+            $header = [byte[]]::new(20)
+            $count = $stream.Read($header, 0, $header.Length)
+            if ($count -ne 20 -or $header[0] -ne 0x7f -or $header[1] -ne 0x45 -or $header[2] -ne 0x4c -or $header[3] -ne 0x46 -or $header[4] -ne 2 -or $header[5] -ne 1 -or $header[18] -ne 62 -or $header[19] -ne 0) {
+                throw "程序不是 Linux x64 ELF 文件：$path"
+            }
+        }
+        finally { $stream.Dispose() }
+    }
 }
 
 function Test-Resources {
@@ -132,10 +156,11 @@ function Test-Resources {
             throw "Missing SelectedSettings.$provider"
         }
     }
-    if ($config['SelectedSettings']['VAD'] -eq 'SileroNative') {
-        if (-not (Test-Path -LiteralPath (Join-Path $RuntimeDirectory 'models/vad/silero-native/model.onnx') -PathType Leaf)) {
-            throw 'Required VAD model missing: models/vad/silero-native/model.onnx'
-        }
+    if (-not (Test-Path -LiteralPath (Join-Path $RuntimeDirectory 'models/vad/silero-native/model.onnx') -PathType Leaf)) {
+        throw 'Required VAD model missing: models/vad/silero-native/model.onnx'
+    }
+    if ($config['SelectedSettings']['VAD'] -eq 'Silero' -and -not (Test-Path -LiteralPath (Join-Path $RuntimeDirectory 'models/vad/silero/model.onnx') -PathType Leaf)) {
+        throw 'Required VAD model missing: models/vad/silero/model.onnx'
     }
     foreach ($entry in @('BindCodePromptFilePath', 'BindNotFoundFilePath', 'BindCodeDigitFolderPath')) {
         if ($config['DeviceBindSetting'] -and $config['DeviceBindSetting'][$entry]) {
@@ -181,6 +206,23 @@ try {
     if (-not $PSBoundParameters.ContainsKey('WebSocketPort') -and $settings['WebSocketPort']) { $WebSocketPort = [int]$settings['WebSocketPort'] }
     if (-not $PSBoundParameters.ContainsKey('OtaPort') -and $settings['OtaPort']) { $OtaPort = [int]$settings['OtaPort'] }
     if (-not $PSBoundParameters.ContainsKey('ProjectName') -and $settings['ProjectName']) { $ProjectName = $settings['ProjectName'] }
+    if (-not $PSBoundParameters.ContainsKey('Mode') -and $settings['Mode']) { $Mode = $settings['Mode'] }
+    if (-not $PSBoundParameters.ContainsKey('PackageDirectory') -and $settings['PackageDirectory']) { $PackageDirectory = $settings['PackageDirectory'] }
+    if ($Mode -notin @('Source', 'Release')) { throw '部署模式必须是 Source 或 Release。' }
+    $buildContext = $repositoryRoot
+    $dockerfile = 'docker/Dockerfile'
+    if ($Mode -eq 'Release') {
+        if (-not $PackageDirectory) { throw 'Release 模式需要 -PackageDirectory 指向解压后的运行包根目录。' }
+        $PackageDirectory = [IO.Path]::GetFullPath($PackageDirectory)
+        $buildContext = $PackageDirectory
+        $dockerfile = 'docker/Dockerfile.release'
+        if ($Action -eq 'Up') {
+            Test-ReleasePackage
+            if (-not (Test-Path -LiteralPath (Join-Path $PackageDirectory $dockerfile) -PathType Leaf)) {
+                throw '运行包缺少 docker/Dockerfile.release。'
+            }
+        }
+    }
     if (-not $PublicHost) { throw 'Specify -PublicHost with the host LAN IP or DNS name on first deployment.' }
     $hostName = $PublicHost.Trim('[', ']')
     $hostType = [Uri]::CheckHostName($hostName)
@@ -191,7 +233,8 @@ try {
     }
     if ($ProjectName -notmatch '^[a-z0-9][a-z0-9_-]*$') { throw 'Invalid saved ProjectName.' }
     $variables = @{
-        XIAOZHI_BUILD_CONTEXT = $repositoryRoot
+        XIAOZHI_BUILD_CONTEXT = $buildContext
+        XIAOZHI_DOCKERFILE = $dockerfile
         XIAOZHI_RUNTIME_DIR = $RuntimeDirectory
         XIAOZHI_PUBLIC_HOST = $PublicHost
         XIAOZHI_WS_PORT = "$WebSocketPort"
@@ -209,9 +252,12 @@ try {
             Initialize-Resources
             Test-Resources
             Invoke-Compose -Arguments @('config', '--quiet')
-            $settings = @{ PublicHost = $PublicHost; WebSocketPort = $WebSocketPort; OtaPort = $OtaPort; ProjectName = $ProjectName }
+            $settings = @{
+                PublicHost = $PublicHost; WebSocketPort = $WebSocketPort; OtaPort = $OtaPort
+                ProjectName = $ProjectName; Mode = $Mode; PackageDirectory = $PackageDirectory
+            }
             $settings | ConvertTo-Json | Set-Content -LiteralPath $settingsPath -Encoding utf8NoBOM
-            Write-Host 'Building sample-server and ota-server images (first FFmpeg build may take several minutes).'
+            Write-Host "构建主服务和 OTA 镜像（$Mode 模式；源码模式首次编译 FFmpeg 可能需要数分钟）。"
             Invoke-Compose -Arguments @('build')
             $startupAttempted = $true
             Invoke-Compose -Arguments @('up', '--detach', '--wait', '--wait-timeout', "$WaitTimeout")

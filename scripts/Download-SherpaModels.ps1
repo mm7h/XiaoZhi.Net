@@ -4,7 +4,10 @@ param(
     [string[]] $Models,
     [switch] $All,
     [switch] $KeepArchives,
-    [switch] $Force
+    [switch] $Force,
+    [switch] $UseCurl,
+    [string] $TarPath = "tar.exe",
+    [string] $SevenZipPath = "7z.exe"
 )
 
 Set-StrictMode -Version Latest
@@ -12,291 +15,38 @@ $ErrorActionPreference = "Stop"
 
 $releaseBaseUrl = "https://github.com/k2-fsa/sherpa-onnx/releases/download"
 
-function New-Asset {
-    param(
-        [string] $Release,
-        [string] $Name,
-        [string] $OutputName = ""
-    )
-
+# 两个下载入口共用清单；分号分隔资源/映射，逗号分隔候选文件，目录映射以 / 结尾。
+$availableModels = @(Import-Csv -LiteralPath (Join-Path $PSScriptRoot "SherpaModels.psv") -Delimiter '|' -Encoding UTF8 | ForEach-Object {
+    $entry = $_
+    $assets = @($entry.Assets -split ';' | ForEach-Object {
+        $parts = $_ -split '=', 2
+        [pscustomobject]@{
+            Name       = ($parts[0] -split '/')[-1]
+            OutputName = if ($parts.Count -gt 1) { $parts[1] } else { "" }
+            Url        = "$releaseBaseUrl/$($parts[0])"
+        }
+    })
+    $mappings = @(if ($entry.Mappings -ne '-') {
+        $entry.Mappings -split ';' | ForEach-Object {
+            $parts = $_ -split '=', 2
+            [pscustomobject]@{
+                Destination = $parts[0].TrimEnd('/')
+                Sources     = @($parts[1] -split ',')
+                Directory   = $parts[0].EndsWith('/')
+                Optional    = $false
+            }
+        }
+    })
     [pscustomobject]@{
-        Name       = $Name
-        OutputName = $OutputName
-        Url        = "$releaseBaseUrl/$Release/$Name"
+        Name        = $entry.Name
+        Category    = $entry.Category
+        Directory   = $entry.Directory
+        Assets      = $assets
+        Mappings    = $mappings
+        Required    = @($entry.Required -split ',')
+        ManualFiles = @(if ($entry.ManualFiles -ne '-') { $entry.ManualFiles -split ',' })
     }
-}
-
-function New-Mapping {
-    param(
-        [string] $Destination,
-        [string[]] $Sources,
-        [switch] $Directory,
-        [switch] $Optional
-    )
-
-    [pscustomobject]@{
-        Destination = $Destination
-        Sources     = $Sources
-        Directory   = $Directory.IsPresent
-        Optional    = $Optional.IsPresent
-    }
-}
-
-function New-Model {
-    param(
-        [string] $Name,
-        [string] $Category,
-        [string] $Directory,
-        [object[]] $Assets,
-        [object[]] $Mappings,
-        [string[]] $Required,
-        [string[]] $ManualFiles = @()
-    )
-
-    [pscustomobject]@{
-        Name        = $Name
-        Category    = $Category
-        Directory   = $Directory
-        Assets      = $Assets
-        Mappings    = $Mappings
-        Required    = $Required
-        ManualFiles = $ManualFiles
-    }
-}
-
-$availableModels = @(
-    (New-Model "Silero" "VAD" "vad/silero" `
-        @(New-Asset "asr-models" "silero_vad.onnx" "model.onnx") @() @("model.onnx")),
-    (New-Model "TenVad" "VAD" "vad/ten-vad" `
-        @(New-Asset "asr-models" "ten-vad.onnx" "model.onnx") @() @("model.onnx")),
-
-    (New-Model "SenseVoice" "离线 ASR" "asr/sense-voice" `
-        @(New-Asset "asr-models" "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("model.int8.onnx", "model.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("model.onnx", "tokens.txt")),
-    (New-Model "Paraformer" "离线 ASR" "asr/paraformer" `
-        @(New-Asset "asr-models" "sherpa-onnx-paraformer-zh-int8-2025-10-07.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("model.int8.onnx", "model.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("model.onnx", "tokens.txt")),
-    (New-Model "OfflineTransducer" "离线 ASR" "asr/offline-transducer" `
-        @(New-Asset "asr-models" "icefall-asr-multidataset-pruned_transducer_stateless7-2023-05-04.tar.bz2") `
-        @(
-            (New-Mapping "encoder.onnx" @("encoder-epoch-30-avg-4.int8.onnx", "encoder-epoch-30-avg-4.onnx")),
-            (New-Mapping "decoder.onnx" @("decoder-epoch-30-avg-4.onnx", "decoder-epoch-30-avg-4.int8.onnx")),
-            (New-Mapping "joiner.onnx" @("joiner-epoch-30-avg-4.int8.onnx", "joiner-epoch-30-avg-4.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("encoder.onnx", "decoder.onnx", "joiner.onnx", "tokens.txt")),
-    (New-Model "NemoCtc" "离线 ASR" "asr/nemo-ctc" `
-        @(New-Asset "asr-models" "sherpa-onnx-nemo-ctc-en-conformer-small.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("model.int8.onnx", "model.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("model.onnx", "tokens.txt")),
-    (New-Model "Whisper" "离线 ASR" "asr/whisper" `
-        @(New-Asset "asr-models" "sherpa-onnx-whisper-tiny.tar.bz2") `
-        @(
-            (New-Mapping "encoder.onnx" @("tiny-encoder.int8.onnx", "tiny-encoder.onnx")),
-            (New-Mapping "decoder.onnx" @("tiny-decoder.int8.onnx", "tiny-decoder.onnx")),
-            (New-Mapping "tokens.txt" @("tiny-tokens.txt", "tokens.txt"))
-        ) @("encoder.onnx", "decoder.onnx", "tokens.txt")),
-    (New-Model "Tdnn" "离线 ASR" "asr/tdnn" `
-        @(New-Asset "asr-models" "sherpa-onnx-tdnn-yesno.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("model.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("model.onnx", "tokens.txt")),
-    (New-Model "TeleSpeechCtc" "离线 ASR" "asr/tele-speech-ctc" `
-        @(New-Asset "asr-models" "sherpa-onnx-telespeech-ctc-int8-zh-2024-06-04.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("model.int8.onnx", "model.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("model.onnx", "tokens.txt")),
-    (New-Model "Moonshine" "离线 ASR" "asr/moonshine" `
-        @(New-Asset "asr-models" "sherpa-onnx-moonshine-tiny-en-quantized-2026-02-27.tar.bz2") `
-        @(
-            (New-Mapping "encoder.onnx" @("encoder_model.ort", "encoder.onnx")),
-            (New-Mapping "merged-decoder.onnx" @("decoder_model_merged.ort", "merged-decoder.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("encoder.onnx", "merged-decoder.onnx", "tokens.txt")),
-    (New-Model "FireRedAsr" "离线 ASR" "asr/fire-red-asr" `
-        @(New-Asset "asr-models" "sherpa-onnx-fire-red-asr-large-zh_en-2025-02-16.tar.bz2") `
-        @(
-            (New-Mapping "encoder.onnx" @("encoder.int8.onnx", "encoder.onnx")),
-            (New-Mapping "decoder.onnx" @("decoder.int8.onnx", "decoder.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("encoder.onnx", "decoder.onnx", "tokens.txt")),
-    (New-Model "Dolphin" "离线 ASR" "asr/dolphin" `
-        @(New-Asset "asr-models" "sherpa-onnx-dolphin-base-ctc-multi-lang-int8-2025-04-02.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("model.int8.onnx", "model.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("model.onnx", "tokens.txt")),
-    (New-Model "ZipformerCtc" "离线 ASR" "asr/zipformer-ctc" `
-        @(New-Asset "asr-models" "sherpa-onnx-zipformer-ctc-small-zh-int8-2025-07-16.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("model.int8.onnx", "model.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("model.onnx", "tokens.txt")),
-    (New-Model "Canary" "离线 ASR" "asr/canary" `
-        @(New-Asset "asr-models" "sherpa-onnx-nemo-canary-180m-flash-en-es-de-fr-int8.tar.bz2") `
-        @(
-            (New-Mapping "encoder.onnx" @("encoder.int8.onnx", "encoder.onnx")),
-            (New-Mapping "decoder.onnx" @("decoder.int8.onnx", "decoder.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("encoder.onnx", "decoder.onnx", "tokens.txt")),
-    (New-Model "WenetCtc" "离线 ASR" "asr/wenet-ctc" `
-        @(New-Asset "asr-models" "sherpa-onnx-zh-wenet-aishell.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("model.int8.onnx", "model.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("model.onnx", "tokens.txt")),
-    (New-Model "OmnilingualAsrCtc" "离线 ASR" "asr/omnilingual-asr-ctc" `
-        @(New-Asset "asr-models" "sherpa-onnx-omnilingual-asr-1600-languages-300M-ctc-int8-2025-11-12.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("model.int8.onnx", "model.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("model.onnx", "tokens.txt")),
-    (New-Model "MedAsrCtc" "离线 ASR" "asr/med-asr-ctc" `
-        @(New-Asset "asr-models" "sherpa-onnx-medasr-ctc-en-int8-2025-12-25.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("model.int8.onnx", "model.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("model.onnx", "tokens.txt")),
-    (New-Model "FunAsrNano" "离线 ASR" "asr/fun-asr-nano" `
-        @(New-Asset "asr-models" "sherpa-onnx-funasr-nano-int8-2025-12-30.tar.bz2") `
-        @(
-            (New-Mapping "encoder-adaptor.onnx" @("encoder_adaptor.int8.onnx", "encoder_adaptor.onnx")),
-            (New-Mapping "llm.onnx" @("llm.int8.onnx", "llm.onnx")),
-            (New-Mapping "embedding.onnx" @("embedding.int8.onnx", "embedding.onnx")),
-            (New-Mapping "tokenizer" @("Qwen3-0.6B", "tokenizer") -Directory)
-        ) @("encoder-adaptor.onnx", "llm.onnx", "embedding.onnx", "tokenizer")),
-    (New-Model "FireRedAsrCtc" "离线 ASR" "asr/fire-red-asr-ctc" `
-        @(New-Asset "asr-models" "sherpa-onnx-fire-red-asr2-ctc-zh_en-int8-2026-02-25.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("model.int8.onnx", "model.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("model.onnx", "tokens.txt")),
-    (New-Model "Qwen3Asr" "离线 ASR" "asr/qwen3-asr" `
-        @(New-Asset "asr-models" "sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25.tar.bz2") `
-        @(
-            (New-Mapping "conv-frontend.onnx" @("conv_frontend.onnx", "conv-frontend.onnx")),
-            (New-Mapping "encoder.onnx" @("encoder.int8.onnx", "encoder.onnx")),
-            (New-Mapping "decoder.onnx" @("decoder.int8.onnx", "decoder.onnx")),
-            (New-Mapping "tokenizer" @("tokenizer") -Directory)
-        ) @("conv-frontend.onnx", "encoder.onnx", "decoder.onnx", "tokenizer")),
-    (New-Model "CohereTranscribe" "离线 ASR" "asr/cohere-transcribe" `
-        @(New-Asset "asr-models" "sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01.tar.bz2") `
-        @(
-            (New-Mapping "encoder.onnx" @("encoder.int8.onnx", "encoder.onnx")),
-            (New-Mapping "decoder.onnx" @("decoder.int8.onnx", "decoder.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("encoder.onnx", "decoder.onnx", "tokens.txt")),
-
-    (New-Model "OnlineTransducer" "流式 ASR" "asr/online-transducer" `
-        @(New-Asset "asr-models" "sherpa-onnx-streaming-zipformer-small-bilingual-zh-en-2023-02-16.tar.bz2") `
-        @(
-            (New-Mapping "encoder.onnx" @("encoder-epoch-99-avg-1.int8.onnx", "encoder-epoch-99-avg-1.onnx")),
-            (New-Mapping "decoder.onnx" @("decoder-epoch-99-avg-1.onnx", "decoder-epoch-99-avg-1.int8.onnx")),
-            (New-Mapping "joiner.onnx" @("joiner-epoch-99-avg-1.int8.onnx", "joiner-epoch-99-avg-1.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("encoder.onnx", "decoder.onnx", "joiner.onnx", "tokens.txt")),
-    (New-Model "OnlineParaformer" "流式 ASR" "asr/online-paraformer" `
-        @(New-Asset "asr-models" "sherpa-onnx-streaming-paraformer-bilingual-zh-en.tar.bz2") `
-        @(
-            (New-Mapping "encoder.onnx" @("encoder.int8.onnx", "encoder.onnx")),
-            (New-Mapping "decoder.onnx" @("decoder.int8.onnx", "decoder.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("encoder.onnx", "decoder.onnx", "tokens.txt")),
-    (New-Model "OnlineZipformer2Ctc" "流式 ASR" "asr/online-zipformer2-ctc" `
-        @(New-Asset "asr-models" "sherpa-onnx-streaming-zipformer-ctc-multi-zh-hans-2023-12-13.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("ctc-epoch-20-avg-1-chunk-16-left-128.int8.onnx", "ctc-epoch-20-avg-1-chunk-16-left-128.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("model.onnx", "tokens.txt")),
-    (New-Model "OnlineNemoCtc" "流式 ASR" "asr/online-nemo-ctc" `
-        @(New-Asset "asr-models" "sherpa-onnx-nemo-streaming-fast-conformer-ctc-en-80ms.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("model.int8.onnx", "model.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("model.onnx", "tokens.txt")),
-    (New-Model "OnlineToneCtc" "流式 ASR" "asr/online-tone-ctc" `
-        @(New-Asset "asr-models" "sherpa-onnx-streaming-t-one-russian-2025-09-08.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("model.int8.onnx", "model.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("model.onnx", "tokens.txt")),
-
-    (New-Model "Kokoro" "TTS" "tts/kokoro" `
-        @(New-Asset "tts-models" "kokoro-multi-lang-v1_0.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("model.onnx")),
-            (New-Mapping "voices.bin" @("voices.bin")),
-            (New-Mapping "tokens.txt" @("tokens.txt")),
-            (New-Mapping "espeak-ng-data" @("espeak-ng-data") -Directory),
-            (New-Mapping "dict" @("dict") -Directory)
-        ) @("model.onnx", "voices.bin", "tokens.txt", "espeak-ng-data", "dict")),
-    (New-Model "Vits" "TTS" "tts/vits" `
-        @(New-Asset "tts-models" "vits-icefall-zh-aishell3.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("model.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("model.onnx", "tokens.txt")),
-    (New-Model "Matcha" "TTS" "tts/matcha" `
-        @(
-            (New-Asset "tts-models" "matcha-icefall-zh-baker.tar.bz2"),
-            (New-Asset "vocoder-models" "vocos-22khz-univ.onnx" "vocoder.onnx")
-        ) `
-        @(
-            (New-Mapping "acoustic-model.onnx" @("model-steps-3.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt"))
-        ) @("acoustic-model.onnx", "vocoder.onnx", "tokens.txt")),
-    (New-Model "Kitten" "TTS" "tts/kitten" `
-        @(New-Asset "tts-models" "kitten-nano-en-v0_1-fp16.tar.bz2") `
-        @(
-            (New-Mapping "model.onnx" @("model.fp16.onnx", "model.onnx")),
-            (New-Mapping "voices.bin" @("voices.bin")),
-            (New-Mapping "tokens.txt" @("tokens.txt")),
-            (New-Mapping "espeak-ng-data" @("espeak-ng-data") -Directory)
-        ) @("model.onnx", "voices.bin", "tokens.txt", "espeak-ng-data")),
-    (New-Model "ZipVoice" "TTS" "tts/zip-voice" `
-        @(
-            (New-Asset "tts-models" "sherpa-onnx-zipvoice-distill-int8-zh-en-emilia.tar.bz2"),
-            (New-Asset "vocoder-models" "vocos_24khz.onnx" "vocoder.onnx")
-        ) `
-        @(
-            (New-Mapping "encoder.onnx" @("encoder.int8.onnx", "encoder.onnx")),
-            (New-Mapping "decoder.onnx" @("decoder.int8.onnx", "decoder.onnx")),
-            (New-Mapping "tokens.txt" @("tokens.txt")),
-            (New-Mapping "lexicon.txt" @("lexicon.txt")),
-            (New-Mapping "espeak-ng-data" @("espeak-ng-data") -Directory)
-        ) @("encoder.onnx", "decoder.onnx", "vocoder.onnx", "tokens.txt", "lexicon.txt", "espeak-ng-data") @("reference.wav", "reference.txt")),
-    (New-Model "Pocket" "TTS" "tts/pocket" `
-        @(New-Asset "tts-models" "sherpa-onnx-pocket-tts-int8-2026-01-26.tar.bz2") `
-        @(
-            (New-Mapping "lm-flow.onnx" @("lm_flow.int8.onnx", "lm_flow.onnx")),
-            (New-Mapping "lm-main.onnx" @("lm_main.int8.onnx", "lm_main.onnx")),
-            (New-Mapping "encoder.onnx" @("encoder.int8.onnx", "encoder.onnx")),
-            (New-Mapping "decoder.onnx" @("decoder.int8.onnx", "decoder.onnx")),
-            (New-Mapping "text-conditioner.onnx" @("text_conditioner.int8.onnx", "text_conditioner.onnx")),
-            (New-Mapping "vocab.json" @("vocab.json")),
-            (New-Mapping "token-scores.json" @("token_scores.json"))
-        ) @("lm-flow.onnx", "lm-main.onnx", "encoder.onnx", "decoder.onnx", "text-conditioner.onnx", "vocab.json", "token-scores.json") @("reference.wav")),
-    (New-Model "Supertonic" "TTS" "tts/supertonic" `
-        @(New-Asset "tts-models" "sherpa-onnx-supertonic-3-tts-int8-2026-05-11.tar.bz2") `
-        @(
-            (New-Mapping "duration-predictor.onnx" @("duration_predictor.int8.onnx", "duration_predictor.onnx")),
-            (New-Mapping "text-encoder.onnx" @("text_encoder.int8.onnx", "text_encoder.onnx")),
-            (New-Mapping "vector-estimator.onnx" @("vector_estimator.int8.onnx", "vector_estimator.onnx")),
-            (New-Mapping "vocoder.onnx" @("vocoder.int8.onnx", "vocoder.onnx")),
-            (New-Mapping "tts.json" @("tts.json")),
-            (New-Mapping "unicode-indexer.bin" @("unicode_indexer.bin", "unicode-indexer.bin")),
-            (New-Mapping "voice.bin" @("voice.bin"))
-        ) @("duration-predictor.onnx", "text-encoder.onnx", "vector-estimator.onnx", "vocoder.onnx", "tts.json", "unicode-indexer.bin", "voice.bin"))
-)
+})
 
 function Test-ModelInstalled {
     param(
@@ -384,7 +134,24 @@ function Download-DirectAsset {
     }
 
     Write-Host "下载 $($Asset.Name)"
-    Invoke-WebRequest -Uri $Asset.Url -OutFile $outputPath
+    if ($UseCurl) {
+        & curl.exe -L --fail --retry 5 --retry-delay 5 --connect-timeout 30 --output $outputPath $Asset.Url
+        if ($LASTEXITCODE -ne 0) {
+            throw "下载 $($Asset.Name) 失败。"
+        }
+    }
+    else {
+        try {
+            Invoke-WebRequest -Uri $Asset.Url -OutFile $outputPath
+        }
+        catch {
+            Write-Warning "PowerShell 下载失败，改用 curl 重试：$($Asset.Name)"
+            & curl.exe -L --fail --retry 5 --retry-delay 5 --connect-timeout 30 --output $outputPath $Asset.Url
+            if ($LASTEXITCODE -ne 0) {
+                throw "下载 $($Asset.Name) 失败。"
+            }
+        }
+    }
 }
 
 function Expand-ModelArchive {
@@ -405,11 +172,43 @@ function Expand-ModelArchive {
 
     try {
         Write-Host "下载 $($Asset.Name)"
-        Invoke-WebRequest -Uri $Asset.Url -OutFile $archivePath
+        if ($UseCurl) {
+            & curl.exe -L --fail --retry 5 --retry-delay 5 --connect-timeout 30 --output $archivePath $Asset.Url
+            if ($LASTEXITCODE -ne 0) {
+                throw "下载 $($Asset.Name) 失败。"
+            }
+        }
+        else {
+            try {
+                Invoke-WebRequest -Uri $Asset.Url -OutFile $archivePath
+            }
+            catch {
+                Write-Warning "PowerShell 下载失败，改用 curl 重试：$($Asset.Name)"
+                & curl.exe -L --fail --retry 5 --retry-delay 5 --connect-timeout 30 --output $archivePath $Asset.Url
+                if ($LASTEXITCODE -ne 0) {
+                    throw "下载 $($Asset.Name) 失败。"
+                }
+            }
+        }
         Write-Host "解压 $($Asset.Name)"
-        & tar.exe -xf $archivePath -C $TargetDirectory --strip-components=1
-        if ($LASTEXITCODE -ne 0) {
-            throw "tar.exe 无法解压 $($Asset.Name)。"
+        if ($archiveTool -eq "tar") {
+            & $TarPath -xf $archivePath -C $TargetDirectory --strip-components=1
+            if ($LASTEXITCODE -ne 0) { throw "无法解压 $($Asset.Name)。" }
+        }
+        else {
+            # 7-Zip 分两步解开 bzip2 和 tar，随后由既有映射整理文件，不依赖 tar/bzip2。
+            $extractDirectory = Join-Path ([IO.Path]::GetTempPath()) ("xiaozhi-sherpa-" + [Guid]::NewGuid().ToString("N"))
+            New-Item -ItemType Directory -Path $extractDirectory | Out-Null
+            $tarFile = Join-Path $extractDirectory ([IO.Path]::GetFileNameWithoutExtension($archivePath))
+            try {
+                & $SevenZipPath e $archivePath "-o$extractDirectory" -y | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "无法解开 $($Asset.Name) 的 bzip2 压缩。" }
+                & $SevenZipPath x $tarFile "-o$TargetDirectory" -y | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "无法解开 $($Asset.Name) 的 tar 归档。" }
+            }
+            finally {
+                if (Test-Path -LiteralPath $tarFile -PathType Leaf) { Remove-Item -LiteralPath $tarFile -Force }
+            }
         }
     }
     finally {
@@ -419,7 +218,7 @@ function Expand-ModelArchive {
     }
 }
 
-$requestedModelNames = @($Models | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+$requestedModelNames = @($Models | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 
 if (-not $All -and $requestedModelNames.Count -eq 0) {
     Write-Host "请使用 -Models 或 -All 选择要下载的模型。"
@@ -429,13 +228,6 @@ if (-not $All -and $requestedModelNames.Count -eq 0) {
     Write-Host "  pwsh -File .\\scripts\\Download-SherpaModels.ps1 -All"
     return
 }
-
-if (-not (Get-Command tar.exe -ErrorAction SilentlyContinue)) {
-    throw "未找到 tar.exe。请安装 Windows 自带的 tar 或提供兼容的 tar.exe。"
-}
-
-$destinationPath = [IO.Path]::GetFullPath($Destination)
-New-Item -ItemType Directory -Path $destinationPath -Force | Out-Null
 
 $selectedModels = if ($All) {
     $availableModels
@@ -448,6 +240,32 @@ else {
 
     @($availableModels | Where-Object { $_.Name -in $requestedModelNames })
 }
+
+$archiveTool = ""
+if (@($selectedModels.Assets | Where-Object { [string]::IsNullOrEmpty($_.OutputName) }).Count -gt 0) {
+    # 先验证实际解压能力，避免下载大文件后才发现平台自带 tar 不支持 bzip2。
+    $probeArchive = Join-Path $PSScriptRoot "tar-bzip2-probe.tar.bz2"
+    if (Get-Command $TarPath -ErrorAction SilentlyContinue) {
+        & $TarPath -tf $probeArchive 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) { $archiveTool = "tar" }
+    }
+    if (-not $archiveTool) {
+        if (-not (Get-Command $SevenZipPath -ErrorAction SilentlyContinue) -and $SevenZipPath -eq "7z.exe") {
+            $installedSevenZip = Join-Path ${env:ProgramFiles} "7-Zip/7z.exe"
+            if (Test-Path -LiteralPath $installedSevenZip) { $SevenZipPath = $installedSevenZip }
+        }
+        if (Get-Command $SevenZipPath -ErrorAction SilentlyContinue) {
+            & $SevenZipPath t $probeArchive 2>$null | Out-Null
+            if ($LASTEXITCODE -eq 0) { $archiveTool = "7zip" }
+        }
+    }
+    if (-not $archiveTool) {
+        throw "没有可用的 .tar.bz2 解压工具。请安装 7-Zip（可用 -SevenZipPath 指定路径），或提供支持 bzip2 的 tar（-TarPath）；无需 Python。"
+    }
+}
+
+$destinationPath = [IO.Path]::GetFullPath($Destination)
+New-Item -ItemType Directory -Path $destinationPath -Force | Out-Null
 
 foreach ($model in $selectedModels) {
     $targetDirectory = Join-Path $destinationPath $model.Directory

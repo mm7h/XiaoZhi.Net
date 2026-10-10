@@ -15,7 +15,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
     internal class FileMusicPlayer : BaseProvider<FileMusicPlayer, AudioSetting>, IMusicPlayer
     {
         private readonly SemaphoreSlim _audioPlayerSlim = new SemaphoreSlim(1, 1);
-        private readonly MusicProviderSetting _musicProviderSetting;
+        private readonly MusicSetting _musicSetting;
         private readonly IUrlAudioPlayer _urlAudioPlayer;
 
         private Channel<MusicFileRequest>? _processingChannel;
@@ -24,6 +24,9 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
         private Task? _processingTask;
         private AudioSetting? _audioSetting;
         private long _playbackGeneration;
+
+        private TimeSpan _commandTimeout = TimeSpan.Zero;
+        private TimeSpan _stopTimeout = TimeSpan.Zero;
 
         public override string ProviderType => "audio player";
 
@@ -50,14 +53,14 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             : base(logger)
         {
             this._urlAudioPlayer = urlAudioPlayer;
-            this._musicProviderSetting = config.MusicProviderSetting;
+            this._musicSetting = config.MusicSetting;
             this._urlAudioPlayer.OnAudioDataAvailable += this.FireAudioData;
         }
 
         public override bool Build(AudioSetting audioSetting)
         {
-            if (this._musicProviderSetting.CommandTimeout <= TimeSpan.Zero
-                || this._musicProviderSetting.StopTimeout <= TimeSpan.Zero)
+            if (this._musicSetting.CommandTimeoutSeconds <= 0
+                || this._musicSetting.StopTimeoutSeconds <= 0)
             {
                 return false;
             }
@@ -67,6 +70,9 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                 this.Logger.LogError(Lang.FileMusicPlayer_Build_FFmpegInitFailed);
                 return false;
             }
+
+            this._commandTimeout = TimeSpan.FromSeconds(this._musicSetting.CommandTimeoutSeconds);
+            this._stopTimeout = TimeSpan.FromSeconds(this._musicSetting.StopTimeoutSeconds);
 
             this._audioSetting = audioSetting;
             BoundedChannelOptions boundedChannelOptions = new(50)
@@ -97,7 +103,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             try
             {
                 await this.WaitForAudioPlayerLockAsync(
-                    this._musicProviderSetting.CommandTimeout,
+                    this._commandTimeout,
                     cancellationToken);
                 lockAcquired = true;
 
@@ -119,7 +125,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                     MusicFileRequest request = new(file, generation);
                     await ExecuteWithTimeoutAsync(
                         token => this._processingChannel.Writer.WriteAsync(request, token).AsTask(),
-                        this._musicProviderSetting.CommandTimeout,
+                        this._commandTimeout,
                         cancellationToken);
                 }
             }
@@ -138,7 +144,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             try
             {
                 await this.WaitForAudioPlayerLockAsync(
-                    this._musicProviderSetting.CommandTimeout,
+                    this._commandTimeout,
                     cancellationToken);
                 lockAcquired = true;
 
@@ -150,7 +156,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
                 await ExecuteWithTimeoutAsync(
                     token => this._urlAudioPlayer.PauseAsync(token),
-                    this._musicProviderSetting.CommandTimeout,
+                    this._commandTimeout,
                     cancellationToken);
             }
             finally
@@ -168,7 +174,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             try
             {
                 await this.WaitForAudioPlayerLockAsync(
-                    this._musicProviderSetting.CommandTimeout,
+                    this._commandTimeout,
                     cancellationToken);
                 lockAcquired = true;
 
@@ -199,7 +205,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             try
             {
                 await this.WaitForAudioPlayerLockAsync(
-                    this._musicProviderSetting.StopTimeout,
+                    this._stopTimeout,
                     cancellationToken);
                 lockAcquired = true;
 
@@ -220,7 +226,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             try
             {
                 await this.WaitForAudioPlayerLockAsync(
-                    this._musicProviderSetting.CommandTimeout,
+                    this._commandTimeout,
                     cancellationToken);
                 lockAcquired = true;
 
@@ -231,7 +237,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
                 await ExecuteWithTimeoutAsync(
                     token => this._urlAudioPlayer.SeekAsync(position, token),
-                    this._musicProviderSetting.CommandTimeout,
+                    this._commandTimeout,
                     cancellationToken);
             }
             finally
@@ -255,7 +261,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
             await ExecuteWithTimeoutAsync(
                 token => this._urlAudioPlayer.StopAsync(token),
-                this._musicProviderSetting.StopTimeout,
+                this._stopTimeout,
                 cancellationToken);
         }
 

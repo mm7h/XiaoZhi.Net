@@ -7,9 +7,9 @@ using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Resources.Musics
 {
-    internal class MusicProvider : BaseResource<MusicProvider, MusicProviderSetting>, IMusicFileProvider
+    internal class MusicProvider : BaseResource<MusicProvider, MusicSetting>, IMusicFileProvider
     {
-        private MusicProviderSetting? _setting;
+        private MusicSetting? _setting;
         private readonly IDictionary<string, string> _musicFiles;
 
         public MusicProvider(ILogger<MusicProvider> logger) : base(logger)
@@ -23,7 +23,7 @@ namespace XiaoZhi.Net.Server.Resources.Musics
         public bool HasMusicFiles { get; private set; }
         public IReadOnlyDictionary<string, string> MusicFiles { get; private set; }
 
-        public override bool Load(MusicProviderSetting settings)
+        public override bool Load(MusicSetting settings)
         {
             this._setting = settings;
             return this.Load(settings.MusicFolderPath);

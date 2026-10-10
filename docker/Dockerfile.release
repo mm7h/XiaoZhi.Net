@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1
+# 只复制自包含运行包，不安装 .NET SDK 或编译 FFmpeg。
+FROM debian:bookworm-slim AS runtime
+RUN apt-get -o Acquire::Retries=3 update && apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
+    ca-certificates tzdata libicu72 libssl3 libstdc++6 libgomp1 libgnutls30 libmp3lame0 libopus0 \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 1654 app && useradd --uid 1654 --gid app --create-home app
+WORKDIR /app
+ENV TZ=Asia/Shanghai DOTNET_BUNDLE_EXTRACT_BASE_DIR=/app/.net
+
+FROM runtime AS sample-server
+COPY server/XiaoZhi.Net.Sample.Server ./
+COPY server/ffmpeg/ ./ffmpeg/
+COPY LICENSE /opt/licenses/XiaoZhi.Net.LICENSE
+RUN chmod 755 XiaoZhi.Net.Sample.Server \
+    && mkdir -p Configs models musics data logs .net && chown -R app:app data logs .net
+ENV DOTNET_ENVIRONMENT=Production LD_LIBRARY_PATH=/app/ffmpeg
+EXPOSE 4530
+USER app
+ENTRYPOINT ["./XiaoZhi.Net.Sample.Server"]
+
+FROM runtime AS ota-server
+COPY ota/XiaoZhi.Net.Sample.OTA.Server ./
+RUN chmod 755 XiaoZhi.Net.Sample.OTA.Server \
+    && mkdir -p .net && chown app:app .net
+ENV ASPNETCORE_ENVIRONMENT=Production ASPNETCORE_URLS=http://+:4531
+EXPOSE 4531
+USER app
+ENTRYPOINT ["./XiaoZhi.Net.Sample.OTA.Server"]

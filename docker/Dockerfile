@@ -53,8 +53,8 @@ COPY --from=server-build /publish/ ./
 COPY --from=ffmpeg-build /opt/ffmpeg/lib/ ./ffmpeg/
 COPY --from=ffmpeg-build /opt/ffmpeg/bin/ /opt/ffmpeg/bin/
 COPY --from=ffmpeg-build /opt/ffmpeg/licenses/ /opt/ffmpeg/licenses/
-RUN mkdir -p Configs models musics data logs && chown -R app:app data logs
-ENV DOTNET_ENVIRONMENT=Production TZ=Asia/Shanghai LD_LIBRARY_PATH=/app/ffmpeg
+RUN mkdir -p Configs models musics data logs .net && chown -R app:app data logs .net
+ENV DOTNET_ENVIRONMENT=Production TZ=Asia/Shanghai LD_LIBRARY_PATH=/app/ffmpeg DOTNET_BUNDLE_EXTRACT_BASE_DIR=/app/.net
 EXPOSE 4530
 USER app
 ENTRYPOINT ["dotnet", "XiaoZhi.Net.Sample.Server.dll"]
@@ -62,7 +62,9 @@ ENTRYPOINT ["dotnet", "XiaoZhi.Net.Sample.Server.dll"]
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim AS ota-server
 WORKDIR /app
 COPY --from=ota-build /publish/ ./
-ENV ASPNETCORE_ENVIRONMENT=Production ASPNETCORE_URLS=http://+:4531 TZ=Asia/Shanghai
+USER root
+RUN mkdir -p .net && chown app:app .net
+ENV ASPNETCORE_ENVIRONMENT=Production ASPNETCORE_URLS=http://+:4531 TZ=Asia/Shanghai DOTNET_BUNDLE_EXTRACT_BASE_DIR=/app/.net
 EXPOSE 4531
 USER app
 ENTRYPOINT ["dotnet", "XiaoZhi.Net.Sample.OTA.Server.dll"]

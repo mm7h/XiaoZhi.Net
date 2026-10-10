@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Net.WebSockets;
 using System.Text.Json.Nodes;
 using NAudio.Wave;
+using XiaoZhi.Net.Test.Helpers;
 using XiaoZhi.Net.Test.Socket;
 
 namespace XiaoZhi.Net.Test.OtherSamples

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Test.Helpers;
 using XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Enums;
 using XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Models;
 using XiaoZhi.Net.Test.Socket;

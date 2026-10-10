@@ -3,7 +3,7 @@ using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 
 namespace XiaoZhi.Net.Server.Resources
 {
-    internal interface IMusicFileProvider : IResource<MusicProviderSetting>
+    internal interface IMusicFileProvider : IResource<MusicSetting>
     {
         bool HasMusicFiles { get; }
         string MusicFolderPath { get; }

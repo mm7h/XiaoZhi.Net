@@ -1,4 +1,4 @@
-using XiaoZhi.Net.Server.Abstractions.Common.Enums;
+﻿using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
 {
@@ -8,7 +8,7 @@ namespace XiaoZhi.Net.Server.Abstractions.FunctionTools
         {
             this.ServerName = serverName;
             this.Config = config;
-            this.Protocol = config.ServerProtocol;
+            this.Protocol = config.Protocol;
         }
 
         public string ServerName { get; }

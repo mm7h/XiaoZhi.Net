@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
-namespace XiaoZhi.Net.Test.OtherSamples
+namespace XiaoZhi.Net.Test.Helpers
 {
     internal static class JsonHelper
     {

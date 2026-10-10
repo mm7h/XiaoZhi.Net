@@ -23,7 +23,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
 
         private IVadOnnxModel? _vadOnnxModel;
         private int _sampleRate = GlobalVariables.AudioProcessingSampleRate;
-        private int _closeConnectionNoVoiceTime = 120;
+        private int _closeConnectionNoVoiceTime = 120_000;
 
         private float _silenceThresholdSecond;
         private float _threshold;
@@ -62,7 +62,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
                 this._silenceThresholdSecond = modelSetting.Config.GetConfigValueOrDefault("SilenceThresholdSecond", 0.7f);
                 this._threshold = modelSetting.Config.GetConfigValueOrDefault("Threshold", 0.5f);
                 this._thresholdLow = modelSetting.Config.GetConfigValueOrDefault("ThresholdLow", 0.2f);
-                this._closeConnectionNoVoiceTime = modelSetting.Config.GetConfigValueOrDefault("CloseConnectionNoVoiceTime", 120);
+                this._closeConnectionNoVoiceTime = modelSetting.Config.GetConfigValueOrDefault("CloseConnectionNoVoiceTime", 120_000);
 
                 this.FrameSize = 512;
 
@@ -205,9 +205,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
             }
 
             long silenceDuration = DateTimeOffset.Now.ToUnixTimeMilliseconds() - vadState.HaveVoiceLatestTime;
-            long longTermSilenceThresholdMs = this._closeConnectionNoVoiceTime * 1000;
-
-            if (silenceDuration >= longTermSilenceThresholdMs)
+            if (silenceDuration >= this._closeConnectionNoVoiceTime)
             {
                 this.Logger.LogDebug(Lang.SileroNative_CheckLongTermSilence_Detected, deviceId, silenceDuration);
                 this._vadEventCallback?.OnLongTermSilence();

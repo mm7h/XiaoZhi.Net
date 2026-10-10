@@ -1,6 +1,7 @@
 ﻿using System.Net.Http.Headers;
 using System.Net.WebSockets;
 using System.Text;
+using XiaoZhi.Net.Test.Helpers;
 using XiaoZhi.Net.Test.Socket;
 
 namespace XiaoZhi.Net.Test.OtherSamples

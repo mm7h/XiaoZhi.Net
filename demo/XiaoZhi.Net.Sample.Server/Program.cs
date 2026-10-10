@@ -14,21 +14,14 @@ ConfigurationRoot? configuration = null;
 
 try
 {
-    string environmentName = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? Environments.Production;
-    string configDirectory = Path.Combine(Environment.CurrentDirectory, "Configs");
-    var configurationBuilder = new ConfigurationBuilder()
-        .SetBasePath(configDirectory)
-        .AddJsonFile("config.json", optional: false, reloadOnChange: false);
-
-    // 按照文件名顺序加载所有 config_*.json 文件
-    // 靠后加载的配置会覆盖靠前面的配置
-    foreach (string path in Directory.EnumerateFiles(configDirectory, "config_*.json").OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase))
-    {
-        configurationBuilder.AddJsonFile(Path.GetFileName(path), optional: false, reloadOnChange: false);
-    }
-    configuration = (ConfigurationRoot)configurationBuilder
-        .AddJsonFile($"config.{environmentName}.json", optional: true, reloadOnChange: false)
-        .Build();
+#if DEBUG
+    // 开发调试时可直接启动，默认读取现有配置及 Development 覆盖文件。
+    string defaultEnvironmentName = Environments.Development;
+#else
+    string defaultEnvironmentName = Environments.Production;
+#endif
+    string environmentName = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? defaultEnvironmentName;
+    configuration = XiaoZhiConfigurationExtensions.LoadConfiguration(args, environmentName);
     XiaoZhiConfig config = configuration.GetXiaoZhiConfig();
 
     // 获取服务引擎构建器
@@ -85,11 +78,13 @@ finally
     serverHost?.Dispose();
     configuration?.Dispose();
     Console.WriteLine("The server stopped.");
+#if DEBUG
     if (!Console.IsInputRedirected)
     {
         Console.WriteLine("Press any key to exit...");
         Console.ReadKey();
     }
+#endif
 }
 
 static void PrintBanner()

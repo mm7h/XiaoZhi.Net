@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using Flurl.Http;
 using Flurl.Http.Configuration;
+using XiaoZhi.Net.Test.Helpers;
 using XiaoZhi.Net.Test.OtherSamples.Huoshan.Protocols.Models;
 
 namespace XiaoZhi.Net.Test.OtherSamples

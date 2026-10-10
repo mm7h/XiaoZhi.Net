@@ -50,7 +50,7 @@ namespace XiaoZhi.Net.Server.Management
 
             #region Musics
             IMusicFileProvider musics = this.ServiceProvider.GetRequiredService<IMusicFileProvider>();
-            if (!musics.Load(this.Config.MusicProviderSetting))
+            if (!musics.Load(this.Config.MusicSetting))
             {
                 return false;
             }

@@ -1,16 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using XiaoZhi.Net.Server.Abstractions.Common.Dtos.Tts;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums.Tts;
 using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
+using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Contexts.Aliyun;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
+using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Protocol.WebSocket;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
@@ -21,15 +24,18 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
     /// </summary>
     internal sealed class AliyunRealtimeTTS : BaseProvider<AliyunRealtimeTTS, ModelSetting>, ITts
     {
+        private readonly IAudioEditor _audioEditor;
         private readonly SemaphoreSlim _turnLock = new(1, 1);
 
         private ITtsEventCallback? _ttsEventCallback;
         private WebSocketClient? _webSocketClient;
         private AliyunRealtimeTtsOptions? _options;
+        private AudioSavingConfig? _audioSavingConfig;
         private AliyunRealtimeTtsTurnSession? _activeTurn;
 
-        public AliyunRealtimeTTS(ILogger<AliyunRealtimeTTS> logger) : base(logger)
+        public AliyunRealtimeTTS(IAudioEditor audioEditor, ILogger<AliyunRealtimeTTS> logger) : base(logger)
         {
+            this._audioEditor = audioEditor;
         }
 
         public override string ProviderType => "tts";
@@ -96,6 +102,12 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
                     modelSetting.Config.GetConfigValueOrDefault<string?>("Instruction"),
                     Math.Clamp(modelSetting.Config.GetConfigValueOrDefault("ConnectionTimeoutSeconds", 5), 1, 60),
                     Math.Clamp(modelSetting.Config.GetConfigValueOrDefault("ResponseTimeoutSeconds", 30), 1, 120));
+
+                this._audioSavingConfig = modelSetting.Config.GetConfigValueOrDefault("FileSavingOption", new AudioSavingConfig(false));
+                if (this._audioSavingConfig.SaveFile && !Directory.Exists(this._audioSavingConfig.SavePath))
+                {
+                    Directory.CreateDirectory(this._audioSavingConfig.SavePath);
+                }
 
                 this._webSocketClient?.Dispose();
                 this._webSocketClient = new WebSocketClient(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -243,7 +255,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
                         webSocketClient,
                         options,
                         this._ttsEventCallback,
-                        this.OnTurnFaulted);
+                        this.OnTurnFaulted,
+                        this._audioSavingConfig?.SaveFile == true);
                     this._activeTurn = turn;
                     isNewTurn = true;
                 }
@@ -300,6 +313,8 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
             try
             {
                 await finishTask;
+                token.ThrowIfCancellationRequested();
+                await this.SaveAudioFileAsync(workflow.DeviceId, turn!);
                 this._ttsEventCallback?.OnProcessed(
                     segment.Content,
                     isFirstSegment: segment.IsFirstSegment,
@@ -319,6 +334,45 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
             }
 
             await this.StopTurnAfterCompletionAsync(turn!);
+        }
+
+        private async Task SaveAudioFileAsync(string deviceId, AliyunRealtimeTtsTurnSession turn)
+        {
+            AudioSavingConfig? savingConfig = this._audioSavingConfig;
+            if (savingConfig is null || !savingConfig.SaveFile)
+            {
+                return;
+            }
+
+            float[] audioData = turn.TakeAudioSamples();
+            if (audioData.Length == 0)
+            {
+                return;
+            }
+
+            string savedFileName = $"{this.ProviderType}_{turn.TaskId}.{savingConfig.Format}";
+            string savePath = Path.Combine(savingConfig.SavePath, savedFileName);
+            try
+            {
+                bool saved = await this._audioEditor.SaveAudioFileAsync(
+                    savePath,
+                    audioData,
+                    this.GetTtsSampleRate(),
+                    1,
+                    savingConfig.BitRate);
+                if (saved)
+                {
+                    this.Logger.LogInformation(Lang.BaseHuoshanTTS_SaveAudioFile_FileSaved, savePath, deviceId);
+                }
+                else
+                {
+                    this.Logger.LogWarning(Lang.BaseHuoshanTTS_SaveAudioFile_SaveFailed, savedFileName, deviceId);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, Lang.BaseHuoshanTTS_SaveAudioFile_SaveFailed, savedFileName, deviceId);
+            }
         }
 
         public override void Dispose()

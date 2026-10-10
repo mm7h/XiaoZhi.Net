@@ -1,5 +1,9 @@
 /.vscode/
-/.github/
+/.github/*
+!/.github/workflows/
+/.github/workflows/*
+!/.github/workflows/release.yml
+!/.github/workflows/scripts/
 /.vs/
 *.user
 *.pubxml
@@ -22,3 +26,4 @@ AGENTS.md
 
 # Platform-specific native binaries are supplied locally when publishing.
 /demo/XiaoZhi.Net.Sample.Server/NativeLibraries/
+/artifacts/

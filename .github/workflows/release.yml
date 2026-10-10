@@ -1,0 +1,79 @@
+name: Release packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要编译打包的版本 tag（手动运行只生成构建产物，不上传 Release）'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || github.event.release.tag_name != 'resources'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64, os: windows-2022 }
+          - { rid: win-arm64, os: windows-11-arm }
+          - { rid: linux-x64, os: ubuntu-24.04 }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm }
+          - { rid: osx-x64, os: macos-15-intel }
+          - { rid: osx-arm64, os: macos-15 }
+    runs-on: ${{ matrix.os }}
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      RELEASE_RID: ${{ matrix.rid }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Linux 单文件发布工具
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y patchelf
+      - name: 发布并打包
+        shell: pwsh
+        run: ./.github/workflows/scripts/Publish-Release.ps1 -RuntimeIdentifier $env:RELEASE_RID -Version $env:RELEASE_TAG
+      - name: 保存运行包
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.rid }}
+          path: |
+            artifacts/release/*.zip
+            artifacts/release/*.sha256
+          if-no-files-found: error
+
+  upload:
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          path: packages
+          merge-multiple: true
+      - name: 汇总校验值并上传
+        shell: pwsh
+        run: |
+          $archives = @(Get-ChildItem packages -Filter '*.zip')
+          $checksums = @(Get-ChildItem packages -Filter '*.sha256' | Sort-Object Name)
+          if ($archives.Count -ne 6 -or $checksums.Count -ne 6) { throw '缺少平台运行包或校验文件' }
+          Get-Content -LiteralPath $checksums.FullName | Set-Content packages/SHA256SUMS -Encoding utf8NoBOM
+          gh release upload $env:RELEASE_TAG @($archives.FullName) packages/SHA256SUMS --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Release 资产上传失败' }

@@ -3,16 +3,17 @@ services:
     image: ${XIAOZHI_PROJECT_NAME:-xiaozhi-samples}/sample-server:local
     platform: linux/amd64
     build:
-      context: ${XIAOZHI_BUILD_CONTEXT:?Run deploy.ps1 to provide the repository path}
-      dockerfile: docker/Dockerfile
+      context: ${XIAOZHI_BUILD_CONTEXT:?Run deploy.sh or deploy.ps1 to provide the build context}
+      dockerfile: ${XIAOZHI_DOCKERFILE:-docker/Dockerfile}
       target: sample-server
     restart: unless-stopped
+    command: ["--config", "/app/Configs/config.json"]
     init: true
     ports:
       - "${XIAOZHI_WS_PORT:-4530}:4530"
     volumes:
       - type: bind
-        source: ${XIAOZHI_RUNTIME_DIR:?Run deploy.ps1 to provide the resource path}/Configs
+        source: ${XIAOZHI_RUNTIME_DIR:?Run deploy.sh or deploy.ps1 to provide the resource path}/Configs
         target: /app/Configs
         read_only: true
         bind:
@@ -43,13 +44,13 @@ services:
     platform: linux/amd64
     build:
       context: ${XIAOZHI_BUILD_CONTEXT}
-      dockerfile: docker/Dockerfile
+      dockerfile: ${XIAOZHI_DOCKERFILE:-docker/Dockerfile}
       target: ota-server
     restart: unless-stopped
     init: true
     environment:
       XiaoZhi__ConfigDirectory: /app/Configs
-      XiaoZhi__Websocket__Url: ws://${XIAOZHI_PUBLIC_HOST:?Specify -PublicHost on first deployment}:${XIAOZHI_WS_PORT:-4530}/xiaozhi/v1/
+      XiaoZhi__Websocket__Url: ws://${XIAOZHI_PUBLIC_HOST:?Specify the public host on first deployment}:${XIAOZHI_WS_PORT:-4530}/xiaozhi/v1/
     ports:
       - "${XIAOZHI_OTA_PORT:-4531}:4531"
     volumes:

@@ -28,6 +28,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
         private readonly object _segmentsLock = new();
         private readonly List<AliyunRealtimeTtsSegment> _submittedSegments = [];
         private readonly Dictionary<int, AliyunRealtimeTtsSentence> _sentences = [];
+        private readonly List<float>? _audioBuffer;
 
         private readonly string _taskId = Guid.NewGuid().ToString();
         private int _nextFallbackSegmentIndex;
@@ -44,12 +45,14 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
             WebSocketClient webSocketClient,
             AliyunRealtimeTtsOptions options,
             ITtsEventCallback? ttsEventCallback,
-            Action<AliyunRealtimeTtsTurnSession, Exception> onFaulted)
+            Action<AliyunRealtimeTtsTurnSession, Exception> onFaulted,
+            bool saveAudio)
         {
             this._webSocketClient = webSocketClient ?? throw new ArgumentNullException(nameof(webSocketClient));
             this._options = options ?? throw new ArgumentNullException(nameof(options));
             this._ttsEventCallback = ttsEventCallback;
             this._onFaulted = onFaulted ?? throw new ArgumentNullException(nameof(onFaulted));
+            this._audioBuffer = saveAudio ? [] : null;
         }
 
         public string TaskId => this._taskId;
@@ -154,11 +157,31 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
             this._streamActive = false;
             this._taskStartedCompletion.TrySetCanceled();
             this._taskFinishedCompletion.TrySetCanceled();
+            lock (this._segmentsLock)
+            {
+                this._audioBuffer?.Clear();
+            }
             this._expectedClose = true;
             await this._webSocketClient.CloseAsync(WebSocketCloseStatus.NormalClosure, "TTS turn aborted");
         }
 
         public bool TryMarkFailureReported() => Interlocked.Exchange(ref this._failureReported, 1) == 0;
+
+        public float[] TakeAudioSamples()
+        {
+            lock (this._segmentsLock)
+            {
+                if (this._audioBuffer is null || this._abortRequested || this._disposed
+                    || !this._taskFinishedCompletion.Task.IsCompletedSuccessfully)
+                {
+                    return Array.Empty<float>();
+                }
+
+                float[] samples = this._audioBuffer.ToArray();
+                this._audioBuffer.Clear();
+                return samples;
+            }
+        }
 
         public void Dispose()
         {
@@ -173,6 +196,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
             {
                 this._submittedSegments.Clear();
                 this._sentences.Clear();
+                this._audioBuffer?.Clear();
             }
         }
 
@@ -348,6 +372,15 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
                 float[] pcm = audioData.PcmBytesToFloat(16);
                 if (pcm.Length > 0)
                 {
+                    lock (this._segmentsLock)
+                    {
+                        if (!this._streamActive || this._disposed)
+                        {
+                            return;
+                        }
+
+                        this._audioBuffer?.AddRange(pcm);
+                    }
                     this._ttsEventCallback?.OnProcessing(pcm, false, false);
                 }
             }
@@ -438,6 +471,10 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Aliyun
             }
 
             this._streamActive = false;
+            lock (this._segmentsLock)
+            {
+                this._audioBuffer?.Clear();
+            }
             this._taskStartedCompletion.TrySetException(exception);
             this._taskFinishedCompletion.TrySetException(exception);
             this._onFaulted(this, exception);

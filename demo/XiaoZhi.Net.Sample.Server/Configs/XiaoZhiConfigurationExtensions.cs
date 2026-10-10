@@ -13,6 +13,40 @@ internal static class XiaoZhiConfigurationExtensions
         Converters = { new LenientStringConverter() }
     };
 
+    public static ConfigurationRoot LoadConfiguration(string[] args, string environmentName)
+    {
+        if (args.Length != 0 && (args.Length != 2 || args[0] != "--config" || string.IsNullOrWhiteSpace(args[1])))
+        {
+            throw new ArgumentException("no configuration file path here.");
+        }
+
+#if DEBUG
+        string configPath = Path.Combine("Configs", "config.json");
+#else
+        string configPath = Path.GetFullPath(args[1]);
+#endif
+
+
+        if (!File.Exists(configPath))
+        {
+            throw new FileNotFoundException("未找到主服务配置文件。", configPath);
+        }
+
+        string configDirectory = Path.GetDirectoryName(configPath)!;
+        var builder = new ConfigurationBuilder()
+            .SetBasePath(configDirectory)
+            .AddJsonFile(Path.GetFileName(configPath), optional: false, reloadOnChange: false);
+        StringComparison pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        // 配置分片与环境覆盖始终从指定配置文件所在目录读取。
+        foreach (string path in Directory.EnumerateFiles(configDirectory, "config_*.json")
+            .Where(path => !string.Equals(path, configPath, pathComparison))
+            .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase))
+        {
+            builder.AddJsonFile(Path.GetFileName(path), optional: false, reloadOnChange: false);
+        }
+        return (ConfigurationRoot)builder.AddJsonFile($"config.{environmentName}.json", optional: true, reloadOnChange: false).Build();
+    }
+
     public static XiaoZhiConfig GetXiaoZhiConfig(this IConfiguration configuration)
     {
         XiaoZhiConfig config = configuration.Get<XiaoZhiConfig>()

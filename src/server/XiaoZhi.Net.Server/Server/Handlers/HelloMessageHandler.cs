@@ -41,7 +41,7 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             Session session = this.SendOutter.GetSession();
 
-            HelloMessage defaultHelloMessage = new HelloMessage(this.SendOutter.SessionId, this.Config.ServerProtocol.GetDescription().ToLower(), this.Config.AudioSetting);
+            HelloMessage defaultHelloMessage = new HelloMessage(this.SendOutter.SessionId, this.Config.Protocol.GetDescription().ToLower(), this.Config.AudioSetting);
 
             if (helloMessage.TryGetPropertyValue("audio_params", out var audioParams) && audioParams is not null)
             {

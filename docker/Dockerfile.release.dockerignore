@@ -1,0 +1,12 @@
+# 即使用户已经配置凭据或下载模型，也不将这些内容发送到构建上下文。
+**
+!server/
+!server/XiaoZhi.Net.Sample.Server
+!server/ffmpeg/
+!server/ffmpeg/**
+!ota/
+!ota/XiaoZhi.Net.Sample.OTA.Server
+!LICENSE
+!docker/
+!docker/Dockerfile.release
+!docker/Dockerfile.release.dockerignore

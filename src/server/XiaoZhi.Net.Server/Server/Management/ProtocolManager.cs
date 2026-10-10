@@ -18,7 +18,7 @@ namespace XiaoZhi.Net.Server.Management
     {
         public static IHostBuilder RegisterServices(IHostBuilder builder, XiaoZhiConfig config)
         {
-            if (config.ServerProtocol == ServerProtocol.WebSocket)
+            if (config.Protocol == ServerProtocol.WebSocket)
             {
                 WebSocketServerOption webSocketOption = config.WebSocketServerOption;
 
