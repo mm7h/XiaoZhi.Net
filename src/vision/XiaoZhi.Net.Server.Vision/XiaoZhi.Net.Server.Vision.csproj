@@ -22,8 +22,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\XiaoZhi.Net.Server.Abstractions\XiaoZhi.Net.Server.Abstractions.csproj" />
-    <ProjectReference Include="..\..\XiaoZhi.Net.Server.I18n\XiaoZhi.Net.Server.I18n.csproj" />
+    <ProjectReference Include="..\..\server\XiaoZhi.Net.Server.Abstractions\XiaoZhi.Net.Server.Abstractions.csproj" />
+    <ProjectReference Include="..\..\server\XiaoZhi.Net.Server.I18n\XiaoZhi.Net.Server.I18n.csproj" />
     <ProjectReference Include="..\XiaoZhi.Net.Server.Vision.Abstractions\XiaoZhi.Net.Server.Vision.Abstractions.csproj" />
   </ItemGroup>
 

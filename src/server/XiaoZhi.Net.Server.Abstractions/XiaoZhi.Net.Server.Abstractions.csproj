@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\rag\XiaoZhi.Net.Server.RAG.Abstractions\XiaoZhi.Net.Server.RAG.Abstractions.csproj" />
+    <ProjectReference Include="..\..\rag\XiaoZhi.Net.Server.RAG.Abstractions\XiaoZhi.Net.Server.RAG.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

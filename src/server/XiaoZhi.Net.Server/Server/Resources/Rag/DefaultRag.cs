@@ -42,7 +42,7 @@ namespace XiaoZhi.Net.Server.Resources.Rag
         {
             try
             {
-                string? embeddingModelName = settings.Config.GetConfigValueOrDefault("EmbeddingLLM");
+                string? embeddingModelName = settings.ModelName;
 
                 if (string.IsNullOrWhiteSpace(embeddingModelName))
                 {

@@ -13,8 +13,6 @@
         public const int StreamingAsrPreRollMilliseconds = 600;
         public const int StreamingAsrMaxQueuedAudioMilliseconds = 10000;
 
-        public const string ChatAgentType = "chat";
-        public const string RagAgentType = "rag";
         public const string VisionAgentType = "vision";
     }
 }

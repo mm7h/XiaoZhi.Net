@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenAI;
-using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.Resources;
@@ -82,27 +81,18 @@ namespace XiaoZhi.Net.Server.Management
                 return;
             }
 
-            foreach (var llmSettingItem in config.ConfiguredSettings["LLM"])
+            foreach (var ragSettingItem in config.ConfiguredSettings["RAG"])
             {
-                string? type = llmSettingItem.Value.GetConfigValueOrDefault("Type");
-                if (string.IsNullOrWhiteSpace(type))
-                {
-                    continue;
-                }
-                if (!type.Equals(GlobalVariables.RagAgentType, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-                string? endPoint = llmSettingItem.Value.GetConfigValueOrDefault("BaseUrl");
-                string? apiKey = llmSettingItem.Value.GetConfigValueOrDefault("ApiKey");
-                string? modelId = llmSettingItem.Value.GetConfigValueOrDefault("ModelName");
+                string? endPoint = ragSettingItem.Value.GetConfigValueOrDefault("BaseUrl");
+                string? apiKey = ragSettingItem.Value.GetConfigValueOrDefault("ApiKey");
+                string? modelId = ragSettingItem.Value.GetConfigValueOrDefault("ModelName");
 
                 if (string.IsNullOrWhiteSpace(endPoint) || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(modelId))
                 {
-                    throw new ModelBuildException($"Invalid llm model setting, endPoint: {endPoint}, apiKey: {apiKey}, modelId: {modelId}.");
+                    throw new ModelBuildException($"RAG 模型配置“{ragSettingItem.Key}”缺少 BaseUrl、ApiKey 或 ModelName。");
                 }
 
-                string llmProviderKey = $"RAG_LLM_{llmSettingItem.Key}";
+                string llmProviderKey = $"RAG_LLM_{ragSettingItem.Key}";
 
                 services.AddKeyedSingleton<IEmbeddingGenerator<string, Embedding<float>>>(llmProviderKey, (_, _) =>
                 {

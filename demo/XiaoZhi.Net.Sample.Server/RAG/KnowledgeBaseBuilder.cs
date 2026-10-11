@@ -55,7 +55,7 @@ namespace XiaoZhi.Net.Sample.Server.RAG
                 throw new ArgumentNullException(nameof(selectedEmbeddingModel), "RAG embedding model is required.");
             }
 
-            var configuredEmbeddingModel = xiaoZhiConfig.ConfiguredSettings["LLM"].GetValueOrDefault(selectedEmbeddingModel);
+            var configuredEmbeddingModel = xiaoZhiConfig.ConfiguredSettings["RAG"].GetValueOrDefault(selectedEmbeddingModel);
 
             string? baseUrl = configuredEmbeddingModel?.GetValueOrDefault("BaseUrl");
             string? apiKey = configuredEmbeddingModel?.GetValueOrDefault("ApiKey");

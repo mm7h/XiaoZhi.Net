@@ -545,16 +545,6 @@ namespace XiaoZhi.Net.Server.Management
         {
             foreach (var llmSettingItem in config.ConfiguredSettings["LLM"])
             {
-                string? type = llmSettingItem.Value.GetConfigValueOrDefault("Type");
-                if (string.IsNullOrWhiteSpace(type))
-                {
-                    continue;
-                }
-                if (!type.Equals(GlobalVariables.ChatAgentType, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
                 string? endPoint = llmSettingItem.Value.GetConfigValueOrDefault("BaseUrl");
                 string? apiKey = llmSettingItem.Value.GetConfigValueOrDefault("ApiKey");
                 string? modelId = llmSettingItem.Value.GetConfigValueOrDefault("ModelName");
