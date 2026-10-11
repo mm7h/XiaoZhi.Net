@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]
-    [ValidateSet('win-x64', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')]
+    [ValidateSet('win-x64', 'win-arm64', 'linux-x64', 'linux-arm64')]
     [string] $RuntimeIdentifier,
     [Parameter(Mandatory)] [ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9._-]*$')] [string] $Version,
     [string] $OutputDirectory = (Join-Path $PSScriptRoot '../../../artifacts/release')
@@ -19,7 +19,6 @@ if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) { throw '请先安�
 $profiles = @{
     'win-x64' = 'WinX64'; 'win-arm64' = 'WinArm64'
     'linux-x64' = 'LinuxX64'; 'linux-arm64' = 'LinuxArm64'
-    'osx-x64' = 'OsxX64'; 'osx-arm64' = 'OsxArm64'
 }
 
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
@@ -66,7 +65,7 @@ Set-Content -LiteralPath (Join-Path $packageDirectory 'README.md') -Encoding utf
 models、ffmpeg、musics、data、logs 保留为空目录；用户需自行下载所选模型和对应平台的 FFmpeg 动态库。
 FFmpeg 资源：https://github.com/mm7h/XiaoZhi.Net/releases#release-resources
 从 server/ 启动主服务，从 ota/ 启动 OTA，并让 OTA 指向同一配置目录。
-Linux/macOS 解压后请执行：chmod +x server/XiaoZhi.Net.Sample.Server ota/XiaoZhi.Net.Sample.OTA.Server
+Linux 解压后请执行：chmod +x server/XiaoZhi.Net.Sample.Server ota/XiaoZhi.Net.Sample.OTA.Server
 Docker 仅支持 linux-x64 包，从本目录执行 sh docker/deploy.sh --public-host <服务器IP>，无需安装 PowerShell。
 '@
 $extension = if ($RuntimeIdentifier.StartsWith('win-')) { '.exe' } else { '' }

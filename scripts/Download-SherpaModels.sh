@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 兼容 Bash 3.2（macOS 默认版本）；使用 curl 和 GNU/BSD tar，无需 Python 或 jq。
+# 兼容 Bash 3.2；使用 curl 和 GNU/BSD tar，无需 Python 或 jq。
 set -euo pipefail
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -95,7 +95,7 @@ installed() {
 
 download() {
     printf '下载 %s\n' "${1##*/}"
-    # 不使用较新版本 curl 才提供的 --retry-all-errors，兼容 macOS 自带 curl。
+    # 不使用较新版本 curl 才提供的 --retry-all-errors，兼容旧版 curl。
     curl -fL --retry 5 --retry-delay 5 --connect-timeout 30 --output "$2" "$release_base/$1"
 }
 

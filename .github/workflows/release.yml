@@ -24,8 +24,6 @@ jobs:
           - { rid: win-arm64, os: windows-11-arm }
           - { rid: linux-x64, os: ubuntu-24.04 }
           - { rid: linux-arm64, os: ubuntu-24.04-arm }
-          - { rid: osx-x64, os: macos-15-intel }
-          - { rid: osx-arm64, os: macos-15 }
     runs-on: ${{ matrix.os }}
     env:
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
@@ -73,7 +71,7 @@ jobs:
         run: |
           $archives = @(Get-ChildItem packages -Filter '*.zip')
           $checksums = @(Get-ChildItem packages -Filter '*.sha256' | Sort-Object Name)
-          if ($archives.Count -ne 6 -or $checksums.Count -ne 6) { throw '缺少平台运行包或校验文件' }
+          if ($archives.Count -ne 4 -or $checksums.Count -ne 4) { throw '缺少平台运行包或校验文件' }
           Get-Content -LiteralPath $checksums.FullName | Set-Content packages/SHA256SUMS -Encoding utf8NoBOM
           gh release upload $env:RELEASE_TAG @($archives.FullName) packages/SHA256SUMS --clobber
           if ($LASTEXITCODE -ne 0) { throw 'Release 资产上传失败' }

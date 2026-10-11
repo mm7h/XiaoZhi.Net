@@ -41,9 +41,11 @@ try
         // 视觉模块独立管理 HTTP 上传、设备令牌和模型配置；主服务只下发 MCP capability。
         //.WithVision(options =>
         //{
+        //    // MCP 视觉模块独立运行，监听本地HTTP端口，接收设备上传的图片并调用模型进行分析。
         //    options.ListenUrl = "http://0.0.0.0:8003";
         //    options.PublicExplainUrl = "https://your-public-host/mcp/vision/explain";
         //    options.UploadTokenSigningKey = "replace-with-at-least-32-byte-secret";
+        //    // MCP 视觉模块使用 OpenAI 兼容的模型服务进行图像分析，配置如下：
         //    options.Model.Endpoint = "https://your-openai-compatible-endpoint/v1";
         //    options.Model.ApiKey = "read-from-a-secret-store";
         //    options.Model.ModelName = "your-vision-model";
