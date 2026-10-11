@@ -23,8 +23,7 @@ namespace XiaoZhi.Net.Server.Management
 #if DEBUG
                     .MinimumLevel.Override("Microsoft.SemanticKernel", LogEventLevel.Warning)
 #else
-                    // 在 Serilog 层过滤，避免 AddSerilog 的提供器规则覆盖通用 AddFilter。
-                    .Filter.ByIncludingOnly(Matching.FromSource("XiaoZhi.Net.Server"))
+                    // 仅排除 SDK 辅助模块，保留核心服务和接入方日志；在 Serilog 层过滤以避免提供器规则覆盖。
                     .Filter.ByExcluding(Matching.FromSource("XiaoZhi.Net.Server.Media"))
                     .Filter.ByExcluding(Matching.FromSource("XiaoZhi.Net.Server.Abstractions"))
                     .Filter.ByExcluding(Matching.FromSource("XiaoZhi.Net.Server.RAG"))

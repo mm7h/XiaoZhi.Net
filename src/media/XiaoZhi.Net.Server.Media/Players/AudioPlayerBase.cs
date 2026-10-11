@@ -663,7 +663,8 @@ internal abstract class AudioPlayerBase<TDecoderType, TLogger> : IAudioPlayer
             {
                 if (lastProcessedSamples is not null && !lastEventSent)
                 {
-                    this.OnAudioDataAvailable?.Invoke(lastProcessedSamples, false, true);
+                    // 暂停只通知流结束，上一帧已发送，不能在中止清空缓冲后重复播放。
+                    this.OnAudioDataAvailable?.Invoke(Array.Empty<float>(), false, true);
                     lastEventSent = true;
                 }
 

@@ -47,11 +47,11 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             }
         }
 
-        public void HandleTextMessage(string data)
+        public async Task HandleTextMessageAsync(string data)
         {
             if (this._textHandler is not null)
             {
-                this._textHandler.HandleAsync(data);
+                await this._textHandler.HandleAsync(data);
             }
             else
             {

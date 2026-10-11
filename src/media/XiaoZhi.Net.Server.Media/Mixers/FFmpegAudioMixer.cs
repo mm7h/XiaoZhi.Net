@@ -60,7 +60,6 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
         // 新的输出缓冲机制。
         private readonly Queue<OutputBufferFrame> _outputBuffer = new();
-        private readonly Queue<string?> _pendingSentenceIds = new();
         private readonly object _bufferLock = new();
         private Timer? _playbackTimer;
         private DateTime _lastScheduledOutputTime = DateTime.MinValue;
@@ -159,7 +158,8 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                         var frame = new OutputBufferFrame(mixedData, isFirst, isLast, sentenceId);
                         this._outputBuffer.Enqueue(frame);
                         this._lastScheduledOutputTime = nextIdealTime;
-                        if (!this._bufferPreFilled && this._outputBuffer.Count >= this._config.BufferPrefillFrames)
+                        // 字幕空帧不占音频时长，也不能满足音频预填充门槛。
+                        if (!this._bufferPreFilled && this._outputBuffer.Count(f => f.Data.Length > 0) >= this._config.BufferPrefillFrames)
                         {
                             this._bufferPreFilled = true;
                             this._logger.LogDebug("Prefilled {count} frames. Starting pacing timer.", this._outputBuffer.Count);
@@ -195,18 +195,23 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 return;
             }
 
-            OutputBufferFrame? frameToPlay = null;
-            lock (this._bufferLock)
+            // 同一节拍先发送字幕标记，再发送一帧音频，避免空帧占用播放节拍。
+            while (true)
             {
-                if (this._outputBuffer.Count > 0)
+                OutputBufferFrame frame;
+                lock (this._bufferLock)
                 {
-                    frameToPlay = this._outputBuffer.Dequeue();
+                    if (this._outputBuffer.Count == 0)
+                    {
+                        break;
+                    }
+                    frame = this._outputBuffer.Dequeue();
                 }
-            }
-            if (frameToPlay.HasValue)
-            {
-                var frame = frameToPlay.Value;
                 this.OutputAudioData(frame.Data, frame.IsFirst, frame.IsLast, frame.SentenceId);
+                if (frame.Data.Length > 0)
+                {
+                    break;
+                }
             }
 
             // 如果正在等待输出会话结束末帧，仅在
@@ -352,12 +357,19 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 }
 
                 // 向音频流处理器添加数据（用于跟踪）。
+                if (streamProcessor.IsStopping)
+                {
+                    // 下一回复可能先于上一回复排空到达，保留尾音并继续接收。
+                    streamProcessor.Resume();
+                }
                 streamProcessor.AddData(audioData, sentenceId);
 
                 // 已移除 WriteToAudioFifo，现在使用 AudioStreamProcessor 作为缓冲区。
 
                 // 收到新数据后重置末帧标志。
                 this._lastFrameEmitted = false;
+                this._pendingFinalLastFrame = false;
+                this._draining = false;
 
                 // 标记数据可用。
                 this._dataAvailableEvent.Set();
@@ -403,6 +415,12 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             {
                 lock (this._filterLock)
                 {
+                    // 改变输入数量前先排空旧图，不能丢弃 amix 中尚未输出的音频。
+                    foreach (var source in this._sourceFilterCtxs.Values)
+                    {
+                        ffmpeg.av_buffersrc_close((AVFilterContext*)source, this._pts, 0);
+                    }
+                    while (this.RetrieveMixedAudioData()) { }
                     this.CleanupFilterGraph();
                     this.CreateFilterGraph();
                 }
@@ -620,6 +638,10 @@ namespace XiaoZhi.Net.Server.Media.Mixers
             }
 
             // 移除已完成的流。
+            if (streamsToRemove.Count > 0)
+            {
+                while (this.RetrieveMixedAudioData()) { }
+            }
             foreach (var audioType in streamsToRemove)
             {
                 this.RemoveAudioStream(audioType);
@@ -651,7 +673,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
 
             var activeStreams = this._audioStreams.Where(kvp => !kvp.Value.IsComplete && !kvp.Value.IsStopping).ToList();
 
-            if (activeStreams.Count == 0)
+            if (this._audioStreams.Count == 0)
             {
                 this._logger.LogDebug("No more active streams, will enter draining phase after delay");
                 this._draining = true;
@@ -662,6 +684,12 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 if (!this._lastFrameEmitted)
                 {
                     this._pendingFinalLastFrame = true;
+                    // 短音频可能不足预填充帧数，流结束后仍需播放尾音和末帧。
+                    lock (this._bufferLock)
+                    {
+                        this._bufferPreFilled = true;
+                        this.StartPlaybackTimer();
+                    }
                     this._dataAvailableEvent.Set();
                 }
 
@@ -1004,202 +1032,68 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                     return false;
                 }
 
-                bool hasProcessedData = false;
-
-                // 检查输出缓冲区是否已满。
                 lock (this._bufferLock)
                 {
                     if (this._outputBuffer.Count >= Math.Max(1, this._config.MaxOutputBufferFrames))
                     {
-                        return false; // Buffer full, pause processing
+                        return false;
                     }
                 }
 
-                // 使用改进的缓冲策略获取活动流。
-                var activeStreams = this.GetActiveStreamsWithBufferStrategy();
-
-                string? batchSentenceId = null;
-
-                // 处理每条活动音频流。
-                foreach (var (audioType, streamProcessor) in activeStreams)
-                {
-                    // 从缓冲区读取并推送到滤镜。
-                    var (processed, sentenceId) = this.ProcessAudioStream(audioType, streamProcessor);
-                    if (processed)
-                    {
-                        hasProcessedData = true;
-                    }
-
-                    // 句子 ID 的优先级逻辑（TTS 高于其他类型）。
-                    if (!string.IsNullOrEmpty(sentenceId))
-                    {
-                        if (audioType == AudioType.TTS)
-                        {
-                            batchSentenceId = sentenceId;
-                        }
-                        else
-                        {
-                            batchSentenceId ??= sentenceId;
-                        }
-                    }
-                }
-
+                var frames = new Dictionary<AudioType, float[]>();
                 bool metaOnlyEmitted = false;
-                if (hasProcessedData)
+                foreach (var (audioType, processor) in this._audioStreams)
                 {
-                    lock (this._bufferLock)
+                    // 字幕不推进音频时间线，先按输入顺序发送，再读取当前整帧。
+                    float[]? data;
+                    while ((data = processor.GetFrameDataWithPartialSupport(this._frameSampleCount, out _, out string? sentenceId)) is not null)
                     {
-                        this._pendingSentenceIds.Enqueue(batchSentenceId);
-                    }
-                }
-                else if (batchSentenceId != null)
-                {
-                    // 未处理音频，但有 sentenceId。输出空帧。
-                    bool isFirst = this._firstFrameAfterStart;
-                    if (this._firstFrameAfterStart)
-                    {
-                        this._firstFrameAfterStart = false;
-                    }
-
-                    this.EmitMixedAudio([], isFirst, false, batchSentenceId);
-                    metaOnlyEmitted = true;
-                }
-
-                // 从滤镜图获取混音后的音频数据。
-                bool hasActiveTransitions = this._volumeStates.Values.Any(v => v.IsTransitioning);
-                if (hasProcessedData || hasActiveTransitions)
-                {
-                    this.RetrieveMixedAudioData();
-                }
-                else if (this._audioStreams.Count > 0)
-                {
-                    // 如果存在流但没有已处理数据，可能需要发送静音帧以保持连续性。
-                    bool hasActiveStreams = this._audioStreams.Values.Any(s => !s.IsComplete && !s.IsStopping);
-                    if (hasActiveStreams && !metaOnlyEmitted)
-                    {
-                        // 发送短静音帧以保持音频连续性。
-                        var silentFrame = new float[this._frameSampleCount];
-                        bool isFirst = this._firstFrameAfterStart;
-                        if (this._firstFrameAfterStart)
+                        if (!string.IsNullOrEmpty(sentenceId))
                         {
+                            this.EmitMixedAudio([], this._firstFrameAfterStart, false, sentenceId);
                             this._firstFrameAfterStart = false;
+                            metaOnlyEmitted = true;
                         }
-
-                        this.EmitMixedAudio(silentFrame, isFirst, false, null);
-                        this._logger.LogTrace("Emitted silence frame to maintain audio continuity");
-
+                        if (data.Length > 0)
+                        {
+                            frames[audioType] = data;
+                            break;
+                        }
                     }
                 }
 
-                // 清理已完成的流。
-                this.CleanupCompletedStreams();
-
-                return hasProcessedData || hasActiveTransitions || metaOnlyEmitted;
-            }
-        }
-
-        private List<(AudioType type, AudioStreamProcessor processor)> GetActiveStreamsWithBufferStrategy()
-        {
-            var activeStreams = new List<(AudioType, AudioStreamProcessor)>();
-
-            foreach (var kvp in this._audioStreams)
-            {
-                var audioType = kvp.Key;
-                var streamProcessor = kvp.Value;
-
-                if (streamProcessor.IsComplete)
+                if (frames.Count > 0)
                 {
-                    continue;
-                }
-
-                // 已移除 FIFO 检查。
-                // if (!_audioFifos.TryGetValue(audioType, out var fifoPtr))
-                //    continue;
-
-                // var fifo = (AVAudioFifo*)fifoPtr;
-                var availableSamples = streamProcessor.AvailableDataCount; // ffmpeg.av_audio_fifo_size(fifo);
-                var requiredSamples = this._frameSampleCount; // / _outputChannels; // AvailableDataCount is total samples (floats)
-
-                bool hasFullFrame = availableSamples >= requiredSamples;
-                bool isNewStream = streamProcessor.ProcessedFrameCount < 3;
-
-                if (hasFullFrame)
-                {
-                    activeStreams.Add((audioType, streamProcessor));
-                }
-                else if (availableSamples == 0 && streamProcessor.HasAnyData())
-                {
-                    // 处理仅元数据帧。
-                    activeStreams.Add((audioType, streamProcessor));
-                }
-                else if (isNewStream && this._config.EnableSmoothVolumeControl)
-                {
-                    // 允许新流输出部分帧，以降低启动延迟。
-                    int minRequiredSamples = (int)(requiredSamples * this._config.NewStreamBufferTolerance);
-                    if (availableSamples >= minRequiredSamples)
+                    // amix 必须收到每路同一时间片的数据。暂缺整帧的输入补静音，
+                    // 但保留其不足整帧的真实采样，避免首包补零和快流积压后被丢弃。
+                    foreach (var (audioType, processor) in this._audioStreams)
                     {
-                        activeStreams.Add((audioType, streamProcessor));
+                        bool hasAudio = frames.TryGetValue(audioType, out var data);
+                        this.ProcessAudioStream(audioType, data ?? new float[this._frameSampleCount]);
+                        if (hasAudio)
+                        {
+                            processor.MarkFrameProcessed();
+                        }
                     }
+                    this._pts += this._frameSampleCount / this.OutputChannels;
+                    while (this.RetrieveMixedAudioData()) { }
                 }
-                else if (streamProcessor.IsStopping && availableSamples > 0)
-                {
-                    activeStreams.Add((audioType, streamProcessor));
-                }
-            }
 
-            return activeStreams;
+                this.CleanupCompletedStreams();
+                return frames.Count > 0 || metaOnlyEmitted;
+            }
         }
 
-        private (bool processed, string? sentenceId) ProcessAudioStream(AudioType audioType, AudioStreamProcessor streamProcessor)
+        private void ProcessAudioStream(AudioType audioType, float[] audioData)
         {
             if (!this._sourceFilterCtxs.TryGetValue(audioType, out var sourceCtxPtr))
             {
-                return (false, null);
+                return;
             }
-
             var sourceCtx = (AVFilterContext*)sourceCtxPtr;
-
-            var availableSamples = streamProcessor.AvailableDataCount;
-            var requiredSamples = this._frameSampleCount; // Total samples
-
-            // 使用改进的缓冲策略。
-            bool hasFullFrame = availableSamples >= requiredSamples;
-            bool isNewStream = streamProcessor.ProcessedFrameCount < 3;
-            bool canProcess = false;
-
-            if (hasFullFrame)
-            {
-                canProcess = true;
-            }
-            else if (availableSamples == 0 && streamProcessor.HasAnyData())
-            {
-                canProcess = true;
-            }
-            else if (isNewStream && this._config.EnableSmoothVolumeControl)
-            {
-                int minRequiredSamples = (int)(requiredSamples * this._config.NewStreamBufferTolerance);
-                canProcess = availableSamples >= minRequiredSamples;
-            }
-            else if (streamProcessor.IsStopping && availableSamples > 0)
-            {
-                canProcess = true;
-            }
-
-            if (!canProcess)
-            {
-                return (false, null);
-            }
 
             try
             {
-                // 从处理器获取数据。
-                var audioData = streamProcessor.GetFrameDataWithPartialSupport(this._frameSampleCount, out int samplesRead, out string? sentenceId);
-
-                if (audioData == null || audioData.Length == 0)
-                {
-                    return (false, sentenceId);
-                }
-
                 // 应用音量控制。
                 var volumeState = this.GetOrCreateVolumeState(audioType);
                 var targetVolume = this._volumeLevels.GetValueOrDefault(audioType, 0.5f);
@@ -1229,7 +1123,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 var frame = ffmpeg.av_frame_alloc();
                 if (frame == null)
                 {
-                    return (false, null);
+                    return;
                 }
 
                 // 设置帧参数。
@@ -1247,13 +1141,11 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 if (ret < 0)
                 {
                     ffmpeg.av_frame_free(&frame);
-                    return (false, null);
+                    return;
                 }
 
                 // 将数据复制到帧（紧凑格式）。
                 Marshal.Copy(audioData, 0, (IntPtr)frame->data[0], audioData.Length);
-
-                int nbSamples = frame->nb_samples;
 
                 // 将帧推送到滤镜。
                 ret = ffmpeg.av_buffersrc_add_frame_flags(sourceCtx, frame, 0);
@@ -1263,29 +1155,24 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 {
                     this._logger.LogError("Failed to add frame to filter for {AudioType}: {Error}",
                         audioType, ret.FFErrorToText());
-                    return (false, null);
+                    return;
                 }
 
-                streamProcessor.MarkFrameProcessed();
-
-                this._pts += nbSamples;
-
-                return (true, sentenceId);
             }
             catch (Exception ex)
             {
                 this._logger.LogError(ex, "Error processing audio stream {AudioType}", audioType);
-                return (false, null);
+                return;
             }
         }
 
         // 已移除 WriteToAudioFifo，现在使用 AudioStreamProcessor 作为缓冲区。
 
-        private void RetrieveMixedAudioData()
+        private bool RetrieveMixedAudioData()
         {
             if (this._sinkFilterCtx == null)
             {
-                return;
+                return false;
             }
 
             try
@@ -1293,7 +1180,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 var frame = ffmpeg.av_frame_alloc();
                 if (frame == null)
                 {
-                    return;
+                    return false;
                 }
 
                 var ret = ffmpeg.av_buffersink_get_frame(this._sinkFilterCtx, frame);
@@ -1301,31 +1188,14 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 {
                     ffmpeg.av_frame_free(&frame);
 
-                    // 如果没有可用帧但存在活动的音量过渡，则发送静音帧。
-                    if (this._volumeStates.Values.Any(v => v.IsTransitioning))
-                    {
-                        foreach (var v in this._volumeStates.Values)
-                        {
-                            _ = v.UpdateAndGetCurrentVolume();
-                        }
-
-                        var silentFrame = new float[this._frameSampleCount];
-                        bool isFirst = this._firstFrameAfterStart;
-                        if (this._firstFrameAfterStart)
-                        {
-                            this._firstFrameAfterStart = false;
-                        }
-
-                        this.EmitMixedAudio(silentFrame, isFirst, false, null);
-                    }
-                    return;
+                    return false;
                 }
 
                 if (ret < 0)
                 {
                     this._logger.LogError("Failed to get frame from sink filter: {Error}", ret.FFErrorToText());
                     ffmpeg.av_frame_free(&frame);
-                    return;
+                    return false;
                 }
 
                 var mixedData = this.ConvertFrameToFloatArrayInternal(frame);
@@ -1346,24 +1216,17 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                         this._firstFrameAfterStart = false;
                     }
 
-                    string? sentenceId = null;
-                    lock (this._bufferLock)
-                    {
-                        if (this._pendingSentenceIds.Count > 0)
-                        {
-                            sentenceId = this._pendingSentenceIds.Dequeue();
-                        }
-                    }
-
                     // 重要：不要在此处标记末帧。
                     // FFmpeg 滤镜输出可能仍有缓冲的音频，且（或）输出节奏缓冲区
                     // 仍可能包含帧。在此处标记末帧会导致发送端过早停止。
-                    this.EmitMixedAudio(mixedData, isFirst, false, sentenceId);
+                    this.EmitMixedAudio(mixedData, isFirst, false);
                 }
+                return true;
             }
             catch (Exception ex)
             {
                 this._logger.LogError(ex, "Error retrieving mixed audio data");
+                return false;
             }
         }
 
@@ -1430,16 +1293,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                             this._firstFrameAfterStart = false;
                         }
 
-                        string? sentenceId = null;
-                        lock (this._bufferLock)
-                        {
-                            if (this._pendingSentenceIds.Count > 0)
-                            {
-                                sentenceId = this._pendingSentenceIds.Dequeue();
-                            }
-                        }
-
-                        this.EmitMixedAudio(mixedData, isFirst, false, sentenceId);
+                        this.EmitMixedAudio(mixedData, isFirst, false);
                     }
                 }
 
@@ -1474,7 +1328,6 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 lock (this._bufferLock)
                 {
                     this._outputBuffer.Clear();
-                    this._pendingSentenceIds.Clear();
                     this._bufferPreFilled = false;
                 }
 

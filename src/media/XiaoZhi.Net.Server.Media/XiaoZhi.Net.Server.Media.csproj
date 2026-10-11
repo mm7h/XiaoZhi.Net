@@ -13,6 +13,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="XiaoZhi.Net.Test" />
     <PackageReference Include="FFmpeg.AutoGen" Version="7.1.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
   </ItemGroup>

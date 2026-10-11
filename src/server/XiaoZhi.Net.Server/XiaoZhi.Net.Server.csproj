@@ -21,6 +21,7 @@
     </PropertyGroup>
     <ItemGroup>
       <Content Include="robot.ico" />
+      <InternalsVisibleTo Include="XiaoZhi.Net.Test" />
     </ItemGroup>
 
     <ItemGroup>

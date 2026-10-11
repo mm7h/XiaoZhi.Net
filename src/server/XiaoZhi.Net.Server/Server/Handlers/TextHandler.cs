@@ -37,7 +37,7 @@ namespace XiaoZhi.Net.Server.Handlers
             return true;
         }
 
-        public async void HandleAsync(string data)
+        public async Task HandleAsync(string data)
         {
             Session session = this.SendOutter.GetSession();
             if (session.CloseAfterChat)
@@ -75,7 +75,7 @@ namespace XiaoZhi.Net.Server.Handlers
 #if DEBUG
                         this.Logger.LogDebug(Lang.TextHandler_Handle_ReceivedText, jsonObject?.ToJsonString());
 #endif
-                        this.HandleListenAsync(jsonObj);
+                        await this.HandleListenAsync(jsonObj);
                         break;
                     case "iot":
                         this.HandleIotDescriptors(jsonObj);
@@ -95,12 +95,17 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             Session session = this.SendOutter.GetSession();
             this.Logger.LogInformation(Lang.TextHandler_HandleAbortMessage_Received);
-            await this.SendOutter.SendAbortMessageAsync();
+            // 音乐使用独立播放令牌，中止对话前先暂停音源，避免清空混音后立即重新填充。
+            if (session.PrivateProvider.AudioPlayerClient is { IsPlaying: true } player)
+            {
+                await player.MusicPlayer.PauseAsync();
+            }
             session.Abort();
+            await this.SendOutter.SendAbortMessageAsync();
             this.Logger.LogInformation(Lang.TextHandler_HandleAbortMessage_Cancelled);
         }
 
-        private async void HandleListenAsync(JsonObject jsonObject)
+        private async Task HandleListenAsync(JsonObject jsonObject)
         {
             Session session = this.SendOutter.GetSession();
             if (session.CloseAfterChat)
@@ -132,9 +137,24 @@ namespace XiaoZhi.Net.Server.Handlers
                     string? text = jsonObject["text"]?.GetValue<string>()?.ToLower();
                     if (!string.IsNullOrWhiteSpace(text))
                     {
+                        if (session.PrivateProvider.AudioPlayerClient?.IsPlaying == true)
+                        {
+                            await this.HandleAbortMessageAsync();
+                        }
                         var workflow = this._workflowPool.Get();
                         workflow.Initialize(session, text);
-                        await this.NextWriter.WriteAsync(workflow);
+                        // 客户端在中止后自动发送 listen start，不能使正在处理的文本轮次失效。
+                        session.BeginTextProcessing(workflow.TurnId);
+                        try
+                        {
+                            await this.NextWriter.WriteAsync(workflow, this.HandlerToken);
+                        }
+                        catch
+                        {
+                            session.CompleteTextProcessing(workflow.TurnId);
+                            this._workflowPool.Return(workflow);
+                            throw;
+                        }
                     }
                 }
             }

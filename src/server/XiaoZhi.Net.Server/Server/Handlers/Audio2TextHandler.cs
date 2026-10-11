@@ -115,10 +115,14 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             catch (OperationCanceledException)
             {
+                session.CompleteSpeechRecognition(workflow.TurnId);
+                session.AcceptIncomingAudio(workflow.TurnId);
                 this.Logger.LogDebug(Lang.Audio2TextHandler_Handle_Cancelled, session.DeviceId);
             }
             catch (Exception ex)
             {
+                session.CompleteSpeechRecognition(workflow.TurnId);
+                session.AcceptIncomingAudio(workflow.TurnId);
                 this.Logger.LogError(ex, Lang.Audio2TextHandler_Handle_ProcessFailed, session.DeviceId);
             }
         }
@@ -142,6 +146,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             if (turnId != session.TurnId)
             {
+                session.CompleteSpeechRecognition(turnId);
                 session.AcceptIncomingAudio(turnId);
                 this.Logger.LogDebug(Lang.Audio2TextHandler_OnSpeechTextConverted_StaleResult,
                     session.DeviceId, turnId, session.TurnId);
@@ -161,19 +166,31 @@ namespace XiaoZhi.Net.Server.Handlers
                 return;
             }
 
-            await this.SendOutter.SendSttMessageAsync(speechText);
-            this.Logger.LogDebug(Lang.Audio2TextHandler_OnSpeechTextConverted_SpeakText, session.DeviceId, speechText);
-
             var nextWorkflow = this._stringWorkflowPool.Get();
-            nextWorkflow.Initialize(session, speechText);
+            nextWorkflow.Initialize(
+                session.SessionId,
+                session.DeviceId,
+                speechText,
+                turnId);
 
             try
             {
+                await this.SendOutter.SendSttMessageAsync(speechText);
+                this.Logger.LogDebug(Lang.Audio2TextHandler_OnSpeechTextConverted_SpeakText, session.DeviceId, speechText);
                 await this.NextWriter.WriteAsync(nextWorkflow, this.HandlerToken);
             }
             catch (OperationCanceledException)
             {
                 this._stringWorkflowPool.Return(nextWorkflow);
+            }
+            catch
+            {
+                this._stringWorkflowPool.Return(nextWorkflow);
+                throw;
+            }
+            finally
+            {
+                session.CompleteSpeechRecognition(turnId);
             }
         }
 

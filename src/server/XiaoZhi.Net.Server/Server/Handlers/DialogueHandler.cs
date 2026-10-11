@@ -104,12 +104,14 @@ namespace XiaoZhi.Net.Server.Handlers
 
             if (this._llm is null)
             {
+                session.CompleteTextProcessing(workflow.TurnId);
                 this.Logger.LogError(Lang.DialogueHandler_Handle_LlmNotConfigured, session.DeviceId);
                 return;
             }
 
             if (!session.IsDeviceBinded)
             {
+                session.CompleteTextProcessing(workflow.TurnId);
                 var outSegment = this._outSegmentPool.Get();
                 var notBindWorkflow = this._outSegmentWorkflowPool.Get();
 
@@ -145,6 +147,10 @@ namespace XiaoZhi.Net.Server.Handlers
             catch (Exception ex)
             {
                 this.Logger.LogError(ex, Lang.DialogueHandler_Handle_ProcessFailed, session.DeviceId);
+            }
+            finally
+            {
+                session.CompleteTextProcessing(workflow.TurnId);
             }
         }
 

@@ -9,6 +9,7 @@ using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Media.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.Resources;
 
 namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 {
@@ -17,6 +18,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
         private readonly SemaphoreSlim _audioPlayerSlim = new SemaphoreSlim(1, 1);
         private readonly MusicSetting _musicSetting;
         private readonly IUrlAudioPlayer _urlAudioPlayer;
+        private readonly IMusicFileProvider _musicFileProvider;
 
         private Channel<MusicFileRequest>? _processingChannel;
         private CancellationTokenSource? _processingCts;
@@ -48,11 +50,13 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
         public FileMusicPlayer(
             IUrlAudioPlayer urlAudioPlayer,
+            IMusicFileProvider musicFileProvider,
             XiaoZhiConfig config,
             ILogger<FileMusicPlayer> logger)
             : base(logger)
         {
             this._urlAudioPlayer = urlAudioPlayer;
+            this._musicFileProvider = musicFileProvider;
             this._musicSetting = config.MusicSetting;
             this._urlAudioPlayer.OnAudioDataAvailable += this.FireAudioData;
         }
@@ -78,7 +82,7 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             BoundedChannelOptions boundedChannelOptions = new(50)
             {
                 FullMode = BoundedChannelFullMode.Wait,
-                SingleWriter = true,
+                SingleWriter = false,
                 SingleReader = true
             };
             this._processingChannel = Channel.CreateBounded<MusicFileRequest>(boundedChannelOptions);
@@ -327,6 +331,18 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                 this.Logger.LogDebug(Lang.FileMusicPlayer_AudioFileProcessingAsync_Playing, fileName);
                 await this._urlAudioPlayer.PlayAsync(playbackCts.Token);
                 this.Logger.LogDebug(Lang.FileMusicPlayer_AudioFileProcessingAsync_Completed, fileName);
+                // 仅自然结束后续播；停止或换歌会推进 generation，使旧请求失效。
+                if (!playbackCts.IsCancellationRequested && this.IsCurrentGeneration(request.Generation)
+                    && this._processingChannel is not null && !this._processingChannel.Reader.TryPeek(out _))
+                {
+                    string[] files = this._musicFileProvider.MusicFiles.Values.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                    if (files.Contains(request.File, StringComparer.OrdinalIgnoreCase))
+                    {
+                        string[] candidates = files.Where(file => !string.Equals(file, request.File, StringComparison.OrdinalIgnoreCase)).ToArray();
+                        string nextFile = candidates.Length == 0 ? request.File : candidates[Random.Shared.Next(candidates.Length)];
+                        this._processingChannel.Writer.TryWrite(new MusicFileRequest(nextFile, request.Generation));
+                    }
+                }
             }
             catch (OperationCanceledException) when (
                 playbackCts.IsCancellationRequested

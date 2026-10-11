@@ -64,8 +64,8 @@ namespace XiaoZhi.Net.Sample.Server.FunctionTools
                 catalog.Pitches.Select(ToOption).ToArray());
         }
 
-        [Description("修改当前会话的 TTS 音色、语速或音调。参数使用 GetTtsCapabilities 返回的 id 或名称；可只传需要修改的项。灿灿、爽快思思、温暖阿虎、龙安阳、龙安欢、龙呼呼、龙安风月、龙安远飞、龙安灵犀是可识别的示例音色名称。")]
-        public FunctionReturn<string> SetTtsSettings([Description("音色预设的 id 或名称")] string? voice = null, [Description("语速预设的 id 或名称")] string? speechRate = null, [Description("音调预设的 id 或名称")] string? pitch = null)
+        [Description("修改当前会话的 TTS 音色、语速或音调。参数使用 GetTtsCapabilities 返回的 id 或名称；可只传需要修改的项。用户要求随机换音色或要求换音色但未指定具体音色时，voice 必须传 random，工具会选择不同于当前音色的预设。灿灿、爽快思思、温暖阿虎、龙安阳、龙安欢、龙呼呼、龙安风月、龙安远飞、龙安灵犀是可识别的示例音色名称。")]
+        public FunctionReturn<string> SetTtsSettings([Description("音色预设的 id 或名称；随机换音色时传 `random` ")] string? voice = null, [Description("语速预设的 id 或名称")] string? speechRate = null, [Description("音调预设的 id 或名称")] string? pitch = null)
         {
             TtsRuntimeState state = this.TtsController.GetState();
             TtsPresetCatalog? catalog = FindCatalog(state);
@@ -79,6 +79,12 @@ namespace XiaoZhi.Net.Sample.Server.FunctionTools
                 && string.IsNullOrWhiteSpace(pitch))
             {
                 return CreateResult("至少需要提供音色、语速或音调中的一项。", ToolAction.Continue);
+            }
+
+            if (string.Equals(voice, "random", StringComparison.OrdinalIgnoreCase))
+            {
+                TtsStringPreset[] voices = catalog.Voices.Where(item => item.Value != state.Settings.Voice).ToArray();
+                voice = voices[Random.Shared.Next(voices.Length)].Id;
             }
 
             var errors = new List<string>();

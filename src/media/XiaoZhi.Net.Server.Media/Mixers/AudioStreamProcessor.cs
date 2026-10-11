@@ -13,7 +13,6 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         private readonly ConcurrentQueue<float> _bufferQueue = new();
         private readonly ConcurrentQueue<(int Count, string? SentenceId)> _metaQueue = new();
         private readonly object _syncLock = new();
-        private readonly AudioMixerConfig _config;
         private bool _disposed;
 
         // 内部帧边界跟踪。
@@ -43,7 +42,6 @@ namespace XiaoZhi.Net.Server.Media.Mixers
         public AudioStreamProcessor(AudioType audioType, int _, int __, int ___, AudioMixerConfig config)
         {
             this.AudioType = audioType;
-            this._config = config;
         }
 
         public void AddData(float[] audioData, string? sentenceId = null)
@@ -177,24 +175,12 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 return null;
             }
 
-            bool isNewStream = this._processedFrameCount < 3;
             int targetSamples = frameSampleCount;
 
             if (availableData < frameSampleCount)
             {
-                if (isNewStream)
-                {
-                    int minRequiredSamples = (int)(frameSampleCount * this._config.NewStreamBufferTolerance);
-                    if (availableData >= minRequiredSamples)
-                    {
-                        targetSamples = Math.Min(availableData, frameSampleCount);
-                    }
-                    else
-                    {
-                        return null;
-                    }
-                }
-                else if (this.IsStopping)
+                // 流仍在接收数据时等待整帧，仅在结束时补齐最后一帧。
+                if (this.IsStopping)
                 {
                     targetSamples = availableData;
                 }
@@ -331,6 +317,16 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 this._stopRequested = true;
                 this._isLastFrame = true;
                 this._streamEnded = true;
+            }
+        }
+
+        public void Resume()
+        {
+            lock (this._syncLock)
+            {
+                this._stopRequested = false;
+                this._isLastFrame = false;
+                this._streamEnded = false;
             }
         }
 

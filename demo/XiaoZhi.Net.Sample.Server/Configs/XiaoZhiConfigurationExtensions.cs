@@ -21,7 +21,7 @@ internal static class XiaoZhiConfigurationExtensions
         }
 
 #if DEBUG
-        string configPath = Path.Combine("Configs", "config.json");
+        string configPath = Path.Combine(Environment.CurrentDirectory, "Configs", "config.json");
 #else
         string configPath = Path.GetFullPath(args[1]);
 #endif

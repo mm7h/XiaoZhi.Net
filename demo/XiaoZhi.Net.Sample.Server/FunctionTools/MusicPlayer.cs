@@ -44,7 +44,7 @@ namespace XiaoZhi.Net.Sample.Server.FunctionTools
 
 
         [ToolBehavior(ToolAction.DirectResponse)]
-        [Description($"播放服务端音乐文件（需要先调用方法 `{nameof(GetMusicFiles)}` 获取音乐列表），返回播放结果描述，你需要播报正在播放的音乐文件名称。")]
+        [Description($"播放服务端音乐文件（需要先调用方法 `{nameof(GetMusicFiles)}` 获取音乐列表），该曲结束后会持续随机播放列表中的音乐，直到暂停或停止。返回播放结果描述，你需要播报正在播放的音乐文件名称。")]
         public async ValueTask<FunctionReturn<string>> PlayMusicAsync([Description("是否为随机播放")] bool isRandom, [Description("音乐名称，如果是随机播放，那么不需要此参数")] string? musicName = null)
         {
             if (!this.MediaTool.HasMusicFiles)
@@ -88,15 +88,15 @@ namespace XiaoZhi.Net.Sample.Server.FunctionTools
             };
         }
 
-        [ToolBehavior(ToolAction.DirectResponse)]
+        [ToolBehavior(ToolAction.Continue)]
         [Description("暂停当前正在播放的音乐，可以通过 ResumeMusicAsync 继续播放")]
         public async ValueTask<FunctionReturn<string>> PauseMusicAsync()
         {
-            if (!this.MediaTool.IsPlaying)
+            if (!this.MediaTool.IsPlaying && !this.MediaTool.IsPaused)
             {
                 return new FunctionReturn<string>
                 {
-                    Next = ToolAction.DirectResponse,
+                    Next = ToolAction.Continue,
                     Result = "No music is currently playing.",
                     Response = "No music is currently playing."
                 };
@@ -105,13 +105,13 @@ namespace XiaoZhi.Net.Sample.Server.FunctionTools
             this.Logger.LogInformation("Music paused.");
             return new FunctionReturn<string>
             {
-                Next = ToolAction.DirectResponse,
+                Next = ToolAction.Continue,
                 Result = "Music paused.",
                 Response = "Music paused."
             };
         }
 
-        [ToolBehavior(ToolAction.DirectResponse)]
+        [ToolBehavior(ToolAction.Continue)]
         [Description("继续播放已暂停的音乐")]
         public async ValueTask<FunctionReturn<string>> ResumeMusicAsync()
         {
@@ -119,7 +119,7 @@ namespace XiaoZhi.Net.Sample.Server.FunctionTools
             {
                 return new FunctionReturn<string>
                 {
-                    Next = ToolAction.DirectResponse,
+                    Next = ToolAction.Continue,
                     Result = "No music is currently paused.",
                     Response = "No music is currently paused."
                 };
@@ -129,13 +129,13 @@ namespace XiaoZhi.Net.Sample.Server.FunctionTools
             this.Logger.LogInformation("Music resumed: {musicName}", musicName);
             return new FunctionReturn<string>
             {
-                Next = ToolAction.DirectResponse,
+                Next = ToolAction.Continue,
                 Result = $"Music resumed: {musicName}",
                 Response = $"Music resumed: {musicName}"
             };
         }
 
-        [ToolBehavior(ToolAction.DirectResponse)]
+        [ToolBehavior(ToolAction.Continue)]
         [Description("停止当前正在播放或已暂停的音乐")]
         public async ValueTask<FunctionReturn<string>> StopMusicAsync()
         {
@@ -143,7 +143,7 @@ namespace XiaoZhi.Net.Sample.Server.FunctionTools
             this.Logger.LogInformation("Music stopped.");
             return new FunctionReturn<string>
             {
-                Next = ToolAction.DirectResponse,
+                Next = ToolAction.Continue,
                 Result = "Music stopped.",
                 Response = "Music stopped."
             };

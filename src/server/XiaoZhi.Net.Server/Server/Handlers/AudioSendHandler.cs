@@ -19,6 +19,7 @@ namespace XiaoZhi.Net.Server.Handlers
         private IAudioProcessor? _audioProcessor;
         private IAudioEncoder? _audioEncoder;
         private IAudioPlayerClient? _audioPlayerClient;
+        private long _playbackTurnId = -1;
 
         public AudioSendHandler(ObjectPool<MixedAudioPacket> mixedAudioPacketPool, ObjectPool<Workflow<MixedAudioPacket>> mixedAudioPacketWorkflowPool, XiaoZhiConfig config, ILogger<AudioSendHandler> logger) : base(config, logger)
         {
@@ -70,6 +71,11 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
+        protected override void OnHandlerTokenChanged()
+        {
+            this._playbackTurnId = -1;
+        }
+
         public async Task HandleAsync(Workflow<MixedAudioPacket> workflow)
         {
             Session session = this.SendOutter.GetSession();
@@ -97,16 +103,24 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 MixedAudioPacket audioPacket = workflow.Data;
 
-                if (!string.IsNullOrWhiteSpace(audioPacket.SentenceId) && this._audioProcessor.GetSubtitle(audioPacket.SentenceId, out AudioSubtitle subtitle))
+                AudioSubtitle subtitle = default;
+                bool hasSubtitle = !string.IsNullOrWhiteSpace(audioPacket.SentenceId)
+                    && this._audioProcessor.GetSubtitle(audioPacket.SentenceId, out subtitle);
+                bool hasPlaybackData = audioPacket.Data.Length > 0 || (hasSubtitle && subtitle.TtsStatus == TtsStatus.SentenceStart);
+                bool isReceivingSpeech = session.AudioPacket.HaveVoice && !session.AudioPacket.VoiceStop;
+
+                // 持续音乐不会产生新的混音首帧，监听结束或中止后仍需恢复客户端播放状态。
+                if (audioPacket.IsFirstFrame || (hasPlaybackData && !isReceivingSpeech && this._playbackTurnId != workflow.TurnId))
+                {
+                    await this.SendOutter.SendTtsMessageAsync(TtsStatus.Start);
+                    this._playbackTurnId = workflow.TurnId;
+                    this.Logger.LogDebug(Lang.AudioSendHandler_Handle_FirstFrame, session.DeviceId);
+                }
+
+                if (hasSubtitle)
                 {
                     await this.SendOutter.SendTtsMessageAsync(subtitle.TtsStatus, subtitle.SubtitleText);
                     await this.SendOutter.SendLlmMessageAsync(subtitle.Emotion);
-                }
-
-                if (audioPacket.IsFirstFrame)
-                {
-                    await this.SendOutter.SendTtsMessageAsync(TtsStatus.Start);
-                    this.Logger.LogDebug(Lang.AudioSendHandler_Handle_FirstFrame, session.DeviceId);
                 }
 
                 if (audioPacket.Data is not null && audioPacket.Data.Length > 0)
@@ -126,6 +140,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     if (this._audioPlayerClient is null || !this._audioPlayerClient.IsPlaying)
                     {
                         await this.SendOutter.SendTtsMessageAsync(TtsStatus.Stop);
+                        this._playbackTurnId = -1;
                         this.Logger.LogDebug(Lang.AudioSendHandler_Handle_LastFrame, session.DeviceId);
                         if (session.CloseAfterChat)
                         {

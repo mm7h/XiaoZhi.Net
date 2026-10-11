@@ -87,7 +87,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
 
             if (state == TtsStatus.Stop)
             {
-                this.XiaoZhiSession.Reset();
+                this.XiaoZhiSession.CompletePlayback();
             }
             return this.SendAsync(json);
         }

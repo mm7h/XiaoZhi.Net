@@ -483,7 +483,7 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                         break;
                     }
 
-                    // 缓冲策略允许新流输出部分帧。
+                    // 流结束前等待完整音频帧。
                     var activeInputs = this.GetActiveInputsWithBufferStrategy(inputsWithData);
                     if (activeInputs.Count == 0)
                     {
@@ -599,20 +599,10 @@ namespace XiaoZhi.Net.Server.Media.Mixers
                 }
 
                 bool hasFullFrame = input.HasDataForFrame(this._frameSampleCount);
-                bool isNewStream = input.ProcessedFrameCount < 3;
 
                 if (hasFullFrame)
                 {
                     activeInputs.Add(input);
-                }
-                else if (isNewStream && this._config.EnableSmoothVolumeControl)
-                {
-                    // 允许新流输出部分帧，以降低启动延迟。
-                    int minRequiredSamples = (int)(this._frameSampleCount * this._config.NewStreamBufferTolerance);
-                    if (input.AvailableDataCount >= minRequiredSamples)
-                    {
-                        activeInputs.Add(input);
-                    }
                 }
                 else if (input.IsStopping && input.HasAnyData())
                 {

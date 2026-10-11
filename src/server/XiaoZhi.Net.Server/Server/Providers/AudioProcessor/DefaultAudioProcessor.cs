@@ -49,6 +49,11 @@ namespace XiaoZhi.Net.Server.Providers.AudioMixer
 
         public void ProcessAudio(AudioType audioType, float[] audioData, string content, Emotion emotion, bool isFirstFrame, bool isLastFrame, string? sentenceId)
         {
+            // 暂停后的音乐空结束帧仅由 CompleteStream 处理，不能重建已清空的音源。
+            if (audioType == AudioType.Music && audioData.Length == 0)
+            {
+                return;
+            }
             this._audioMixer.AddAudioData(audioType, audioData, sentenceId);
         }
 

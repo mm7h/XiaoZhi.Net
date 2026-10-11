@@ -36,7 +36,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
                         }
                         else
                         {
-                            session.XiaoZhiSession.HandlerPipeline.HandleTextMessage(package.Message);
+                            await session.XiaoZhiSession.HandlerPipeline.HandleTextMessageAsync(package.Message);
                         }
                         break;
                     case OpCode.Binary:

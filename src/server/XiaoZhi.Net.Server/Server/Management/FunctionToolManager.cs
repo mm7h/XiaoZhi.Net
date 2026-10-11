@@ -273,7 +273,9 @@ namespace XiaoZhi.Net.Server.Management
             {
                 Name = methodMeta.FunctionName,
                 Description = methodMeta.Description ?? methodMeta.FunctionName,
-                SerializerOptions = JsonHelper.OPTIONS
+                SerializerOptions = JsonHelper.OPTIONS,
+                // 保留 FunctionReturn 的动作和播报文本，交由调用方处理。
+                MarshalResult = static (result, _, _) => ValueTask.FromResult(result)
             });
 
             FunctionMetadata metadata = aiFunction.ToFunctionMetadata();

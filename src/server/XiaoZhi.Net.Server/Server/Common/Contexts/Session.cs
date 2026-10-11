@@ -12,6 +12,8 @@ namespace XiaoZhi.Net.Server.Common.Contexts
     internal class Session
     {
         private long _audioProcessingTurnId = -1;
+        private long _speechRecognitionTurnId = -1;
+        private long _textProcessingTurnId = -1;
         private int _closeAfterChatRequested;
         private CancellationTokenSource _sessionCts = null!;
         private readonly IServiceScope _serviceScope;
@@ -68,6 +70,8 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public long TurnId => Interlocked.Read(ref this._turnId);
 
         public bool IsAudioProcessing => Interlocked.Read(ref this._audioProcessingTurnId) >= 0;
+        public bool IsSpeechRecognizing => Interlocked.Read(ref this._speechRecognitionTurnId) >= 0;
+        public bool IsTextProcessing => Interlocked.Read(ref this._textProcessingTurnId) >= 0;
 
         public bool ShouldIgnore() => this._isReseting;
 
@@ -90,6 +94,11 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         public void ManualStart()
         {
+            // 重复 listen start 不能清空正在录制的音频或使在途 ASR 失效。
+            if (this.IsSpeechRecognizing || this.IsTextProcessing || (this.AudioPacket.HaveVoice && !this.AudioPacket.VoiceStop))
+            {
+                return;
+            }
             this.Reset();
             this.AudioPacket.HaveVoice = true;
             this.AudioPacket.VoiceStop = false;
@@ -118,6 +127,37 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             return Interlocked.CompareExchange(ref this._audioProcessingTurnId, -1, turnId) == turnId;
         }
 
+        public void BeginSpeechRecognition(long turnId)
+        {
+            Interlocked.Exchange(ref this._speechRecognitionTurnId, turnId);
+            this.RejectIncomingAudio(turnId);
+        }
+
+        public void CompleteSpeechRecognition(long turnId)
+        {
+            Interlocked.CompareExchange(ref this._speechRecognitionTurnId, -1, turnId);
+        }
+
+        public void BeginTextProcessing(long turnId)
+        {
+            Interlocked.Exchange(ref this._textProcessingTurnId, turnId);
+            this.RejectIncomingAudio(turnId);
+        }
+
+        public void CompleteTextProcessing(long turnId)
+        {
+            Interlocked.CompareExchange(ref this._textProcessingTurnId, -1, turnId);
+        }
+
+        public void CompletePlayback()
+        {
+            // 上一段播放结束时，新输入可能已经进入识别，不能推进它的轮次。
+            if (!this.IsSpeechRecognizing && !this.IsTextProcessing && this.AudioPacket.BufferSize == 0)
+            {
+                this.Reset();
+            }
+        }
+
         public bool TryRequestCloseAfterChat()
         {
             if (Interlocked.CompareExchange(ref this._closeAfterChatRequested, 1, 0) != 0)
@@ -133,6 +173,8 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public void Reset()
         {
             Interlocked.Increment(ref this._turnId);
+            Interlocked.Exchange(ref this._speechRecognitionTurnId, -1);
+            Interlocked.Exchange(ref this._textProcessingTurnId, -1);
             this.AcceptIncomingAudio();
             this.AudioPacket.Reset();
         }
@@ -152,16 +194,26 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             }
             catch (ObjectDisposedException)
             {
+            }
+            finally
+            {
                 lock (this._lock)
                 {
-                    if (this._isClosing != 0)
+                    if (this._isClosing == 0)
                     {
-                        return;
+                        // 旧令牌的取消回调全部结束后再更新，后续文本不能使用已取消的令牌。
+                        this._sessionCts.Dispose();
+                        this.Reset();
+                        this.CreateCancellationTokenSource();
+                        try
+                        {
+                            this.SessionCtsTokenChanged?.Invoke(this._sessionCts.Token);
+                        }
+                        finally
+                        {
+                            this._isReseting = false;
+                        }
                     }
-                    this.Reset();
-                    this._isReseting = false;
-                    this.CreateCancellationTokenSource();
-                    this.SessionCtsTokenChanged?.Invoke(this._sessionCts.Token);
                 }
             }
         }
@@ -216,40 +268,6 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private void CreateCancellationTokenSource()
         {
             this._sessionCts = new CancellationTokenSource();
-            this._sessionCts.Token.Register(async () =>
-            {
-                await Task.Yield();
-
-                if (Volatile.Read(ref this._isClosing) != 0)
-                {
-                    return;
-                }
-                
-                lock (this._lock)
-                {
-                    if (this._isClosing != 0)
-                    {
-                        return;
-                    }
-                    this.Reset();
-                    this._isReseting = false;
-
-                    var oldCts = this._sessionCts;
-                    this._sessionCts = new CancellationTokenSource();
-                    var newToken = this._sessionCts.Token;
-                    
-                    try
-                    {
-                        oldCts.Dispose();
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                        
-                    }
-                    
-                    this.SessionCtsTokenChanged?.Invoke(newToken);
-                }
-            });
         }
 
         public override string ToString()

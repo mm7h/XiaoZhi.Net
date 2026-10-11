@@ -107,6 +107,10 @@ namespace XiaoZhi.Net.Server.Handlers
                 // to resample to 16kHz mono PCM for VAD/ASR processing, if needed
                 float[] pcmData = await this.ToProcessingPcmAsync(clientPcm);
                 this.HandlerToken.ThrowIfCancellationRequested();
+                if (session.IsAudioProcessing)
+                {
+                    return;
+                }
 
                 // The retained utterance buffer and all downstream consumers use the
                 // same 16 kHz mono PCM stream as VAD/ASR.
@@ -135,7 +139,7 @@ namespace XiaoZhi.Net.Server.Handlers
         public void OnVoiceStarted()
         {
             Session session = this.SendOutter.GetSession();
-            if (session is null || session.ShouldIgnore() || session.CloseAfterChat || !session.IsDeviceBinded || this._asr?.IsStreaming != true)
+            if (session is null || session.ShouldIgnore() || session.CloseAfterChat || session.IsAudioProcessing || !session.IsDeviceBinded || this._asr?.IsStreaming != true)
             {
                 return;
             }
@@ -146,7 +150,7 @@ namespace XiaoZhi.Net.Server.Handlers
         public void OnVoiceDetected(float[] audioData)
         {
             Session session = this.SendOutter.GetSession();
-            if (session is null || session.ShouldIgnore() || session.CloseAfterChat)
+            if (session is null || session.ShouldIgnore() || session.CloseAfterChat || session.IsAudioProcessing)
             {
                 return;
             }
@@ -176,7 +180,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
 
             long turnId = session.TurnId;
-            session.RejectIncomingAudio(turnId);
+            session.BeginSpeechRecognition(turnId);
             session.AudioPacket.ResetAudioBuffer();
             this.ObserveTask(this.HandleVoiceDetectedAsync(session, audioData, turnId), Lang.AudioReceiveHandler_OnVoiceDetected_DispatchFailed, session.DeviceId);
         }
@@ -224,7 +228,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public void HandleManualStop(Session session)
         {
-            if (session is null || session.ShouldIgnore() || session.CloseAfterChat)
+            if (session is null || session.ShouldIgnore() || session.CloseAfterChat || session.IsAudioProcessing)
             {
                 return;
             }
@@ -240,7 +244,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
             float[] utteranceAudio = session.AudioPacket.TakeAllAudio();
             long turnId = session.TurnId;
-            session.RejectIncomingAudio(turnId);
+            session.BeginSpeechRecognition(turnId);
             this.ObserveTask(this.HandleVoiceDetectedAsync(session, utteranceAudio, turnId), Lang.AudioReceiveHandler_HandleManualStop_DispatchFailed, session.DeviceId);
         }
 
@@ -354,7 +358,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
 
             this._streamingUtteranceActive = false;
-            session.RejectIncomingAudio(this._streamingUtteranceTurnId);
+            session.BeginSpeechRecognition(this._streamingUtteranceTurnId);
             this.QueueStreamingOperation(
                 session,
                 Array.Empty<float>(),
@@ -439,6 +443,11 @@ namespace XiaoZhi.Net.Server.Handlers
                     this._streamingUtteranceActive = false;
                     this._streamingUtteranceTurnId = -1;
                 }
+                if (operation == StreamingAsrOperation.Finish)
+                {
+                    session.CompleteSpeechRecognition(turnId);
+                    session.AcceptIncomingAudio(turnId);
+                }
             }
             catch (Exception ex)
             {
@@ -446,6 +455,11 @@ namespace XiaoZhi.Net.Server.Handlers
                 {
                     this._streamingUtteranceActive = false;
                     this._streamingUtteranceTurnId = -1;
+                }
+                if (operation == StreamingAsrOperation.Finish)
+                {
+                    session.CompleteSpeechRecognition(turnId);
+                    session.AcceptIncomingAudio(turnId);
                 }
                 this.Logger.LogError(ex, Lang.AudioReceiveHandler_SendStreamingOperationSafelyAsync_Failed, operation, session.DeviceId);
             }

@@ -81,7 +81,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
                         Instructions = RESPONSE_SYSTEM_PROMPT,
                         Temperature = 0.5f,
                         MaxOutputTokens = 150,
-                        ResponseFormat = ChatResponseFormat.Text
+                        ResponseFormat = ChatResponseFormat.Text,
+                        Reasoning = new ReasoningOptions
+                        {
+                            Effort = ReasoningEffort.None,
+                            Output = ReasoningOutput.None
+                        }
                     }
                 };
 
@@ -158,6 +163,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents.Intent
             {
                 response.Append(sentence);
                 await context.YieldOutputAsync(sentence, token);
+            }
+            // 模型未生成可播报文本时，直接反馈工具结果，避免本轮无响应。
+            if (string.IsNullOrWhiteSpace(response.ToString()))
+            {
+                response.Append(executionResult.Response);
+                await context.YieldOutputAsync(executionResult.Response, token);
             }
             this._chatHistoryProvider?.Append(ChatRole.Assistant, response.ToString());
         }
