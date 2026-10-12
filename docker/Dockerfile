@@ -1,21 +1,24 @@
 # syntax=docker/dockerfile:1
-FROM debian:bookworm-slim AS ffmpeg-build
+FROM debian:bookworm-slim AS ffmpeg-download
+ARG TARGETARCH
 ARG FFMPEG_VERSION=7.1.1
-ARG FFMPEG_SHA256=733984395e0dbbe5c046abda2dc49a5544e7e0e1e2366bba849222ae9e3a03b1
+ARG FFMPEG_SHA256=1c56ec684da4cfd5f40dd67c56b6b21fdb9ad124218bc225e68deb4eeefe3143
+# The application publish and Sherpa native libraries below currently target linux-x64.
+RUN test "$TARGETARCH" = amd64 || { echo "This Dockerfile only supports linux/amd64." >&2; exit 1; }
 RUN apt-get -o Acquire::Retries=3 update && apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
-    build-essential ca-certificates curl xz-utils nasm pkg-config \
-    libgnutls28-dev libmp3lame-dev libopus-dev \
+    ca-certificates curl unzip \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
-RUN curl --fail --location --retry 3 "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" -o ffmpeg.tar.xz \
-    && echo "${FFMPEG_SHA256}  ffmpeg.tar.xz" | sha256sum -c - \
-    && tar -xJf ffmpeg.tar.xz --strip-components=1 \
-    && ./configure --prefix=/opt/ffmpeg --enable-shared --disable-static \
-        --disable-doc --disable-debug --disable-ffplay --enable-gpl \
-        --enable-gnutls --enable-libmp3lame --enable-libopus \
-    && make -j "$(nproc)" && make install \
-    && mkdir -p /opt/ffmpeg/licenses \
-    && cp COPYING* LICENSE.md /opt/ffmpeg/licenses/
+RUN curl --fail --location --retry 3 \
+        "https://github.com/mm7h/XiaoZhi.Net/releases/download/resources/ffmpeg-${FFMPEG_VERSION}-linux-x64.zip" -o ffmpeg.zip \
+    && echo "${FFMPEG_SHA256}  ffmpeg.zip" | sha256sum -c - \
+    && unzip -q ffmpeg.zip -d extracted \
+    && mkdir -p /opt/ffmpeg/lib /opt/ffmpeg/bin /opt/ffmpeg/licenses \
+    && cp -a extracted/*/lib/. /opt/ffmpeg/lib/ \
+    && cp extracted/*/bin/ffmpeg extracted/*/bin/ffprobe /opt/ffmpeg/bin/ \
+    && cp extracted/*/LICENSE* /opt/ffmpeg/licenses/ \
+    && chmod 755 /opt/ffmpeg/bin/* \
+    && rm -rf ffmpeg.zip extracted
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0-bookworm-slim AS source
 WORKDIR /source
@@ -50,10 +53,11 @@ RUN apt-get -o Acquire::Retries=3 update && apt-get -o Acquire::Retries=3 instal
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=server-build /publish/ ./
-COPY --from=ffmpeg-build /opt/ffmpeg/lib/ ./ffmpeg/
-COPY --from=ffmpeg-build /opt/ffmpeg/bin/ /opt/ffmpeg/bin/
-COPY --from=ffmpeg-build /opt/ffmpeg/licenses/ /opt/ffmpeg/licenses/
-RUN mkdir -p Configs models musics data logs .net && chown -R app:app data logs .net
+COPY --from=ffmpeg-download /opt/ffmpeg/lib/ ./ffmpeg/
+COPY --from=ffmpeg-download /opt/ffmpeg/bin/ /opt/ffmpeg/bin/
+COPY --from=ffmpeg-download /opt/ffmpeg/licenses/ /opt/ffmpeg/licenses/
+RUN LD_LIBRARY_PATH=/app/ffmpeg /opt/ffmpeg/bin/ffmpeg -version \
+    && mkdir -p Configs models musics data logs .net && chown -R app:app data logs .net
 ENV DOTNET_ENVIRONMENT=Production TZ=Asia/Shanghai LD_LIBRARY_PATH=/app/ffmpeg DOTNET_BUNDLE_EXTRACT_BASE_DIR=/app/.net
 EXPOSE 4530
 USER app
