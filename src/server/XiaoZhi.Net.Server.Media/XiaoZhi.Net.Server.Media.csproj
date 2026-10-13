@@ -5,7 +5,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-	<Version>0.0.1</Version>
 	<Authors>mm7h</Authors>
 	<Title>XiaoZhi.Net.FFmpeg</Title>
 	<RepositoryUrl>https://github.com/mm7h/XiaoZhi.Net</RepositoryUrl>
