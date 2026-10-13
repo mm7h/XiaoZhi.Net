@@ -121,6 +121,8 @@ foreach ($file in @('00.configuration-file.md', '01.extend-custom-model.md', '02
 Set-Content -LiteralPath (Join-Path $packageDirectory 'README.md') -Encoding utf8NoBOM -Value @'
 # XiaoZhi.Net 运行包
 
+中文 | [English](README_en.md)
+
 部署步骤见 [服务部署](docs/03.server-development.md)。
 
 建议将 server/Configs 的 JSON 复制到外部目录后填写密钥，启动时传入 --config <config.json路径>。
@@ -129,6 +131,32 @@ FFmpeg 资源：https://github.com/mm7h/XiaoZhi.Net/releases#release-resources
 从 server/ 启动主服务，从 ota/ 启动 OTA，并让 OTA 指向同一配置目录。
 Linux 解压后请执行：chmod +x server/XiaoZhi.Net.Sample.Server ota/XiaoZhi.Net.Sample.OTA.Server
 Docker 仅支持 linux-x64 包，从本目录执行 sh docker/deploy.sh --public-host <服务器IP>，无需安装 PowerShell。
+'@
+Set-Content -LiteralPath (Join-Path $packageDirectory 'README_en.md') -Encoding utf8NoBOM -Value @'
+# XiaoZhi.Net Runtime Package
+
+[中文](README.md) | English
+
+For detailed deployment instructions, see the [deployment guide (Chinese)](docs/03.server-development.md).
+
+We recommend copying the JSON files from `server/Configs` to an external directory, filling in your API keys, and starting the server with `--config <path-to-config.json>`.
+
+The `models`, `ffmpeg`, `musics`, `data`, and `logs` directories under `server/` are empty. Download your chosen models and the FFmpeg shared libraries for your platform separately.
+FFmpeg downloads: https://github.com/mm7h/XiaoZhi.Net/releases#release-resources
+
+Start the main server from `server/` and the OTA server from `ota/`. Configure the OTA server to use the same configuration directory.
+
+On Linux, make the executables runnable after extracting the package:
+
+```sh
+chmod +x server/XiaoZhi.Net.Sample.Server ota/XiaoZhi.Net.Sample.OTA.Server
+```
+
+Docker deployment supports the `linux-x64` package only. Run the following command from the package root; PowerShell is not required:
+
+```sh
+sh docker/deploy.sh --public-host <server-IP>
+```
 '@
 $extension = if ($RuntimeIdentifier.StartsWith('win-')) { '.exe' } else { '' }
 foreach ($file in @("$serverDirectory/XiaoZhi.Net.Sample.Server$extension", "$otaDirectory/XiaoZhi.Net.Sample.OTA.Server$extension")) {

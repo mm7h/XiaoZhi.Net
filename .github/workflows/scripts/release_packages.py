@@ -111,12 +111,12 @@ def verify_package(directory, tag, sha, rid):
                 raise ValueError('Unsafe ZIP path')
             if (entry.external_attr >> 16) & 0o170000 == 0o120000:
                 raise ValueError('ZIP symlinks are unsupported')
-            if path.parts[0] not in ('server', 'ota', 'docker', 'scripts', 'docs', 'LICENSE', 'README.md', 'package.json', 'assembly-versions.json'):
+            if path.parts[0] not in ('server', 'ota', 'docker', 'scripts', 'docs', 'LICENSE', 'README.md', 'README_en.md', 'package.json', 'assembly-versions.json'):
                 raise ValueError('Unexpected package content')
             if entry.filename.startswith(tuple(f'server/{d}/' for d in ('models', 'ffmpeg', 'musics', 'data', 'logs'))) and not entry.is_dir():
                 raise ValueError('Runtime resources and user data must remain empty')
         extension = '.exe' if rid.startswith('win-') else ''
-        required = ('LICENSE', 'README.md', 'package.json', 'assembly-versions.json',
+        required = ('LICENSE', 'README.md', 'README_en.md', 'package.json', 'assembly-versions.json',
                     'server/Configs/config.json', 'server/Configs/assets/bind_codes/0.wav',
                     'ota/appsettings.json', 'docker/compose.yaml', 'docker/Dockerfile.release',
                     'docker/deploy.sh', 'scripts/Download-SherpaModels.sh', 'scripts/SherpaModels.psv',
