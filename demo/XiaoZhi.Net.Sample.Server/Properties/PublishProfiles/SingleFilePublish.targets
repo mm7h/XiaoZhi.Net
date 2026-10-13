@@ -43,7 +43,7 @@
     </ItemGroup>
     <Error Condition="'$(_SingleFileUnix)' == 'true' and '@(_SherpaApi)' == ''" Text="The Sherpa native API library was not resolved for $(RuntimeIdentifier)." />
     <PropertyGroup Condition="'$(_SingleFileUnix)' == 'true'">
-      <_SherpaPackagePath>$([System.IO.Path]::GetDirectoryName('@(_SherpaApi)'))</_SherpaPackagePath>
+      <_SherpaPackagePath>@(_SherpaApi->'%(RootDir)%(Directory)')</_SherpaPackagePath>
     </PropertyGroup>
     <Error Condition="'$(_SingleFileUnix)' == 'true' and '$(SherpaNativeLibrariesPath)' == '' and !$([MSBuild]::IsOSPlatform('Linux'))"
            Text="Publishing $(RuntimeIdentifier) requires prepared Sherpa libraries. Publish on the target OS, or set SherpaNativeLibrariesPath to the output of prepare-sherpa.sh run on that OS. See docs/03.server-development.md." />
