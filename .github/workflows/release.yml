@@ -1,0 +1,136 @@
+name: Release packages
+run-name: Prepare XiaoZhi.Net release ${{ inputs.tag || github.ref_name }}
+
+on:
+  push:
+    tags:
+      - '0.0.0-ci-release-test.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '已推送的版本 tag，例如 0.2.0、v0.2.0、0.2.0-rc.1'
+        required: true
+        type: string
+      prerelease:
+        description: '将新草稿标记为预发布（带预发布后缀的 tag 自动开启）'
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xiaozhi-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.prepare.outputs.sha }}
+      version: ${{ steps.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Test release safeguards
+        run: python -m unittest discover -s .github/workflows/scripts -p 'test_*.py' -v
+      - name: Resolve tag and validate draft state
+        id: prepare
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: python .github/workflows/scripts/release_packages.py prepare
+
+  build:
+    needs: prepare
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64, os: windows-2022 }
+          - { rid: win-arm64, os: windows-11-arm }
+          - { rid: linux-x64, os: ubuntu-24.04 }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.os }}
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      RELEASE_SHA: ${{ needs.prepare.outputs.sha }}
+      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+      RELEASE_RID: ${{ matrix.rid }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: workflow
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Install Linux single-file publishing tool
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y patchelf
+      - name: Publish, check assembly versions, and start packaged OTA
+        shell: pwsh
+        run: >-
+          ./workflow/.github/workflows/scripts/Publish-Release.ps1
+          -RuntimeIdentifier $env:RELEASE_RID -Version $env:RELEASE_VERSION
+          -ReleaseTag $env:RELEASE_TAG -SourceCommit $env:RELEASE_SHA
+          -SourceDirectory ./source -OutputDirectory ./artifacts/release
+      - name: Verify package architecture, contents, source and checksum
+        shell: pwsh
+        run: python workflow/.github/workflows/scripts/release_packages.py verify --rid $env:RELEASE_RID --directory artifacts/release
+      - name: Save package and checksum
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: package-${{ matrix.rid }}
+          path: |
+            artifacts/release/*.zip
+            artifacts/release/*.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+          overwrite: true
+
+  draft:
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      RELEASE_SHA: ${{ needs.prepare.outputs.sha }}
+      RELEASE_PRERELEASE: ${{ inputs.prerelease || github.event_name == 'push' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: package-*
+          path: packages
+          merge-multiple: true
+      - name: Verify all packages and upload unpublished draft
+        run: python .github/workflows/scripts/release_packages.py draft
