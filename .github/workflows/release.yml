@@ -92,6 +92,18 @@ jobs:
           -RuntimeIdentifier $env:RELEASE_RID -Version $env:RELEASE_VERSION
           -ReleaseTag $env:RELEASE_TAG -SourceCommit $env:RELEASE_SHA
           -SourceDirectory ./source -OutputDirectory ./artifacts/release
+      - name: Save failed Windows ARM64 package for diagnostics
+        if: failure() && matrix.rid == 'win-arm64'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: diagnostic-win-arm64
+          path: |
+            artifacts/release/*-win-arm64.zip
+            artifacts/release/*-win-arm64.zip.sha256
+          if-no-files-found: ignore
+          compression-level: 0
+          retention-days: 7
+          overwrite: true
       - name: Verify package architecture, contents, source and checksum
         shell: pwsh
         run: python workflow/.github/workflows/scripts/release_packages.py verify --rid $env:RELEASE_RID --directory artifacts/release

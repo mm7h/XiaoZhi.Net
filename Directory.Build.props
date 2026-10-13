@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- Local builds share one default; release builds override it with -p:Version. -->
+    <Version Condition="'$(Version)' == ''">0.1.0</Version>
+  </PropertyGroup>
+</Project>

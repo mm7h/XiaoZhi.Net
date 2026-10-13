@@ -213,14 +213,28 @@ class ReleaseTests(unittest.TestCase):
             writes.assert_not_called()
 
     def test_create_draft_and_upload_five_assets(self):
-        with patch.object(release, 'resolve_tag', return_value=SHA), patch.object(release, 'unpublished', side_effect=[None, self.draft]), patch.object(release, 'api', side_effect=self.api), patch.object(release, 'command', side_effect=self.command) as commands:
+        with patch.object(release, 'resolve_tag', return_value=SHA), patch.object(release, 'unpublished', return_value=None) as lookup, patch.object(release, 'create_draft', return_value=self.draft) as create, patch.object(release, 'api', side_effect=self.api), patch.object(release, 'command', side_effect=self.command):
             result, _ = release.upload('owner/repo', TAG, SHA, self.directory, '.')
             self.assertTrue(result['draft'])
             self.assertEqual(len(result['assets']), 5)
-            create = commands.call_args_list[0].args
-            self.assertIn('--draft', create)
-            self.assertIn('--verify-tag', create)
-            self.assertIn('--prerelease', create)
+            lookup.assert_called_once()
+            create.assert_called_once_with('owner/repo', TAG, SHA, False)
+
+    def test_draft_creation_uses_returned_id_and_generated_notes(self):
+        with patch.object(release, 'command', side_effect=[json.dumps({'name':'Generated title','body':'Generated notes'}), json.dumps(self.draft)]) as calls:
+            result = release.create_draft('owner/repo', TAG, SHA, False)
+            self.assertEqual(result['id'], 42)
+            payload = json.loads(calls.call_args_list[1].kwargs['input'])
+            self.assertTrue(payload['draft'])
+            self.assertTrue(payload['prerelease'])
+            self.assertEqual(payload['tag_name'], TAG)
+            self.assertEqual(payload['target_commitish'], SHA)
+            self.assertEqual(payload['body'], 'Generated notes')
+
+    def test_creation_response_must_identify_an_unpublished_draft(self):
+        with patch.object(release, 'command', side_effect=[json.dumps({}),json.dumps({**self.draft,'draft':False})]):
+            with self.assertRaises(ValueError):
+                release.create_draft('owner/repo', TAG, SHA, False)
 
     def test_rerun_preserves_metadata_and_unrelated_assets(self):
         self.draft['assets'].append(dict(name='user-notes.txt'))

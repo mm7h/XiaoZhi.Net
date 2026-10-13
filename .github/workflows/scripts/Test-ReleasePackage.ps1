@@ -22,14 +22,27 @@ try {
     $start.WorkingDirectory = Join-Path $directory 'ota'
     $start.UseShellExecute = $false
     $start.CreateNoWindow = $true
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
     $start.ArgumentList.Add('--urls')
     $start.ArgumentList.Add("http://127.0.0.1:$port")
     $start.Environment['ASPNETCORE_ENVIRONMENT'] = 'Production'
     $start.Environment['DOTNET_BUNDLE_EXTRACT_BASE_DIR'] = Join-Path $directory '.net'
+    $start.Environment['COREHOST_TRACE'] = '1'
+    $start.Environment['COREHOST_TRACEFILE'] = Join-Path $directory 'host-trace.log'
     $process = [Diagnostics.Process]::Start($start)
+    $stdout = $process.StandardOutput.ReadToEndAsync()
+    $stderr = $process.StandardError.ReadToEndAsync()
     $healthy = $false
     for ($attempt = 0; $attempt -lt 60; $attempt++) {
-        if ($process.HasExited) { throw "OTA 启动失败，退出码：$($process.ExitCode)" }
+        if ($process.HasExited) {
+            Write-Host $stdout.GetAwaiter().GetResult()
+            Write-Host $stderr.GetAwaiter().GetResult()
+            if (Test-Path -LiteralPath (Join-Path $directory 'host-trace.log')) {
+                Get-Content (Join-Path $directory 'host-trace.log') -Tail 80 | Write-Host
+            }
+            throw "OTA 启动失败，退出码：$($process.ExitCode)"
+        }
         try {
             $result = Invoke-RestMethod "http://127.0.0.1:$port/health" -TimeoutSec 2
             if ($result.status -eq 'ok') { $healthy = $true; break }

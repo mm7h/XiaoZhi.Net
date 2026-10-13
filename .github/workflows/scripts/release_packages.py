@@ -23,8 +23,8 @@ def parse_version(tag):
     return tag.removeprefix('v'), '.'.join(match.groups()[:3]) + '.0'
 
 
-def command(*args, cwd=None):
-    return subprocess.run(args, cwd=cwd, check=True, text=True, capture_output=True).stdout.strip()
+def command(*args, cwd=None, input=None):
+    return subprocess.run(args, cwd=cwd, input=input, check=True, text=True, capture_output=True).stdout.strip()
 
 
 def api(path):
@@ -54,6 +54,22 @@ def unpublished(repo, tag):
     if release and not release['draft']:
         raise ValueError(f'Release {tag} has already been published; use a new tag')
     return release
+
+
+def create_draft(repo, tag, sha, prerelease):
+    # The creation response is authoritative; a just-created draft may not yet
+    # appear in the list endpoint queried immediately before creation.
+    notes = json.loads(command('gh', 'api', f'repos/{repo}/releases/generate-notes',
+                               '--method', 'POST', '--input', '-',
+                               input=json.dumps(dict(tag_name=tag, target_commitish=sha))))
+    payload = dict(tag_name=tag, target_commitish=sha, draft=True,
+                   prerelease=prerelease or '-' in parse_version(tag)[0],
+                   name=notes.get('name') or tag, body=notes.get('body') or '')
+    result = json.loads(command('gh', 'api', f'repos/{repo}/releases',
+                                '--method', 'POST', '--input', '-', input=json.dumps(payload)))
+    if not result.get('draft') or result.get('tag_name') != tag or not result.get('id'):
+        raise ValueError('Creation response did not identify the requested release draft')
+    return result
 
 
 def sha256(path):
@@ -144,13 +160,7 @@ def upload(repo, tag, sha, directory, source, prerelease=False):
         raise ValueError('Tag moved after the build')
     release = unpublished(repo, tag)
     if release is None:
-        args = ['gh', 'release', 'create', tag, '--repo', repo, '--draft', '--verify-tag', '--generate-notes']
-        if prerelease or '-' in parse_version(tag)[0]:
-            args.append('--prerelease')
-        command(*args)
-        release = unpublished(repo, tag)
-        if release is None:
-            raise ValueError('Created draft could not be found')
+        release = create_draft(repo, tag, sha, prerelease)
     release_id = release['id']
     for path in [p for p, _ in files] + [sums]:
         # Recheck the exact draft immediately before each replacement.
