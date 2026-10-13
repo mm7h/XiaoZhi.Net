@@ -30,7 +30,7 @@ def binary(rid):
 def package(directory, rid, change=None):
     version, assembly = release.parse_version(TAG)
     extension = '.exe' if rid.startswith('win-') else ''
-    files = dict.fromkeys(('LICENSE', 'README.md', 'server/Configs/config.json',
+    files = dict.fromkeys(('LICENSE', 'README.md', 'README_en.md', 'server/Configs/config.json',
                           'server/Configs/assets/bind_codes/0.wav', 'ota/appsettings.json',
                           'docker/compose.yaml', 'docker/Dockerfile.release', 'docker/deploy.sh',
                           'scripts/Download-SherpaModels.sh', 'scripts/SherpaModels.psv',
@@ -149,9 +149,10 @@ class PackageTests(unittest.TestCase):
                 release.verify_package(self.directory, TAG, SHA, 'linux-x64')
 
     def test_missing_required_content(self):
-        package(self.directory, 'linux-x64', lambda files: files.pop('server/Configs/config.json'))
-        with self.assertRaises(ValueError):
-            release.verify_package(self.directory, TAG, SHA, 'linux-x64')
+        for name in ('server/Configs/config.json', 'README.md', 'README_en.md'):
+            package(self.directory, 'linux-x64', lambda files: files.pop(name))
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                release.verify_package(self.directory, TAG, SHA, 'linux-x64')
 
     def test_duplicate_entries(self):
         archive = package(self.directory, 'linux-x64')
