@@ -34,7 +34,8 @@ if (-not $SourceCommit) {
 }
 $versionArguments = @("-p:Version=$Version", "-p:AssemblyVersion=$assemblyVersion",
     "-p:FileVersion=$assemblyVersion", "-p:InformationalVersion=$Version",
-    '-p:IncludeSourceRevisionInInformationalVersion=false')
+    '-p:IncludeSourceRevisionInInformationalVersion=false',
+    "-p:IncludeAllContentForSelfExtract=$($RuntimeIdentifier -eq 'win-arm64')")
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
 $archiveName = "XiaoZhi.Net-$Version-$RuntimeIdentifier.zip"
 $archivePath = Join-Path $OutputDirectory $archiveName

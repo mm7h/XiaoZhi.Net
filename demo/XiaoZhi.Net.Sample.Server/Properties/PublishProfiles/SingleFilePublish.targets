@@ -11,6 +11,8 @@
     <UseAppHost Condition="'$(UseAppHost)' == ''">true</UseAppHost>
     <PublishSingleFile Condition="'$(PublishSingleFile)' == ''">true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract Condition="'$(IncludeNativeLibrariesForSelfExtract)' == ''">true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Full extraction avoids the observed .NET 8 Windows ARM64 bundled MVC startup crash. -->
+    <IncludeAllContentForSelfExtract Condition="'$(RuntimeIdentifier)' == 'win-arm64' and '$(IncludeAllContentForSelfExtract)' == ''">true</IncludeAllContentForSelfExtract>
     <DebugType Condition="'$(DebugType)' == ''">embedded</DebugType>
     <PublishReadyToRun Condition="'$(PublishReadyToRun)' == ''">false</PublishReadyToRun>
     <PublishTrimmed Condition="'$(PublishTrimmed)' == ''">false</PublishTrimmed>

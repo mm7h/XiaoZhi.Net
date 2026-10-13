@@ -16,6 +16,10 @@
 
 	<!-- Share the sample server's typed and legacy dictionary configuration conversion. -->
 	<ItemGroup>
+		<Content Update="appsettings*.json" ExcludeFromSingleFile="true" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<Compile Include="..\XiaoZhi.Net.Sample.Server\Configs\XiaoZhiConfigurationExtensions.cs" Link="Helpers\XiaoZhiConfigurationExtensions.cs" />
 		<Compile Include="..\XiaoZhi.Net.Sample.Server\Configs\LenientStringConverter.cs" Link="Helpers\LenientStringConverter.cs" />
 	</ItemGroup>

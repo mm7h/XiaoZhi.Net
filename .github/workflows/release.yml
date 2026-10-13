@@ -92,26 +92,6 @@ jobs:
           -RuntimeIdentifier $env:RELEASE_RID -Version $env:RELEASE_VERSION
           -ReleaseTag $env:RELEASE_TAG -SourceCommit $env:RELEASE_SHA
           -SourceDirectory ./source -OutputDirectory ./artifacts/release
-      - name: Diagnose Windows ARM64 startup with all bundle contents extracted
-        if: failure() && matrix.rid == 'win-arm64'
-        shell: pwsh
-        run: |
-          $archive = @(Get-ChildItem artifacts/release -Filter '*-win-arm64.zip')
-          if ($archive.Count -ne 1) { throw 'No Windows ARM64 archive available for startup diagnostics.' }
-          $directory = Join-Path $PWD 'artifacts/diagnostic-ota'
-          New-Item -ItemType Directory -Path $directory -Force | Out-Null
-          & dotnet publish source/demo/XiaoZhi.Net.Sample.OTA.Server/XiaoZhi.Net.Sample.OTA.Server.csproj `
-            -c Release -r win-arm64 --self-contained true -p:PublishSingleFile=true `
-            -p:IncludeNativeLibrariesForSelfExtract=true -p:IncludeAllContentForSelfExtract=true `
-            -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:DebugType=embedded `
-            "-p:Version=$env:RELEASE_VERSION" -p:AssemblyVersion=0.0.0.0 -p:FileVersion=0.0.0.0 `
-            "-p:InformationalVersion=$env:RELEASE_VERSION" -p:IncludeSourceRevisionInInformationalVersion=false `
-            -o (Join-Path $directory 'ota')
-          if ($LASTEXITCODE -ne 0) { throw 'Diagnostic OTA publish failed.' }
-          @{ RuntimeIdentifier = 'win-arm64'; Version = $env:RELEASE_VERSION } |
-            ConvertTo-Json | Set-Content (Join-Path $directory 'package.json') -Encoding utf8NoBOM
-          Compress-Archive -Path (Join-Path $directory '*') -DestinationPath artifacts/diagnostic-ota.zip
-          ./workflow/.github/workflows/scripts/Test-ReleasePackage.ps1 -ArchivePath artifacts/diagnostic-ota.zip
       - name: Save failed Windows ARM64 package for diagnostics
         if: failure() && matrix.rid == 'win-arm64'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
