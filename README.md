@@ -5,6 +5,9 @@
 **XiaoZhi.Net.Server** 是使用 `.Net 8`开发的C# SDK，基于[Websocket](https://ccnphfhqs21z.feishu.cn/wiki/M0XiwldO9iJwHikpXD5cEx71nKh) 协议为 [XiaoZhi ESP32](https://github.com/78/xiaozhi-esp32) 项目提供后端服务支持。
 
 ## 快速开始 👋
+
+运行包部署及 GitHub Actions 发布步骤见[服务部署](docs/03.server-development.md)。发布时填写已有版本 tag，四个平台构建完成后生成 Release 草稿，再人工发布。
+
 ### 快速创建 Xiao Zhi 服务 👇️
 
 ```csharp

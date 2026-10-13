@@ -27,3 +27,4 @@ AGENTS.md
 # Platform-specific native binaries are supplied locally when publishing.
 /demo/XiaoZhi.Net.Sample.Server/NativeLibraries/
 /artifacts/
+**/__pycache__/
