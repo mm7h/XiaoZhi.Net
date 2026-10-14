@@ -1,0 +1,62 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <!-- Keep package versions here; project files only declare PackageReference items. -->
+  <ItemGroup>
+    <PackageVersion Include="Concentus" Version="2.2.2" />
+    <PackageVersion Include="DocumentFormat.OpenXml" Version="3.5.1" />
+    <PackageVersion Include="FFmpeg.AutoGen" Version="7.1.1" />
+    <PackageVersion Include="Figgle" Version="0.6.6" />
+    <PackageVersion Include="Figgle.Fonts" Version="0.6.6" />
+    <PackageVersion Include="Flurl.Http" Version="4.0.2" />
+    <PackageVersion Include="McMaster.Extensions.CommandLineUtils" Version="4.1.1" />
+    <PackageVersion Include="Microsoft.Agents.AI" Version="1.24.0" />
+    <PackageVersion Include="Microsoft.Agents.AI.Workflows" Version="1.24.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="8.0.21" />
+    <PackageVersion Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.ObjectPool.DependencyInjection" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.ML.OnnxRuntime" Version="1.31.0" />
+    <PackageVersion Include="MiniExcel" Version="1.45.0" />
+    <PackageVersion Include="ModelContextProtocol" Version="2.2.0" />
+    <PackageVersion Include="MP3Sharp" Version="1.0.5" />
+    <PackageVersion Include="NAudio" Version="2.2.1" />
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageVersion Include="org.k2fsa.sherpa.onnx" Version="1.13.8" />
+    <PackageVersion Include="Qdrant.Client" Version="1.19.0" />
+    <PackageVersion Include="Serilog" Version="4.4.0" />
+    <PackageVersion Include="Serilog.Extensions.Hosting" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Sinks.Async" Version="2.1.0" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageVersion Include="Sharprompt" Version="3.1.3" />
+    <PackageVersion Include="SuperSocket.WebSocket.Server" Version="2.1.0" />
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <PackageVersion Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
+    <PackageVersion Include="Volo.Abp.AspNetCore.Authentication.JwtBearer" Version="9.1.1" />
+    <PackageVersion Include="Volo.Abp.AspNetCore.Mvc" Version="9.1.1" />
+    <PackageVersion Include="Volo.Abp.AspNetCore.Serilog" Version="9.1.1" />
+    <PackageVersion Include="Volo.Abp.Autofac" Version="9.1.1" />
+    <PackageVersion Include="Volo.Abp.Cli.Core" Version="9.1.1" />
+    <PackageVersion Include="Volo.Abp.Core" Version="9.1.1" />
+    <PackageVersion Include="Volo.Abp.Swashbuckle" Version="9.1.1" />
+    <PackageVersion Include="Websocket.Client" Version="5.5.1" />
+  </ItemGroup>
+  <!-- Preserve the WebApi project's existing Serilog sink versions during migration. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'XiaoZhi.Net.WebApi'">
+    <PackageVersion Update="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageVersion Update="Serilog.Sinks.File" Version="7.0.0" />
+  </ItemGroup>
+</Project>

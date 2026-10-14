@@ -12,16 +12,11 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <ApplicationIcon>robot.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="robot.ico" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="MP3Sharp" Version="1.0.5" />
-    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="MP3Sharp" />
+    <PackageReference Include="NAudio" />
   </ItemGroup>
 
   <ItemGroup>

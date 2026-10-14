@@ -120,7 +120,7 @@ def verify_package(directory, tag, sha, rid):
                     'server/Configs/config.json', 'server/Configs/assets/bind_codes/0.wav',
                     'ota/appsettings.json', 'docker/compose.yaml', 'docker/Dockerfile.release',
                     'docker/deploy.sh', 'scripts/Download-SherpaModels.sh', 'scripts/SherpaModels.psv',
-                    'docs/03.server-development.md')
+                    'docs/03.server-development.md', 'docs/assets/logo.png', 'docs/assets/logo.ico')
         if not set(required).issubset(names):
             raise ValueError('Required package files are missing')
         metadata = json.loads(package.read('package.json'))

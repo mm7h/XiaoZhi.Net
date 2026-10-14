@@ -115,10 +115,16 @@ foreach ($file in @('Download-SherpaModels.ps1', 'Download-SherpaModels.sh', 'Sh
 foreach ($file in @('00.configuration-file.md', '01.extend-custom-model.md', '02.sherpa-models.md', '03.server-development.md')) {
     Copy-Item -LiteralPath (Join-Path $repositoryRoot "docs/$file") -Destination (Join-Path $packageDirectory 'docs')
 }
+New-Item -ItemType Directory -Path (Join-Path $packageDirectory 'docs/assets') | Out-Null
+foreach ($file in @('logo.png', 'logo.ico')) {
+    Copy-Item -LiteralPath (Join-Path $repositoryRoot "docs/assets/$file") -Destination (Join-Path $packageDirectory 'docs/assets')
+}
 @{
     Version = $Version; RuntimeIdentifier = $RuntimeIdentifier; Tag = $ReleaseTag; SourceCommit = $SourceCommit
 } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $packageDirectory 'package.json') -Encoding utf8NoBOM
 Set-Content -LiteralPath (Join-Path $packageDirectory 'README.md') -Encoding utf8NoBOM -Value @'
+<img src="docs/assets/logo.png" alt="XiaoZhi.Net Logo" width="128" height="128" />
+
 # XiaoZhi.Net 运行包
 
 中文 | [English](README_en.md)
@@ -133,6 +139,8 @@ Linux 解压后请执行：chmod +x server/XiaoZhi.Net.Sample.Server ota/XiaoZhi
 Docker 仅支持 linux-x64 包，从本目录执行 sh docker/deploy.sh --public-host <服务器IP>，无需安装 PowerShell。
 '@
 Set-Content -LiteralPath (Join-Path $packageDirectory 'README_en.md') -Encoding utf8NoBOM -Value @'
+<img src="docs/assets/logo.png" alt="XiaoZhi.Net Logo" width="128" height="128" />
+
 # XiaoZhi.Net Runtime Package
 
 [中文](README.md) | English

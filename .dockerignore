@@ -1,5 +1,12 @@
 # Only the two sample projects and their server dependencies are build inputs.
 **
+!Directory.Build.props
+!Directory.Build.targets
+!Directory.Packages.props
+!docs/
+!docs/assets/
+!docs/assets/logo.png
+!docs/assets/logo.ico
 !demo/
 !demo/XiaoZhi.Net.Sample.Server/
 !demo/XiaoZhi.Net.Sample.Server/**
@@ -8,6 +15,12 @@
 !src/
 !src/server/
 !src/server/**
+!src/media/
+!src/media/**
+!src/rag/
+!src/rag/**
+!src/vision/
+!src/vision/**
 !docker/
 !docker/Dockerfile
 **/bin/**

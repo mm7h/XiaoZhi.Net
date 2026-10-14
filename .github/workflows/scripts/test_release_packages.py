@@ -34,7 +34,7 @@ def package(directory, rid, change=None):
                           'server/Configs/assets/bind_codes/0.wav', 'ota/appsettings.json',
                           'docker/compose.yaml', 'docker/Dockerfile.release', 'docker/deploy.sh',
                           'scripts/Download-SherpaModels.sh', 'scripts/SherpaModels.psv',
-                          'docs/03.server-development.md'), b'test')
+                          'docs/03.server-development.md', 'docs/assets/logo.png', 'docs/assets/logo.ico'), b'test')
     files['package.json'] = json.dumps(dict(Version=version, RuntimeIdentifier=rid, Tag=TAG, SourceCommit=SHA)).encode()
     files['assembly-versions.json'] = json.dumps([
         dict(Name=name, AssemblyVersion=assembly, FileVersion=assembly, InformationalVersion=version)

@@ -6,7 +6,6 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <ApplicationIcon>robot.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,16 +15,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="robot.ico" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Figgle" Version="0.6.6" />
-    <PackageReference Include="Figgle.Fonts" Version="0.6.6" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.12" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.12" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.12" />
+    <PackageReference Include="Figgle" />
+    <PackageReference Include="Figgle.Fonts" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
   </ItemGroup>
 
   <ItemGroup>

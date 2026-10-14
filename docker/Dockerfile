@@ -22,7 +22,12 @@ RUN curl --fail --location --retry 3 \
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0-bookworm-slim AS source
 WORKDIR /source
+COPY Directory.Build.props Directory.Build.targets Directory.Packages.props ./
+COPY docs/assets/logo.png docs/assets/logo.ico docs/assets/
 COPY src/server/ src/server/
+COPY src/media/ src/media/
+COPY src/rag/ src/rag/
+COPY src/vision/ src/vision/
 COPY demo/XiaoZhi.Net.Sample.Server/ demo/XiaoZhi.Net.Sample.Server/
 COPY demo/XiaoZhi.Net.Sample.OTA.Server/ demo/XiaoZhi.Net.Sample.OTA.Server/
 
