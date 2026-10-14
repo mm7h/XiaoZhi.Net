@@ -51,12 +51,13 @@
 
 ### 可选扩展 🧩
 
-| 功能名称 | 启用条件与边界 |
+| 功能名称 | 备注 |
 | --- | --- |
 | 🔎 RAG 知识库 | 已有检索、导入及向量存储接口；需配置 Embedding、注册存储并导入资料。示例默认未启用，可接入内存或 Qdrant |
 | 👁️ 视觉分析 | 通过 `WithVision(...)` 启用独立 HTTP 图片分析接口；需兼容的设备 MCP、JPEG 上传和视觉模型，示例默认未启用 |
 
-当前示例还注册了时间、模拟天气、音乐、结束对话和 TTS 设置工具。天气示例返回固定数据，没有接入实时天气服务；工具是否被调用取决于所选模式和模型能力。
+> [!TIP]
+> 当前示例还注册了时间、模拟天气、音乐、结束对话和 TTS 设置工具。工具是否被调用取决于所选模式和模型能力。
 
 ## 快速开始 👋
 
@@ -68,9 +69,10 @@
 | Docker 部署 | 使用容器管理主服务和 OTA | 当前脚本面向 Linux x64 Docker 引擎；可使用运行包或源码构建 |
 | 源码开发与 SDK 接入 | 修改工具或自定义宿主 | .NET 8 SDK、Git，以及所选模型与媒体资源 |
 
-当前发布配置覆盖 `win-x64`、`win-arm64`、`linux-x64`、`linux-arm64`。从 [Releases](https://github.com/mm7h/XiaoZhi.Net/releases) 选择版本时，以该版本实际附件和说明为准；运行包布局也可能随版本不同。
-
-Docker 操作、Linux 系统依赖、源码发布和生成 Release 草稿的步骤见 [服务部署](docs/03.server-development.md)。
+- 当前发布配置覆盖 `win-x64`、`win-arm64`、`linux-x64`、`linux-arm64`。
+- 从 [Releases](https://github.com/mm7h/XiaoZhi.Net/releases) 选择版本时，以该版本实际附件和说明为准。
+- 运行包布局也可能随版本不同。
+- Docker 操作、Linux 系统依赖、源码发布和生成 Release 草稿的步骤见 [服务部署](docs/03.server-development.md)。
 
 ### 准备配置与资源 ⚙️
 
@@ -79,7 +81,9 @@ Docker 操作、Linux 系统依赖、源码发布和生成 Release 草稿的步�
 3. 下载选中的本地模型到 `server/models`。当前 VAD 模板选择 `SileroNative`，需要 `models/vad/silero-native/model.onnx`；即使 ASR / TTS 使用云服务，也要准备 VAD 模型。
 4. 将对应平台的 FFmpeg 7.1 动态库放入 `server/ffmpeg`，保留提示音 `Configs/assets`，按需向 `server/musics` 放入音乐。
 
-模型可从 [Resource Files](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources) 下载，或使用仓库提供的下载脚本。各模型的固定文件名、脚本用法和自定义模型接入见 [本地模型](docs/02.sherpa-models.md) 与 [模型扩展](docs/01.extend-custom-model.md)。
+> [!TIP]
+> 模型可从 [Resource Files](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources) 下载，或使用仓库提供的下载脚本。<br />
+> 各模型的固定文件名、脚本用法和自定义模型接入见 [本地模型](docs/02.sherpa-models.md) 与 [模型扩展](docs/01.extend-custom-model.md)。
 
 主服务会加载指定主配置、同目录按文件名排序的 `config_*.json`，最后加载可选的 `config.<环境名>.json`。默认 RAG 选择为空；启用时还需完成存储注册和资料导入，不能只填写 API Key。
 
@@ -187,7 +191,7 @@ await serverHost.RunAsync();
 
 ### 声明 Function Tool 🔌
 
-继承 `FunctionTool`，为公开实例方法添加 `Description`，再通过 `WithFunctionTools<T>()` 注册。当前工具链使用 Microsoft.Extensions.AI 包装方法，已经不再要求 SemanticKernel 的 `KernelFunction` 标记。
+继承 `FunctionTool`，为公开实例方法添加 `Description`，再通过 `WithFunctionTools<T>()` 注册。
 
 以下时间工具可替换示例项目中的 `GetTime`；读取的是服务器本地时间：
 
@@ -218,7 +222,7 @@ public class GetTime : FunctionTool
 ```
 
 > [!TIP]
-> 如果要声明全局工具，继承 `FunctionTool` 并通过 `WithFunctionTools<T>()` 注册，可用于声明一些全局可用的工具方法的场景，例如查询时间、天气等不依赖于会话状态的功能。
+> 如果要声明全局工具，继承 `FunctionTool` 并通过 `WithFunctionTools<T>()` 注册，可用于声明一些全局可用的工具方法的场景，例如查询时间、天气等不依赖于会话状态的功能。<br />
 > 如果要声明会话工具，继承 `PrivateFunctionTool` 并通过 `WithPrivateFunctionTools<T>()` 注册，可用于声明一些依赖于会话状态的工具方法的场景，例如操作当前设备的播放器、TTS 或连接等功能。
 
 
@@ -233,7 +237,6 @@ public class GetTime : FunctionTool
 
 ## 平台与模型支持 📋
 
-以下列出代码中已接入的实现与配置入口，具体模型可用性取决于文件、服务权限和接口能力，不能视为全部模型都已完成实机验证。
 
 ### LLM 语言模型 💬
 
@@ -281,18 +284,19 @@ Sherpa 模型完整列表、固定目录及下载方式见 [本地模型文档](
 | SQLite 示例 | 已在示例注册 `SqliteAgentMemory`，按设备保存最近一次成功写入的非空会话，下次连接作为提示词参考 |
 | 自定义存储 | 实现 `IAgentMemory` 并通过 `WithAgentMemory<T>()` 注册，自行决定保存、累积或摘要策略 |
 
-SQLite 示例不累积全部历史，也不自动提取长期偏好；详见 [聊天记忆保存](docs/06.chat-memory.md)。
+> [!IMPORTANT]
+> SQLite 示例不累积全部历史，也不自动提取长期偏好；详见 [聊天记忆保存](docs/06.chat-memory.md)。
 
 ## 目录与注意事项 ⚠️
 
 ### 运行目录 📁
 
-以下为当前运行包的简化布局，模型和 FFmpeg 需要自行准备，缓存和数据库在使用时生成：
+以下为当前运行包的简化布局，模型和 FFmpeg 可从 [Resource Files](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources) 下载，缓存和数据库会在使用时生成：
 
 ```text
 XiaoZhi.Net-<版本>-<RID>/
 ├── server/
-│   ├── XiaoZhi.Net.Sample.Server[.exe]
+│   ├── XiaoZhi.Net.Sample.Server[.exe] # Windows 平台
 │   ├── Configs/
 │   │   ├── config.json
 │   │   ├── config_{vad,asr,llm,rag,tts,intent}.json

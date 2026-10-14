@@ -52,12 +52,13 @@ The detailed guides below are currently available in Chinese.
 
 ### Optional Extensions 🧩
 
-| Feature | Requirements and boundaries |
+| Feature | Notes |
 | --- | --- |
 | 🔎 RAG knowledge base | Retrieval, import, and vector store interfaces are implemented; configure embeddings, register storage, and import documents. Disabled by default in the sample; supports in-memory or Qdrant integration |
 | 👁️ Vision analysis | Enable a separate HTTP image analysis endpoint through `WithVision(...)`; requires compatible device MCP support, JPEG uploads, and a vision model. Disabled by default in the sample |
 
-The current sample also registers time, mock weather, music, conversation exit, and TTS settings tools. The weather sample returns fixed data without a live weather service. Tool invocation depends on the selected mode and model capabilities.
+> [!TIP]
+> The current sample also registers time, mock weather, music, conversation exit, and TTS settings tools. Tool invocation depends on the selected mode and model capabilities.
 
 ## Quick Start 👋
 
@@ -69,9 +70,10 @@ The current sample also registers time, mock weather, music, conversation exit, 
 | Docker deployment | Manage the main server and OTA in containers | Current scripts target Linux x64 Docker engines; use a runtime package or build from source |
 | Source development and SDK integration | Change tools or customize the host | .NET 8 SDK, Git, and the selected model and media resources |
 
-Current publishing profiles cover `win-x64`, `win-arm64`, `linux-x64`, and `linux-arm64`. When choosing a version from [Releases](https://github.com/mm7h/XiaoZhi.Net/releases), check its actual assets and instructions; package layouts may differ between versions.
-
-See [server deployment (Chinese)](docs/03.server-development.md) for Docker operations, Linux system dependencies, source publishing, and creating Release drafts.
+- Current publishing profiles cover `win-x64`, `win-arm64`, `linux-x64`, and `linux-arm64`.
+- When choosing a version from [Releases](https://github.com/mm7h/XiaoZhi.Net/releases), check its actual assets and instructions.
+- Package layouts may differ between versions.
+- See [server deployment (Chinese)](docs/03.server-development.md) for Docker operations, Linux system dependencies, source publishing, and creating Release drafts.
 
 ### Prepare Configuration and Resources ⚙️
 
@@ -80,7 +82,9 @@ See [server deployment (Chinese)](docs/03.server-development.md) for Docker oper
 3. Download the selected local models into `server/models`. The current VAD template selects `SileroNative`, which requires `models/vad/silero-native/model.onnx`; a VAD model is still needed when ASR / TTS use cloud services.
 4. Place FFmpeg 7.1 shared libraries for the matching platform in `server/ffmpeg`. Keep the prompt audio in `Configs/assets`, and add music to `server/musics` if needed.
 
-Download models from [Resource Files](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources) or use the repository's download scripts. Fixed filenames, script usage, and custom model integration are covered in [local models (Chinese)](docs/02.sherpa-models.md) and [model extensions (Chinese)](docs/01.extend-custom-model.md).
+> [!TIP]
+> Download models from [Resource Files](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources) or use the repository's download scripts.<br />
+> Fixed filenames, script usage, and custom model integration are covered in [local models (Chinese)](docs/02.sherpa-models.md) and [model extensions (Chinese)](docs/01.extend-custom-model.md).
 
 The main server loads the specified main configuration, `config_*.json` files in the same directory sorted by filename, and then an optional `config.<environment>.json` override. The default RAG selection is empty; enabling it also requires storage registration and document import, beyond supplying an API key.
 
@@ -188,7 +192,7 @@ The full sample also registers session tools through `WithPrivateFunctionTools<T
 
 ### Declare a Function Tool 🔌
 
-Inherit from `FunctionTool`, add `Description` to public instance methods, and register the class through `WithFunctionTools<T>()`. The current tool pipeline wraps methods using Microsoft.Extensions.AI and no longer requires SemanticKernel's `KernelFunction` attribute.
+Inherit from `FunctionTool`, add `Description` to public instance methods, and register the class through `WithFunctionTools<T>()`.
 
 The time tool below can replace `GetTime` in the sample project. It reads the server's local time:
 
@@ -219,7 +223,7 @@ public class GetTime : FunctionTool
 ```
 
 > [!TIP]
-> For global tools, inherit from `FunctionTool` and register through `WithFunctionTools<T>()`. Use them for functions that are available across sessions and do not depend on session state, such as querying the time or weather.
+> For global tools, inherit from `FunctionTool` and register through `WithFunctionTools<T>()`. Use them for functions that are available across sessions and do not depend on session state, such as querying the time or weather.<br />
 > For session tools, inherit from `PrivateFunctionTool` and register through `WithPrivateFunctionTools<T>()`. Use them for functions that depend on session state, such as operating the current device's player, TTS, or connection.
 
 **For more examples, see [Function Tool extensions (Chinese)](docs/07.function-tools.md).**
@@ -232,8 +236,6 @@ public class GetTime : FunctionTool
 These retain the project's existing compatibility records. After client or firmware version changes, verify the current device's protocol, audio parameters, and tool capabilities.
 
 ## Platforms and Models 📋
-
-The following lists implementations and configuration entry points present in the code. Availability depends on model files, service permissions, and API capabilities; this list does not imply that every model has been tested on a real device.
 
 ### LLM Language Models 💬
 
@@ -281,18 +283,19 @@ See [local models (Chinese)](docs/02.sherpa-models.md) for the complete Sherpa m
 | SQLite sample | The sample registers `SqliteAgentMemory`, keeping each device's most recent successfully saved nonempty conversation as prompt context for the next connection |
 | Custom storage | Implement `IAgentMemory` and register through `WithAgentMemory<T>()`; define your own saving, accumulation, or summarization policy |
 
-The SQLite sample does not accumulate all history or automatically extract long-term preferences. See [chat memory (Chinese)](docs/06.chat-memory.md).
+> [!IMPORTANT]
+> The SQLite sample does not accumulate all history or automatically extract long-term preferences. See [chat memory (Chinese)](docs/06.chat-memory.md).
 
 ## Directory Layout and Notes ⚠️
 
 ### Runtime Directory 📁
 
-This is a simplified layout of the current runtime package. Supply models and FFmpeg separately; caches and the database are generated when used:
+This is a simplified layout of the current runtime package. Models and FFmpeg can be downloaded from [Resource Files](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources); caches and the database are generated when used:
 
 ```text
 XiaoZhi.Net-<version>-<RID>/
 ├── server/
-│   ├── XiaoZhi.Net.Sample.Server[.exe]
+│   ├── XiaoZhi.Net.Sample.Server[.exe] # Windows platform
 │   ├── Configs/
 │   │   ├── config.json
 │   │   ├── config_{vad,asr,llm,rag,tts,intent}.json
