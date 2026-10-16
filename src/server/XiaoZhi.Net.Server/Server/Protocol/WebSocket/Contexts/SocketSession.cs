@@ -13,6 +13,8 @@ using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Management;
+using System.Text.Json.Nodes;
+using XiaoZhi.Net.Server.Resources.Fonts;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
 {
@@ -22,17 +24,20 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         private readonly ProviderManager _providerManager;
         private readonly FunctionToolManager _functionToolManager;
         private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly GlyphResource _glyphResource;
 
         public SocketSession(
             HandlerManager handlerManager,
             ProviderManager providerManager,
             FunctionToolManager functionToolManager,
-            IServiceScopeFactory serviceScopeFactory)
+            IServiceScopeFactory serviceScopeFactory,
+            GlyphResource glyphResource)
         {
             this._handlerManager = handlerManager;
             this._providerManager = providerManager;
             this._functionToolManager = functionToolManager;
             this._serviceScopeFactory = serviceScopeFactory;
+            this._glyphResource = glyphResource;
         }
 
         public Session? XiaoZhiSession { get; set; }
@@ -66,7 +71,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
                 this.Logger.LogError(Lang.SocketSession_SendTtsMessageAsync_SessionNotInitialized);
                 return Task.FromException(new SessionNotInitializedException());
             }
-            var msg = new Dictionary<string, string>
+            var msg = new Dictionary<string, object>
             {
                 ["type"] = "tts",
                 ["state"] = state.GetDescription(),
@@ -75,7 +80,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
 
             if (state == TtsStatus.Start)
             {
-                msg["sample_rate"] = this.XiaoZhiSession.AudioSetting.SampleRate.ToString();
+                msg["sample_rate"] = this.XiaoZhiSession.OutputAudioSetting.SampleRate;
             }
 
             if (!string.IsNullOrWhiteSpace(text))
@@ -83,7 +88,12 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
                 msg["text"] = text;
             }
 
-            string json = JsonHelper.Serialize(msg);
+            JsonObject message = JsonHelper.ToNode(msg)!.AsObject();
+            if (state == TtsStatus.SentenceStart && !string.IsNullOrWhiteSpace(text))
+            {
+                this.AttachGlyphs(message, text);
+            }
+            string json = JsonHelper.Serialize(message);
 
             if (state == TtsStatus.Stop)
             {
@@ -104,7 +114,17 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
                 Text = sttText,
                 SessionId = this.SessionId
             };
-            return this.SendAsync(JsonHelper.Serialize(msg));
+            JsonObject message = JsonHelper.ToNode(msg)!.AsObject();
+            this.AttachGlyphs(message, sttText);
+            return this.SendAsync(JsonHelper.Serialize(message));
+        }
+        private void AttachGlyphs(JsonObject message, string text)
+        {
+            JsonObject? glyphs = this._glyphResource.CreatePayload(this.XiaoZhiSession?.TextFontCapability, text);
+            if (glyphs is not null)
+            {
+                message["glyph_push"] = glyphs;
+            }
         }
         public Task SendLlmMessageAsync(Emotion emotion)
         {
@@ -162,6 +182,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
                 session.SetLocalEndPoint(localEndPoint);
             }
             this.XiaoZhiSession = session;
+            session.ProtocolVersionHeader = this.HttpHeader.Items.Get("protocol-version");
 
             await this._handlerManager.OnSessionConnectedAsync(session);
             await this._providerManager.OnSessionConnectedAsync(session);

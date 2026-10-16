@@ -16,6 +16,7 @@ namespace XiaoZhi.Net.Server
         public Dictionary<string, string> SelectedSettings { get; set; } = new Dictionary<string, string>();
         public Dictionary<string, Dictionary<string, Dictionary<string, string>>> ConfiguredSettings { get; set; } = new Dictionary<string, Dictionary<string, Dictionary<string, string>>>();
         public AudioSetting AudioSetting { get; set; } = null!;
+        public GlyphPushSetting GlyphPushSetting { get; set; } = new GlyphPushSetting();
         public Dictionary<string, ModelSetting>? McpSettings { get; set; }
 
     }

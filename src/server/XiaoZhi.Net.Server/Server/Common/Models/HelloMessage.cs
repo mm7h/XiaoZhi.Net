@@ -8,12 +8,18 @@ namespace XiaoZhi.Net.Server.Common.Models
         {
             this.SessionId = sessionId;
             this.Transport = transport;
-            this.AudioParams = audioParams;
+            this.AudioParams = new
+            {
+                audioParams.Format,
+                audioParams.SampleRate,
+                audioParams.Channels,
+                audioParams.FrameDuration
+            };
         }
         public string Type => "hello";
         public int Version { get; set; } = 1;
         public string Transport { get; set; }
-        public AudioSetting AudioParams { get; set; }
+        public object AudioParams { get; }
         public string SessionId { get; set; }
     }
 }

@@ -14,6 +14,7 @@ using XiaoZhi.Net.Server.Resources.Musics;
 using XiaoZhi.Net.Server.Resources.OnnxModels;
 using XiaoZhi.Net.Server.Resources.OnnxModels.VAD;
 using XiaoZhi.Net.Server.Resources.Rag;
+using XiaoZhi.Net.Server.Resources.Fonts;
 
 namespace XiaoZhi.Net.Server.Management
 {
@@ -30,6 +31,7 @@ namespace XiaoZhi.Net.Server.Management
                 services.AddSingleton<IAudioFileCaching, AudioFileCaching>();
                 services.AddSingleton<IMusicFileProvider, MusicProvider>();
                 services.AddSingleton<IVadOnnxModel, SileroOnnx>();
+                services.AddSingleton<GlyphResource>();
 
                 RegisterRag(services, config);
 
@@ -39,6 +41,7 @@ namespace XiaoZhi.Net.Server.Management
 
         public override bool BuildComponent()
         {
+            this.ServiceProvider.GetRequiredService<GlyphResource>().Load(this.Config.GlyphPushSetting);
             #region AudioCaching
             IAudioFileCaching audioFileCaching = this.ServiceProvider.GetRequiredService<IAudioFileCaching>();
             if (!audioFileCaching.Load(this.Config.DeviceBindSetting))

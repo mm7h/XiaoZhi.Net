@@ -39,6 +39,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
             this.LocalEndPoint = new IPEndPoint(IPAddress.Any, 0);
             this.SendOutter = sendOutter;
             this.AudioSetting = new AudioSetting();
+            this.OutputAudioSetting = new AudioSetting();
             this.AudioPacket = new AudioPacket();
             this.HandlerPipeline = new HandlerPipeline();
             this.PrivateProvider = new PrivateProvider(this);
@@ -53,6 +54,9 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public string DeviceId { get; }
         public string AuthToken { get; }
         public AudioSetting AudioSetting { get; }
+        public AudioSetting OutputAudioSetting { get; }
+        public string? ProtocolVersionHeader { get; set; }
+        public TextFontCapability? TextFontCapability { get; set; }
         public IPEndPoint LocalEndPoint { get; private set; }
         public IPEndPoint EndPoint { get; }
         public ListenMode ListenMode { get; set; }

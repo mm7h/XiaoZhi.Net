@@ -1257,6 +1257,9 @@
   <data name="AudioReceiveHandler_QueueStreamingOperation_QueueOverflow" xml:space="preserve">
     <value>Streaming ASR queue overflow for {DeviceId}; aborting the current utterance.</value>
   </data>
+  <data name="AudioReceiveHandler_StartStreamingUtterance_PreRoll" xml:space="preserve">
+    <value>Session {SessionId} starting streaming ASR with {SampleCount} pre-roll samples at 16 kHz.</value>
+  </data>
   <data name="AudioReceiveHandler_SendStreamingOperationSafelyAsync_Failed" xml:space="preserve">
     <value>Streaming ASR {Operation} failed for {DeviceId}.</value>
   </data>
@@ -1454,5 +1457,21 @@
   </data>
   <data name="HuoshanHttpTTS_Rebuild_Rejected" xml:space="preserve">
     <value>Huoshan HTTP TTS runtime rebuild was rejected because the requested parameters are unsupported or invalid for model {modelName}.</value>
+  </data>
+  <data name="HelloMessageHandler_UnsupportedProtocolVersion" xml:space="preserve"><value>Only XiaoZhi WebSocket protocol version 1 is supported; the requested versions must agree.</value></data>
+  <data name="DeviceMcpClient_IncompatibleProtocol" xml:space="preserve"><value>Device MCP initialization failed or returned an incompatible protocol version.</value></data>
+  <data name="GlyphResource_LoadFailed" xml:space="preserve"><value>Failed to load the glyph bundle from {manifestPath}; text and audio remain available.</value></data>
+  <data name="GlyphResource_ProfileUnavailable" xml:space="preserve"><value>Glyph push is unavailable for bundle {bundle}, charset {charset}, size {size}, bpp {bpp}.</value></data>
+  <data name="GlyphResource_CreatePayload_BppMismatch" xml:space="preserve"><value>The supplemental font bpp does not match the declared bpp.</value></data>
+  <data name="GlyphResource_FindFont_ShardPathOutOfRoot" xml:space="preserve"><value>The font shard path escapes the font bundle directory.</value></data>
+  <data name="CbinFont_Ctor_UnsupportedBitmapFormat" xml:space="preserve"><value>The CBIN font must use a compatible uncompressed bitmap format.</value></data>
+  <data name="CbinFont_GetGlyph_GlyphSizeExceeded" xml:space="preserve"><value>The CBIN glyph size exceeds the protocol limit.</value></data>
+  <data name="CbinFont_FindGlyph_UnsupportedCmapKind" xml:space="preserve"><value>The CBIN character mapping type is not supported.</value></data>
+  <data name="CbinFont_Bytes_OutOfRange" xml:space="preserve"><value>The CBIN font contains out-of-range data.</value></data>
+  <data name="AudioReceiveHandler_AudioDiagnostics" xml:space="preserve">
+    <value>Session {SessionId} audio: window {WindowMs} ms, received {ReceivedPackets}, ignored {IgnoredPackets}, decoded {DecodedSamples} samples, RMS {Rms:F5}, peak {Peak:F5}.</value>
+  </data>
+  <data name="SileroNative_AudioDiagnostics" xml:space="preserve">
+    <value>Session {SessionId} VAD: frames {Frames}, speech frames {SpeechFrames}, max probability {MaxProbability:F5}.</value>
   </data>
 </root>

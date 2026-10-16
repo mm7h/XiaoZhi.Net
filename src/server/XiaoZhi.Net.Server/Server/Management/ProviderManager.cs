@@ -364,10 +364,29 @@ namespace XiaoZhi.Net.Server.Management
                     if (isSupportMCP)
                     {
                         this.BuildMCP(session);
+                        return this.InitializeDeviceMcpAsync(session);
                     }
                 }
             }
             return Task.CompletedTask;
+        }
+
+        private async Task InitializeDeviceMcpAsync(Session session)
+        {
+            ISubMcpClient? client = session.PrivateProvider.McpClient?.GetSubMcpClient(SubMCPClientTypeNames.DeviceMcpClient);
+            if (client is null)
+            {
+                return;
+            }
+            try
+            {
+                await client.SendMcpInitializeAsync();
+            }
+            catch (Exception ex)
+            {
+                session.PrivateProvider.FunctionToolsContext.SetMcpClientFailed(ex);
+                this.Logger.LogWarning(ex, Lang.ProviderManager_BuildMCP_BuildFailed, session.SessionId);
+            }
         }
 
         public override void Dispose()
@@ -401,14 +420,18 @@ namespace XiaoZhi.Net.Server.Management
         {
             int audioProcessorSampleRate = this.Config.AudioSetting.SampleRate;
 
-            if (audioProcessorSampleRate == session.AudioSetting.SampleRate)
+            if (audioProcessorSampleRate == session.OutputAudioSetting.SampleRate)
             {
                 return;
             }
 
-            this.Logger.LogInformation(Lang.ProviderManager_BuildOutputAudioResampler_ResamplingRequired, session.DeviceId, audioProcessorSampleRate, session.AudioSetting.SampleRate);
+            this.Logger.LogInformation(
+                Lang.ProviderManager_BuildOutputAudioResampler_ResamplingRequired,
+                session.DeviceId,
+                audioProcessorSampleRate,
+                session.OutputAudioSetting.SampleRate);
 
-            ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, audioProcessorSampleRate, session.AudioSetting.SampleRate);
+            ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.OutputAudioSetting.Channels, audioProcessorSampleRate, session.OutputAudioSetting.SampleRate);
             IAudioResampler audioResampler = session.ServiceProvider.GetRequiredService<IAudioResampler>();
             if (!audioResampler.Build(resamplerBuildConfig))
             {
@@ -455,7 +478,7 @@ namespace XiaoZhi.Net.Server.Management
         public void BuildAudioEncoder(Session session)
         {
             IAudioEncoder audioEncoder = session.ServiceProvider.GetRequiredService<IAudioEncoder>();
-            if (!audioEncoder.Build(session.AudioSetting))
+            if (!audioEncoder.Build(session.OutputAudioSetting))
             {
                 this.Logger.LogWarning(Lang.ProviderManager_BuildAudioEncoder_BuildFailed, session.SessionId);
             }

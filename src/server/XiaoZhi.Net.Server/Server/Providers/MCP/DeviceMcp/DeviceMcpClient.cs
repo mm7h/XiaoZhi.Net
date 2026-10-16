@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Threading;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Protocol;
 using XiaoZhi.Net.Server.Abstractions.Mcp;
@@ -16,6 +18,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
         private readonly IEnumerable<IDeviceMcpCapabilityContributor> _capabilityContributors;
         private readonly List<IDeviceMcpCapabilityLease> _capabilityLeases = [];
         private readonly Dictionary<string, object?> _capabilities = new(StringComparer.OrdinalIgnoreCase);
+        private int _initialized;
 
         public DeviceMcpClient(IEnumerable<IDeviceMcpCapabilityContributor> capabilityContributors, ILogger<DeviceMcpClient> logger) : base(logger)
         {
@@ -30,6 +33,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
             this.ReleaseCapabilities();
             this.InitSession(config);
             this._capabilities.Clear();
+            this._initialized = 0;
             this._capabilities["roots"] = new
             {
                 listChanged = true
@@ -66,9 +70,6 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
                 return false;
             }
 
-            _ = this.SendMcpInitializeAsync();
-            _ = this.RequestToolsListAsync();
-
             return true;
         }
 
@@ -89,7 +90,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
             {
                 Method = RequestMethods.Initialize,
                 Id = new RequestId(1),
-                Params = @params.ToNode()
+                Params = McpJsonHelper.ToNode(@params)
             };
             this.Logger.LogInformation(Lang.DeviceMcpClient_SendMcpInitializeAsync_SendingInit, this.CurrentSession.SessionId);
             await this.SendMCPMessageAsync(request);
@@ -101,13 +102,38 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
             {
                 throw new ArgumentNullException(nameof(message), "Message cannot be null.");
             }
-            var mcpMessage = new
+            JsonObject mcpMessage = new()
             {
-                Type = "mcp",
-                Payload = message
+                ["type"] = "mcp",
+                ["payload"] = McpJsonHelper.ToNode(message)
             };
             string jsonMessage = mcpMessage.ToJson();
             await this.CurrentSession.SendOutter.SendAsync(jsonMessage);
+        }
+
+        protected override async Task OnMcpInitializedAsync(JsonObject result)
+        {
+            if (Interlocked.Exchange(ref this._initialized, 1) != 0)
+            {
+                return;
+            }
+            if (result["protocolVersion"] is not JsonValue version
+                || !version.TryGetValue(out string? protocolVersion) || protocolVersion != "2024-11-05")
+            {
+                this.CurrentSession.PrivateProvider.FunctionToolsContext.SetMcpClientFailed(new InvalidOperationException(Lang.DeviceMcpClient_IncompatibleProtocol));
+                this.Logger.LogWarning(Lang.DeviceMcpClient_IncompatibleProtocol);
+                return;
+            }
+            try
+            {
+                await this.SendMcpNotificationAsync(NotificationMethods.InitializedNotification);
+                await this.RequestToolsListAsync();
+            }
+            catch (Exception ex)
+            {
+                this.CurrentSession.PrivateProvider.FunctionToolsContext.SetMcpClientFailed(ex);
+                this.Logger.LogWarning(ex, Lang.DeviceMcpClient_IncompatibleProtocol);
+            }
         }
 
         public override void Dispose()

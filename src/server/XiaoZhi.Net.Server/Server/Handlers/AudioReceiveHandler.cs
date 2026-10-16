@@ -20,7 +20,7 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ObjectPool<Workflow<string>> _stringWorkflowPool;
         private readonly object _streamingQueueGate = new();
 
-        private const int MinimumSpeechDurationMilliseconds = 500;
+        private const int MinimumSpeechDurationMilliseconds = 200;
 
         private IVad? _vad;
         private IAudioDecoder? _audioDecoder;
@@ -29,8 +29,15 @@ namespace XiaoZhi.Net.Server.Handlers
         private Task _streamingOperationTail = Task.CompletedTask;
         private bool _streamingUtteranceActive;
         private long _streamingUtteranceTurnId = -1;
+        private bool _audioMonitoringSkipped;
         private int _maxQueuedStreamingAudioFrames = 1;
         private int _queuedStreamingAudioFrames;
+        private long _audioDiagnosticStarted = Environment.TickCount64;
+        private int _receivedPackets;
+        private int _ignoredPackets;
+        private int _decodedSamples;
+        private double _decodedSquareSum;
+        private float _decodedPeak;
 
         public AudioReceiveHandler(
             ObjectPool<Workflow<float[]>> workflowPool,
@@ -91,8 +98,13 @@ namespace XiaoZhi.Net.Server.Handlers
                 this.Logger.LogError(Lang.AudioReceiveHandler_Handle_AudioDecoderNotConfigured, session.DeviceId);
                 return;
             }
+            this.LogAudioDiagnostics(session);
+            this._receivedPackets++;
             if (session.IsAudioProcessing)
             {
+                this._ignoredPackets++;
+                // 播放或处理期间丢弃的音频不会进入 VAD，记录监听已中断，恢复时重置静默计时。
+                this._audioMonitoringSkipped = true;
 #if DEBUG
                 //this.Logger.LogDebug(Lang.AudioReceiveHandler_Handle_PacketIgnored);
 #endif
@@ -106,9 +118,20 @@ namespace XiaoZhi.Net.Server.Handlers
 
                 // to resample to 16kHz mono PCM for VAD/ASR processing, if needed
                 float[] pcmData = await this.ToProcessingPcmAsync(clientPcm);
+                if (this.Logger.IsEnabled(LogLevel.Debug))
+                {
+                    this._decodedSamples += pcmData.Length;
+                    foreach (float sample in pcmData)
+                    {
+                        this._decodedSquareSum += (double)sample * sample;
+                        this._decodedPeak = Math.Max(this._decodedPeak, Math.Abs(sample));
+                    }
+                }
                 this.HandlerToken.ThrowIfCancellationRequested();
                 if (session.IsAudioProcessing)
                 {
+                    this._ignoredPackets++;
+                    this._audioMonitoringSkipped = true;
                     return;
                 }
 
@@ -122,7 +145,13 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
                 if (session.ListenMode != ListenMode.Manual)
                 {
+                    this.ResetVadSilenceBaselineIfSkipped(session);
                     await this._vad.AnalysisVoiceAsync(session.DeviceId, session.SessionId, pcmData, this.HandlerToken);
+                }
+                else
+                {
+                    // 手动模式下 VAD 不参与监听，切回自动监听时同样需要重置静默计时。
+                    this._audioMonitoringSkipped = true;
                 }
             }
             catch (OperationCanceledException)
@@ -192,7 +221,9 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 return;
             }
-            session.AudioPacket.TrimOldAudio();
+            // VAD 确认起声前仍会触发静默清理，保留与流式 ASR 起声相同长度的预录。
+            int preRollSamples = GlobalVariables.AudioProcessingSampleRate * GlobalVariables.StreamingAsrPreRollMilliseconds / 1000;
+            session.AudioPacket.TrimOldAudio(preRollSamples);
         }
 
         public void OnLongTermSilence()
@@ -304,6 +335,22 @@ namespace XiaoZhi.Net.Server.Handlers
             base.Dispose();
         }
 
+        /// <summary>
+        /// 会话在播放或其他处理期间会丢弃客户端音频，VAD 也随之停止计时。
+        /// 恢复监听时重置 VAD 会话状态，避免把监听中断期间的时间累计进长时间静默判断，
+        /// 否则第一帧恢复的音频就会立即触发告别。
+        /// </summary>
+        private void ResetVadSilenceBaselineIfSkipped(Session session)
+        {
+            if (!this._audioMonitoringSkipped)
+            {
+                return;
+            }
+
+            this._audioMonitoringSkipped = false;
+            this._vad?.ResetSessionState(session.DeviceId, session.SessionId);
+        }
+
         private async Task<float[]> ToProcessingPcmAsync(float[] clientPcm)
         {
             if (this._inputAudioResampler is null || clientPcm.Length == 0)
@@ -343,9 +390,11 @@ namespace XiaoZhi.Net.Server.Handlers
             this._streamingUtteranceActive = true;
             this._streamingUtteranceTurnId = session.TurnId;
             int preRollSamples = GlobalVariables.AudioProcessingSampleRate * GlobalVariables.StreamingAsrPreRollMilliseconds / 1000;
+            float[] initialAudio = session.AudioPacket.GetLatestAudio(preRollSamples);
+            this.Logger.LogInformation(Lang.AudioReceiveHandler_StartStreamingUtterance_PreRoll, session.SessionId, initialAudio.Length);
             this.QueueStreamingOperation(
                 session,
-                session.AudioPacket.GetLatestAudio(preRollSamples),
+                initialAudio,
                 StreamingAsrOperation.Start,
                 this._streamingUtteranceTurnId);
         }
@@ -443,8 +492,9 @@ namespace XiaoZhi.Net.Server.Handlers
                     this._streamingUtteranceActive = false;
                     this._streamingUtteranceTurnId = -1;
                 }
-                if (operation == StreamingAsrOperation.Finish)
+                if (operation is StreamingAsrOperation.Start or StreamingAsrOperation.Finish)
                 {
+                    // 起声尚未完成时 Finish 也可能已排队并锁定接收，取消后必须释放该轮状态。
                     session.CompleteSpeechRecognition(turnId);
                     session.AcceptIncomingAudio(turnId);
                 }
@@ -456,7 +506,7 @@ namespace XiaoZhi.Net.Server.Handlers
                     this._streamingUtteranceActive = false;
                     this._streamingUtteranceTurnId = -1;
                 }
-                if (operation == StreamingAsrOperation.Finish)
+                if (operation is StreamingAsrOperation.Start or StreamingAsrOperation.Finish)
                 {
                     session.CompleteSpeechRecognition(turnId);
                     session.AcceptIncomingAudio(turnId);
@@ -507,6 +557,32 @@ namespace XiaoZhi.Net.Server.Handlers
         private int GetProcessingFrameSize(Session session)
         {
             return GlobalVariables.AudioProcessingSampleRate * session.AudioSetting.FrameDuration * GlobalVariables.AudioProcessingChannels / 1000;
+        }
+
+        private void LogAudioDiagnostics(Session session)
+        {
+            long now = Environment.TickCount64;
+            long elapsed = now - this._audioDiagnosticStarted;
+            if (!this.Logger.IsEnabled(LogLevel.Debug) || elapsed < 1000)
+            {
+                return;
+            }
+            double rms = this._decodedSamples == 0 ? 0 : Math.Sqrt(this._decodedSquareSum / this._decodedSamples);
+            this.Logger.LogDebug(
+                Lang.AudioReceiveHandler_AudioDiagnostics,
+                session.SessionId,
+                elapsed,
+                this._receivedPackets,
+                this._ignoredPackets,
+                this._decodedSamples,
+                rms,
+                this._decodedPeak);
+            this._audioDiagnosticStarted = now;
+            this._receivedPackets = 0;
+            this._ignoredPackets = 0;
+            this._decodedSamples = 0;
+            this._decodedSquareSum = 0;
+            this._decodedPeak = 0;
         }
 
         private void ObserveTask(Task task, string messageTemplate, string deviceId)

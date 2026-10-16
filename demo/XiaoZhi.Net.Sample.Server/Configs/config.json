@@ -17,6 +17,9 @@
     "OutputTemplate": "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u4}] {Message:l}{NewLine}{Exception}",
     "RetainedFileCountLimit": 30
   },
+  "GlyphPushSetting": {
+    "ManifestPath": "./fonts/noto-v1-full/manifest.json"
+  },
   "AudioSetting": {
     "Format": "opus",
     "SampleRate": 24000,

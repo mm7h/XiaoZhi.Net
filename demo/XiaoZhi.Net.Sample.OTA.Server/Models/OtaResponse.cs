@@ -49,6 +49,7 @@ namespace Demo.OTA.Server.Models
     /// </summary>
     public class WebSocketInfo
     {
+        public int Version { get; set; } = 1;
         public string Url { get; set; } = "";
 
         public string Token { get; set; } = "";

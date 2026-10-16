@@ -9,6 +9,7 @@ using XiaoZhi.Net.Server.Common.Models;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Management;
+using XiaoZhi.Net.Server.Protocol.WebSocket;
 
 namespace XiaoZhi.Net.Server.Handlers
 {
@@ -41,7 +42,12 @@ namespace XiaoZhi.Net.Server.Handlers
         {
             Session session = this.SendOutter.GetSession();
 
-            HelloMessage defaultHelloMessage = new HelloMessage(this.SendOutter.SessionId, this.Config.Protocol.GetDescription().ToLower(), this.Config.AudioSetting);
+            if (!WebSocketProtocolValidation.IsSupported(helloMessage, session.ProtocolVersionHeader))
+            {
+                this.Logger.LogError(Lang.HelloMessageHandler_UnsupportedProtocolVersion);
+                await this.SendOutter.CloseSessionAsync(Lang.HelloMessageHandler_UnsupportedProtocolVersion);
+                return;
+            }
 
             if (helloMessage.TryGetPropertyValue("audio_params", out var audioParams) && audioParams is not null)
             {
@@ -61,13 +67,19 @@ namespace XiaoZhi.Net.Server.Handlers
                     return;
                 }
 
-                // AudioSetting describes raw device input and stays available as the
-                // input side of the ingress resampler.
+                // 上行参数用于解码和输入重采样，不作为混音输出帧时长。
                 session.AudioSetting.Format = format;
                 session.AudioSetting.SampleRate = sampleRate;
                 session.AudioSetting.Channels = channels;
                 session.AudioSetting.FrameDuration = frameDuration;
             }
+
+            session.OutputAudioSetting.Format = DEFAULT_AUDIO_FORMAT;
+            session.OutputAudioSetting.SampleRate = session.AudioSetting.SampleRate;
+            session.OutputAudioSetting.Channels = session.AudioSetting.Channels;
+            session.OutputAudioSetting.FrameDuration = this.Config.AudioSetting.FrameDuration;
+            session.TextFontCapability = TextFontCapability.Parse(helloMessage);
+            HelloMessage defaultHelloMessage = new(this.SendOutter.SessionId, this.Config.Protocol.GetDescription().ToLower(), session.OutputAudioSetting);
 
             bool providerInitResult = await this._providerManager.OnSessionPropertyInitializingAsync(session);
             bool handlerInitResult = await this._handlerManager.OnSessionPropertyInitializingAsync(session);
@@ -75,10 +87,10 @@ namespace XiaoZhi.Net.Server.Handlers
 
             if (providerInitResult && handlerInitResult && functionToolInitResult)
             {
+                await this.SendOutter.SendAsync(JsonHelper.Serialize(defaultHelloMessage));
                 await this._handlerManager.OnSessionPropertyInitializedAsync(session, helloMessage);
                 await this._providerManager.OnSessionPropertyInitializedAsync(session, helloMessage);
                 await this._functionToolManager.OnSessionPropertyInitializedAsync(session, helloMessage);
-                await this.SendOutter.SendAsync(JsonHelper.Serialize(defaultHelloMessage));
             }
             else
             {

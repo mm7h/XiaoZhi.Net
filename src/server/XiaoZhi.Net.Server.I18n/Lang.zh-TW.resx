@@ -1257,6 +1257,9 @@
   <data name="AudioReceiveHandler_QueueStreamingOperation_QueueOverflow" xml:space="preserve">
     <value>裝置 {DeviceId} 的串流 ASR 佇列溢位，正在中止目前語句。</value>
   </data>
+  <data name="AudioReceiveHandler_StartStreamingUtterance_PreRoll" xml:space="preserve">
+    <value>工作階段 {SessionId} 開始串流 ASR，預錄 {SampleCount} 個 16 kHz 樣本。</value>
+  </data>
   <data name="AudioReceiveHandler_SendStreamingOperationSafelyAsync_Failed" xml:space="preserve">
     <value>裝置 {DeviceId} 的串流 ASR 操作 {Operation} 失敗。</value>
   </data>
@@ -1454,5 +1457,21 @@
   </data>
   <data name="HuoshanHttpTTS_Rebuild_Rejected" xml:space="preserve">
     <value>火山 HTTP TTS 模型 {modelName} 拒絕動態重建：請求參數不受支援或不符合要求。</value>
+  </data>
+  <data name="HelloMessageHandler_UnsupportedProtocolVersion" xml:space="preserve"><value>僅支援小智 WebSocket 協定版本 1，請求標頭與 hello 的版本必須一致。</value></data>
+  <data name="DeviceMcpClient_IncompatibleProtocol" xml:space="preserve"><value>裝置 MCP 初始化失敗或回傳了不相容的協定版本。</value></data>
+  <data name="GlyphResource_LoadFailed" xml:space="preserve"><value>無法從 {manifestPath} 載入補字字型包，文字與音訊仍可使用。</value></data>
+  <data name="GlyphResource_ProfileUnavailable" xml:space="preserve"><value>補字字型不可用：bundle={bundle}，charset={charset}，size={size}，bpp={bpp}。</value></data>
+  <data name="GlyphResource_CreatePayload_BppMismatch" xml:space="preserve"><value>補字字型與宣告的 bpp 不一致。</value></data>
+  <data name="GlyphResource_FindFont_ShardPathOutOfRoot" xml:space="preserve"><value>字型分片路徑超出字型包目錄。</value></data>
+  <data name="CbinFont_Ctor_UnsupportedBitmapFormat" xml:space="preserve"><value>CBIN 字型必須使用相容的未壓縮點陣圖格式。</value></data>
+  <data name="CbinFont_GetGlyph_GlyphSizeExceeded" xml:space="preserve"><value>CBIN 字形尺寸超過協定限制。</value></data>
+  <data name="CbinFont_FindGlyph_UnsupportedCmapKind" xml:space="preserve"><value>CBIN 字元對應類型不受支援。</value></data>
+  <data name="CbinFont_Bytes_OutOfRange" xml:space="preserve"><value>CBIN 字型包含越界資料。</value></data>
+  <data name="AudioReceiveHandler_AudioDiagnostics" xml:space="preserve">
+    <value>工作階段 {SessionId} 音訊統計：視窗 {WindowMs} 毫秒，收到 {ReceivedPackets} 包，拒收 {IgnoredPackets} 包，解碼 {DecodedSamples} 樣本，RMS {Rms:F5}，峰值 {Peak:F5}。</value>
+  </data>
+  <data name="SileroNative_AudioDiagnostics" xml:space="preserve">
+    <value>工作階段 {SessionId} VAD 統計：處理 {Frames} 幀，語音 {SpeechFrames} 幀，最大機率 {MaxProbability:F5}。</value>
   </data>
 </root>

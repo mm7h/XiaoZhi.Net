@@ -44,6 +44,7 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Contexts
         /// </summary>
         public bool VoiceStop { get; set; }
         public int ProcessedSamplesSinceReset { get; private set; }
+        public int SilentSamples { get; private set; }
 
         /// <summary>
         /// Sliding window to track voice activity across multiple frames.
@@ -100,6 +101,35 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Contexts
             this._speechAudio.Clear();
         }
 
+        public void TrackSpeechFrame(float[] audioData, bool isSpeech)
+        {
+            this.AppendSpeechAudio(audioData);
+            this.SilentSamples = isSpeech ? 0 : this.SilentSamples + audioData.Length;
+            if (isSpeech)
+            {
+                this.HaveVoiceLatestTime = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            }
+            if (!this.HaveVoice)
+            {
+                int preRollSamples = Common.Constants.GlobalVariables.AudioProcessingSampleRate * Common.Constants.GlobalVariables.StreamingAsrPreRollMilliseconds / 1000;
+                if (this.CountVoiceInWindow() == 0 && this._speechAudio.Count > preRollSamples)
+                {
+                    this._speechAudio.RemoveRange(0, this._speechAudio.Count - preRollSamples);
+                }
+            }
+        }
+
+        public void ResetUtterance()
+        {
+            this.HaveVoice = false;
+            this.LastIsVoice = false;
+            this.VoiceStop = false;
+            this.SilentSamples = 0;
+            this.ProcessedSamplesSinceReset = 0;
+            this.VoiceWindow.Clear();
+            this._speechAudio.Clear();
+        }
+
         /// <summary>
         /// Adds a voice detection result to the sliding window.
         /// </summary>
@@ -133,14 +163,9 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Contexts
         /// </summary>
         public void Reset()
         {
-            this.HaveVoice = false;
+            this.ResetUtterance();
             this.HaveVoiceLatestTime = 0;
-            this.LastIsVoice = false;
-            this.VoiceStop = false;
-            this.ProcessedSamplesSinceReset = 0;
-            this.VoiceWindow.Clear();
             this._pendingAudio.Clear();
-            this._speechAudio.Clear();
         }
     }
 }

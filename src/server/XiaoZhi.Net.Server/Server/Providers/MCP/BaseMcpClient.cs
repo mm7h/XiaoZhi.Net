@@ -101,6 +101,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                         }
                     }
 
+                    await this.OnMcpInitializedAsync(result.AsObject());
                     return;
                 }
                 else if (msgId == 2)
@@ -185,10 +186,16 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
                 if (payloadObj.TryGetPropertyValue("id", out var msgId) && msgId is not null)
                 {
+                    if (msgId.GetValue<int>() is 1 or 2)
+                    {
+                        this.CurrentSession.PrivateProvider.FunctionToolsContext.SetMcpClientFailed(new InvalidOperationException(errorMsg));
+                    }
                     this.RejectCallResult(msgId.GetValue<int>(), string.Format(Lang.BaseMcpClient_HandleMcpMessageAsync_ErrorResponse_Exception, errorMsg));
                 }
             }
         }
+
+        protected virtual Task OnMcpInitializedAsync(JsonObject result) => Task.CompletedTask;
 
         public virtual async Task SendMcpInitializeAsync()
         {
@@ -205,7 +212,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             {
                 Method = RequestMethods.Initialize,
                 Id = new RequestId(1),
-                Params = mcpClientOptions.ToNode()
+                Params = McpJsonHelper.ToNode(mcpClientOptions)
             };
 
             this.Logger.LogInformation(Lang.BaseMcpClient_SendMcpInitializeAsync_SendingInit, this.CurrentSession.DeviceId);
@@ -218,7 +225,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             JsonRpcNotification request = new JsonRpcNotification
             {
                 Method = method,
-                Params = @params.ToNode()
+                Params = McpJsonHelper.ToNode(@params)
             };
 
             this.Logger.LogDebug(Lang.BaseMcpClient_SendMcpNotificationAsync_SendingNotification, this.CurrentSession.DeviceId, method);
@@ -246,7 +253,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
             {
                 Method = RequestMethods.ToolsList,
                 Id = new RequestId(2),
-                Params = @params.ToNode()
+                Params = McpJsonHelper.ToNode(@params)
             };
 
             this.Logger.LogDebug(Lang.BaseMcpClient_RequestToolsListAsync_RequestToolsWithCursor, this.CurrentSession.DeviceId, cursor);
@@ -288,9 +295,10 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
             string argJson = JsonHelper.Serialize(arguments);
 
-            if (this._mcpTools.TryGetValue(toolName, out AIFunction? mcpTool))
+            if (this._mcpTools.TryGetValue(toolName, out _))
             {
-                string realToolName = mcpTool.Name;
+                // LLM 使用的清理后名称不能替代设备声明的 MCP 工具名称。
+                string realToolName = toolName;
 
                 var @params = new
                 {
@@ -302,7 +310,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP
                 {
                     Id = new RequestId(toolCallId),
                     Method = RequestMethods.ToolsCall,
-                    Params = @params.ToNode()
+                    Params = McpJsonHelper.ToNode(@params)
                 };
                 this.Logger.LogDebug(Lang.BaseMcpClient_CallMcpToolAsync_CallTool, this.CurrentSession.DeviceId, realToolName, argJson);
                 await this.SendMCPMessageAsync(request);

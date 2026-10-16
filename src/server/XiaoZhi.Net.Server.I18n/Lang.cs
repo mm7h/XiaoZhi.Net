@@ -614,6 +614,9 @@ namespace XiaoZhi.Net.Server.I18n
         public static string AudioReceiveHandler_HandleManualStop_DispatchFailed => ResourceManager.GetString("AudioReceiveHandler_HandleManualStop_DispatchFailed", s_resourceCulture) ?? "";
         public static string AudioReceiveHandler_AbortStreamingUtterance_Failed => ResourceManager.GetString("AudioReceiveHandler_AbortStreamingUtterance_Failed", s_resourceCulture) ?? "";
         public static string AudioReceiveHandler_QueueStreamingOperation_QueueOverflow => ResourceManager.GetString("AudioReceiveHandler_QueueStreamingOperation_QueueOverflow", s_resourceCulture) ?? "";
+        public static string AudioReceiveHandler_AudioDiagnostics => ResourceManager.GetString("AudioReceiveHandler_AudioDiagnostics", s_resourceCulture) ?? "";
+        public static string SileroNative_AudioDiagnostics => ResourceManager.GetString("SileroNative_AudioDiagnostics", s_resourceCulture) ?? "";
+        public static string AudioReceiveHandler_StartStreamingUtterance_PreRoll => ResourceManager.GetString("AudioReceiveHandler_StartStreamingUtterance_PreRoll", s_resourceCulture) ?? "";
         public static string AudioReceiveHandler_SendStreamingOperationSafelyAsync_Failed => ResourceManager.GetString("AudioReceiveHandler_SendStreamingOperationSafelyAsync_Failed", s_resourceCulture) ?? "";
         public static string HelloMessageHandler_Handle_UnsupportedAudioParameters => ResourceManager.GetString("HelloMessageHandler_Handle_UnsupportedAudioParameters", s_resourceCulture) ?? "";
         public static string ProviderManager_BuildOutputAudioResampler_ResamplingRequired => ResourceManager.GetString("ProviderManager_BuildOutputAudioResampler_ResamplingRequired", s_resourceCulture) ?? "";
@@ -623,6 +626,16 @@ namespace XiaoZhi.Net.Server.I18n
         public static string SileroNative_Build_NonCanonicalSampleRate => ResourceManager.GetString("SileroNative_Build_NonCanonicalSampleRate", s_resourceCulture) ?? "";
         public static string BaseSherpaVad_Build_NonCanonicalSampleRate => ResourceManager.GetString("BaseSherpaVad_Build_NonCanonicalSampleRate", s_resourceCulture) ?? "";
         public static string DefaultOpusDecoder_DecodeAsync_SampleCountMismatch => ResourceManager.GetString("DefaultOpusDecoder_DecodeAsync_SampleCountMismatch", s_resourceCulture) ?? "";
+        public static string HelloMessageHandler_UnsupportedProtocolVersion => ResourceManager.GetString("HelloMessageHandler_UnsupportedProtocolVersion", s_resourceCulture) ?? "";
+        public static string DeviceMcpClient_IncompatibleProtocol => ResourceManager.GetString("DeviceMcpClient_IncompatibleProtocol", s_resourceCulture) ?? "";
+        public static string GlyphResource_LoadFailed => ResourceManager.GetString("GlyphResource_LoadFailed", s_resourceCulture) ?? "";
+        public static string GlyphResource_ProfileUnavailable => ResourceManager.GetString("GlyphResource_ProfileUnavailable", s_resourceCulture) ?? "";
+        public static string GlyphResource_CreatePayload_BppMismatch => ResourceManager.GetString("GlyphResource_CreatePayload_BppMismatch", s_resourceCulture) ?? "";
+        public static string GlyphResource_FindFont_ShardPathOutOfRoot => ResourceManager.GetString("GlyphResource_FindFont_ShardPathOutOfRoot", s_resourceCulture) ?? "";
+        public static string CbinFont_Ctor_UnsupportedBitmapFormat => ResourceManager.GetString("CbinFont_Ctor_UnsupportedBitmapFormat", s_resourceCulture) ?? "";
+        public static string CbinFont_GetGlyph_GlyphSizeExceeded => ResourceManager.GetString("CbinFont_GetGlyph_GlyphSizeExceeded", s_resourceCulture) ?? "";
+        public static string CbinFont_FindGlyph_UnsupportedCmapKind => ResourceManager.GetString("CbinFont_FindGlyph_UnsupportedCmapKind", s_resourceCulture) ?? "";
+        public static string CbinFont_Bytes_OutOfRange => ResourceManager.GetString("CbinFont_Bytes_OutOfRange", s_resourceCulture) ?? "";
         #endregion
 
     }

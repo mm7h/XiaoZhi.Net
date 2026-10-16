@@ -29,7 +29,7 @@ namespace XiaoZhi.Net.Sample.Server.FunctionTools
             return base.OnSessionClosedAsync();
         }
 
-        [ToolBehavior(ToolAction.DirectResponse)]
+        [ToolBehavior(ToolAction.Continue)]
         [System.ComponentModel.Description("根据城市名称查询当前天气信息")]
         public FunctionReturn<string> GetWeatherInfo(string city)
         {

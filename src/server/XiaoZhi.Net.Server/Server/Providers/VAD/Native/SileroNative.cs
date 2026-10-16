@@ -34,6 +34,10 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
         private VadSessionState? _vadSessionState;
 
         private IVadEventCallback? _vadEventCallback;
+        private long _diagnosticStarted = Environment.TickCount64;
+        private int _diagnosticFrames;
+        private int _diagnosticSpeechFrames;
+        private float _diagnosticMaxProbability;
 
         public SileroNative(IServiceProvider serviceProvider, ILogger<SileroNative> logger) : base(logger)
         {
@@ -136,26 +140,23 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
                     }
 
                     this._vadSessionState.LastIsVoice = isSpeechDetected;
-                    if (isSpeechDetected)
-                    {
-                        this._vadSessionState.AppendSpeechAudio(chunk);
-                    }
-
+                    this.LogVadDiagnostics(sessionId, speechProb, isSpeechDetected);
                     this._vadSessionState.AddToVoiceWindow(isSpeechDetected);
+                    this._vadSessionState.TrackSpeechFrame(chunk, isSpeechDetected);
 
                     bool clientHaveVoice = this._vadSessionState.CountVoiceInWindow() >= FRAME_WINDOW_THRESHOLD;
 
                     if (this._vadSessionState.HaveVoice && !clientHaveVoice)
                     {
-                        long stopDuration = DateTimeOffset.Now.ToUnixTimeMilliseconds() - this._vadSessionState.HaveVoiceLatestTime;
+                        long stopDuration = (long)this._vadSessionState.SilentSamples * 1000 / this._sampleRate;
                         if (stopDuration >= this._silenceThresholdSecond * 1000)
                         {
                             this.Logger.LogDebug(Lang.SileroNative_AnalysisVoiceAsync_VoiceStopped, deviceId, stopDuration);
                             this._vadSessionState.VoiceStop = true;
 
                             this._vadEventCallback?.OnVoiceDetected(this._vadSessionState.TakeSpeechAudio());
-                            this._vadSessionState.Reset();
-                            return Task.CompletedTask;
+                            this._vadSessionState.ResetUtterance();
+                            continue;
                         }
                     }
 
@@ -166,10 +167,6 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
                         this._vadEventCallback?.OnVoiceStarted();
                     }
 
-                    if (!this._vadSessionState.HaveVoice && this._vadSessionState.CountVoiceInWindow() == 0)
-                    {
-                        this._vadSessionState.ResetSpeechAudio();
-                    }
                 }
 
                 if (!this._vadSessionState.HaveVoice
@@ -210,6 +207,32 @@ namespace XiaoZhi.Net.Server.Providers.VAD.Native
                 this.Logger.LogDebug(Lang.SileroNative_CheckLongTermSilence_Detected, deviceId, silenceDuration);
                 this._vadEventCallback?.OnLongTermSilence();
             }
+        }
+
+        private void LogVadDiagnostics(string sessionId, float probability, bool speech)
+        {
+            if (!this.Logger.IsEnabled(LogLevel.Debug))
+            {
+                return;
+            }
+            this._diagnosticFrames++;
+            this._diagnosticSpeechFrames += speech ? 1 : 0;
+            this._diagnosticMaxProbability = Math.Max(this._diagnosticMaxProbability, probability);
+            long now = Environment.TickCount64;
+            if (now - this._diagnosticStarted < 1000)
+            {
+                return;
+            }
+            this.Logger.LogDebug(
+                Lang.SileroNative_AudioDiagnostics,
+                sessionId,
+                this._diagnosticFrames,
+                this._diagnosticSpeechFrames,
+                this._diagnosticMaxProbability);
+            this._diagnosticStarted = now;
+            this._diagnosticFrames = 0;
+            this._diagnosticSpeechFrames = 0;
+            this._diagnosticMaxProbability = 0;
         }
 
         public override void Dispose()

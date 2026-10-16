@@ -18,8 +18,8 @@
       },
       "SileroNative": {
         "SampleRate": 16000,
-        "SilenceThresholdSecond": 0.7,
-        "Threshold": 0.5,
+        "SilenceThresholdSecond": 1.0,
+        "Threshold": 0.3,
         "ThresholdLow": 0.2,
         "CloseConnectionNoVoiceTime": 120000
       },

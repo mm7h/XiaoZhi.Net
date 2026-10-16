@@ -162,7 +162,6 @@ namespace XiaoZhi.Net.Server.Handlers
         private void OnBeforeTokenGenerate()
         {
             this.SendOutter.SendLlmMessageAsync(Emotion.Thinking);
-            this.SendOutter.SendSttMessageAsync(Lang.DialogueHandler_OnBeforeTokenGenerate_Thinking);
         }
 
         private async void OnTokenGeneratingAsync(OutSegment outSegment)
