@@ -14,7 +14,7 @@ using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Resources.Fonts;
 
-internal sealed class GlyphResource : IResource<GlyphPushSetting>
+internal sealed class GlyphResource : IFont
 {
     private readonly ILogger<GlyphResource> _logger;
     private readonly ConcurrentDictionary<string, Lazy<CbinFont>> _fonts = new();

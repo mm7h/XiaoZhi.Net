@@ -31,7 +31,7 @@ namespace XiaoZhi.Net.Server.Management
                 services.AddSingleton<IAudioFileCaching, AudioFileCaching>();
                 services.AddSingleton<IMusicFileProvider, MusicProvider>();
                 services.AddSingleton<IVadOnnxModel, SileroOnnx>();
-                services.AddSingleton<GlyphResource>();
+                services.AddSingleton<IFont, GlyphResource>();
 
                 RegisterRag(services, config);
 
@@ -41,7 +41,14 @@ namespace XiaoZhi.Net.Server.Management
 
         public override bool BuildComponent()
         {
-            this.ServiceProvider.GetRequiredService<GlyphResource>().Load(this.Config.GlyphPushSetting);
+            #region Fonts
+            IFont font = this.ServiceProvider.GetRequiredService<IFont>();
+            if (!font.Load(this.Config.GlyphPushSetting))
+            {
+                return false;
+            } 
+            #endregion
+
             #region AudioCaching
             IAudioFileCaching audioFileCaching = this.ServiceProvider.GetRequiredService<IAudioFileCaching>();
             if (!audioFileCaching.Load(this.Config.DeviceBindSetting))
