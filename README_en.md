@@ -223,7 +223,7 @@ public class GetTime : FunctionTool
 ```
 
 > [!TIP]
-> For global tools, inherit from `FunctionTool` and register through `WithFunctionTools<T>()`. Use them for functions that are available across sessions and do not depend on session state, such as querying the time or weather.<br />
+> For global tools, inherit from `FunctionTool` and register through `WithFunctionTools<T>()`. Use them for functions that are available across sessions and do not depend on session state, such as querying the time or weather.<br /><br />
 > For session tools, inherit from `PrivateFunctionTool` and register through `WithPrivateFunctionTools<T>()`. Use them for functions that depend on session state, such as operating the current device's player, TTS, or connection.
 
 **For more examples, see [Function Tool extensions (Chinese)](docs/07.function-tools.md).**
@@ -303,6 +303,7 @@ XiaoZhi.Net-<version>-<RID>/
 │   │   └── assets/                        # Prompt audio and spoken digits
 │   ├── models/{vad,asr,tts}/               # Selected local models
 │   ├── ffmpeg/                            # Platform-specific shared libraries
+│   ├── fonts/                             # (Optional) extra fonts covering characters missing from Xiaozhi firmware
 │   ├── musics/                            # Local music
 │   ├── data/
 │   │   ├── asr-cache/                     # Generated according to saving options
@@ -338,7 +339,11 @@ These are future directions, not enabled features or delivery commitments:
 
 ## Contributing 🙌
 
-This project aims to provide an extensible Xiaozhi server for the .NET ecosystem. [Issues](https://github.com/mm7h/XiaoZhi.Net/issues) and Pull Requests are welcome for bug reports, documentation improvements, and implementations.
+This project aims to provide an extensible Xiaozhi server for the .NET ecosystem, as a starting point for the community to build on.
+
+[Issues](https://github.com/mm7h/XiaoZhi.Net/issues) and Pull Requests are welcome for bug reports, documentation improvements, and implementations.
+
+If this project helps you, please give it a ⭐️ on GitHub.
 
 ## Special Thanks ❤️
 
