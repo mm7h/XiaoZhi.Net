@@ -232,13 +232,6 @@ public class GetTime : FunctionTool
 
 **更多示例见 [Function Tool 扩展](docs/07.function-tools.md)。**
 
-## 已有测试记录的小智客户端 🖥️
-
-- [py-xiaozhi（Python）](https://github.com/Huang-junsen/py-xiaozhi)
-- [xiaozhi-sharp（C#）](https://github.com/zhulige/xiaozhi-sharp)
-
-保留项目已有的兼容记录；客户端和固件版本变化后，仍需验证当前设备的协议、音频参数与工具能力。
-
 ## 平台与模型支持 📋
 
 

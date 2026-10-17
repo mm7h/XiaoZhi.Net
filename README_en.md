@@ -232,13 +232,6 @@ public class GetTime : FunctionTool
 
 **For more examples, see [Function Tool extensions (Chinese)](docs/07.function-tools.md).**
 
-## XiaoZhi Clients with Existing Test Records 🖥️
-
-- [py-xiaozhi (Python)](https://github.com/Huang-junsen/py-xiaozhi)
-- [xiaozhi-sharp (C#)](https://github.com/zhulige/xiaozhi-sharp)
-
-These retain the project's existing compatibility records. After client or firmware version changes, verify the current device's protocol, audio parameters, and tool capabilities.
-
 ## Platforms and Models 📋
 
 ### LLM Language Models 💬
