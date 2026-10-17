@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Media.Abstractions.Common.Enums;
 
 namespace XiaoZhi.Net.Server.Providers.AudioPlayer
@@ -13,9 +14,9 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer
         bool IsPlaying { get; }
         float Volume { get; set; }
         Task PlayAsync(CancellationToken cancellationToken = default, params string[] sources);
-        Task PauseAsync();
-        Task ResumeAsync();
-        Task SeekAsync(TimeSpan position);
-        Task StopAsync();
+        Task PauseAsync(CancellationToken cancellationToken = default);
+        Task ResumeAsync(CancellationToken cancellationToken = default);
+        Task SeekAsync(TimeSpan position, CancellationToken cancellationToken = default);
+        Task StopAsync(CancellationToken cancellationToken = default);
     }
 }

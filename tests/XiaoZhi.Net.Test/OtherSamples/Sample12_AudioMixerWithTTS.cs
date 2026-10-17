@@ -1,11 +1,11 @@
-﻿using NAudio.Wave;
-using SherpaOnnx;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using NAudio.Wave;
+using SherpaOnnx;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Media;
 using XiaoZhi.Net.Server.Media.Abstractions;
@@ -16,22 +16,22 @@ namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample12_AudioMixerWithTTS
     {
-        const string SYSTEM_AUDIO_FILE_PATH = "./audioFile/max_output_size.wav";
-        const string MUSIC_AUDIO_FILE_PATH = "./audioFile/Perfect.flac";
+        private const string SystemAudioFilePath = "./audioFile/max_output_size.wav";
+        private const string MusicAudioFilePath = "./audioFile/Perfect.flac";
 
-        const int SAMPLE_RATE = 24000;
-        const int CHANNELS = 1;
-        const int FRAME_DURATION_MS = 60;
+        private const int SampleRate = 24000;
+        private const int Channels = 1;
+        private const int FrameDurationMs = 60;
 
-        const string MODEL_FILE_FOLER = "./models/kokoro";
-        const float SPEAK_SPPED = 1.0f;
-        const int SPERAKER_ID = 50;
-        const string OUTPUT_TTS_WAV_FILE = "./models/output_tts.wav";
+        private const string ModelFileFoler = "./models/kokoro";
+        private const float SpeakSpped = 1.0f;
+        private const int SperakerId = 50;
+        private const string OutputTtsWavFile = "./models/output_tts.wav";
 
         /// <summary>
         /// 运行示例
         /// </summary>
-        public static async Task Run()
+        public static async Task RunAsync()
         {
             float[] ttsAudio = GenerateTTSAudio();
             Console.WriteLine("TTS audio generated.");
@@ -44,8 +44,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 using (var waveOut = new WaveOutEvent())
                 {
                     // Reduced buffer size for lower latency
-                    var provider = new BufferedWaveProvider(WaveFormat.CreateIeeeFloatWaveFormat(SAMPLE_RATE, CHANNELS));
-                    provider.BufferLength = SAMPLE_RATE * 1 * CHANNELS * 4; // Reduced from 2 seconds to 1 second
+                    var provider = new BufferedWaveProvider(WaveFormat.CreateIeeeFloatWaveFormat(SampleRate, Channels))
+                    {
+                        BufferLength = SampleRate * 1 * Channels * 4 // Reduced from 2 seconds to 1 second
+                    };
                     waveOut.Init(provider);
                     waveOut.Play();
 
@@ -54,9 +56,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     // 创建带有平滑音量控制的音频混音器
                     // 配置：1000ms过渡时间，对数曲线，启用平滑控制
                     IAudioMixer mixer = MediaFactory.CreateFFmpegAudioMixer(
-                        SAMPLE_RATE,
-                        CHANNELS,
-                        FRAME_DURATION_MS,
+                        SampleRate,
+                        Channels,
+                        FrameDurationMs,
                         new AudioMixerConfig()
                         {
                             VolumeTransitionDurationMs = 1000,
@@ -86,7 +88,6 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         var byteData = new byte[pcmData.Length * 4];
                         Buffer.BlockCopy(pcmData, 0, byteData, 0, byteData.Length);
-
 
                         // Reduced waiting time for lower latency
                         while (provider.BufferedBytes + byteData.Length > provider.BufferLength)
@@ -120,7 +121,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     Task musicTask = Task.Run(async () =>
                     {
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting Music playback...");
-                        await DecodeAudio(MUSIC_AUDIO_FILE_PATH, AudioType.Music, mixer);
+                        await DecodeAudioAsync(MusicAudioFilePath, AudioType.Music, mixer);
                     });
 
                     // Start TTS after 15 seconds (medium priority) - should suppress music smoothly
@@ -155,7 +156,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
                     {
                         await Task.Delay(25 * 1000);
                         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting System Notification playback (should smoothly suppress TTS and music over 500ms)...");
-                        await DecodeAudio(SYSTEM_AUDIO_FILE_PATH, AudioType.SystemNotification, mixer);
+                        await DecodeAudioAsync(SystemAudioFilePath, AudioType.SystemNotification, mixer);
                     });
 
                     Console.WriteLine("Waiting for all tasks to complete...");
@@ -185,38 +186,37 @@ namespace XiaoZhi.Net.Test.OtherSamples
         public static float[] GenerateTTSAudio()
         {
             var config = new OfflineTtsConfig();
-            config.Model.Kokoro.Model = Path.Combine(MODEL_FILE_FOLER, "model.onnx");
-            config.Model.Kokoro.Voices = Path.Combine(MODEL_FILE_FOLER, "voices.bin");
-            config.Model.Kokoro.Tokens = Path.Combine(MODEL_FILE_FOLER, "tokens.txt");
-            config.Model.Kokoro.DataDir = Path.Combine(MODEL_FILE_FOLER, "espeak-ng-data");
-            config.Model.Kokoro.DictDir = Path.Combine(MODEL_FILE_FOLER, "dict");
-            config.Model.Kokoro.Lexicon = Path.Combine(MODEL_FILE_FOLER, "./lexicon/lexicon-zh.txt") + "," + Path.Combine(MODEL_FILE_FOLER, "./lexicon/lexicon-us-en.txt");
+            config.Model.Kokoro.Model = Path.Combine(ModelFileFoler, "model.onnx");
+            config.Model.Kokoro.Voices = Path.Combine(ModelFileFoler, "voices.bin");
+            config.Model.Kokoro.Tokens = Path.Combine(ModelFileFoler, "tokens.txt");
+            config.Model.Kokoro.DataDir = Path.Combine(ModelFileFoler, "espeak-ng-data");
+            config.Model.Kokoro.DictDir = Path.Combine(ModelFileFoler, "dict");
+            config.Model.Kokoro.Lexicon = Path.Combine(ModelFileFoler, "./lexicon/lexicon-zh.txt") + "," + Path.Combine(ModelFileFoler, "./lexicon/lexicon-us-en.txt");
             config.Model.NumThreads = 2;
             config.Model.Provider = "cpu";
 
             var tts = new OfflineTts(config);
             string text = "你好，欢迎使用小智AI助手!";
 
-            OfflineTtsGeneratedAudio audio = tts.Generate(text, SPEAK_SPPED, SPERAKER_ID);
+            OfflineTtsGeneratedAudio audio = tts.Generate(text, SpeakSpped, SperakerId);
 
-            if (File.Exists(OUTPUT_TTS_WAV_FILE))
+            if (File.Exists(OutputTtsWavFile))
             {
-                File.Delete(OUTPUT_TTS_WAV_FILE);
+                File.Delete(OutputTtsWavFile);
             }
-            audio.SaveToWaveFile(OUTPUT_TTS_WAV_FILE);
+            audio.SaveToWaveFile(OutputTtsWavFile);
 
             return audio.Samples;
         }
 
-
-        private static async Task DecodeAudio(string filePath, AudioType audioType, IAudioMixer audioMixer)
+        private static async Task DecodeAudioAsync(string filePath, AudioType audioType, IAudioMixer audioMixer)
         {
             try
             {
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Starting {audioType} decoder for: {Path.GetFileName(filePath)}");
 
                 IUrlAudioPlayer audioPlayer = MediaFactory.CreateUrlAudioPlayer();
-                if (!audioPlayer.CheckFFmpegInstalled())
+                if (!await audioPlayer.CheckFFmpegInstalledAsync())
                 {
                     Console.WriteLine("Failed to initialize the ffmpeg.");
                     return;
@@ -258,10 +258,10 @@ namespace XiaoZhi.Net.Test.OtherSamples
                 };
 
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {audioType}: Loading audio file...");
-                await audioPlayer.LoadAsync(filePath, SAMPLE_RATE, CHANNELS, FRAME_DURATION_MS);
+                await audioPlayer.LoadAsync(filePath, SampleRate, Channels, FrameDurationMs);
 
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {audioType}: Starting playback...");
-                audioPlayer.Play(true); // Blocking playback
+                await audioPlayer.PlayAsync();
 
                 // Safety: ensure we notify the mixer that this stream is done
                 audioMixer.StopAudioStream(audioType);

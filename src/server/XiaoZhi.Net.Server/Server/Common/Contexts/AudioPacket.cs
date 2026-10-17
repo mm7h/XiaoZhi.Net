@@ -7,6 +7,7 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         private bool _released;
         private const int DEFAULT_BUFFER_CAPACITY = 960 * 100;
         private readonly CircularBuffer _audioBuffer;
+        private readonly object _audioBufferGate = new();
 
         public AudioPacket()
         {
@@ -21,49 +22,122 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         public bool VoiceStop { get; set; }
 
-        public int BufferHead => this._audioBuffer.Head;
+        public int BufferHead
+        {
+            get
+            {
+                lock (this._audioBufferGate)
+                {
+                    return this._released ? 0 : this._audioBuffer.Head;
+                }
+            }
+        }
 
-        public int BufferSize => this._audioBuffer.Size;
+        public int BufferSize
+        {
+            get
+            {
+                lock (this._audioBufferGate)
+                {
+                    return this._released ? 0 : this._audioBuffer.Size;
+                }
+            }
+        }
 
         public void PushAudio(float[] audioData)
         {
-            if (!this._released && audioData.Length > 0)
+            if (audioData.Length == 0)
             {
-                this._audioBuffer.Push(audioData);
+                return;
+            }
+
+            lock (this._audioBufferGate)
+            {
+                if (!this._released)
+                {
+                    this._audioBuffer.Push(audioData);
+                }
             }
         }
 
         public float[] GetFrames(int startIndex, int frameSize)
         {
-            if (this._released || this._audioBuffer.Size < startIndex + frameSize)
+            lock (this._audioBufferGate)
             {
-                return [];
+                if (this._released || this._audioBuffer.Size < startIndex + frameSize)
+                {
+                    return [];
+                }
+                return this._audioBuffer.Get(startIndex, frameSize);
             }
-            return this._audioBuffer.Get(startIndex, frameSize);
         }
 
         public void PopFrames(int count)
         {
-            if (!this._released && count > 0 && this._audioBuffer.Size >= count)
+            lock (this._audioBufferGate)
             {
-                this._audioBuffer.Pop(count);
+                if (!this._released && count > 0 && this._audioBuffer.Size >= count)
+                {
+                    this._audioBuffer.Pop(count);
+                }
             }
         }
 
         public float[] GetAllAudio()
         {
-            if (this._released || this._audioBuffer.Size == 0)
+            lock (this._audioBufferGate)
+            {
+                if (this._released || this._audioBuffer.Size == 0)
+                {
+                    return [];
+                }
+                return this._audioBuffer.Get(this._audioBuffer.Head, this._audioBuffer.Size);
+            }
+        }
+
+        public float[] GetLatestAudio(int maxSamples)
+        {
+            if (maxSamples <= 0)
             {
                 return [];
             }
-            return this._audioBuffer.Get(this._audioBuffer.Head, this._audioBuffer.Size);
+
+            lock (this._audioBufferGate)
+            {
+                if (this._released || this._audioBuffer.Size == 0)
+                {
+                    return [];
+                }
+
+                int sampleCount = System.Math.Min(maxSamples, this._audioBuffer.Size);
+                int startIndex = this._audioBuffer.Head + this._audioBuffer.Size - sampleCount;
+                return this._audioBuffer.Get(startIndex, sampleCount);
+            }
+        }
+
+        public float[] TakeAllAudio()
+        {
+            lock (this._audioBufferGate)
+            {
+                if (this._released || this._audioBuffer.Size == 0)
+                {
+                    return [];
+                }
+
+                float[] audio = this._audioBuffer.Get(this._audioBuffer.Head, this._audioBuffer.Size);
+                this._audioBuffer.Reset();
+                return audio;
+            }
         }
 
         public void ResetAudioBuffer()
         {
-            if (!this._released)
+            lock (this._audioBufferGate)
             {
-                this._audioBuffer.Reset();
+                if (!this._released)
+                {
+                    this._audioBuffer.Reset();
+                }
             }
         }
 
@@ -78,15 +152,26 @@ namespace XiaoZhi.Net.Server.Common.Contexts
 
         public void Release()
         {
-            this._released = true;
-            this._audioBuffer.Dispose();
+            lock (this._audioBufferGate)
+            {
+                if (this._released)
+                {
+                    return;
+                }
+
+                this._released = true;
+                this._audioBuffer.Dispose();
+            }
         }
 
         public void TrimOldAudio(int keepFrames = 1024)
         {
-            if (!this._released && this._audioBuffer.Size > keepFrames)
+            lock (this._audioBufferGate)
             {
-                this._audioBuffer.Pop(this._audioBuffer.Size - keepFrames);
+                if (!this._released && this._audioBuffer.Size > keepFrames)
+                {
+                    this._audioBuffer.Pop(this._audioBuffer.Size - keepFrames);
+                }
             }
         }
     }

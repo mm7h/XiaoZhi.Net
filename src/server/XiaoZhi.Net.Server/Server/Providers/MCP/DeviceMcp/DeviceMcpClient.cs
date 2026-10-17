@@ -1,21 +1,28 @@
-﻿using Microsoft.Extensions.Logging;
-using ModelContextProtocol.Protocol;
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Threading;
+using System.Text.Json.Nodes;
+using Microsoft.Extensions.Logging;
+using ModelContextProtocol.Protocol;
+using XiaoZhi.Net.Server.Abstractions.Mcp;
+using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
-using XiaoZhi.Net.Server.Common.Configs;
 
 namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
 {
     internal class DeviceMcpClient : BaseMcpClient<DeviceMcpClient>, ISubMcpClient
     {
-        private string? _visionUrl;
-        private string? _visionToken;
+        private readonly IEnumerable<IDeviceMcpCapabilityContributor> _capabilityContributors;
+        private readonly List<IDeviceMcpCapabilityLease> _capabilityLeases = [];
+        private readonly Dictionary<string, object?> _capabilities = new(StringComparer.OrdinalIgnoreCase);
+        private int _initialized;
 
-        public DeviceMcpClient(ILogger<DeviceMcpClient> logger) : base(logger)
+        public DeviceMcpClient(IEnumerable<IDeviceMcpCapabilityContributor> capabilityContributors, ILogger<DeviceMcpClient> logger) : base(logger)
         {
+            this._capabilityContributors = capabilityContributors;
         }
 
         public override string ModelName => SubMCPClientTypeNames.DeviceMcpClient;
@@ -23,42 +30,55 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
 
         public override bool Build(MCPClientBuildConfig config)
         {
+            this.ReleaseCapabilities();
             this.InitSession(config);
-            ModelSetting modelSetting = config.ModelSetting;
+            this._capabilities.Clear();
+            this._initialized = 0;
+            this._capabilities["roots"] = new
+            {
+                listChanged = true
+            };
+            this._capabilities["sampling"] = new { };
 
-            this._visionUrl = modelSetting.Config.GetConfigValueOrDefault("VisionUrl", string.Empty);
-            this._visionToken = modelSetting.Config.GetConfigValueOrDefault("VisionToken", string.Empty);
+            try
+            {
+                DeviceMcpCapabilityContext context = new DeviceMcpCapabilityContext(config.Session.SessionId, config.Session.DeviceId);
+                foreach (IDeviceMcpCapabilityContributor contributor in this._capabilityContributors)
+                {
+                    IDeviceMcpCapabilityLease? lease = contributor.CreateCapability(context);
+                    if (lease is null)
+                    {
+                        continue;
+                    }
 
+                    if (string.IsNullOrWhiteSpace(lease.CapabilityName)
+                        || lease.Capability is null
+                        || this._capabilities.ContainsKey(lease.CapabilityName))
+                    {
+                        lease.Dispose();
+                        throw new InvalidOperationException("An MCP capability contributor returned an invalid or duplicate capability name.");
+                    }
 
-
-
-            this.SendMcpInitializeAsync().ConfigureAwait(false);
-            this.RequestToolsListAsync().ConfigureAwait(false);
+                    this._capabilityLeases.Add(lease);
+                    this._capabilities.Add(lease.CapabilityName, lease.Capability);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.ReleaseCapabilities();
+                this.Logger.LogError(ex, Lang.DeviceMcpClient_Build_CreateCapabilitiesFailed, config.Session.DeviceId);
+                return false;
+            }
 
             return true;
         }
 
         public override async Task SendMcpInitializeAsync()
         {
-
-            var vision = new
-            {
-                Url = this._visionUrl,
-                Token = this._visionToken
-            };
-
             var @params = new
             {
                 ProtocolVersion = "2024-11-05",
-                Capabilities = new
-                {
-                    Roots = new
-                    {
-                        ListChanged = true
-                    },
-                    Sampling = new { },
-                    Vision = vision
-                },
+                Capabilities = this._capabilities,
                 clientInfo = new
                 {
                     Name = this.ProviderType,
@@ -70,7 +90,7 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
             {
                 Method = RequestMethods.Initialize,
                 Id = new RequestId(1),
-                Params = @params.ToNode()
+                Params = McpJsonHelper.ToNode(@params)
             };
             this.Logger.LogInformation(Lang.DeviceMcpClient_SendMcpInitializeAsync_SendingInit, this.CurrentSession.SessionId);
             await this.SendMCPMessageAsync(request);
@@ -82,18 +102,61 @@ namespace XiaoZhi.Net.Server.Providers.MCP.DeviceMcp
             {
                 throw new ArgumentNullException(nameof(message), "Message cannot be null.");
             }
-            var mcpMessage = new
+            JsonObject mcpMessage = new()
             {
-                Type = "mcp",
-                Payload = message
+                ["type"] = "mcp",
+                ["payload"] = McpJsonHelper.ToNode(message)
             };
             string jsonMessage = mcpMessage.ToJson();
             await this.CurrentSession.SendOutter.SendAsync(jsonMessage);
         }
 
+        protected override async Task OnMcpInitializedAsync(JsonObject result)
+        {
+            if (Interlocked.Exchange(ref this._initialized, 1) != 0)
+            {
+                return;
+            }
+            if (result["protocolVersion"] is not JsonValue version
+                || !version.TryGetValue(out string? protocolVersion) || protocolVersion != "2024-11-05")
+            {
+                this.CurrentSession.PrivateProvider.FunctionToolsContext.SetMcpClientFailed(new InvalidOperationException(Lang.DeviceMcpClient_IncompatibleProtocol));
+                this.Logger.LogWarning(Lang.DeviceMcpClient_IncompatibleProtocol);
+                return;
+            }
+            try
+            {
+                await this.SendMcpNotificationAsync(NotificationMethods.InitializedNotification);
+                await this.RequestToolsListAsync();
+            }
+            catch (Exception ex)
+            {
+                this.CurrentSession.PrivateProvider.FunctionToolsContext.SetMcpClientFailed(ex);
+                this.Logger.LogWarning(ex, Lang.DeviceMcpClient_IncompatibleProtocol);
+            }
+        }
+
         public override void Dispose()
         {
+            this.ReleaseCapabilities();
+            this._capabilities.Clear();
+        }
 
+        private void ReleaseCapabilities()
+        {
+            foreach (IDeviceMcpCapabilityLease lease in this._capabilityLeases)
+            {
+                try
+                {
+                    lease.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    this.Logger.LogWarning(ex, Lang.DeviceMcpClient_ReleaseCapabilities_ReleaseFailed, lease.CapabilityName);
+                }
+            }
+
+            this._capabilityLeases.Clear();
         }
     }
 }

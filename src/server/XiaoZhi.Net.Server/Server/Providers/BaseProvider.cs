@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
-using System.Linq;
 using System.Text.RegularExpressions;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.I18n;
@@ -25,13 +24,18 @@ namespace XiaoZhi.Net.Server.Providers
         protected string SessionId { get; set; } = string.Empty;
         protected string DeviceId { get; set; } = string.Empty;
         public abstract bool Build(TSettings settings);
+        /// <summary>
+        /// Updates a provider's supported runtime settings without rebuilding its
+        /// model or transport. Providers opt in explicitly.
+        /// </summary>
+        public virtual bool Rebuild(TSettings settings) => false;
         public abstract void Dispose();
 
         public virtual void RegisterDevice(string deviceId, string sessionId)
         {
             this.DeviceId = deviceId;
             this.SessionId = sessionId;
-            this.Logger.LogInformation(Lang.BaseProvider_RegisterDevice_Registered, this.DeviceId, this.SessionId, this.ProviderType);
+            this.Logger.LogInformation(Lang.BaseProvider_RegisterDevice_Registered, this.DeviceId, this.ProviderType, this.SessionId);
         }
 
         public virtual void UnregisterDevice(string deviceId, string sessionId)
@@ -43,9 +47,9 @@ namespace XiaoZhi.Net.Server.Providers
 
         public virtual bool CheckDeviceRegistered(string deviceId, string sessionId)
         {
-            if (string.IsNullOrEmpty(this.DeviceId) || string.IsNullOrEmpty(this.SessionId))
+            if (string.IsNullOrWhiteSpace(this.DeviceId) || string.IsNullOrWhiteSpace(this.SessionId))
             {
-                this.Logger.LogError(Lang.BaseProvider_CheckDeviceRegistered_NotRegistered, string.IsNullOrEmpty(this.DeviceId) ? "unkonwn" : this.DeviceId, string.IsNullOrEmpty(this.SessionId) ? "unkonwn" : this.SessionId, this.ProviderType);
+                this.Logger.LogError(Lang.BaseProvider_CheckDeviceRegistered_NotRegistered, string.IsNullOrWhiteSpace(this.DeviceId) ? "unkonwn" : this.DeviceId, string.IsNullOrWhiteSpace(this.SessionId) ? "unkonwn" : this.SessionId, this.ProviderType);
                 return false;
             }
             return true;
@@ -53,13 +57,42 @@ namespace XiaoZhi.Net.Server.Providers
 
         protected bool CheckModelExist()
         {
-            string modelFilePath = Path.Combine(this.ModelFileFoler, "model.onnx");
-            bool exist = File.Exists(modelFilePath);
-            if (!exist)
+            return this.CheckModelFiles("model.onnx");
+        }
+
+        protected bool CheckModelFiles(params string[] fileNames)
+        {
+            bool exist = true;
+            foreach (string fileName in fileNames)
             {
-                this.Logger.LogError(Lang.BaseProvider_CheckModelExist_NotFound, modelFilePath);
+                string modelFilePath = Path.Combine(this.ModelFileFoler, fileName);
+                if (!File.Exists(modelFilePath))
+                {
+                    this.Logger.LogError(Lang.BaseProvider_CheckModelExist_NotFound, modelFilePath);
+                    exist = false;
+                }
             }
             return exist;
+        }
+
+        protected bool CheckModelDirectories(params string[] directoryNames)
+        {
+            bool exist = true;
+            foreach (string directoryName in directoryNames)
+            {
+                string directoryPath = Path.Combine(this.ModelFileFoler, directoryName);
+                if (!Directory.Exists(directoryPath))
+                {
+                    this.Logger.LogError(Lang.BaseProvider_CheckModelExist_NotFound, directoryPath);
+                    exist = false;
+                }
+            }
+            return exist;
+        }
+
+        protected static string GetSessionKey(string deviceId, string sessionId)
+        {
+            return string.Concat(deviceId, "\u001f", sessionId);
         }
 
         protected virtual string GenerateId()
@@ -80,19 +113,12 @@ namespace XiaoZhi.Net.Server.Providers
 
         private bool CheckIsSherpaModel()
         {
-            switch (this.ProviderType.ToLower())
-            {
-                case "vad" when SherpaModels.VadModels.Contains(this.ModelName):
-                case "asr" when SherpaModels.AsrModels.Contains(this.ModelName):
-                case "tts" when SherpaModels.TtsModels.Contains(this.ModelName):
-                    return true;
-            }
-            return false;
+            return SherpaModels.IsSherpaModel(this.ProviderType, this.ModelName);
         }
 
         private string ConvertToKebabCase(string input)
         {
-            if (string.IsNullOrEmpty(input))
+            if (string.IsNullOrWhiteSpace(input))
                 return input;
 
             return Regex.Replace(input, "(?<!^)([A-Z])", "-$1").ToLower();

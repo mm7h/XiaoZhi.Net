@@ -1,19 +1,19 @@
-﻿using Flurl.Http;
+﻿using System;
+using System.Globalization;
+using Flurl.Http;
 using Flurl.Http.Configuration;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.SemanticKernel;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Globalization;
-using System.Linq;
+using OpenAI.Responses;
 using XiaoZhi.Net.Server.Abstractions;
+using XiaoZhi.Net.Server.Abstractions.FunctionTools;
 using XiaoZhi.Net.Server.Abstractions.Store;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Management;
+using XiaoZhi.Net.Server.RAG.Abstractions;
 using XiaoZhi.Net.Server.Services;
 using XiaoZhi.Net.Server.Store;
 
@@ -21,7 +21,7 @@ namespace XiaoZhi.Net.Server
 {
     internal class ServerBuilder : IServerBuilder
     {
-        private static readonly Lazy<IServerBuilder> lazyInstance = new Lazy<IServerBuilder>(() => new ServerBuilder());
+        private static readonly Lazy<IServerBuilder> s_lazyInstance = new Lazy<IServerBuilder>(() => new ServerBuilder());
 
         private ServerBuilder()
         {
@@ -33,7 +33,7 @@ namespace XiaoZhi.Net.Server
             this.HostBuilder = hostBuilder;
         }
 
-        public static IServerBuilder CreateServerBuilder() => lazyInstance.Value;
+        public static IServerBuilder CreateServerBuilder() => s_lazyInstance.Value;
         public static IServerBuilder CreateServerBuilder(IHostBuilder hostBuilder) => new ServerBuilder(hostBuilder);
 
         public IHostBuilder HostBuilder { get; private set; }
@@ -54,15 +54,14 @@ namespace XiaoZhi.Net.Server
                 services.AddSingleton(config);
 
                 services.AddSingleton(connectionStore);
-
-                services.AddKernel();
             })
             .RegisterLogger(config)
-            .RegisterResources()
+            .RegisterResources(config)
             .RegisterProviders(config)
             .RegisterHandlers()
             .RegisterObjectPools()
-            .RegisterProtocol(config);
+            .RegisterProtocol(config)
+            .RegisterFunctionTools();
 
 #if DEBUG
             this.HostBuilder.UseEnvironment("Development");
@@ -73,35 +72,32 @@ namespace XiaoZhi.Net.Server
             return this;
         }
 
-        public IServerBuilder WithPlugin<TPlugin>(string pluginName)
+        public IServerBuilder WithAgentMemory<TAgentMemory>() where TAgentMemory : class, IAgentMemory
         {
-            if (string.IsNullOrWhiteSpace(pluginName))
-            {
-                throw new ArgumentNullException(nameof(pluginName), Lang.ServerBuilder_WithPlugin_PluginNameNull);
-            }
             this.HostBuilder.ConfigureServices((context, services) =>
             {
-                services.AddSingleton(sp => KernelPluginFactory.CreateFromType<TPlugin>(pluginName, sp));
+                services.AddSingleton<IAgentMemory, TAgentMemory>();
             });
             return this;
         }
 
-        public IServerBuilder WithPlugin<TPlugin>(string pluginName, IEnumerable<IFunction> functions)
+        public IServerBuilder WithFunctionTools<TFunctionTool>() where TFunctionTool : class, IFunctionTool, new()
         {
-            if (string.IsNullOrWhiteSpace(pluginName))
-            {
-                throw new ArgumentNullException(nameof(pluginName), Lang.ServerBuilder_WithPlugin_PluginNameNull);
-            }
-            if (functions == null || !functions.Any())
-            {
-                throw new ArgumentNullException(nameof(functions), Lang.ServerBuilder_WithPlugin_FunctionsNull);
-            }
-
-            IEnumerable<KernelFunction> kernelFunctions = functions.Select(f => KernelFunctionFactory.CreateFromMethod(f.Method, f.FunctionName, f.Description));
             this.HostBuilder.ConfigureServices((context, services) =>
             {
-                services.AddSingleton(sp => KernelPluginFactory.CreateFromFunctions(pluginName, kernelFunctions));
+                services.AddSingleton<IFunctionTool, TFunctionTool>();
             });
+
+            return this;
+        }
+
+        public IServerBuilder WithPrivateFunctionTools<TFunctionTool>() where TFunctionTool : class, IPrivateFunctionTool, new()
+        {
+            this.HostBuilder.ConfigureServices((context, services) =>
+            {
+                services.AddTransient<IPrivateFunctionTool, TFunctionTool>();
+            });
+
             return this;
         }
 
@@ -122,7 +118,7 @@ namespace XiaoZhi.Net.Server
                 services.AddSingleton<IFlurlClientCache>(_ => new FlurlClientCache()
                 .Add("ManageApi", manageApiUrl, builder =>
                 {
-                    builder.WithOAuthBearerToken(secret);   
+                    builder.WithOAuthBearerToken(secret);
                     builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
                 }));
                 services.AddSingleton<ManageApiClient>();
@@ -130,9 +126,27 @@ namespace XiaoZhi.Net.Server
             return this;
         }
 
+        public IServerBuilder WithRagVectorStore<TVectorStore>() where TVectorStore : class, IVectorStore
+        {
+            this.HostBuilder.ConfigureServices((context, services) =>
+            {
+                services.Replace(ServiceDescriptor.Singleton<IVectorStore, TVectorStore>());
+            });
+            return this;
+        }
+
+        public IServerBuilder WithRagVectorStore(IVectorStore vectorStore)
+        {
+            this.HostBuilder.ConfigureServices((context, services) =>
+            {
+                services.Replace(ServiceDescriptor.Singleton<IVectorStore>(vectorStore));
+            });
+            return this;
+        }
+
         public IServerBuilder WithCulture(string culture = "zh-CN")
         {
-            if (!string.IsNullOrEmpty(culture))
+            if (!string.IsNullOrWhiteSpace(culture))
             {
                 CultureInfo cultureInfo = new CultureInfo(culture);
                 Lang.Culture = cultureInfo;
@@ -141,7 +155,7 @@ namespace XiaoZhi.Net.Server
             {
                 Lang.Culture = CultureInfo.CurrentCulture;
             }
-           
+
             return this;
         }
 
@@ -171,17 +185,25 @@ namespace XiaoZhi.Net.Server
         {
             ResourceManager resourceManager = serviceProvider.GetRequiredService<ResourceManager>();
             ProviderManager providerManager = serviceProvider.GetRequiredService<ProviderManager>();
-            bool loaded = resourceManager.BuildComponent(serviceProvider);
+            FunctionToolManager functionToolManager = serviceProvider.GetRequiredService<FunctionToolManager>();
+
+            bool loaded = resourceManager.BuildComponent();
             if (!loaded)
             {
                 Serilog.Log.CloseAndFlush();
                 throw new ApplicationException(Lang.ServerBuilder_BuildComponents_ResourceLoadFailed);
             }
-            bool builded = providerManager.BuildComponent(serviceProvider);
+            bool builded = providerManager.BuildComponent();
             if (!builded)
             {
                 Serilog.Log.CloseAndFlush();
                 throw new ApplicationException(Lang.ServerBuilder_BuildComponents_ProviderBuildFailed);
+            }
+            bool toolsLoaded = functionToolManager.BuildComponent();
+            if (!toolsLoaded)
+            {
+                Serilog.Log.CloseAndFlush();
+                throw new ApplicationException("Function tool initialization failed.");
             }
         }
     }

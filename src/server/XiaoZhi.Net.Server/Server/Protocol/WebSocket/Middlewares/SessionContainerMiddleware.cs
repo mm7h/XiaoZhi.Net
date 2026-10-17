@@ -25,7 +25,9 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Middlewares
             if (appSession is IHandshakeRequiredSession handshakeSession)
             {
                 if (!handshakeSession.Handshaked)
+                {
                     return ValueTask.FromResult(true);
+                }
             }
 
             if (appSession is SocketSession socketSession)

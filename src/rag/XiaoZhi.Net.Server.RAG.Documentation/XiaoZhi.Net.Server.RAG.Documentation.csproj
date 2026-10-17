@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Authors>mm7h</Authors>
+    <Title>XiaoZhi.Net.Server.RAG.Documentation</Title>
+    <RepositoryUrl>https://github.com/mm7h/XiaoZhi.Net</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/mm7h/XiaoZhi.Net</PackageProjectUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DocumentFormat.OpenXml" />
+    <PackageReference Include="MiniExcel" />
+    <PackageReference Include="UglyToad.PdfPig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\server\XiaoZhi.Net.Server.Abstractions\XiaoZhi.Net.Server.Abstractions.csproj" />
+    <ProjectReference Include="..\XiaoZhi.Net.Server.RAG.Abstractions\XiaoZhi.Net.Server.RAG.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

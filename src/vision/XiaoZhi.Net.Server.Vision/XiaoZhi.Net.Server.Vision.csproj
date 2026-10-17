@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Authors>mm7h</Authors>
+    <Title>XiaoZhi.Net.Server.Vision</Title>
+    <RepositoryUrl>https://github.com/mm7h/XiaoZhi.Net</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/mm7h/XiaoZhi.Net</PackageProjectUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\server\XiaoZhi.Net.Server.Abstractions\XiaoZhi.Net.Server.Abstractions.csproj" />
+    <ProjectReference Include="..\..\server\XiaoZhi.Net.Server.I18n\XiaoZhi.Net.Server.I18n.csproj" />
+    <ProjectReference Include="..\XiaoZhi.Net.Server.Vision.Abstractions\XiaoZhi.Net.Server.Vision.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

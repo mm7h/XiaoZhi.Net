@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Configs;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 
 namespace XiaoZhi.Net.Server.Providers.MCP
 {
@@ -39,8 +40,6 @@ namespace XiaoZhi.Net.Server.Providers.MCP
 
         public override bool Build(Dictionary<string, MCPClientBuildConfig> mcpSettings)
         {
-            ModelSetting defaultSetting = new ModelSetting();
-
             // DeviceMcpClient
             ISubMcpClient deviceMcpClient = this._serviceProvider.GetRequiredKeyedService<ISubMcpClient>(SubMCPClientTypeNames.DeviceMcpClient);
             this._subMcpClients.Add(SubMCPClientTypeNames.DeviceMcpClient, deviceMcpClient);

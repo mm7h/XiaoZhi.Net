@@ -45,8 +45,9 @@ namespace XiaoZhi.Net.Server.Handlers
             }
             this._audioProcessor = privateProvider.AudioProcessor;
             this._audioProcessor.RegisterDevice(session.DeviceId, session.SessionId);
-            this._audioProcessor.OnMixedAudioDataAvailable += this.OnMixedAudioDataAvailable;
+            this._audioProcessor.OnMixedAudioDataAvailable += this.OnMixedAudioDataAvailableAsync;
             this.RegisterCancellationToken();
+            this.Builded = true;
             return true;
         }
 
@@ -55,7 +56,7 @@ namespace XiaoZhi.Net.Server.Handlers
             this._audioProcessor?.ClearAllBuffers();
         }
 
-        public async Task Handle()
+        public async Task HandleAsync()
         {
             await foreach (var workflow in this.PreviousReader.ReadAllAsync())
             {
@@ -70,7 +71,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
             }
         }
-        public async Task Handle2()
+        public async Task Handle2Async()
         {
             await foreach (var workflow in this.PreviousReader2.ReadAllAsync())
             {
@@ -85,7 +86,7 @@ namespace XiaoZhi.Net.Server.Handlers
                 }
             }
         }
-        public async Task Handle3()
+        public async Task Handle3Async()
         {
             await foreach (var workflow in this.PreviousReader3.ReadAllAsync())
             {
@@ -125,7 +126,7 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 this.HandlerToken.ThrowIfCancellationRequested();
 
-                if (!string.IsNullOrEmpty(s.SentenceId))
+                if (!string.IsNullOrWhiteSpace(s.SentenceId))
                 {
                     this._audioProcessor.RegisterSubtitle(s.SentenceId, s.AudioType, s.IsFirstFrame ? TtsStatus.SentenceStart : TtsStatus.SentenceEnd, s.Content, s.Emotion);
                 }
@@ -154,7 +155,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        private async void OnMixedAudioDataAvailable(float[] mixedPcmData, bool isFirst, bool isLast, string? sentenceId)
+        private async void OnMixedAudioDataAvailableAsync(float[] mixedPcmData, bool isFirst, bool isLast, string? sentenceId)
         {
             if (this.HandlerToken.IsCancellationRequested)
             {
@@ -192,7 +193,20 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override void Dispose()
         {
-            this.NextWriter.Complete();
+            if (this.IsDisposed)
+            {
+                return;
+            }
+            if (this._audioProcessor is not null)
+            {
+                Session session = this.SendOutter.GetSession();
+                if (session is not null)
+                {
+                    this._audioProcessor.UnregisterDevice(session.DeviceId, session.SessionId);
+                }
+            }
+            
+            this.NextWriter?.TryComplete();
             base.Dispose();
         }
     }

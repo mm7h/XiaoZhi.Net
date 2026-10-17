@@ -1,25 +1,55 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <ApplicationIcon>robot.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="robot.ico" />
+    <Compile Remove="logs\**" />
+    <EmbeddedResource Remove="logs\**" />
+    <None Remove="logs\**" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Figgle" />
+    <PackageReference Include="Figgle.Fonts" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\rag\XiaoZhi.Net.Server.RAG.Qdrant\XiaoZhi.Net.Server.RAG.Qdrant.csproj" />
     <ProjectReference Include="..\..\src\server\XiaoZhi.Net.Server\XiaoZhi.Net.Server.csproj" />
+    <ProjectReference Include="..\..\src\vision\XiaoZhi.Net.Server.Vision\XiaoZhi.Net.Server.Vision.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="configs\config.json">
+    <None Update="Configs\config*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <None Update="Configs\assets\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <None Update="fonts\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
   </ItemGroup>
+
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+  <!-- Load the publish profile through the SDK before importing its native packaging targets. -->
+  <!-- VS reads .pubxml from a stream; keep relative imports in the project. -->
+  <Import Project="Properties/PublishProfiles/SingleFilePublish.targets"
+          Condition="'$(PublishProfile)' != '' and '$(PublishSingleFile)' == 'true'" />
 
 </Project>

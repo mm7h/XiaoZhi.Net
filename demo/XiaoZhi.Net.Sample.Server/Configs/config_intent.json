@@ -1,0 +1,19 @@
+{
+  "SelectedSettings": {
+    "Intent": "IntentLlm"
+  },
+  "ConfiguredSettings": {
+    "Intent": {
+      "None": {
+        "Type": "None"
+      },
+      "IntentLlm": {
+        "Type": "IntentLlm",
+        "LLM": "Qwen"
+      },
+      "FunctionCall": {
+        "Type": "FunctionCall"
+      }
+    }
+  }
+}

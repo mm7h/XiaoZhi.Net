@@ -4,18 +4,13 @@ using Websocket.Client;
 
 namespace XiaoZhi.Net.Test.Socket
 {
-    internal class WebSocketClient : IDisposable
+    internal class WebSocketClient(IDictionary<string, string>? headers) : IDisposable
     {
         private WebsocketClient? _socket;
         private readonly SemaphoreSlim _socketSemaphore = new(1, 1);
 
         public bool IsConnected => this._socket?.IsRunning ?? false;
-        private readonly IDictionary<string, string>? _headers;
-
-        public WebSocketClient(IDictionary<string, string>? headers)
-        {
-            this._headers = headers;
-        }
+        private readonly IDictionary<string, string>? _headers = headers;
 
         public Uri? EndpointUrl { get; private set; }
 
@@ -36,12 +31,8 @@ namespace XiaoZhi.Net.Test.Socket
             try
             {
                 await this._socketSemaphore.WaitAsync(cancellationToken);
-
-                if (this._socket is not null)
-                {
-                    this._socket.Dispose();
-                    this._socket = null;
-                }
+                this._socket?.Dispose();
+                this._socket = null;
 
                 if (this._socket is null)
                 {
@@ -51,10 +42,13 @@ namespace XiaoZhi.Net.Test.Socket
                         socket.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
                         socket.Options.CollectHttpResponseDetails = true;
                         if (this._headers is not null)
+                        {
                             foreach (var item in this._headers)
                             {
                                 socket.Options.SetRequestHeader(item.Key, item.Value);
                             }
+                        }
+
                         return socket;
                     })
                     {
@@ -85,7 +79,6 @@ namespace XiaoZhi.Net.Test.Socket
                         {
                             e.CancelReconnection = true;
                             this.OnClose?.Invoke(e.CloseStatus, e.CloseStatusDescription);
-
                         });
                 }
 

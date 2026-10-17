@@ -1,18 +1,21 @@
-﻿using Flurl.Http;
-using Flurl.Http.Configuration;
-using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Flurl.Http;
+using Flurl.Http.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using XiaoZhi.Net.Server.Abstractions.Common.Enums.Tts;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Common.Contexts;
+using XiaoZhi.Net.Server.Common.Contexts.Huoshan.Models;
 using XiaoZhi.Net.Server.Common.Enums;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media.Abstractions;
-using XiaoZhi.Net.Server.Providers.TTS.Huoshan.Protocols.Models;
 
 namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
 {
@@ -24,12 +27,17 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
         private readonly IFlurlClientCache _flurlClientCache;
         private readonly IDictionary<string, string> _headers;
 
-        public HuoshanHttpV3TTS(IAudioEditor audioEditor, IFlurlClientCache flurlClientCache, ILogger<HuoshanHttpV3TTS> logger) : base(audioEditor, logger)
+        public HuoshanHttpV3TTS(
+            IAudioEditor audioEditor,
+            [FromKeyedServices(FLURL_CLIENT_NAME)] IFlurlClientCache flurlClientCache,
+            ILogger<HuoshanHttpV3TTS> logger) : base(audioEditor, logger)
         {
             this._headers = new Dictionary<string, string>();
             this._flurlClientCache = flurlClientCache;
         }
         public override string ModelName => nameof(HuoshanHttpV3TTS);
+
+        protected override TtsProviderType RuntimeProviderType => TtsProviderType.HuoshanHttpV3;
 
         public override bool Build(ModelSetting modelSetting)
         {
@@ -40,7 +48,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 string? resourceId = modelSetting.Config.GetConfigValueOrDefault("ResourceId");
                 string? speaker = modelSetting.Config.GetConfigValueOrDefault("Speaker");
 
-                if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(resourceId) || string.IsNullOrEmpty(speaker))
+                if (string.IsNullOrWhiteSpace(appId) || string.IsNullOrWhiteSpace(accessToken) || string.IsNullOrWhiteSpace(resourceId) || string.IsNullOrWhiteSpace(speaker))
                 {
                     this.Logger.LogWarning(Lang.HuoshanHttpV3TTS_Build_ConfigIncomplete);
                     return false;
@@ -67,35 +75,71 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
             }
         }
 
+        public override bool Rebuild(ModelSetting modelSetting)
+        {
+            if (!this.TryReadRebuildSettings(
+                modelSetting,
+                supportsSpeechRate: true,
+                supportsPitch: false,
+                speechRateValidator: static value => value is >= -50F and <= 100F && value == MathF.Truncate(value),
+                pitchValidator: null,
+                out bool failedToRead,
+                out string? voice,
+                out float? speechRate,
+                out _))
+            {
+                if (!failedToRead)
+                {
+                    this.Logger.LogWarning(Lang.HuoshanHttpV3TTS_Rebuild_Rejected, this.ModelName);
+                }
+                return false;
+            }
+
+            lock (this.RebuildSync)
+            {
+                if (voice is not null)
+                {
+                    this.SpeakerId = voice;
+                }
+                if (speechRate.HasValue)
+                {
+                    this.SpeechRate = (int)speechRate.Value;
+                }
+            }
+            this.Logger.LogInformation(Lang.HuoshanHttpV3TTS_Rebuild_Succeeded, this.ModelName);
+            return true;
+        }
+
         public async Task SynthesisAsync(Workflow<OutSegment> workflow, CancellationToken token)
         {
             if (!this.CheckDeviceRegistered(workflow.DeviceId, workflow.SessionId))
             {
-                throw new InvalidOperationException(Lang.HuoshanHttpV3TTS_SynthesisAsync_DevNotReg);
+                throw new InvalidOperationException("设备/会话未注册。");
             }
 
             OutSegment seg = workflow.Data;
-            if (string.IsNullOrEmpty(seg.SentenceId))
+            if (string.IsNullOrWhiteSpace(seg.SentenceId))
             {
                 this.Logger.LogWarning(Lang.HuoshanHttpV3TTS_SynthesisAsync_MissingSentenceId);
                 return;
             }
 
             this._headers["X-Api-Request-Id"] = seg.SentenceId;
+            (string speakerId, int speechRate, int loudnessRate) = this.SnapshotRuntimeSettings();
             var ttsReq = new
             {
                 User = new { Uid = workflow.DeviceId },
                 ReqParams = new
                 {
                     Text = seg.Content,
-                    Speaker = this.SpeakerId,
+                    Speaker = speakerId,
                     AudioParams = new
                     {
                         Format = this.AudioEncoding,
                         SampleRate = this.GetTtsSampleRate(),
                         EnableTimestamp = false,
-                        this.SpeechRate,
-                        this.LoudnessRate,
+                        SpeechRate = speechRate,
+                        LoudnessRate = loudnessRate,
                         Emotion = this.ConvertEmotion(seg.Emotion)
                     },
                     Additions =
@@ -125,18 +169,18 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                     .WithHeaders(this._headers)
                     .AllowAnyHttpStatus()
                     .PostJsonAsync(ttsReq, cancellationToken: token)
-                    .ConfigureAwait(false);
+                    ;
 
                 if (!response.ResponseMessage.IsSuccessStatusCode)
                 {
-                    string err = await response.GetStringAsync().ConfigureAwait(false);
+                    string err = await response.GetStringAsync();
                     this.Logger.LogError(Lang.HuoshanHttpV3TTS_SynthesisAsync_RequestFailed, response.StatusCode, err);
                     this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Failed);
                     return;
                 }
 
 
-                await using Stream stream = await response.GetStreamAsync().ConfigureAwait(false);
+                await using Stream stream = await response.GetStreamAsync();
                 using StreamReader reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
 
                 this.TTSEventCallback?.OnSentenceStart(seg.Content, seg.Emotion, seg.SentenceId);
@@ -144,14 +188,18 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                 while (!reader.EndOfStream)
                 {
                     token.ThrowIfCancellationRequested();
-                    string? line = await reader.ReadLineAsync().ConfigureAwait(false);
-                    if (string.IsNullOrEmpty(line))
+                    string? line = await reader.ReadLineAsync();
+                    if (string.IsNullOrWhiteSpace(line))
+                    {
                         continue;
+                    }
 
                     TTSHttpResponseChunk? message = JsonHelper.Deserialize<TTSHttpResponseChunk>(line);
 
                     if (message is null || !message.Code.HasValue)
+                    {
                         continue;
+                    }
 
                     if (message.Code == 0)
                     {
@@ -161,7 +209,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                             continue;
                         }
 
-                        if (!string.IsNullOrEmpty(message.Data))
+                        if (!string.IsNullOrWhiteSpace(message.Data))
                         {
                             byte[] bytes = Convert.FromBase64String(message.Data);
                             audioBuffer.AddRange(bytes);
@@ -180,7 +228,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Huoshan
                     {
                         if (pcmBuffer.Count > 0)
                         {
-                            await this.SaveAudioFileAsync(workflow.DeviceId, seg.SentenceId, pcmBuffer.ToArray()).ConfigureAwait(false);
+                            await this.SaveAudioFileAsync(workflow.DeviceId, seg.SentenceId, pcmBuffer.ToArray());
                         }
 
                         this.TTSEventCallback?.OnProcessed(seg.Content, seg.IsFirstSegment, seg.IsLastSegment, TtsGenerateResult.Success);

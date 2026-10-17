@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <!-- Apply after each project's OutputType has been evaluated, including Web SDK hosts. -->
+    <ApplicationIcon Condition="'$(OutputType)' == 'Exe' or '$(OutputType)' == 'WinExe'">$(MSBuildThisFileDirectory)docs/assets/logo.ico</ApplicationIcon>
+    <PackageIcon>logo.png</PackageIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)docs/assets/logo.png" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
+</Project>

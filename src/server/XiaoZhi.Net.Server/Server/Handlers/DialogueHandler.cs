@@ -3,6 +3,7 @@ using Microsoft.Extensions.ObjectPool;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
@@ -20,6 +21,7 @@ namespace XiaoZhi.Net.Server.Handlers
         private readonly ObjectPool<OutSegment> _outSegmentPool;
 
         private ILlm? _llm;
+        private int _mcpInitialWaitWarningLogged;
 
         public DialogueHandler(ObjectPool<Workflow<string>> stringWorkflowPool,
             ObjectPool<Workflow<OutSegment>> outSegmentWorkflowPool,
@@ -39,6 +41,7 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override bool Build(PrivateProvider privateProvider)
         {
+            Interlocked.Exchange(ref this._mcpInitialWaitWarningLogged, 0);
             Session session = this.SendOutter.GetSession();
             if (privateProvider.Llm is null)
             {
@@ -48,20 +51,21 @@ namespace XiaoZhi.Net.Server.Handlers
 
             this._llm = privateProvider.Llm;
             this._llm.OnBeforeTokenGenerate += this.OnBeforeTokenGenerate;
-            this._llm.OnTokenGenerating += this.OnTokenGenerating;
+            this._llm.OnTokenGenerating += this.OnTokenGeneratingAsync;
             this._llm.OnTokenGenerated += this.OnTokenGenerated;
             this._llm.RegisterDevice(session.DeviceId, session.SessionId);
             this.RegisterCancellationToken();
+            this.Builded = true;
             return true;
         }
 
-        public async Task Handle()
+        public async Task HandleAsync()
         {
             await foreach (var workflow in this.PreviousReader.ReadAllAsync())
             {
                 try
                 {
-                    await this.Handle(workflow);
+                    await this.HandleAsync(workflow);
                 }
                 finally
                 {
@@ -70,13 +74,13 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        public async Task Handle2()
+        public async Task Handle2Async()
         {
             await foreach (var workflow in this.PreviousReader2.ReadAllAsync())
             {
                 try
                 {
-                    await this.Handle(workflow);
+                    await this.HandleAsync(workflow);
                 }
                 finally
                 {
@@ -85,7 +89,7 @@ namespace XiaoZhi.Net.Server.Handlers
             }
         }
 
-        public async Task Handle(Workflow<string> workflow)
+        public async Task HandleAsync(Workflow<string> workflow)
         {
             Session session = this.SendOutter.GetSession();
             if (session is null || session.ShouldIgnore())
@@ -100,12 +104,14 @@ namespace XiaoZhi.Net.Server.Handlers
 
             if (this._llm is null)
             {
+                session.CompleteTextProcessing(workflow.TurnId);
                 this.Logger.LogError(Lang.DialogueHandler_Handle_LlmNotConfigured, session.DeviceId);
                 return;
             }
 
             if (!session.IsDeviceBinded)
             {
+                session.CompleteTextProcessing(workflow.TurnId);
                 var outSegment = this._outSegmentPool.Get();
                 var notBindWorkflow = this._outSegmentWorkflowPool.Get();
 
@@ -117,6 +123,18 @@ namespace XiaoZhi.Net.Server.Handlers
 
             try
             {
+                // 若 MCP 已启用但工具列表尚未加载完毕，等待就绪信号（最多 5 秒）
+                // 避免首次对话因竞态而拿到空工具列表
+                Task? mcpReadyTask = session.PrivateProvider.FunctionToolsContext.McpClientReadyTask;
+                if (mcpReadyTask is not null)
+                {
+                    bool mcpToolsReady = await session.PrivateProvider.FunctionToolsContext.WaitForInitialMcpToolsAsync(TimeSpan.FromSeconds(5), this.HandlerToken);
+                    if (!mcpToolsReady && Interlocked.Exchange(ref this._mcpInitialWaitWarningLogged, 1) == 0)
+                    {
+                        this.Logger.LogWarning(Lang.DialogueHandler_Handle_McpToolsNotReady, session.DeviceId);
+                    }
+                }
+
                 using (CodeTimer timer = CodeTimer.Create(Lang.DialogueHandler_Handle_LlmCallTime, this.Logger))
                 {
                     await this._llm.StartDialogueAsync(workflow.Data, this.HandlerToken);
@@ -130,20 +148,23 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 this.Logger.LogError(ex, Lang.DialogueHandler_Handle_ProcessFailed, session.DeviceId);
             }
+            finally
+            {
+                session.CompleteTextProcessing(workflow.TurnId);
+            }
         }
 
-        public async void NoVoiceCloseConnect(Workflow<string> workflow)
+        public async void NoVoiceCloseConnectAsync(Workflow<string> workflow)
         {
-            await this.Handle(workflow);
+            await this.HandleAsync(workflow);
         }
 
         private void OnBeforeTokenGenerate()
         {
             this.SendOutter.SendLlmMessageAsync(Emotion.Thinking);
-            this.SendOutter.SendSttMessageAsync(Lang.DialogueHandler_OnBeforeTokenGenerate_Thinking);
         }
 
-        private async void OnTokenGenerating(OutSegment outSegment)
+        private async void OnTokenGeneratingAsync(OutSegment outSegment)
         {
             if (this.HandlerToken.IsCancellationRequested)
             {
@@ -155,13 +176,13 @@ namespace XiaoZhi.Net.Server.Handlers
             {
                 return;
             }
-            
+
             var clonedSegment = this._outSegmentPool.Get();
             clonedSegment.Initialize(outSegment.Content, outSegment.IsFirstSegment, outSegment.IsLastSegment, outSegment.Emotion, outSegment.ParagraphId, outSegment.SentenceId);
 
             var workflow = this._outSegmentWorkflowPool.Get();
             workflow.Initialize(session, clonedSegment);
-            
+
             try
             {
                 await this.NextWriter.WriteAsync(workflow, this.HandlerToken);
@@ -210,13 +231,22 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public override void Dispose()
         {
+            if (this.IsDisposed)
+            {
+                return;
+            }
             if (this._llm is not null)
             {
                 this._llm.OnBeforeTokenGenerate -= this.OnBeforeTokenGenerate;
-                this._llm.OnTokenGenerating -= this.OnTokenGenerating;
+                this._llm.OnTokenGenerating -= this.OnTokenGeneratingAsync;
                 this._llm.OnTokenGenerated -= this.OnTokenGenerated;
+                Session session = this.SendOutter.GetSession();
+                if (session is not null)
+                {
+                    this._llm.UnregisterDevice(session.DeviceId, session.SessionId);
+                }
             }
-            this.NextWriter.Complete();
+            this.NextWriter?.TryComplete();
             base.Dispose();
         }
     }

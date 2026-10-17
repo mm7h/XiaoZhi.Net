@@ -9,6 +9,8 @@ using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Protocol.WebSocket;
 using XiaoZhi.Net.Server.Protocol.WebSocket.Contexts;
 using XiaoZhi.Net.Server.Protocol.WebSocket.Handlers;
+using XiaoZhi.Net.Server.Common.Constants;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 
 namespace XiaoZhi.Net.Server.Management
 {
@@ -16,7 +18,7 @@ namespace XiaoZhi.Net.Server.Management
     {
         public static IHostBuilder RegisterServices(IHostBuilder builder, XiaoZhiConfig config)
         {
-            if (config.ServerProtocol == ServerProtocol.WebSocket)
+            if (config.Protocol == ServerProtocol.WebSocket)
             {
                 WebSocketServerOption webSocketOption = config.WebSocketServerOption;
 
@@ -30,13 +32,14 @@ namespace XiaoZhi.Net.Server.Management
                     }).AsWebSocketHostBuilder()
                     .ConfigureSuperSocket(options =>
                     {
-                        options.Name = "Xiao Zhi .Net Server";
+                        options.Name = GlobalVariables.ServerName;
 
                         ListenOptions listenOptions = new ListenOptions
                         {
                             Ip = webSocketOption.IP,
                             Port = webSocketOption.Port,
-                            Path = webSocketOption.Path
+                            Path = webSocketOption.Path,
+                            BackLog = 128
                         };
 
                         if (webSocketOption.WssOption is not null)

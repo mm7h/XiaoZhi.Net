@@ -1,7 +1,6 @@
 ﻿using Flurl;
 using Flurl.Http;
 using Flurl.Http.Configuration;
-using Microsoft.SemanticKernel.ChatCompletion;
 using System;
 using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Abstractions.Common.Dtos;
@@ -43,11 +42,6 @@ namespace XiaoZhi.Net.Server.Services
                 default:
                     throw new Exception(string.Format(Lang.ManageApiClient_LoadConfigFromApi_UnknownException, response.Msg));
             }
-        }
-
-        public Task SaveMemoryAsync(string deviceId, string sessionId, ChatHistory chats)
-        {
-            throw new NotImplementedException();
         }
     }
 }

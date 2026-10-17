@@ -85,6 +85,15 @@ jobs:
       - name: Install Linux single-file publishing tool
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y patchelf
+      - name: Download glyph push fonts
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'fonts.zip'
+          Invoke-WebRequest -Uri 'https://github.com/mm7h/XiaoZhi.Net/releases/download/resources/fonts.zip' -OutFile $archive -MaximumRetryCount 3
+          Expand-Archive -LiteralPath $archive -DestinationPath ./source/demo/XiaoZhi.Net.Sample.Server/fonts
+          if (!(Test-Path -LiteralPath ./source/demo/XiaoZhi.Net.Sample.Server/fonts/noto-v1-full/manifest.json -PathType Leaf)) {
+            throw '字体包缺少 noto-v1-full/manifest.json。'
+          }
       - name: Publish, check assembly versions, and start packaged OTA
         shell: pwsh
         run: >-

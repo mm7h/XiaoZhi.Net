@@ -1,8 +1,7 @@
-using Demo.OTA.Server.Helpers;
+﻿using Demo.OTA.Server.Helpers;
 using Demo.OTA.Server.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using System.Reflection;
 
 namespace Demo.OTA.Server.Controllers
 {
@@ -24,7 +23,6 @@ namespace Demo.OTA.Server.Controllers
         {
             OtaResponse response = new OtaResponse
             {
-                Mqtt = new MqttInfo(),
                 Websocket = new WebSocketInfo
                 {
                     Url = this._option.Websocket.Url,
@@ -32,15 +30,13 @@ namespace Demo.OTA.Server.Controllers
                 },
                 ServerTime = new ServerTimeInfo
                 {
-                    Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                    Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                     Timezone = TimeZoneInfo.Local.StandardName,
                     TimezoneOffset = (int)TimeZoneInfo.Local.BaseUtcOffset.TotalMinutes
                 },
                 Firmware = new FirmwareInfo
                 {
-                    Version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-                              ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
-                              ?? "1.0.0.0",
+                    Version = request.Application.Version,
                     Url = ""
                 }
             };

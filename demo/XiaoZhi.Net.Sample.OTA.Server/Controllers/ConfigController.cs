@@ -1,4 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using XiaoZhi.Net.Sample.OTA.Server.Helpers;
+using Microsoft.Extensions.Options;
+using Demo.OTA.Server.Models;
 using XiaoZhi.Net.Server;
 using XiaoZhi.Net.Server.Abstractions.Common.Dtos;
 
@@ -10,52 +13,36 @@ namespace XiaoZhi.Net.Sample.OTA.Server.Controllers
     {
         private readonly IWebHostEnvironment _env;
         private readonly ILogger<ConfigController> _logger;
-        public ConfigController(IWebHostEnvironment env, ILogger<ConfigController> logger)
+        private readonly XiaoZhiOptions _options;
+        public ConfigController(IWebHostEnvironment env, ILogger<ConfigController> logger, IOptions<XiaoZhiOptions> options)
         {
             this._env = env;
             this._logger = logger;
+            this._options = options.Value;
         }
 
         [HttpGet]
         public XiaoZhiConfig GetConfig()
         {
             this._logger.LogInformation("Got the request to get the xiao zhi config.");
-            string configPath = Path.GetFullPath(Path.Combine(this._env.ContentRootPath, "..", "XiaoZhi.Net.Sample.Server", "configs", "config.json"));
+            string configDirectory = string.IsNullOrWhiteSpace(this._options.ConfigDirectory)
+                ? Path.GetFullPath(Path.Combine(this._env.ContentRootPath, "..", "XiaoZhi.Net.Sample.Server", "Configs"))
+                : Path.GetFullPath(this._options.ConfigDirectory, this._env.ContentRootPath);
+            string configPath = Path.Combine(configDirectory, "config.json");
             if (!System.IO.File.Exists(configPath))
+            {
                 throw new FileNotFoundException($"The file not found: {configPath}");
-
-            string configJson = System.IO.File.ReadAllText(configPath);
-
-            XiaoZhiConfig? config = Newtonsoft.Json.JsonConvert.DeserializeObject<XiaoZhiConfig>(configJson);
-            if (config is not null)
-            {
-#if DEBUG
-                string? apiKey = Environment.GetEnvironmentVariable("OPEN_AI_API_KEY", EnvironmentVariableTarget.User);
-                if (string.IsNullOrEmpty(apiKey))
-                {
-                    throw new Exception("Please set the environment variable \"OPEN_AI_API_KEY\"");
-                }
-                config.ConfiguredSettings["LLM"][config.SelectedSettings.GetValueOrDefault("ChatLLM", "ChatGlm")]["ApiKey"] = apiKey;
-                if (config.SelectedSettings["TTS"].StartsWith("Huoshan"))
-                {
-                    config.ConfiguredSettings["TTS"][config.SelectedSettings.GetValueOrDefault("TTS", "HuoshanBidirection")]["AppId"] = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
-                    config.ConfiguredSettings["TTS"][config.SelectedSettings.GetValueOrDefault("TTS", "HuoshanBidirection")]["AccessToken"] = Environment.GetEnvironmentVariable("HuoshanAccessToken", EnvironmentVariableTarget.User)!;
-                }
-#endif
-                return config;
             }
-            else
-            {
-                throw new Exception("Cannot read the config settings.");
-            }
+
+            return ConfigHelper.Load(configDirectory, this._env.EnvironmentName);
         }
         [HttpGet("private-config")]
         public ApiResponse<PrivateModelsConfig> GetPrivateConfig(string deviceId, string sessionId)
         {
             this._logger.LogInformation($"Got the request from the device id: {deviceId} and session Id: {sessionId}.");
 
-            string appId = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
-            string accessToken = Environment.GetEnvironmentVariable("HuoshanAccessToken", EnvironmentVariableTarget.User)!;
+            string ttsAppId = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
+            string ttsAccessToken = Environment.GetEnvironmentVariable("HuoshanAccessToken", EnvironmentVariableTarget.User)!;
 
             PrivateModelsConfig config = new PrivateModelsConfig
             {
@@ -65,8 +52,8 @@ namespace XiaoZhi.Net.Sample.OTA.Server.Controllers
                 //    Config = new Dictionary<string, string>
                 //    {
                 //        ["SaveFile"] = "true",
-                //        ["AppId"] = appId,
-                //        ["AccessToken"] = accessToken,
+                //        ["AppId"] = ttsAppId,
+                //        ["AccessToken"] = ttsAccessToken,
                 //        ["ResourceId"] = "volc.service_type.10029",
                 //        ["Speaker"] = "zh_female_cancan_mars_bigtts",
                 //        ["SpeechRate"] = "0",

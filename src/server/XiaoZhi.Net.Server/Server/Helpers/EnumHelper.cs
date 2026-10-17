@@ -15,9 +15,15 @@ namespace XiaoZhi.Net.Server.Helpers
         public static string GetDescription(this Enum thisValue)
         {
             FieldInfo? field = thisValue.GetType().GetField(thisValue.ToString());
-            if (field is null) return string.Empty;
+            if (field is null)
+            {
+                return string.Empty;
+            }
             var attr = (Attribute.GetCustomAttribute(field, typeof(DescriptionAttribute)) as DescriptionAttribute);
-            if (attr == null) return string.Empty;
+            if (attr == null)
+            {
+                return string.Empty;
+            }
             return attr.Description;
         }
 
@@ -27,7 +33,10 @@ namespace XiaoZhi.Net.Server.Helpers
         public static T? GetAttribute<T>(this Enum thisValue) where T : class
         {
             FieldInfo? field = thisValue.GetType().GetField(thisValue.ToString());
-            if (field is null) return default;
+            if (field is null)
+            {
+                return default;
+            }
             var attr = (Attribute.GetCustomAttribute(field, typeof(T)) as T);
             return attr;
         }

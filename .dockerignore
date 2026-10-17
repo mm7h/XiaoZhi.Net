@@ -1,0 +1,36 @@
+# Only the two sample projects and their server dependencies are build inputs.
+**
+!Directory.Build.props
+!Directory.Build.targets
+!Directory.Packages.props
+!docs/
+!docs/assets/
+!docs/assets/logo.png
+!docs/assets/logo.ico
+!demo/
+!demo/XiaoZhi.Net.Sample.Server/
+!demo/XiaoZhi.Net.Sample.Server/**
+!demo/XiaoZhi.Net.Sample.OTA.Server/
+!demo/XiaoZhi.Net.Sample.OTA.Server/**
+!src/
+!src/server/
+!src/server/**
+!src/media/
+!src/media/**
+!src/rag/
+!src/rag/**
+!src/vision/
+!src/vision/**
+!docker/
+!docker/Dockerfile
+**/bin/**
+**/obj/**
+**/logs/**
+**/data/**
+**/models/**
+**/musics/**
+**/.env*
+**/*.user
+# Server credentials are supplied exclusively by the configuration mount.
+demo/XiaoZhi.Net.Sample.Server/Configs/config*.json
+demo/XiaoZhi.Net.Sample.OTA.Server/appsettings.Development.json

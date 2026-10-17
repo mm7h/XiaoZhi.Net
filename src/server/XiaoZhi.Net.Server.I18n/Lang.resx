@@ -234,6 +234,9 @@
   <data name="DialogueHandler_Handle_Cancelled" xml:space="preserve">
     <value>LLM dialogue cancelled for device {DeviceId}</value>
   </data>
+  <data name="DialogueHandler_Handle_McpToolsNotReady" xml:space="preserve">
+    <value>MCP tools not ready within timeout for device {deviceId}, proceeding without them.</value>
+  </data>
   <data name="DialogueHandler_OnTokenGenerating_WriteFailed" xml:space="preserve">
     <value>Error writing LLM segment to channel for device {DeviceId}</value>
   </data>
@@ -263,6 +266,9 @@
   </data>
   <data name="Text2AudioHandler_Handle_Cancelled" xml:space="preserve">
     <value>TTS synthesis cancelled for device {DeviceId}</value>
+  </data>
+  <data name="Text2AudioHandler_EnqueueCachedAudio_CacheUnavailable" xml:space="preserve">
+    <value>Cached system notification audio is unavailable: {audioCacheKey}.</value>
   </data>
   <data name="Text2AudioHandler_CheckBindDevice_PlayerNotBuilt" xml:space="preserve">
     <value>AudioPlayerClient is not built for the device {deviceId} yet</value>
@@ -357,8 +363,17 @@
   <data name="ProviderManager_InitializePrivateConfig_PrivateVadBuildFailed" xml:space="preserve">
     <value>Failed to build private VAD model for device: {deviceId}.</value>
   </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateSherpaVadModelMismatch" xml:space="preserve">
+    <value>Private VAD model {modelName} does not match the global Sherpa model.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateSherpaAsrModelMismatch" xml:space="preserve">
+    <value>Private ASR model {modelName} does not match the global Sherpa model.</value>
+  </data>
+  <data name="ProviderManager_InitializePrivateConfig_PrivateSherpaTtsModelMismatch" xml:space="preserve">
+    <value>Private TTS model {modelName} does not match the global Sherpa model.</value>
+  </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateVadInitialized" xml:space="preserve">
-    <value>Private VAD {modeName} model initialized for device: {deviceId}.</value>
+    <value>Private VAD {modelName} model initialized for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericVadBuildFailed" xml:space="preserve">
     <value>Failed to build {modelName} provider.</value>
@@ -370,7 +385,7 @@
     <value>Failed to build private ASR model for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateAsrInitialized" xml:space="preserve">
-    <value>Private ASR {modeName} model initialized for device: {deviceId}.</value>
+    <value>Private ASR {modelName} model initialized for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericAsrBuildFailed" xml:space="preserve">
     <value>Failed to build {modelName} provider.</value>
@@ -382,19 +397,19 @@
     <value>Failed to build private LLM model for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateLlmInitialized" xml:space="preserve">
-    <value>Private emotion LLM {emotionLLMName} and chat LLM {chatLLMName} model initialized for device: {deviceId}.</value>
+    <value>Initialized private agent(s) for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericLlmBuildFailed" xml:space="preserve">
     <value>Failed to build generic LLM model per device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericLlmInitialized" xml:space="preserve">
-    <value>Generic emotion LLM {emotionLLMName} and chat LLM {chatLLMName} model initialized for device: {deviceId}.</value>
+    <value>Generic emotion LLM model initialized for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateTtsBuildFailed" xml:space="preserve">
     <value>Failed to build private TTS model for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_PrivateTtsInitialized" xml:space="preserve">
-    <value>Private TTS {modeName} model initialized for device: {deviceId}.</value>
+    <value>Private TTS {modelName} model initialized for device: {deviceId}.</value>
   </data>
   <data name="ProviderManager_InitializePrivateConfig_GenericTtsBuildFailed" xml:space="preserve">
     <value>Failed to build {modelName} provider.</value>
@@ -411,17 +426,17 @@
   <data name="ProviderManager_InitializePrivateConfig_LoadPrivateConfigFailed" xml:space="preserve">
     <value>Failed to load private models config for device: {deviceId} with session: {sessionId}.</value>
   </data>
-  <data name="ProviderManager_SaveMemory_LlmNotInitialized" xml:space="preserve">
-    <value>LLM provider is not initialized, cannot save memory for device: {deviceId}.</value>
+  <data name="ProviderManager_LoadAgentMemory_LoadFailed" xml:space="preserve">
+    <value>Failed to load agent memory for device: {deviceId}.</value>
   </data>
-  <data name="ProviderManager_SaveMemory_MemorySaved" xml:space="preserve">
-    <value>Memory saved successfully for device: {deviceId} with session: {sessionId}.</value>
+  <data name="ProviderManager_SaveAgentMemory_LlmNotInitialized" xml:space="preserve">
+    <value>LLM provider is not initialized, cannot save agent memory for device: {deviceId}.</value>
   </data>
-  <data name="ProviderManager_SaveMemory_SaveMemoryFailed" xml:space="preserve">
-    <value>Failed to save memory for device: {deviceId} with session: {sessionId}.</value>
+  <data name="ProviderManager_SaveAgentMemory_MemorySaved" xml:space="preserve">
+    <value>Agent memory saved successfully for device: {deviceId} with session: {sessionId}.</value>
   </data>
-  <data name="ProviderManager_SaveMemory_ApiClientNotAvailable" xml:space="preserve">
-    <value>ManageApiClient is not available, cannot save memory for device: {deviceId} with session: {sessionId}.</value>
+  <data name="ProviderManager_SaveAgentMemory_SaveMemoryFailed" xml:space="preserve">
+    <value>Failed to save agent memory for device: {deviceId} with session: {sessionId}.</value>
   </data>
   <data name="ProviderManager_BuildAudioResampler_ResamplingRequired" xml:space="preserve">
     <value>Device {deviceId} requires audio resampling from {ttsSampleRate} to {deviceSampleRate}.</value>
@@ -431,6 +446,9 @@
   </data>
   <data name="ProviderManager_BuildAudioEncoder_BuildFailed" xml:space="preserve">
     <value>Session {sessionId} failed to build audio encoder.</value>
+  </data>
+  <data name="ProviderManager_BuildAudioDecoder_BuildFailed" xml:space="preserve">
+    <value>Session {sessionId} failed to build audio decoder.</value>
   </data>
   <data name="ProviderManager_BuildIoT_BuildFailed" xml:space="preserve">
     <value>Session {sessionId} failed to build IoT client.</value>
@@ -448,13 +466,13 @@
     <value>Failed to build {modelName} provider.</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_VadInitialized" xml:space="preserve">
-    <value>Generic VAD {modeName} model initialized for device: {deviceId}.</value>
+    <value>Device {deviceId}: generic VAD {modelName} model initialized.</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_AsrBuildFailed" xml:space="preserve">
     <value>Failed to build {modelName} provider.</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_AsrInitialized" xml:space="preserve">
-    <value>Generic ASR {modeName} model initialized for device: {deviceId}.</value>
+    <value>Device {deviceId}: generic ASR {modelName} model initialized.</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_LlmInitialized" xml:space="preserve">
     <value>Generic emotion LLM {emotionLLMName} and chat LLM {chatLLMName} model initialized for device: {deviceId}.</value>
@@ -463,7 +481,7 @@
     <value>Failed to build {modelName} provider.</value>
   </data>
   <data name="ProviderManager_RegisterGlobalProviders_TtsInitialized" xml:space="preserve">
-    <value>Generic TTS {modeName} model initialized for device: {deviceId}.</value>
+    <value>Device {deviceId}: generic TTS {modelName} model initialized.</value>
   </data>
   <data name="SocketSession_SendAsync_SendingJson" xml:space="preserve">
     <value>Sending json to device {deviceId}: {json}</value>
@@ -512,6 +530,18 @@
   </data>
   <data name="BaseSherpaAsr_RegisterDevice_Registered" xml:space="preserve">
     <value>Registered ASR session for device: {deviceId}, session: {sessionId}</value>
+  </data>
+  <data name="BaseSherpaAsr_Build_OfflineBuilt" xml:space="preserve">
+    <value>Built Sherpa offline ASR model: {modelName}.</value>
+  </data>
+  <data name="BaseSherpaAsr_Build_OfflineFailed" xml:space="preserve">
+    <value>Failed to build Sherpa offline ASR model: {modelName}.</value>
+  </data>
+  <data name="BaseSherpaAsr_Build_StreamingBuilt" xml:space="preserve">
+    <value>Built Sherpa streaming ASR model: {modelName}.</value>
+  </data>
+  <data name="BaseSherpaAsr_Build_StreamingFailed" xml:space="preserve">
+    <value>Failed to build Sherpa streaming ASR model: {modelName}.</value>
   </data>
   <data name="BaseSherpaAsr_UnregisterDevice_Unregistered" xml:space="preserve">
     <value>Unregistered ASR session for device: {deviceId}, session: {sessionId}</value>
@@ -654,26 +684,8 @@
   <data name="DefaultAudioProcessor_Build_InvalidSettings" xml:space="preserve">
     <value>Invalid model settings for {providerType}: {modelName}</value>
   </data>
-  <data name="NotificationPlayer_Build_FFmpegInitFailed" xml:space="preserve">
-    <value>Failed to initialize FFmpeg, please check your the ffmpeg path configuration.</value>
-  </data>
-  <data name="NotificationPlayer_PlayBindCodeAsync_NotBuilt" xml:space="preserve">
-    <value>The audio player is not built yet.</value>
-  </data>
-  <data name="NotificationPlayer_PlayBindCodeAsync_StreamNull" xml:space="preserve">
-    <value>Failed to get the bind code audio stream.</value>
-  </data>
-  <data name="NotificationPlayer_PlayNotFoundAsync_NotBuilt" xml:space="preserve">
-    <value>The audio player is not built yet.</value>
-  </data>
-  <data name="NotificationPlayer_PlayNotFoundAsync_StreamNull" xml:space="preserve">
-    <value>Failed to get the not found audio stream.</value>
-  </data>
-  <data name="NotificationPlayer_StopAsync_Skip" xml:space="preserve">
-    <value>The audio player status is {status}, skip the stopping.</value>
-  </data>
   <data name="ChatAgent_Build_Built" xml:space="preserve">
-    <value>Built {providerType} - {modelName}, model name: {chatLLMName}</value>
+    <value>Built chat agent {agentName} using model {modelName}.</value>
   </data>
   <data name="ChatAgent_Build_BuildPluginsBuilt" xml:space="preserve">
     <value>Built the plugins for {providerType} - {modelName}.</value>
@@ -728,54 +740,6 @@
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_InvokeIoTFailedDetail" xml:space="preserve">
     <value>Failed to invoke the IoT tool function: {0} in plugin: {1}, and the error message is: {2}.</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_SessionNotInit" xml:space="preserve">
-    <value>Failed to get music files, the current session is not initialized.</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_NoFilesLog" xml:space="preserve">
-    <value>{ProviderType} - {ModelName}, Failed to get music files due to no files existing for device {deviceId}.</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_NoFilesMsg" xml:space="preserve">
-    <value>Failed to get music files due to no files existing.</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_SuccessLog" xml:space="preserve">
-    <value>{ProviderType} - {ModelName}, Got {fileCount} music files success for device {deviceId}.</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_SuccessMsg" xml:space="preserve">
-    <value>Get the music files success. Available music files: {0}</value>
-  </data>
-  <data name="MusicPlayer_GetMusicFilesAsync_ProviderNotInit" xml:space="preserve">
-    <value>Failed to get music files, the music provider is not initialized yet.</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_SessionNotInit" xml:space="preserve">
-    <value>Failed to play music, the current session is not initialized.</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_PlayerNotInit" xml:space="preserve">
-    <value>Failed to play music, the player is not initialized.</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_NoFiles" xml:space="preserve">
-    <value>Failed to play music, there's no music files in server.</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_MusicNameEmpty" xml:space="preserve">
-    <value>Failed to play music, the field musicName is empty.</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_FileNotFound" xml:space="preserve">
-    <value>Failed to play music, the specified music file was not found.</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_PlayingLog" xml:space="preserve">
-    <value>{ProviderType} - {ModelName}, Playing the music file {musicFilePath} for device {deviceId}.</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_SuccessMsg" xml:space="preserve">
-    <value>Successfully started playing music: {0}</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_FailedLog" xml:space="preserve">
-    <value>Failed to play music file {musicFilePath} for device {deviceId}.</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_FailedMsg" xml:space="preserve">
-    <value>Failed to play music: {0}. Error: {1}</value>
-  </data>
-  <data name="MusicPlayer_PlayMusic_ProviderNotInit" xml:space="preserve">
-    <value>Failed to play music, the music provider is not initialized yet.</value>
   </data>
   <data name="BaseMcpClient_HandleMcpMessageAsync_CallResult" xml:space="preserve">
     <value>Received MCP call result: {result} for message ID {msgId} from device {deviceId}.</value>
@@ -864,8 +828,20 @@
   <data name="DeviceMcpClient_SendMcpInitializeAsync_SendingInit" xml:space="preserve">
     <value>Session {sessionId} sending MCP Initialize request.</value>
   </data>
+  <data name="DeviceMcpClient_Build_CreateCapabilitiesFailed" xml:space="preserve">
+    <value>Failed to create MCP capabilities for device {deviceId}.</value>
+  </data>
+  <data name="DeviceMcpClient_ReleaseCapabilities_ReleaseFailed" xml:space="preserve">
+    <value>Failed to release the {capabilityName} MCP capability.</value>
+  </data>
+  <data name="VisionEndpoint_HandlePostAsync_ProcessFailed" xml:space="preserve">
+    <value>Failed to process a vision request.</value>
+  </data>
   <data name="GenericOpenAI_Build_InvalidSettings" xml:space="preserve">
     <value>Invalid model settings for {providerType}: {modelName}</value>
+  </data>
+  <data name="GenericOpenAI_Build_AgentSettingMissing" xml:space="preserve">
+    <value>Configuration for agent {agentName} is missing.</value>
   </data>
   <data name="GenericOpenAI_StartDialogueAsync_NotBuilt" xml:space="preserve">
     <value>The {providerType} model: {modelName} is not built.</value>
@@ -882,8 +858,29 @@
   <data name="GenericOpenAI_ChatByStreamingAsync_Cancelled" xml:space="preserve">
     <value>LLM streaming chat cancelled, cleaning up {Count} segments</value>
   </data>
-  <data name="FlashMemory_Build_Built" xml:space="preserve">
-    <value>Builded the default {providerType}: {flashMemory}</value>
+  <data name="DefaultRag_Load_EmbeddingModelMissing" xml:space="preserve">
+    <value>RAG embedding model configuration is missing.</value>
+  </data>
+  <data name="DefaultRag_Load_DocumentDirectoryInvalid" xml:space="preserve">
+    <value>RAG document directory is not configured or does not exist: {documentDirectory}.</value>
+  </data>
+  <data name="DefaultRag_Load_Loaded" xml:space="preserve">
+    <value>RAG knowledge base {knowledgeBaseId} loaded with embedding model {embeddingModelName}, top K {topK}, and minimum score {minimumScore}.</value>
+  </data>
+  <data name="DefaultRag_Load_LoadFailed" xml:space="preserve">
+    <value>Failed to load the RAG knowledge base.</value>
+  </data>
+  <data name="DefaultRag_Create_NotReady" xml:space="preserve">
+    <value>Cannot create a RAG search provider because the RAG resource is not ready.</value>
+  </data>
+  <data name="DefaultRag_SearchAsync_QueryReceived" xml:space="preserve">
+    <value>Searching RAG knowledge base {knowledgeBaseId} for a query with {queryLength} characters.</value>
+  </data>
+  <data name="DefaultRag_RetrieveAsync_EmbeddingGeneratorNotInitialized" xml:space="preserve">
+    <value>RAG embedding generator has not been initialized.</value>
+  </data>
+  <data name="DefaultRag_RetrieveAsync_EmbeddingCountInvalid" xml:space="preserve">
+    <value>Expected exactly one query embedding but received {embeddingCount}.</value>
   </data>
   <data name="HuoshanHttpV3TTS_Build_ConfigIncomplete" xml:space="preserve">
     <value>Huoshan http v3 TTS configuration is incomplete, please check AppId, AccessToken, ResourceId and speaker.</value>
@@ -910,7 +907,7 @@
     <value>Huoshan HTTP TTS synthesis failed.</value>
   </data>
   <data name="HuoshanHttpTTS_Build_ConfigIncomplete" xml:space="preserve">
-    <value>Huoshan bidirection TTS configuration is incomplete, please check AppId, AccessToken, Cluster and speaker.</value>
+    <value>Huoshan HTTP TTS configuration is incomplete, please check AppId, AccessToken, Cluster and speaker.</value>
   </data>
   <data name="HuoshanHttpTTS_Build_Built" xml:space="preserve">
     <value>Builded the {providerType} model: {modelName}</value>
@@ -934,7 +931,7 @@
     <value>Saved TTS audio file to {audioPath} for the device {deviceId}.</value>
   </data>
   <data name="BaseHuoshanTTS_SaveAudioFile_SaveFailed" xml:space="preserve">
-    <value>Failed to save audio file for the device {deviceId}.</value>
+    <value>Failed to save audio file {fileName} for the device {deviceId}.</value>
   </data>
   <data name="HuoshanHttpTTS_SynthesisAsync_ApiError" xml:space="preserve">
     <value>Huoshan HTTP TTS error: code={code} message={message}</value>
@@ -993,6 +990,12 @@
   <data name="BaseSherpaTts_UnregisterDevice_Unregistered" xml:space="preserve">
     <value>Unregistered TTS session for device: {deviceId}, session: {sessionId}</value>
   </data>
+  <data name="BaseSherpaTts_Build_Built" xml:space="preserve">
+    <value>Built Sherpa TTS model: {modelName}.</value>
+  </data>
+  <data name="BaseSherpaTts_Build_Failed" xml:space="preserve">
+    <value>Failed to build Sherpa TTS model: {modelName}.</value>
+  </data>
   <data name="BaseSherpaTts_SynthesisAsync_ProviderNotBuilt" xml:space="preserve">
     <value>Please build tts provider first.</value>
   </data>
@@ -1033,7 +1036,7 @@
     <value>WebSocket client is not initialized.</value>
   </data>
   <data name="HuoshanStreamTTS_WaitForEventAsync_Timeout" xml:space="preserve">
-    <value>Wait for {eventType} timed out.</value>
+    <value>Wait for {0} timed out.</value>
   </data>
   <data name="HuoshanStreamTTS_OnOpen_Connected" xml:space="preserve">
     <value>Huoshan WebSocket connected for the device: {deviceId}.</value>
@@ -1042,13 +1045,13 @@
     <value>Huoshan WebSocket closed: {Status} {Description}</value>
   </data>
   <data name="HuoshanStreamTTS_OnClose_ClosedEx" xml:space="preserve">
-    <value>WebSocket closed: {status} {desc}</value>
+    <value>WebSocket closed: {0} {1}</value>
   </data>
   <data name="HuoshanStreamTTS_OnError_Error" xml:space="preserve">
     <value>Huoshan WebSocket error: {Error} {Message}</value>
   </data>
   <data name="HuoshanStreamTTS_OnError_ErrorEx" xml:space="preserve">
-    <value>WebSocket error: {error} {message}</value>
+    <value>WebSocket error: {0} {1}</value>
   </data>
   <data name="HuoshanStreamTTS_OnBinaryMessage_ParseFailed" xml:space="preserve">
     <value>Failed to parse websocket binary message.</value>
@@ -1057,16 +1060,16 @@
     <value>Failed to append audio data for TTS session {ttsSessionId}</value>
   </data>
   <data name="HuoshanStreamTTS_OnBinaryMessage_ServerFailure" xml:space="preserve">
-    <value>Server reported failure: {message}</value>
+    <value>Server reported failure: {0}</value>
   </data>
   <data name="HuoshanStreamTTS_OnBinaryMessage_ServerError" xml:space="preserve">
-    <value>Server error: {message}</value>
+    <value>Server error: {0}</value>
   </data>
   <data name="BaseProvider_RegisterDevice_Registered" xml:space="preserve">
-    <value>Registered device [{deviceId}] with session id: {sessionId} to the provider {providerType}.</value>
+    <value>Registered device [{deviceId}] with provider {providerType} and session id: {sessionId}.</value>
   </data>
   <data name="BaseProvider_UnregisterDevice_Unregistered" xml:space="preserve">
-    <value>Unregistered device [{deviceId}] with session id: {sessionId} from the provider {providerType}.</value>
+    <value>Unregistered device [{deviceId}] from provider {providerType} with session id: {sessionId}.</value>
   </data>
   <data name="BaseProvider_CheckDeviceRegistered_NotRegistered" xml:space="preserve">
     <value>The device [{deviceId}] with session id: {sessionId} is not registered to the provider {providerType}.</value>
@@ -1155,47 +1158,29 @@
   <data name="MusicProvider_UpdateMusicFiles_SettingsNotInitialized" xml:space="preserve">
     <value>Cannot update music files because the settings are not initialized.</value>
   </data>
-  <data name="DefaultDeviceBinding_Load_BindCodePromptNotExist" xml:space="preserve">
+  <data name="AudioFileCaching_Load_BindCodePromptNotExist" xml:space="preserve">
     <value>The bind code prompt file does not exist: {filePath}</value>
   </data>
-  <data name="DefaultDeviceBinding_Load_BindNotFoundNotExist" xml:space="preserve">
+  <data name="AudioFileCaching_Load_BindNotFoundNotExist" xml:space="preserve">
     <value>The bind not found file does not exist: {filePath}</value>
   </data>
-  <data name="DefaultDeviceBinding_Load_DigitFilesCountError" xml:space="preserve">
+  <data name="AudioFileCaching_Load_DigitFilesCountError" xml:space="preserve">
     <value>The digit files folder must contain exactly 10 files for digits 0-9.</value>
   </data>
-  <data name="DefaultDeviceBinding_Load_InvalidDigitFile" xml:space="preserve">
+  <data name="AudioFileCaching_Load_InvalidDigitFile" xml:space="preserve">
     <value>Invalid digit file: {fileName}</value>
   </data>
-  <data name="DefaultDeviceBinding_Load_InvalidResourceLoading" xml:space="preserve">
+  <data name="AudioFileCaching_Load_InvalidResourceLoading" xml:space="preserve">
     <value>Invalid resource loadings for {resourceName}</value>
   </data>
-  <data name="DefaultDeviceBinding_GetDeviceNotFoundAudioStream_NotLoaded" xml:space="preserve">
-    <value>The bind not found audio file is not loaded.</value>
+  <data name="AudioFileCaching_CacheAudioFile_DecodeFailed" xml:space="preserve">
+    <value>Unable to decode audio resource: {filePath}.</value>
   </data>
-  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_InvalidBindCode" xml:space="preserve">
-    <value>Invalid bind code: {bindCode}, it must be a 6-digit numeric string.</value>
+  <data name="AudioFileCaching_CacheAudioFile_NoPcmData" xml:space="preserve">
+    <value>Audio resource produced no PCM data: {filePath}.</value>
   </data>
-  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_PromptNotLoaded" xml:space="preserve">
-    <value>The bind code prompt audio file is not loaded.</value>
-  </data>
-  <data name="DefaultDeviceBinding_GetDeviceBindCodeAudioStream_DigitNotLoaded" xml:space="preserve">
-    <value>The audio file for digit '{digit}' is not loaded.</value>
-  </data>
-  <data name="DefaultDeviceBinding_CombinedStream_ListEmpty" xml:space="preserve">
-    <value>WAV files list cannot be null or empty</value>
-  </data>
-  <data name="DefaultDeviceBinding_CombinedStream_FirstFileInvalid" xml:space="preserve">
-    <value>First file is not a valid WAV file</value>
-  </data>
-  <data name="DefaultDeviceBinding_CombinedStream_FileInvalid" xml:space="preserve">
-    <value>One of the files is not a valid WAV file</value>
-  </data>
-  <data name="DefaultDeviceBinding_CombinedStream_BufferOverflow" xml:space="preserve">
-    <value>The sum of offset and count is larger than the buffer length.</value>
-  </data>
-  <data name="DefaultDeviceBinding_CombinedStream_InvalidOrigin" xml:space="preserve">
-    <value>Invalid seek origin</value>
+  <data name="AudioFileCaching_CacheAudioFile_Failed" xml:space="preserve">
+    <value>Failed to cache audio resource: {filePath}.</value>
   </data>
   <data name="BaseOnnxModel_CheckModelExist_NotFound" xml:space="preserve">
     <value>Cannot found the onnx model file in path: {modelFilePath}.</value>
@@ -1207,7 +1192,16 @@
     <value>Built {providerType} - {modelName}, model name: {emotionLLMName}</value>
   </data>
   <data name="ChatAgent_Build_BuiltFailed" xml:space="preserve">
-    <value>Faild to built {providerType} - {modelName}, model name: {chatLLMName}</value>
+    <value>Failed to build chat agent {agentName} using model {modelName}.</value>
+  </data>
+  <data name="BaseAgent_RegisterDevice_Registered" xml:space="preserve">
+    <value>Agent {agentName} registered for device {deviceId}, session {sessionId}.</value>
+  </data>
+  <data name="BaseAgent_UnregisterDevice_Unregistered" xml:space="preserve">
+    <value>Agent {agentName} unregistered from device {deviceId}, session {sessionId}.</value>
+  </data>
+  <data name="BaseAgent_CheckDeviceRegistered_NotRegistered" xml:space="preserve">
+    <value>Agent {agentName} is not registered for device {deviceId}, session {sessionId}.</value>
   </data>
   <data name="MCPToolFunctionFilter_OnFunctionInvocationAsync_FunctionCancelled" xml:space="preserve">
     <value>Function invocation cancelled for {FunctionName}</value>
@@ -1226,5 +1220,258 @@
   </data>
   <data name="IoTClient_RegisterIoTTools_KernelNull" xml:space="preserve">
     <value>The Kernel is not yet ready to process IOT messages. Device ID: {DeviceId}.</value>
+  </data>
+  <data name="BaseHuoshanASR_Build_ConfigIncomplete" xml:space="preserve">
+    <value>Huoshan ASR configuration is incomplete for {ModelName}.</value>
+  </data>
+  <data name="BaseHuoshanASR_Build_SegmentDurationInvalid" xml:space="preserve">
+    <value>Huoshan ASR SegmentDurationMs must be between 100 and 1000 milliseconds.</value>
+  </data>
+  <data name="BaseHuoshanASR_Build_Built" xml:space="preserve">
+    <value>Huoshan ASR provider {ModelName} was built.</value>
+  </data>
+  <data name="BaseHuoshanASR_Build_Failed" xml:space="preserve">
+    <value>Huoshan ASR provider {ModelName} could not be built.</value>
+  </data>
+  <data name="BaseHuoshanASR_FinishUtterance_WaitForFinalResultFailed" xml:space="preserve">
+    <value>Huoshan ASR {ModelName} failed while waiting for the final result.</value>
+  </data>
+  <data name="BaseHuoshanASR_AbortSynchronously_Failed" xml:space="preserve">
+    <value>Huoshan ASR abort during cleanup failed.</value>
+  </data>
+  <data name="Audio2TextHandler_OnSpeechTextConverted_StaleResult" xml:space="preserve">
+    <value>Ignoring stale ASR result for {DeviceId}: result turn {ResultTurnId}, current turn {CurrentTurnId}.</value>
+  </data>
+  <data name="Audio2TextHandler_ObserveSpeechResult_Failed" xml:space="preserve">
+    <value>Failed to process ASR result.</value>
+  </data>
+  <data name="AudioReceiveHandler_OnVoiceDetected_DispatchFailed" xml:space="preserve">
+    <value>Failed to dispatch utterance audio for {DeviceId}.</value>
+  </data>
+  <data name="AudioReceiveHandler_HandleManualStop_DispatchFailed" xml:space="preserve">
+    <value>Failed to dispatch manually captured audio for {DeviceId}.</value>
+  </data>
+  <data name="AudioReceiveHandler_AbortStreamingUtterance_Failed" xml:space="preserve">
+    <value>Failed to abort streaming ASR for {DeviceId}.</value>
+  </data>
+  <data name="AudioReceiveHandler_QueueStreamingOperation_QueueOverflow" xml:space="preserve">
+    <value>Streaming ASR queue overflow for {DeviceId}; aborting the current utterance.</value>
+  </data>
+  <data name="AudioReceiveHandler_StartStreamingUtterance_PreRoll" xml:space="preserve">
+    <value>Session {SessionId} starting streaming ASR with {SampleCount} pre-roll samples at 16 kHz.</value>
+  </data>
+  <data name="AudioReceiveHandler_SendStreamingOperationSafelyAsync_Failed" xml:space="preserve">
+    <value>Streaming ASR {Operation} failed for {DeviceId}.</value>
+  </data>
+  <data name="HelloMessageHandler_Handle_UnsupportedAudioParameters" xml:space="preserve">
+    <value>Unsupported client audio parameters for {DeviceId}: format={Format}, sampleRate={SampleRate}, channels={Channels}, frameDuration={FrameDuration}.</value>
+  </data>
+  <data name="ProviderManager_BuildOutputAudioResampler_ResamplingRequired" xml:space="preserve">
+    <value>Device {deviceId} requires output audio resampling from {ttsSampleRate} to {deviceSampleRate}.</value>
+  </data>
+  <data name="ProviderManager_BuildOutputAudioResampler_BuildFailed" xml:space="preserve">
+    <value>Session {sessionId} failed to build output audio resampler.</value>
+  </data>
+  <data name="ProviderManager_BuildInputAudioResampler_ResamplingRequired" xml:space="preserve">
+    <value>Client input audio for {deviceId} will be resampled from {inputSampleRate} Hz to {outputSampleRate} Hz.</value>
+  </data>
+  <data name="ProviderManager_BuildInputAudioResampler_BuildFailed" xml:space="preserve">
+    <value>Session {sessionId} failed to build client input audio resampler.</value>
+  </data>
+  <data name="SileroNative_Build_NonCanonicalSampleRate" xml:space="preserve">
+    <value>Silero VAD must use the internal {SampleRate} Hz PCM format, but {ConfiguredSampleRate} Hz was configured.</value>
+  </data>
+  <data name="BaseSherpaVad_Build_NonCanonicalSampleRate" xml:space="preserve">
+    <value>Sherpa VAD must use the internal {SampleRate} Hz PCM format, but {ConfiguredSampleRate} Hz was configured.</value>
+  </data>
+  <data name="TenVad_Build_Failed" xml:space="preserve">
+    <value>Failed to build TenVad.</value>
+  </data>
+  <data name="DefaultOpusDecoder_DecodeAsync_SampleCountMismatch" xml:space="preserve">
+    <value>Opus decoder output sample count mismatch. Expected {0}, actual {1}.</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_ConfigIncomplete" xml:space="preserve">
+    <value>Aliyun real-time ASR requires ApiKey and a supported ModelName.</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_EndpointInvalid" xml:space="preserve">
+    <value>Aliyun real-time ASR Endpoint must be an absolute wss URL.</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_UnsupportedRegion" xml:space="preserve">
+    <value>Aliyun real-time ASR Region {Region} is unsupported. Use cn-beijing or ap-southeast-1.</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_SegmentDurationInvalid" xml:space="preserve">
+    <value>Aliyun real-time ASR SegmentDurationMs must be between 20 and 1000 milliseconds.</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_Built" xml:space="preserve">
+    <value>Aliyun real-time ASR provider {ModelName} was built.</value>
+  </data>
+  <data name="AliyunRealtimeASR_Build_Failed" xml:space="preserve">
+    <value>Aliyun real-time ASR provider could not be built.</value>
+  </data>
+  <data name="AliyunRealtimeASR_FinishUtterance_WaitForFinalResultFailed" xml:space="preserve">
+    <value>Aliyun real-time ASR failed while waiting for the final result.</value>
+  </data>
+  <data name="AliyunRealtimeASR_AbortSynchronously_Failed" xml:space="preserve">
+    <value>Aliyun real-time ASR abort during cleanup failed.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_ConfigInvalid" xml:space="preserve">
+    <value>Aliyun real-time TTS requires ApiKey, Voice, and a supported Qwen-Audio-TTS or CosyVoice ModelName; Format must be pcm.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_UnsupportedSampleRate" xml:space="preserve">
+    <value>Aliyun real-time TTS sample rate {SampleRate} is unsupported.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_InvalidAudioParameter" xml:space="preserve">
+    <value>Aliyun real-time TTS Volume, Rate, or Pitch is outside the supported range.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_Built" xml:space="preserve">
+    <value>Aliyun real-time TTS provider was built with model {ModelName}.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_Failed" xml:space="preserve">
+    <value>Failed to build the Aliyun real-time TTS provider.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_EndpointInvalid" xml:space="preserve">
+    <value>Aliyun real-time TTS Endpoint must be an absolute wss URL.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Build_UnsupportedRegion" xml:space="preserve">
+    <value>Aliyun real-time TTS Region {Region} is unsupported.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Synthesis_NotRegistered" xml:space="preserve">
+    <value>The Aliyun real-time TTS provider is not registered for this session.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Synthesis_NotBuilt" xml:space="preserve">
+    <value>The Aliyun real-time TTS provider has not been built.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Synthesis_ClientNotInitialized" xml:space="preserve">
+    <value>The Aliyun real-time TTS WebSocket client has not been initialized.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Synthesis_MissingFirstSegment" xml:space="preserve">
+    <value>Received a TTS text segment before the first segment of its turn.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Task_Failed" xml:space="preserve">
+    <value>Aliyun real-time TTS task {TaskId} failed.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Task_Failed_Default" xml:space="preserve">
+    <value>Aliyun real-time TTS task failed.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Abort_Failed" xml:space="preserve">
+    <value>Failed to abort Aliyun real-time TTS while releasing the provider.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Start_ConnectionFailed" xml:space="preserve">
+    <value>Unable to connect to the Aliyun real-time TTS WebSocket service.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Append_NotAcceptingText" xml:space="preserve">
+    <value>The Aliyun real-time TTS task is not accepting text.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_WebSocket_UnexpectedClose" xml:space="preserve">
+    <value>Aliyun real-time TTS WebSocket closed unexpectedly: {0} {1}</value>
+  </data>
+  <data name="AliyunRealtimeTTS_WebSocket_Error" xml:space="preserve">
+    <value>Aliyun real-time TTS WebSocket error {0}: {1}</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_ConfigInvalid" xml:space="preserve">
+    <value>Invalid Aliyun HTTP TTS configuration: ApiKey, Voice, a supported Qwen-Audio-TTS or CosyVoice ModelName, and Format pcm are required.</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_EndpointInvalid" xml:space="preserve">
+    <value>Aliyun HTTP TTS requires a WorkspaceId or an absolute HTTPS Endpoint.</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_UnsupportedSampleRate" xml:space="preserve">
+    <value>Aliyun HTTP TTS does not support sample rate {SampleRate}.</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_InvalidAudioParameter" xml:space="preserve">
+    <value>Aliyun HTTP TTS Volume, Rate, or Pitch is out of range.</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_Built" xml:space="preserve">
+    <value>Built Aliyun HTTP TTS provider with model {ModelName}.</value>
+  </data>
+  <data name="AliyunHttpTTS_Build_Failed" xml:space="preserve">
+    <value>Failed to build Aliyun HTTP TTS provider.</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_NotRegistered" xml:space="preserve">
+    <value>The current session has not registered the Aliyun HTTP TTS provider.</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_NotBuilt" xml:space="preserve">
+    <value>The Aliyun HTTP TTS provider has not been built.</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_MissingSentenceId" xml:space="preserve">
+    <value>Aliyun HTTP TTS cannot synthesize a segment without a sentence ID.</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_RequestFailed" xml:space="preserve">
+    <value>Aliyun HTTP TTS request failed: status={Status}, body={Body}</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_DownloadFailed" xml:space="preserve">
+    <value>Aliyun HTTP TTS audio download failed: status={Status}, body={Body}</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_ApiError" xml:space="preserve">
+    <value>Aliyun HTTP TTS API error: requestId={RequestId}, code={Code}, message={Message}</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_InvalidResponse" xml:space="preserve">
+    <value>Aliyun HTTP TTS returned an invalid response.</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_NoAudio" xml:space="preserve">
+    <value>Aliyun HTTP TTS completed without audio data.</value>
+  </data>
+  <data name="AliyunHttpTTS_Synthesis_Failed" xml:space="preserve">
+    <value>Aliyun HTTP TTS synthesis failed.</value>
+  </data>
+  <data name="AliyunHttpTTS_SaveAudioFile_FileSaved" xml:space="preserve">
+    <value>Saved Aliyun HTTP TTS audio file {FileName} for device {DeviceId}.</value>
+  </data>
+  <data name="AliyunHttpTTS_SaveAudioFile_SaveFailed" xml:space="preserve">
+    <value>Failed to save Aliyun HTTP TTS audio file {FileName} for device {DeviceId}.</value>
+  </data>
+  <data name="BaseHuoshanTTS_Rebuild_Failed" xml:space="preserve">
+    <value>Failed to read Huoshan TTS runtime rebuild parameters for model {modelName}.</value>
+  </data>
+  <data name="HuoshanStreamTTS_Rebuild_Succeeded" xml:space="preserve">
+    <value>Huoshan streaming TTS runtime settings were rebuilt for model {modelName}.</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_Rebuild_Succeeded" xml:space="preserve">
+    <value>Huoshan HTTP V3 TTS runtime settings were rebuilt for model {modelName}.</value>
+  </data>
+  <data name="HuoshanHttpTTS_Rebuild_Succeeded" xml:space="preserve">
+    <value>Huoshan HTTP TTS runtime settings were rebuilt for model {modelName}.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Rebuild_Rejected" xml:space="preserve">
+    <value>Aliyun real-time TTS runtime rebuild was rejected because the requested parameters are unsupported or invalid for model {modelName}.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Rebuild_Succeeded" xml:space="preserve">
+    <value>Aliyun real-time TTS runtime settings were rebuilt for model {modelName}.</value>
+  </data>
+  <data name="AliyunRealtimeTTS_Rebuild_Failed" xml:space="preserve">
+    <value>Aliyun real-time TTS runtime rebuild failed for model {modelName}.</value>
+  </data>
+  <data name="AliyunHttpTTS_Rebuild_Rejected" xml:space="preserve">
+    <value>Aliyun HTTP TTS runtime rebuild was rejected because the requested parameters are unsupported or invalid for model {modelName}.</value>
+  </data>
+  <data name="AliyunHttpTTS_Rebuild_Succeeded" xml:space="preserve">
+    <value>Aliyun HTTP TTS runtime settings were rebuilt for model {modelName}.</value>
+  </data>
+  <data name="AliyunHttpTTS_Rebuild_Failed" xml:space="preserve">
+    <value>Aliyun HTTP TTS runtime rebuild failed for model {modelName}.</value>
+  </data>
+  <data name="HuoshanStreamTTS_Rebuild_Rejected" xml:space="preserve">
+    <value>Huoshan streaming TTS runtime rebuild was rejected because the requested parameters are unsupported or invalid for model {modelName}.</value>
+  </data>
+  <data name="HuoshanHttpV3TTS_Rebuild_Rejected" xml:space="preserve">
+    <value>Huoshan HTTP V3 TTS runtime rebuild was rejected because the requested parameters are unsupported or invalid for model {modelName}.</value>
+  </data>
+  <data name="HuoshanHttpTTS_Rebuild_Rejected" xml:space="preserve">
+    <value>Huoshan HTTP TTS runtime rebuild was rejected because the requested parameters are unsupported or invalid for model {modelName}.</value>
+  </data>
+  <data name="HelloMessageHandler_UnsupportedProtocolVersion" xml:space="preserve"><value>Only XiaoZhi WebSocket protocol version 1 is supported; the requested versions must agree.</value></data>
+  <data name="DeviceMcpClient_IncompatibleProtocol" xml:space="preserve"><value>Device MCP initialization failed or returned an incompatible protocol version.</value></data>
+  <data name="GlyphResource_LoadFailed" xml:space="preserve"><value>Failed to load the glyph bundle from {manifestPath}; text and audio remain available.</value></data>
+  <data name="GlyphResource_ProfileUnavailable" xml:space="preserve"><value>Glyph push is unavailable for bundle {bundle}, charset {charset}, size {size}, bpp {bpp}.</value></data>
+  <data name="GlyphResource_CreatePayload_BppMismatch" xml:space="preserve"><value>The supplemental font bpp does not match the declared bpp.</value></data>
+  <data name="GlyphResource_FindFont_ShardPathOutOfRoot" xml:space="preserve"><value>The font shard path escapes the font bundle directory.</value></data>
+  <data name="CbinFont_Ctor_UnsupportedBitmapFormat" xml:space="preserve"><value>The CBIN font must use a compatible uncompressed bitmap format.</value></data>
+  <data name="CbinFont_GetGlyph_GlyphSizeExceeded" xml:space="preserve"><value>The CBIN glyph size exceeds the protocol limit.</value></data>
+  <data name="CbinFont_FindGlyph_UnsupportedCmapKind" xml:space="preserve"><value>The CBIN character mapping type is not supported.</value></data>
+  <data name="CbinFont_Bytes_OutOfRange" xml:space="preserve"><value>The CBIN font contains out-of-range data.</value></data>
+  <data name="AudioReceiveHandler_AudioDiagnostics" xml:space="preserve">
+    <value>Session {SessionId} audio: window {WindowMs} ms, received {ReceivedPackets}, ignored {IgnoredPackets}, decoded {DecodedSamples} samples, RMS {Rms:F5}, peak {Peak:F5}.</value>
+  </data>
+  <data name="SileroNative_AudioDiagnostics" xml:space="preserve">
+    <value>Session {SessionId} VAD: frames {Frames}, speech frames {SpeechFrames}, max probability {MaxProbability:F5}.</value>
   </data>
 </root>

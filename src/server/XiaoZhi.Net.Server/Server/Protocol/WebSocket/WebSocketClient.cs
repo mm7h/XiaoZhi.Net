@@ -15,11 +15,13 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
         private readonly SemaphoreSlim _socketSemaphore = new(1, 1);
 
         public bool IsConnected => this._socket?.IsRunning ?? false;
-        private readonly IDictionary<string, string>? _headers;
+        private readonly IReadOnlyDictionary<string, string>? _headers;
 
         public WebSocketClient(IDictionary<string, string>? headers)
         {
-            this._headers = headers;
+            this._headers = headers is null
+                ? null
+                : new Dictionary<string, string>(headers, StringComparer.OrdinalIgnoreCase);
         }
 
         public Uri? EndpointUrl { get; private set; }
@@ -36,11 +38,30 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
 
         public async Task ConnectAsync(string endpointUrl, CancellationToken cancellationToken = default)
         {
-            this.EndpointUrl = new Uri(endpointUrl);
+            await this.ConnectAsync(endpointUrl, this._headers, cancellationToken);
+        }
+
+        /// <summary>
+        /// 使用仅属于当前底层 WebSocket 连接的请求头建立连接。
+        /// <see cref="CloseAsync"/> 后可复用包装对象；流式 ASR 等调用方仍可为每轮
+        /// utterance 提供新的请求 ID 或连接 ID。
+        /// </summary>
+        public async Task ConnectAsync(
+            string endpointUrl,
+            IReadOnlyDictionary<string, string>? headers,
+            CancellationToken cancellationToken = default)
+        {
+            Uri endpointUrlValue = new(endpointUrl);
+            IReadOnlyDictionary<string, string>? connectionHeaders = headers is null
+                ? null
+                : new Dictionary<string, string>(headers, StringComparer.OrdinalIgnoreCase);
+            bool lockTaken = false;
 
             try
             {
                 await this._socketSemaphore.WaitAsync(cancellationToken);
+                lockTaken = true;
+                this.EndpointUrl = endpointUrlValue;
 
                 if (this._socket is not null)
                 {
@@ -50,16 +71,19 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
 
                 if (this._socket is null)
                 {
-                    this._socket = new WebsocketClient(this.EndpointUrl, () =>
+                    this._socket = new WebsocketClient(endpointUrlValue, () =>
                     {
                         ClientWebSocket socket = new ClientWebSocket();
                         socket.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
                         socket.Options.CollectHttpResponseDetails = true;
-                        if (this._headers is not null)
-                            foreach (var item in this._headers)
+                        if (connectionHeaders is not null)
+                        {
+                            foreach (var item in connectionHeaders)
                             {
                                 socket.Options.SetRequestHeader(item.Key, item.Value);
                             }
+                        }
+
                         return socket;
                     })
                     {
@@ -71,7 +95,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
 
                     this._socket.MessageReceived
                         .Where(msg => msg.MessageType == WebSocketMessageType.Text)
-                        .Where(msg => !string.IsNullOrEmpty(msg.Text))
+                        .Where(msg => !string.IsNullOrWhiteSpace(msg.Text))
                         .Subscribe(msg => this.OnTextMessage?.Invoke(msg.Text!));
 
                     this._socket.MessageReceived
@@ -89,8 +113,12 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
                         .Subscribe(e =>
                         {
                             e.CancelReconnection = true;
-                            this.OnClose?.Invoke(e.CloseStatus, e.CloseStatusDescription);
+                            if (e.Exception is not null)
+                            {
+                                this.OnError?.Invoke(WebSocketError.ConnectionClosedPrematurely, e.Exception.Message);
+                            }
 
+                            this.OnClose?.Invoke(e.CloseStatus, e.CloseStatusDescription);
                         });
                 }
 
@@ -105,7 +133,10 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
             }
             finally
             {
-                this._socketSemaphore.Release();
+                if (lockTaken)
+                {
+                    this._socketSemaphore.Release();
+                }
             }
         }
         public Task SendAsync(string text)
@@ -121,14 +152,13 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
 
         public async Task CloseAsync(WebSocketCloseStatus webSocketCloseStatus = WebSocketCloseStatus.Empty, string statusDescription = "")
         {
-            if (!this.IsConnected)
-            {
-                return;
-            }
+            bool lockTaken = false;
             try
             {
-                this.OnClose?.Invoke(webSocketCloseStatus, statusDescription);
-                if (this._socket is not null)
+                await this._socketSemaphore.WaitAsync();
+                lockTaken = true;
+
+                if (this._socket?.IsRunning == true)
                 {
                     await this._socket.StopOrFail(webSocketCloseStatus, statusDescription);
                 }
@@ -136,6 +166,13 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket
             catch (Exception)
             {
                 this.OnError?.Invoke(WebSocketError.ConnectionClosedPrematurely, Lang.WebSocketClient_CloseAsync_CloseFailed);
+            }
+            finally
+            {
+                if (lockTaken)
+                {
+                    this._socketSemaphore.Release();
+                }
             }
         }
 

@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Hosting;
 using System.Globalization;
+using XiaoZhi.Net.Server.Abstractions.FunctionTools;
 using XiaoZhi.Net.Server.Abstractions.Store;
+using XiaoZhi.Net.Server.RAG.Abstractions;
 
 namespace XiaoZhi.Net.Server.Abstractions
 {
@@ -26,22 +28,23 @@ namespace XiaoZhi.Net.Server.Abstractions
         /// <exception cref="ArgumentNullException"></exception>
         IServerBuilder Initialize(XiaoZhiConfig config, IStore connectionStore);
         /// <summary>
-        /// 添加插件
+        /// 添加 agent 记忆上下文操作
         /// </summary>
-        /// <typeparam name="TPlugin">插件类对应的Type</typeparam>
-        /// <param name="pluginName">插件名称</param>
+        /// <typeparam name="TAgentMemory"></typeparam>
         /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        IServerBuilder WithPlugin<TPlugin>(string pluginName);
+        IServerBuilder WithAgentMemory<TAgentMemory>() where TAgentMemory : class, IAgentMemory;
         /// <summary>
-        /// 添加插件
+        /// 注册自定义函数工具。
         /// </summary>
-        /// <typeparam name="TPlugin">插件类对应的Type</typeparam>
-        /// <param name="pluginName">插件名称</param>
-        /// <param name="functions">支撑该插件的functions</param>
+        /// <typeparam name="TFunctionTool">需要注册的函数工具类型。</typeparam>
         /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        IServerBuilder WithPlugin<TPlugin>(string pluginName, IEnumerable<IFunction> functions);
+        IServerBuilder WithFunctionTools<TFunctionTool>() where TFunctionTool : class, IFunctionTool, new();
+        /// <summary>
+        /// 注册自定义函数工具。
+        /// </summary>
+        /// <typeparam name="TFunctionTool">需要注册的函数工具类型。</typeparam>
+        /// <returns></returns>
+        IServerBuilder WithPrivateFunctionTools<TFunctionTool>() where TFunctionTool : class, IPrivateFunctionTool, new ();
         /// <summary>
         /// 添加自定义验证
         /// </summary>
@@ -54,6 +57,15 @@ namespace XiaoZhi.Net.Server.Abstractions
         /// <param name="secret">密钥</param>
         /// <returns></returns>
         IServerBuilder WithManageApi(string manageApiUrl, string secret);
+        /// <summary>
+        /// 为 RAG 配置注册自定义向量存储
+        /// </summary>
+        IServerBuilder WithRagVectorStore<TVectorStore>() where TVectorStore : class, IVectorStore;
+
+        /// <summary>
+        /// 为 RAG 配置注册自定义向量存储
+        /// </summary>
+        IServerBuilder WithRagVectorStore(IVectorStore vectorStore);
         /// <summary>
         /// 设置默认语言信息
         /// 这会涉及到日志输出、错误信息等的本地化

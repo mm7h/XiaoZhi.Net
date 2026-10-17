@@ -1,136 +1,225 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
-using OpenAI.Chat;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Agents.AI;
+using Microsoft.Agents.AI.Workflows;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using XiaoZhi.Net.Server.Common.Configs;
+using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
-using XiaoZhi.Net.Server.Providers.LLM.Plugins;
-using XiaoZhi.Net.Server.Common.Configs;
+using XiaoZhi.Net.Server.Providers.LLM.AIContextProviders;
+using XiaoZhi.Net.Server.Providers.LLM.Contexts;
+using XiaoZhi.Net.Server.Resources;
 
 namespace XiaoZhi.Net.Server.Providers.LLM.Agents
 {
-    internal class ChatAgent : BaseAgent<ChatAgent>, IChatAgent
+    internal class ChatAgent : BaseAgent<ChatAgent>
     {
-        private Kernel? _kernel;
-        private IChatCompletionService? _chatAgentService;
-        private OpenAIPromptExecutionSettings? _chatExecutionSettings;
+        private const string FUNCTION_CALL_INTENT_TYPE = "FunctionCall";
+        private const string NONE_INTENT_TYPE = "None";
+        private const string ENHANCED_CHAT_PROMPT = """
+请在遵守上方角色设定的前提下，额外严格遵守以下回复规则：
+1. 回复要像真实语音聊天，语气自然、简短、直接，第一句先回答核心内容，不要先寒暄，不要自我解释。
+2. 用户输入可能来自 ASR 转写，允许存在同音字、错别字、断句不准，你要优先理解真实意图，不要纠正用户的识别结果。
+3. 除非用户明确要求切换语言，否则始终沿用当前对话语言回复。
+4. 输出内容必须适合 TTS 朗读：不要使用 Markdown、代码块、XML/HTML 标签、项目符号或解释性括号动作。
+5. 情绪表达必须放在每个输出句段最前面，格式固定为 [EmotionName] 正文。EmotionName 只能从以下 Emotion 枚举中选择：Neutral、Happy、Laughing、Funny、Sad、Angry、Crying、Loving、Embarrassed、Surprised、Shocked、Thinking、Winking、Cool、Relaxed、Delicious、Kissy、Confident、Sleepy、Silly、Confused。
+6. 如果一个回复包含多句、分段或换行，那么每个独立句段都必须重新写一次 [EmotionName] 前缀，不能只在第一句前面标一次。
+7. 情绪选择必须和正文语义一致；拿不准时统一使用 [Neutral]；需要思考、停顿、分析时优先使用 [Thinking]。
+8. 表情生成规则：不要在正文中自由输出表情符号；情绪只能来源于 Emotion 枚举。如果确实需要补充可视化表情，也只能使用该 Emotion 枚举 Description 对应的单个表情，并且只能紧跟在 [EmotionName] 后面，正文其他位置禁止出现表情。
+9. 不要输出 Emotion 枚举之外的情绪名称、别名、自定义标签或没有前缀的正文。
 
-        public ChatAgent(IServiceProvider serviceProvider, ILogger<ChatAgent> logger) : base(serviceProvider, logger)
+输出示例：
+[Happy] 今天状态不错，我们直接开始。
+[Thinking] 这个问题我先替你理一下，结论其实不复杂。
+""";
+
+        private readonly IRag? _rag;
+
+        private ChatClientAgent? _chatClientAgent;
+
+        private AgentSession? _agentSession;
+        private bool _allowFunctionCall;
+        private SessionChatHistoryProvider? _chatHistoryProvider;
+
+        public ChatAgent(
+            IServiceProvider serviceProvider,
+            ILogger<ChatAgent> logger) : base(SubAgentNames.ChatAgent, serviceProvider, logger)
         {
+            this._rag = serviceProvider.GetService<IRag>();
         }
 
-        public bool UseStreaming { get; private set; }
-        public override string ModelName => nameof(ChatAgent);
         public override int Order => 10;
 
-        public override bool Build(LLMBuildConfig modelSetting)
+        public override bool Build(LLMAgentBuildConfig agentBuildConfig)
         {
             try
             {
-                this._kernel = modelSetting.Kernel;
-                this.UseStreaming = modelSetting.UseStreaming;
-                this._chatAgentService = this.ServiceProvider.GetRequiredKeyedService<IChatCompletionService>($"LLM_{modelSetting.ChatLLMModelName}");
-                this.Prompt = modelSetting.Prompt;
+                this.Prompt = agentBuildConfig.AgentSetting.Config.GetConfigValueOrDefault("Prompt")!;
+                string intentType = agentBuildConfig.AgentSetting.Config.GetConfigValueOrDefault("IntentType", "None");
+                this._allowFunctionCall = string.Compare(FUNCTION_CALL_INTENT_TYPE, intentType, StringComparison.OrdinalIgnoreCase) == 0;
+                this._chatHistoryProvider = agentBuildConfig.ChatHistoryProvider;
 
-                this._chatExecutionSettings = new OpenAIPromptExecutionSettings
+                string instructions = this.BuildInstructions(agentBuildConfig.MemoryInstruction);
+                IChatClient chatClient = this.ServiceProvider.GetRequiredKeyedService<IChatClient>($"LLM_{agentBuildConfig.AgentSetting.ModelName}");
+
+                ILoggerFactory loggerFactory = this.ServiceProvider.GetRequiredService<ILoggerFactory>();
+                IChatClient configuredChatClient = chatClient.AsBuilder()
+                    .UseFunctionInvocation(loggerFactory, functionClient => functionClient.MaximumIterationsPerRequest = GlobalVariables.MaxFunctionCallDepth)
+                    .UsePerServiceCallChatHistoryPersistence()
+                    .Build(this.ServiceProvider);
+
+
+                ChatClientAgentOptions chatClientAgentOptions = new ChatClientAgentOptions
                 {
-                    Temperature = 0.5f,
-                    MaxTokens = 40,
-                    ResponseFormat = ChatResponseFormat.CreateTextFormat(),
-                    FunctionChoiceBehavior = FunctionChoiceBehavior.None(),
-                    ChatSystemPrompt = this.Prompt
+                    Name = SubAgentNames.ChatAgent,
+                    Description = $"the agent of {SubAgentNames.ChatAgent}",
+                    ChatOptions = new ChatOptions
+                    {
+                        Instructions = instructions,
+                        Temperature = 0.5f,
+                        MaxOutputTokens = 40,
+                        ResponseFormat = ChatResponseFormat.Text,
+                        ToolMode = this._allowFunctionCall ? ChatToolMode.Auto : ChatToolMode.None,
+                        Reasoning = new ReasoningOptions
+                        {
+                            Effort = ReasoningEffort.None,
+                            Output = ReasoningOutput.None
+                        }
+                    },
+                    UseProvidedChatClientAsIs = true,
+                    RequirePerServiceCallChatHistoryPersistence = true,
+                    ChatHistoryProvider = this._chatHistoryProvider
                 };
-                if (!string.IsNullOrEmpty(modelSetting.SummaryMemory))
-                {
-                    this.ChatHistory.AddSystemMessage(modelSetting.SummaryMemory);
-                }
-                bool pluginsBuildResult = this.BuildPlugins(modelSetting.Kernel);
 
-                if (pluginsBuildResult)
+                List<AIContextProvider> contextProviders = [];
+                if (this._rag?.IsReady == true)
                 {
-                    this.Logger.LogInformation(Lang.ChatAgent_Build_BuildPluginsBuilt, this.ProviderType, this.ModelName);
-                    this.Logger.LogInformation(Lang.ChatAgent_Build_Built, this.ProviderType, this.ModelName, modelSetting.ChatLLMModelName);
-                    return true;
+                    TextSearchProvider? textSearchProvider = this._rag.Create();
+                    if (textSearchProvider is not null)
+                    {
+                        contextProviders.Add(textSearchProvider);
+                    }
                 }
-                else
-                {
-                    this.Logger.LogError(Lang.ChatAgent_Build_BuiltFailed, this.ProviderType, this.ModelName, modelSetting.ChatLLMModelName);
-                    this.Logger.LogError(Lang.ChatAgent_Build_BuildPluginsFailed, this.ProviderType, this.ModelName, modelSetting.ChatLLMModelName);
-                    return false;
-                }
+                contextProviders.Add(new FunctionToolsContextProvider(agentBuildConfig.SessionPrivateProvider.FunctionToolsContext, () => this._allowFunctionCall));
+                chatClientAgentOptions.AIContextProviders = contextProviders;
+
+                this._chatClientAgent = new ChatClientAgent(
+                    chatClient: configuredChatClient,
+                    options: chatClientAgentOptions,
+                    services: this.ServiceProvider
+                );
+
+                this._agentSession = this._chatClientAgent.CreateSessionAsync(agentBuildConfig.SessionPrivateProvider.Token).GetAwaiter().GetResult();
+                this.Logger.LogInformation(Lang.ChatAgent_Build_Built, this.AgentName, agentBuildConfig.AgentSetting.ModelName);
+                return true;
             }
             catch (Exception ex)
             {
-                this.Logger.LogError(ex, Lang.ChatAgent_Build_BuiltFailed, this.ProviderType, this.ModelName, modelSetting.ChatLLMModelName);
+                this.Logger.LogError(ex, Lang.ChatAgent_Build_BuiltFailed, this.AgentName, agentBuildConfig.AgentSetting.ModelName);
                 return false;
             }
         }
 
-        public override void RegisterDevice(string deviceId, string sessionId)
+        private string BuildInstructions(string? memoryInstruction)
         {
-            if (this._kernel is not null)
+            StringBuilder instructionsBuilder = new StringBuilder();
+            instructionsBuilder.Append(this.Prompt);
+            instructionsBuilder.Append("\n\n");
+            instructionsBuilder.Append(ENHANCED_CHAT_PROMPT);
+
+            if (this._allowFunctionCall)
             {
-                foreach (var item in this._kernel.Plugins)
-                {
-                    if (item is ILLMPlugin llmPlugin)
-                    {
-                        llmPlugin.RegisterDevice(deviceId, sessionId);
-                        this.Logger.LogInformation(Lang.ChatAgent_RegisterDevice_PluginRegistered, llmPlugin.ModelName, deviceId);
-                    }
-                }
+                instructionsBuilder.Append("\n10. 当用户明确告别或要求结束当前对话时，如果已提供用于结束会话的工具，必须调用该工具，并传入简短、自然的告别语；询问如何退出或为何结束等说明性问题不得调用。\n");
             }
-            base.RegisterDevice(deviceId, sessionId);
+
+            if (!string.IsNullOrWhiteSpace(memoryInstruction))
+            {
+                instructionsBuilder.Append("\n\n");
+                instructionsBuilder.Append(memoryInstruction);
+            }
+
+            return instructionsBuilder.ToString();
         }
 
-        public async Task<string> GenerateChatResponseAsync(string userMessage, CancellationToken token)
+
+        protected override ProtocolBuilder ConfigureProtocol(ProtocolBuilder protocolBuilder)
+        {
+            return protocolBuilder.ConfigureRoutes(routeBuilder =>
+            {
+                routeBuilder
+                .AddHandler<WorkflowPreInputs>(this.GenerateChatResponseAsync)
+                .AddHandler<IntentDetectionResult>(this.GenerateChatFromDetectionResultAsync);
+            })
+            .SendsMessage<string>();
+        }
+
+
+        [MessageHandler]
+        public async ValueTask GenerateChatResponseAsync(WorkflowPreInputs preInput, IWorkflowContext workflowContext, CancellationToken token)
         {
             if (!this.CheckDeviceRegistered(this.DeviceId, this.SessionId))
             {
                 throw new SessionNotInitializedException();
             }
-            if (this._chatAgentService is null)
+            if (this._chatClientAgent is null || this._agentSession is null)
             {
                 throw new InvalidOperationException(Lang.ChatAgent_GenerateChatResponseAsync_AgentNotBuilt);
             }
-            this.ChatHistory.AddUserMessage(userMessage);
 
-            var clientResult = await this._chatAgentService.GetChatMessageContentAsync(this.ChatHistory, this._chatExecutionSettings, this._kernel, token);
-
-            string content = !string.IsNullOrEmpty(clientResult.Content) ? clientResult.Content : string.Empty;
-            string assistantContent = MarkdownCleaner.CleanMarkdown(Regex.Replace(Regex.Unescape(content), @"<think>.*?</think>", string.Empty, RegexOptions.Singleline));
-
-            this.ChatHistory.AddAssistantMessage(assistantContent);
-            return assistantContent;
+            await foreach (string sentence in this.StreamLLMResponseAsync(preInput.UserMessage, token))
+            {
+                await workflowContext.SendMessageAsync(sentence, token);
+            }
         }
 
-        public async IAsyncEnumerable<string> GenerateChatResponseStreamingAsync(string userMessage, [EnumeratorCancellation] CancellationToken token)
+        /// <summary>
+        /// 接收 IntentDetectionResult（未检测到意图），将用户消息转发给 LLM 正常对话
+        /// </summary>
+        [MessageHandler]
+        public async ValueTask GenerateChatFromDetectionResultAsync(IntentDetectionResult detectionResult, IWorkflowContext workflowContext, CancellationToken token)
         {
             if (!this.CheckDeviceRegistered(this.DeviceId, this.SessionId))
             {
                 throw new SessionNotInitializedException();
             }
-            if (this._chatAgentService is null)
+            if (this._chatClientAgent is null || this._agentSession is null)
             {
                 throw new InvalidOperationException(Lang.ChatAgent_GenerateChatResponseAsync_AgentNotBuilt);
             }
-            this.ChatHistory.AddUserMessage(userMessage);
 
-            StringBuilder allResponse = new StringBuilder();
+            await foreach (string sentence in this.StreamLLMResponseAsync(detectionResult.UserMessage, token))
+            {
+                await workflowContext.SendMessageAsync(sentence, token);
+            }
+        }
+
+        /// <summary>
+        /// 流式调用LLM，按标点符号分句逐句返回
+        /// </summary>
+        private async IAsyncEnumerable<string> StreamLLMResponseAsync(string userMessage, [EnumeratorCancellation] CancellationToken token)
+        {
+            if (!this.CheckDeviceRegistered(this.DeviceId, this.SessionId))
+            {
+                throw new SessionNotInitializedException();
+            }
+            if (this._chatClientAgent is null || this._agentSession is null)
+            {
+                throw new InvalidOperationException(Lang.ChatAgent_GenerateChatResponseAsync_AgentNotBuilt);
+            }
+
             StringBuilder segmentResponse = new StringBuilder();
-
-            await foreach (var item in this._chatAgentService.GetStreamingChatMessageContentsAsync(this.ChatHistory, this._chatExecutionSettings, this._kernel, token))
+            await foreach (AgentResponseUpdate update in this._chatClientAgent.RunStreamingAsync(userMessage, this._agentSession, cancellationToken: token))
             {
-                string content = item.Content ?? string.Empty;
+                string content = update.Text ?? string.Empty;
                 string text = MarkdownCleaner.CleanMarkdown(Regex.Unescape(content));
                 segmentResponse.Append(text);
                 string currentSegment = segmentResponse.ToString();
@@ -140,7 +229,6 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                     int splitPosition = match.Index + match.Length;
                     string sentence = currentSegment.Substring(0, splitPosition);
 
-                    allResponse.Append(sentence);
                     yield return sentence;
 
                     string remaining = currentSegment.Substring(splitPosition);
@@ -151,36 +239,12 @@ namespace XiaoZhi.Net.Server.Providers.LLM.Agents
                 }
             }
 
-            // 处理LLM回复的内容无法被句子分隔的问题
+            // 处理 LLM 回复内容无法被句子分隔的情况
             if (segmentResponse.Length > 0)
             {
                 string sentence = segmentResponse.ToString();
-                allResponse.Append(sentence);
                 yield return sentence;
             }
-
-            string allContent = allResponse.ToString();
-            this.ChatHistory.AddAssistantMessage(allContent);
-        }
-        private bool BuildPlugins(Kernel kernel)
-        {
-            #region LocalMusicPlayer
-            MusicPlayer musicPlayerPlugin = this.ServiceProvider.GetRequiredService<MusicPlayer>();
-
-            LLMPluginConfig llmPluginConfig = new LLMPluginConfig(kernel);
-
-            if (musicPlayerPlugin.Build(llmPluginConfig))
-            {
-                string pluginName = musicPlayerPlugin.ModelName;
-                kernel.ImportPluginFromObject(musicPlayerPlugin, pluginName);
-            }
-            else
-            {
-                return false;
-            }
-            #endregion
-
-            return true;
         }
 
         public override void Dispose()

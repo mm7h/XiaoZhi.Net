@@ -11,6 +11,7 @@ namespace XiaoZhi.Net.Server.Handlers
     {
         private CancellationTokenSource? _handlerCts;
         private CancellationTokenRegistration? _tokenRegistration;
+        private int _disposed;
 
         public BaseHandler(XiaoZhiConfig config, ILogger logger)
         {
@@ -26,6 +27,7 @@ namespace XiaoZhi.Net.Server.Handlers
         public abstract string HandlerName { get; }
         public IBizSendOutter SendOutter { get; set; } = null!;
         protected CancellationToken HandlerToken { get; private set; }
+        protected bool IsDisposed => Volatile.Read(ref this._disposed) != 0;
         public abstract bool Build(PrivateProvider privateProvider);
         protected void RegisterCancellationToken()
         {
@@ -82,6 +84,10 @@ namespace XiaoZhi.Net.Server.Handlers
 
         public virtual void Dispose()
         {
+            if (Interlocked.Exchange(ref this._disposed, 1) != 0)
+            {
+                return;
+            }
             Session session = this.SendOutter.GetSession();
             session.SessionCtsTokenChanged -= this.OnSessionCtsTokenChanged;
             this._tokenRegistration?.Dispose();

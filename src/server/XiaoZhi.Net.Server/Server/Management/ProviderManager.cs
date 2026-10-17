@@ -1,14 +1,19 @@
-﻿using Flurl.Http.Configuration;
+﻿using System;
+using System.ClientModel;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json.Nodes;
+using System.Threading.Tasks;
+using Flurl.Http.Configuration;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.SemanticKernel;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+using OpenAI;
+using XiaoZhi.Net.Server.Abstractions;
 using XiaoZhi.Net.Server.Abstractions.Common.Dtos;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
+using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Common.Constants;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
@@ -16,46 +21,37 @@ using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media;
 using XiaoZhi.Net.Server.Providers;
+using XiaoZhi.Net.Server.Providers.ASR.Aliyun;
+using XiaoZhi.Net.Server.Providers.ASR.Huoshan;
 using XiaoZhi.Net.Server.Providers.ASR.Sherpa;
 using XiaoZhi.Net.Server.Providers.AudioCodec;
 using XiaoZhi.Net.Server.Providers.AudioMixer;
 using XiaoZhi.Net.Server.Providers.AudioPlayer;
 using XiaoZhi.Net.Server.Providers.AudioPlayer.Music;
-using XiaoZhi.Net.Server.Providers.AudioPlayer.SystemNotification;
 using XiaoZhi.Net.Server.Providers.IoT;
 using XiaoZhi.Net.Server.Providers.LLM;
 using XiaoZhi.Net.Server.Providers.LLM.Agents;
-using XiaoZhi.Net.Server.Providers.LLM.FunctionInvocationFilters;
-using XiaoZhi.Net.Server.Providers.LLM.Plugins;
+using XiaoZhi.Net.Server.Providers.LLM.Agents.Intent;
+using XiaoZhi.Net.Server.Providers.LLM.AIContextProviders;
 using XiaoZhi.Net.Server.Providers.MCP;
 using XiaoZhi.Net.Server.Providers.MCP.DeviceMcp;
 using XiaoZhi.Net.Server.Providers.MCP.McpEndpoint;
 using XiaoZhi.Net.Server.Providers.MCP.ServerMcp;
-using XiaoZhi.Net.Server.Providers.Memory;
 using XiaoZhi.Net.Server.Providers.TTS;
+using XiaoZhi.Net.Server.Providers.TTS.Aliyun;
 using XiaoZhi.Net.Server.Providers.TTS.Huoshan;
 using XiaoZhi.Net.Server.Providers.TTS.Sherpa;
 using XiaoZhi.Net.Server.Providers.VAD.Native;
 using XiaoZhi.Net.Server.Providers.VAD.Sherpa;
-using XiaoZhi.Net.Server.Common.Configs;
 using XiaoZhi.Net.Server.Services;
 
 namespace XiaoZhi.Net.Server.Management
 {
-    internal class ProviderManager
+    internal class ProviderManager : BaseManager
     {
-        private readonly IServiceProvider _serviceProvider;
-        private readonly Kernel _globalKernel;
-        private readonly XiaoZhiConfig _config;
-        private readonly ILogger<ProviderManager> _logger;
 
-
-        public ProviderManager(IServiceProvider serviceProvider, Kernel _globalKernel, XiaoZhiConfig config, ILogger<ProviderManager> logger)
+        public ProviderManager(IServiceProvider serviceProvider, XiaoZhiConfig config, ILogger<ProviderManager> logger) : base(serviceProvider, config, logger)
         {
-            this._serviceProvider = serviceProvider;
-            this._globalKernel = _globalKernel;
-            this._config = config;
-            this._logger = logger;
         }
 
         public static IHostBuilder RegisterServices(IHostBuilder builder, XiaoZhiConfig config)
@@ -63,72 +59,73 @@ namespace XiaoZhi.Net.Server.Management
             return builder.ConfigureServices((context, services) =>
             {
                 RegisterAudioDecoder(services);
-                RegisterVad(services, config, GlobalProviderNames.GLOBAL_VAD);
-                RegisterAsr(services, config, GlobalProviderNames.GLOBAL_ASR);
+                RegisterVad(services, config);
+                RegisterAsr(services, config);
                 RegisterLlm(services, config);
-                RegisterMemory(services, config, GlobalProviderNames.GLOBAL_MEMORY);
-                RegisterTts(services, config, GlobalProviderNames.GLOBAL_TTS);
+                RegisterTts(services, config);
 
                 RegisterAudioEncoder(services);
                 RegisterAudioResampler(services);
                 RegisterAudioMixer(services);
                 RegisterIoT(services);
                 RegisterMCP(services);
-                RegisterLLMPlugins(services);
                 RegisterAudioPlayer(services);
 
                 services.AddSingleton<ProviderManager>();
             });
         }
 
-        public bool BuildComponent(IServiceProvider serviceProvider)
+        public override bool BuildComponent()
         {
             try
             {
                 #region Vad
-                IVad vad = serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
-                if (vad.IsSherpaModel && !vad.Build(this.GetSelectedSetting("VAD", this._config)))
+                string selectedVadModelName = ConvertToKebabCase(this.Config.SelectedSettings["VAD"]);
+                IVad vad = this.ServiceProvider.GetRequiredKeyedService<IVad>(selectedVadModelName);
+                if (SherpaModels.IsSherpaModel("vad", selectedVadModelName))
                 {
-                    this._logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, vad.ModelName);
-                    return false;
+                    if (!vad.Build(this.GetSelectedSetting("VAD", this.Config)))
+                    {
+                        this.Logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, vad.ModelName);
+                        return false;
+                    }
                 }
                 #endregion
 
                 #region Asr
-                IAsr asr = serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
-                if (asr.IsSherpaModel && !asr.Build(this.GetSelectedSetting("ASR", this._config)))
+                string selectedAsrModelName = ConvertToKebabCase(this.Config.SelectedSettings["ASR"]);
+                if (SherpaModels.IsSherpaModel("asr", selectedAsrModelName))
                 {
-                    this._logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, asr.ModelName);
-                    return false;
-                }
-                #endregion
-
-                #region Memory
-                IMemory memory = serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY);
-                if (!memory.Build(this.GetSelectedSetting("MEMORY", this._config)))
-                {
-                    this._logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, memory.ModelName);
-                    return false;
+                    IAsr asr = this.ServiceProvider.GetRequiredKeyedService<IAsr>(selectedAsrModelName);
+                    if (!asr.Build(this.GetSelectedSetting("ASR", this.Config)))
+                    {
+                        this.Logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, asr.ModelName);
+                        return false;
+                    }
                 }
                 #endregion
 
                 #region Tts
-                ITts tts = serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
-                if (tts.IsSherpaModel && !tts.Build(this.GetSelectedSetting("TTS", this._config)))
+                string selectedTtsModelName = ConvertToKebabCase(this.Config.SelectedSettings["TTS"]);
+                if (SherpaModels.IsSherpaModel("tts", selectedTtsModelName))
                 {
-                    this._logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, tts.ModelName);
-                    return false;
+                    ITts tts = this.ServiceProvider.GetRequiredKeyedService<ITts>(selectedTtsModelName);
+                    if (!tts.Build(this.GetSelectedSetting("TTS", this.Config)))
+                    {
+                        this.Logger.LogError(Lang.ProviderManager_BuildComponent_ProviderBuildFailed, tts.ModelName);
+                        return false;
+                    }
                 }
                 #endregion
 
                 #region FFmpeg
                 if (MediaFactory.CheckFFmpegInstalled(out string ffmpegVersion))
                 {
-                    this._logger.LogInformation(Lang.ProviderManager_BuildComponent_FFmpegInstalled, ffmpegVersion);
+                    this.Logger.LogInformation(Lang.ProviderManager_BuildComponent_FFmpegInstalled, ffmpegVersion);
                 }
                 else
                 {
-                    this._logger.LogWarning(Lang.ProviderManager_BuildComponent_FFmpegNotFound);
+                    this.Logger.LogWarning(Lang.ProviderManager_BuildComponent_FFmpegNotFound);
                     return false;
                 }
                 #endregion
@@ -137,198 +134,190 @@ namespace XiaoZhi.Net.Server.Management
             }
             catch (Exception ex)
             {
-                this._logger.LogError(ex, Lang.ProviderManager_BuildComponent_BuildComponentsFailed);
+                this.Logger.LogError(ex, Lang.ProviderManager_BuildComponent_BuildComponentsFailed);
                 return false;
             }
         }
 
-        private ModelSetting GetSelectedSetting(string selectedModelType, XiaoZhiConfig config)
+        public override async Task OnSessionClosedAsync(Session session)
         {
-            string selectedModel = config.SelectedSettings[selectedModelType];
-            Dictionary<string, string> setting = config.ConfiguredSettings[selectedModelType][selectedModel];
-
-            ModelSetting modelSetting = new ModelSetting
+            IAgentMemory? agentMemory = this.ServiceProvider.GetService<IAgentMemory>();
+            if (agentMemory is null)
             {
-                ModelName = selectedModel,
-                Config = setting
-            };
+                return;
+            }
 
-            return modelSetting;
-        }
-
-        private ModelSetting GetSelectedLLMSetting(string selectedLLMType, XiaoZhiConfig config)
-        {
-            string selectedModel = config.SelectedSettings[selectedLLMType];
-            Dictionary<string, string> setting = config.ConfiguredSettings["LLM"][selectedModel];
-
-            ModelSetting modelSetting = new ModelSetting
+            if (session.PrivateProvider.Llm is null)
             {
-                ModelName = selectedModel,
-                Config = setting
-            };
+                this.Logger.LogWarning(Lang.ProviderManager_SaveAgentMemory_LlmNotInitialized, session.DeviceId);
+                return;
+            }
 
-            return modelSetting;
-        }
+            IReadOnlyList<ChatMessage> chatHistory = session.PrivateProvider.Llm.GetChatHistory();
+            if (!chatHistory.Any())
+            {
+                return;
+            }
 
-        public async Task<bool> InitializePrivateConfigAsync(Session session)
-        {
             try
             {
-                ManageApiClient? manageApiClient = this._serviceProvider.GetService<ManageApiClient>();
+                await agentMemory.SaveMemoryAsync(session.DeviceId, session.SessionId, chatHistory);
+                this.Logger.LogInformation(Lang.ProviderManager_SaveAgentMemory_MemorySaved, session.DeviceId, session.SessionId);
+            }
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, Lang.ProviderManager_SaveAgentMemory_SaveMemoryFailed, session.DeviceId, session.SessionId);
+            }
+        }
+
+        private async Task<string?> LoadMemoryInstructionAsync(Session session)
+        {
+            IAgentMemory? agentMemory = this.ServiceProvider.GetService<IAgentMemory>();
+            if (agentMemory is null)
+            {
+                return null;
+            }
+
+            try
+            {
+                return await agentMemory.GetMemoryInstructionAsync(session.DeviceId);
+            }
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, Lang.ProviderManager_LoadAgentMemory_LoadFailed, session.DeviceId);
+                return null;
+            }
+        }
+
+        public override async Task<bool> OnSessionPropertyInitializingAsync(Session session)
+        {
+            string? memoryInstruction = await this.LoadMemoryInstructionAsync(session);
+
+            try
+            {
+                ManageApiClient? manageApiClient = this.ServiceProvider.GetService<ManageApiClient>();
 
                 if (manageApiClient is null)
                 {
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_RemoteServiceUnavailable, session.DeviceId);
+                    this.Logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_RemoteServiceUnavailable, session.DeviceId);
 
                     session.IsDeviceBinded = true; // Assume device is binded if manage API is not available
 
-                    return this.RegisterGlobalProviders(session);
+                    return this.RegisterGlobalProviders(session, memoryInstruction);
                 }
 
                 PrivateModelsConfig? privateModelsConfig = await manageApiClient.LoadConfigFromApi(session.DeviceId, session.SessionId);
 
                 if (privateModelsConfig is null)
                 {
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_NoPrivateConfig, session.DeviceId);
+                    this.Logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_NoPrivateConfig, session.DeviceId);
 
-                    return this.RegisterGlobalProviders(session);
+                    return this.RegisterGlobalProviders(session, memoryInstruction);
                 }
 
                 if (privateModelsConfig.VadSetting is not null)
                 {
-                    IVad privateVad = this._serviceProvider.GetRequiredKeyedService<IVad>(privateModelsConfig.VadSetting.ModelName);
-                    if (!privateVad.Build(privateModelsConfig.VadSetting))
+                    IVad privateVad = session.ServiceProvider.GetRequiredKeyedService<IVad>(ConvertToKebabCase(privateModelsConfig.VadSetting.ModelName));
+                    if (privateVad.IsSherpaModel && !this.IsSelectedSherpaModel("VAD", privateModelsConfig.VadSetting.ModelName))
                     {
-                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateVadBuildFailed, session.DeviceId);
+                        this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateSherpaVadModelMismatch, privateModelsConfig.VadSetting.ModelName);
+                        return false;
+                    }
+                    if (!privateVad.IsSherpaModel && !privateVad.Build(privateModelsConfig.VadSetting))
+                    {
+                        this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateVadBuildFailed, session.DeviceId);
                         return false;
                     }
                     session.PrivateProvider.SetVad(privateVad);
 
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateVadInitialized, privateModelsConfig.VadSetting.ModelName, session.DeviceId);
+                    this.Logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateVadInitialized, privateModelsConfig.VadSetting.ModelName, session.DeviceId);
                 }
                 else
                 {
-                    IVad genericVad = this._serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
-                    if (!genericVad.IsSherpaModel && !genericVad.Build(this.GetSelectedSetting("VAD", this._config)))
+                    bool vadRegistered = this.RegisterGlobalVadProviders(session);
+                    if (!vadRegistered)
                     {
-                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericVadBuildFailed, genericVad.ModelName);
                         return false;
                     }
-                    session.PrivateProvider.SetVad(genericVad);
-
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericVadInitialized, genericVad.ModelName, session.DeviceId);
                 }
 
                 if (privateModelsConfig.AsrSetting is not null)
                 {
-                    IAsr privateAsr = this._serviceProvider.GetRequiredKeyedService<IAsr>(privateModelsConfig.AsrSetting.ModelName);
-                    if (!privateAsr.Build(privateModelsConfig.AsrSetting))
+                    IAsr privateAsr = session.ServiceProvider.GetRequiredKeyedService<IAsr>(ConvertToKebabCase(privateModelsConfig.AsrSetting.ModelName));
+                    if (privateAsr.IsSherpaModel && !this.IsSelectedSherpaModel("ASR", privateModelsConfig.AsrSetting.ModelName))
                     {
-                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateAsrBuildFailed, session.DeviceId);
+                        this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateSherpaAsrModelMismatch, privateModelsConfig.AsrSetting.ModelName);
+                        return false;
+                    }
+                    if (!privateAsr.IsSherpaModel && !privateAsr.Build(privateModelsConfig.AsrSetting))
+                    {
+                        this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateAsrBuildFailed, session.DeviceId);
                         return false;
                     }
                     session.PrivateProvider.SetAsr(privateAsr);
 
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateAsrInitialized, privateModelsConfig.AsrSetting.ModelName, session.DeviceId);
+                    this.Logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateAsrInitialized, privateModelsConfig.AsrSetting.ModelName, session.DeviceId);
                 }
                 else
                 {
-                    IAsr genericAsr = this._serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
-                    if (!genericAsr.IsSherpaModel && !genericAsr.Build(this.GetSelectedSetting("ASR", this._config)))
+                    bool asrRegistered = this.RegisterGlobalAsrProviders(session);
+                    if (!asrRegistered)
                     {
-                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericAsrBuildFailed, genericAsr.ModelName);
                         return false;
                     }
-                    session.PrivateProvider.SetAsr(genericAsr);
-
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericAsrInitialized, genericAsr.ModelName, session.DeviceId);
                 }
 
-                if (privateModelsConfig.EmotionLlmSetting is not null && privateModelsConfig.ChatLlmSetting is not null)
+                if (privateModelsConfig.AgentSettings.Any())
                 {
-                    Kernel privateKernel = this._globalKernel.Clone();
-                    ILlm privateLlm = this._serviceProvider.GetRequiredService<ILlm>();
-
-                    string llmModelName = privateModelsConfig.ChatLlmSetting.ModelName;
-                    string prompt = privateModelsConfig.ChatLlmSetting.Config.GetConfigValueOrDefault("Prompt", this._config.Prompt);
-                    bool useStreaming = privateModelsConfig.ChatLlmSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
-                    string summaryMemory = privateModelsConfig.ChatLlmSetting.Config.GetConfigValueOrDefault("SummaryMemory", string.Empty);
-                    bool useEmotions = privateModelsConfig.EmotionLlmSetting.Config.GetConfigValueOrDefault("UseEmotions", false);
+                    ILlm privateLlm = session.ServiceProvider.GetRequiredService<ILlm>();
 
                     LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
-                        privateModelsConfig.EmotionLlmSetting.ModelName,
-                        privateModelsConfig.ChatLlmSetting.ModelName,
-                        prompt,
-                        useStreaming,
-                        useEmotions,
-                        summaryMemory,
-                        privateKernel);
+                        privateModelsConfig.AgentSettings,
+                        session.PrivateProvider,
+                        memoryInstruction);
 
-                    privateKernel.Data.Add("session", session);
                     if (!privateLlm.Build(llmBuildConfig))
                     {
-                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateLlmBuildFailed, session.DeviceId);
+                        this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateLlmBuildFailed, session.DeviceId);
                         return false;
                     }
-                    session.PrivateProvider.SetKernel(privateKernel);
                     session.PrivateProvider.SetLlm(privateLlm);
 
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateLlmInitialized, privateModelsConfig.EmotionLlmSetting.ModelName, privateModelsConfig.ChatLlmSetting.ModelName, session.DeviceId);
+                    this.Logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateLlmInitialized, session.DeviceId);
                 }
                 else
                 {
-                    Kernel privateKernel = this._globalKernel.Clone();
-                    ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
-
-                    ModelSetting emotionLLMModelSetting = this.GetSelectedLLMSetting("EmotionLLM", this._config);
-                    ModelSetting chatLLMModelSetting = this.GetSelectedLLMSetting("ChatLLM", this._config);
-                    bool useStreaming = chatLLMModelSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
-                    bool useEmotions = emotionLLMModelSetting.Config.GetConfigValueOrDefault("UseEmotions", false);
-
-                    LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
-                        emotionLLMModelSetting.ModelName,
-                        chatLLMModelSetting.ModelName,
-                        this._config.Prompt,
-                        useStreaming,
-                        useEmotions,
-                        SummaryMemory: string.Empty,
-                        privateKernel);
-
-                    privateKernel.Data.Add("session", session);
-                    if (!genericLlm.Build(llmBuildConfig))
+                    bool llmRegistered = this.RegisterGlobalLlmProviders(session, memoryInstruction);
+                    if (!llmRegistered)
                     {
-                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericLlmBuildFailed, session.DeviceId);
                         return false;
                     }
-                    session.PrivateProvider.SetKernel(privateKernel);
-                    session.PrivateProvider.SetLlm(genericLlm);
-
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericLlmInitialized, emotionLLMModelSetting.ModelName, chatLLMModelSetting.ModelName, session.DeviceId);
                 }
 
                 if (privateModelsConfig.TtsSetting is not null)
                 {
-                    ITts privateTts = this._serviceProvider.GetRequiredKeyedService<ITts>(privateModelsConfig.TtsSetting.ModelName);
-                    if (!privateTts.Build(privateModelsConfig.TtsSetting))
+                    ITts privateTts = session.ServiceProvider.GetRequiredKeyedService<ITts>(ConvertToKebabCase(privateModelsConfig.TtsSetting.ModelName));
+                    if (privateTts.IsSherpaModel && !this.IsSelectedSherpaModel("TTS", privateModelsConfig.TtsSetting.ModelName))
                     {
-                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateTtsBuildFailed, session.DeviceId);
+                        this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateSherpaTtsModelMismatch, privateModelsConfig.TtsSetting.ModelName);
+                        return false;
+                    }
+                    if (!privateTts.IsSherpaModel && !privateTts.Build(privateModelsConfig.TtsSetting))
+                    {
+                        this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_PrivateTtsBuildFailed, session.DeviceId);
                         return false;
                     }
                     session.PrivateProvider.SetTts(privateTts);
 
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateTtsInitialized, privateModelsConfig.TtsSetting.ModelName, session.DeviceId);
+                    this.Logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_PrivateTtsInitialized, privateModelsConfig.TtsSetting.ModelName, session.DeviceId);
                 }
                 else
                 {
-                    ITts genericTts = this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
-                    if (!genericTts.IsSherpaModel && !genericTts.Build(this.GetSelectedSetting("TTS", this._config)))
+                    bool ttsRegistered = this.RegisterGlobalTtsProviders(session);
+                    if (!ttsRegistered)
                     {
-                        this._logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericTtsBuildFailed, genericTts.ModelName);
                         return false;
                     }
-                    session.PrivateProvider.SetTts(genericTts);
-
-                    this._logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericTtsInitialized, genericTts.ModelName, session.DeviceId);
                 }
 
                 return true;
@@ -336,76 +325,72 @@ namespace XiaoZhi.Net.Server.Management
             catch (DeviceNotFoundException)
             {
                 session.IsDeviceBinded = false;
-                this._logger.LogWarning(Lang.ProviderManager_InitializePrivateConfig_DeviceNotFound, session.DeviceId);
+                this.Logger.LogWarning(Lang.ProviderManager_InitializePrivateConfig_DeviceNotFound, session.DeviceId);
                 return true;
             }
             catch (DeviceBindException deviceBindException)
             {
                 session.IsDeviceBinded = false;
                 session.BindCode = deviceBindException.BindCode;
-                this._logger.LogWarning(Lang.ProviderManager_InitializePrivateConfig_DeviceNotBinded, session.DeviceId, session.BindCode);
+                this.Logger.LogWarning(Lang.ProviderManager_InitializePrivateConfig_DeviceNotBinded, session.DeviceId, session.BindCode);
                 return true;
             }
             catch (Exception ex)
             {
                 session.IsDeviceBinded = false;
-                this._logger.LogError(ex, Lang.ProviderManager_InitializePrivateConfig_LoadPrivateConfigFailed, session.DeviceId, session.SessionId);
+                this.Logger.LogError(ex, Lang.ProviderManager_InitializePrivateConfig_LoadPrivateConfigFailed, session.DeviceId, session.SessionId);
                 return false;
             }
             finally
             {
                 this.BuildAudioDecoder(session);
+                this.BuildInputAudioResampler(session);
                 this.BuildAudioPlayer(session);
                 this.BuildAudioProcessor(session);
-                this.BuildAudioResampler(session);
+                this.BuildOutputAudioResampler(session);
                 this.BuildAudioEncoder(session);
             }
         }
 
-        public async Task SaveMemoryAsync(Session session)
+
+        public override Task OnSessionPropertyInitializedAsync(Session session, JsonObject helloMessage)
         {
-            if (session.PrivateProvider.Llm is null)
+            if (helloMessage.TryGetPropertyValue("features", out var features) && features is not null)
             {
-                this._logger.LogWarning(Lang.ProviderManager_SaveMemory_LlmNotInitialized, session.DeviceId);
+                JsonObject featuresObj = features.AsObject();
+                if (featuresObj.TryGetPropertyValue("mcp", out var mcp) && mcp is not null)
+                {
+                    bool isSupportMCP = mcp.GetValue<bool>();
+                    if (isSupportMCP)
+                    {
+                        this.BuildMCP(session);
+                        return this.InitializeDeviceMcpAsync(session);
+                    }
+                }
+            }
+            return Task.CompletedTask;
+        }
+
+        private async Task InitializeDeviceMcpAsync(Session session)
+        {
+            ISubMcpClient? client = session.PrivateProvider.McpClient?.GetSubMcpClient(SubMCPClientTypeNames.DeviceMcpClient);
+            if (client is null)
+            {
                 return;
             }
-
-            if (session.PrivateProvider.Llm.LLMChatHistory.Any())
+            try
             {
-                ManageApiClient? manageApiClient = this._serviceProvider.GetService<ManageApiClient>();
-                if (manageApiClient is not null)
-                {
-                    try
-                    {
-                        await manageApiClient.SaveMemoryAsync(session.DeviceId, session.SessionId, session.PrivateProvider.Llm.LLMChatHistory);
-                        this._logger.LogInformation(Lang.ProviderManager_SaveMemory_MemorySaved, session.DeviceId, session.SessionId);
-                    }
-                    catch (Exception ex)
-                    {
-                        this._logger.LogError(ex, Lang.ProviderManager_SaveMemory_SaveMemoryFailed, session.DeviceId, session.SessionId);
-                    }
-                }
-                else
-                {
-                    this._logger.LogWarning(Lang.ProviderManager_SaveMemory_ApiClientNotAvailable, session.DeviceId, session.SessionId);
-                }
+                await client.SendMcpInitializeAsync();
+            }
+            catch (Exception ex)
+            {
+                session.PrivateProvider.FunctionToolsContext.SetMcpClientFailed(ex);
+                this.Logger.LogWarning(ex, Lang.ProviderManager_BuildMCP_BuildFailed, session.SessionId);
             }
         }
 
-        public void Dispose(IServiceProvider serviceProvider)
+        public override void Dispose()
         {
-            IList<IDisposable> providers = new List<IDisposable>
-            {
-                serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR),
-                serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD),
-                serviceProvider.GetRequiredKeyedService<IMemory>(GlobalProviderNames.GLOBAL_MEMORY)
-            };
-
-            foreach (IDisposable provider in providers)
-            {
-                provider.Dispose();
-            }
-
         }
 
         #region Register providers
@@ -417,10 +402,10 @@ namespace XiaoZhi.Net.Server.Management
 
         public void BuildAudioDecoder(Session session)
         {
-            IAudioDecoder audioDecoder = this._serviceProvider.GetRequiredService<IAudioDecoder>();
+            IAudioDecoder audioDecoder = session.ServiceProvider.GetRequiredService<IAudioDecoder>();
             if (!audioDecoder.Build(session.AudioSetting))
             {
-                this._logger.LogWarning(Lang.ProviderManager_BuildAudioEncoder_BuildFailed, session.SessionId);
+                this.Logger.LogWarning(Lang.ProviderManager_BuildAudioDecoder_BuildFailed, session.SessionId);
             }
             session.PrivateProvider.SetAudioDecoder(audioDecoder);
         }
@@ -431,27 +416,56 @@ namespace XiaoZhi.Net.Server.Management
         {
             services.AddTransient<IAudioResampler, DefaultResampler>();
         }
-        public void BuildAudioResampler(Session session)
+        public void BuildOutputAudioResampler(Session session)
         {
-            int ttsSampleRate = session.PrivateProvider.Tts?.GetTtsSampleRate() ?? this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS).GetTtsSampleRate();
+            int audioProcessorSampleRate = this.Config.AudioSetting.SampleRate;
 
-            if (ttsSampleRate == this._config.AudioSetting.SampleRate)
+            if (audioProcessorSampleRate == session.OutputAudioSetting.SampleRate)
             {
                 return;
             }
 
-            this._logger.LogInformation(Lang.ProviderManager_BuildAudioResampler_ResamplingRequired, session.DeviceId, ttsSampleRate, this._config.AudioSetting.SampleRate);
+            this.Logger.LogInformation(
+                Lang.ProviderManager_BuildOutputAudioResampler_ResamplingRequired,
+                session.DeviceId,
+                audioProcessorSampleRate,
+                session.OutputAudioSetting.SampleRate);
 
-            ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.AudioSetting.Channels, ttsSampleRate, this._config.AudioSetting.SampleRate);
-            IAudioResampler audioResampler = this._serviceProvider.GetRequiredService<IAudioResampler>();
+            ResamplerBuildConfig resamplerBuildConfig = new ResamplerBuildConfig(session.OutputAudioSetting.Channels, audioProcessorSampleRate, session.OutputAudioSetting.SampleRate);
+            IAudioResampler audioResampler = session.ServiceProvider.GetRequiredService<IAudioResampler>();
             if (!audioResampler.Build(resamplerBuildConfig))
             {
-                this._logger.LogWarning(Lang.ProviderManager_BuildAudioResampler_BuildFailed, session.SessionId);
+                this.Logger.LogWarning(Lang.ProviderManager_BuildOutputAudioResampler_BuildFailed, session.SessionId);
             }
             else
             {
-                session.PrivateProvider.SetAudioResampler(audioResampler);
+                session.PrivateProvider.SetOutputAudioResampler(audioResampler);
             }
+        }
+
+        public void BuildInputAudioResampler(Session session)
+        {
+            if (session.AudioSetting.SampleRate == GlobalVariables.AudioProcessingSampleRate
+                && session.AudioSetting.Channels == GlobalVariables.AudioProcessingChannels)
+            {
+                return;
+            }
+
+            ResamplerBuildConfig resamplerBuildConfig = new(
+                GlobalVariables.AudioProcessingChannels,
+                session.AudioSetting.SampleRate,
+                GlobalVariables.AudioProcessingSampleRate);
+            IAudioResampler inputAudioResampler = session.ServiceProvider.GetRequiredService<IAudioResampler>();
+            if (!inputAudioResampler.Build(resamplerBuildConfig))
+            {
+                this.Logger.LogWarning(Lang.ProviderManager_BuildInputAudioResampler_BuildFailed, session.SessionId);
+                return;
+            }
+
+            session.PrivateProvider.SetInputAudioResampler(inputAudioResampler);
+            this.Logger.LogInformation(
+                Lang.ProviderManager_BuildInputAudioResampler_ResamplingRequired,
+                session.DeviceId, session.AudioSetting.SampleRate, GlobalVariables.AudioProcessingSampleRate);
         }
         #endregion
 
@@ -463,48 +477,88 @@ namespace XiaoZhi.Net.Server.Management
 
         public void BuildAudioEncoder(Session session)
         {
-            IAudioEncoder audioEncoder = this._serviceProvider.GetRequiredService<IAudioEncoder>();
-            if (!audioEncoder.Build(this._config.AudioSetting))
+            IAudioEncoder audioEncoder = session.ServiceProvider.GetRequiredService<IAudioEncoder>();
+            if (!audioEncoder.Build(session.OutputAudioSetting))
             {
-                this._logger.LogWarning(Lang.ProviderManager_BuildAudioEncoder_BuildFailed, session.SessionId);
+                this.Logger.LogWarning(Lang.ProviderManager_BuildAudioEncoder_BuildFailed, session.SessionId);
             }
             session.PrivateProvider.SetAudioEncoder(audioEncoder);
         }
         #endregion
 
         #region VAD
-        private static void RegisterVad(IServiceCollection services, XiaoZhiConfig config, string key)
+        private static void RegisterVad(IServiceCollection services, XiaoZhiConfig config)
         {
-            string modelName = ConvertToKebabCase(config.SelectedSettings["VAD"]);
-            switch (modelName)
+            services.AddKeyedSingleton<IVad, Silero>(ConvertToKebabCase(nameof(Silero)));
+            services.AddKeyedSingleton<IVad, TenVad>(ConvertToKebabCase(nameof(TenVad)));
+            foreach (var vadSettingItem in config.ConfiguredSettings["VAD"])
             {
-                case "silero":
-                    services.AddKeyedSingleton<IVad, Silero>(key);
-                    break;
-                case "silero-native":
-                    services.AddKeyedTransient<IVad, SileroNative>(modelName);
-                    services.AddKeyedTransient<IVad, SileroNative>(key);
-                    break;
-                default:
-                    throw new ModelBuildException("Invalid vad model.");
+                string modelName = ConvertToKebabCase(vadSettingItem.Key);
+                if (SherpaModels.IsSherpaModel("vad", modelName))
+                {
+                    continue;
+                }
+                switch (modelName)
+                {
+                    case "silero-native":
+                        services.AddKeyedTransient<IVad, SileroNative>(modelName);
+                        break;
+                    default:
+                        throw new ModelBuildException("Invalid vad model.");
+                }
             }
         }
         #endregion
 
         #region ASR
-        private static void RegisterAsr(IServiceCollection services, XiaoZhiConfig config, string key)
+        private static void RegisterAsr(IServiceCollection services, XiaoZhiConfig config)
         {
-            string modelName = ConvertToKebabCase(config.SelectedSettings["ASR"]);
-            switch (modelName)
+            services.AddKeyedSingleton<IAsr, SenseVoice>(ConvertToKebabCase(nameof(SenseVoice)));
+            services.AddKeyedSingleton<IAsr, Paraformer>(ConvertToKebabCase(nameof(Paraformer)));
+            services.AddKeyedSingleton<IAsr, OfflineTransducer>(ConvertToKebabCase(nameof(OfflineTransducer)));
+            services.AddKeyedSingleton<IAsr, NemoCtc>(ConvertToKebabCase(nameof(NemoCtc)));
+            services.AddKeyedSingleton<IAsr, Whisper>(ConvertToKebabCase(nameof(Whisper)));
+            services.AddKeyedSingleton<IAsr, Tdnn>(ConvertToKebabCase(nameof(Tdnn)));
+            services.AddKeyedSingleton<IAsr, TeleSpeechCtc>(ConvertToKebabCase(nameof(TeleSpeechCtc)));
+            services.AddKeyedSingleton<IAsr, Moonshine>(ConvertToKebabCase(nameof(Moonshine)));
+            services.AddKeyedSingleton<IAsr, FireRedAsr>(ConvertToKebabCase(nameof(FireRedAsr)));
+            services.AddKeyedSingleton<IAsr, Dolphin>(ConvertToKebabCase(nameof(Dolphin)));
+            services.AddKeyedSingleton<IAsr, ZipformerCtc>(ConvertToKebabCase(nameof(ZipformerCtc)));
+            services.AddKeyedSingleton<IAsr, Canary>(ConvertToKebabCase(nameof(Canary)));
+            services.AddKeyedSingleton<IAsr, WenetCtc>(ConvertToKebabCase(nameof(WenetCtc)));
+            services.AddKeyedSingleton<IAsr, OmnilingualAsrCtc>(ConvertToKebabCase(nameof(OmnilingualAsrCtc)));
+            services.AddKeyedSingleton<IAsr, MedAsrCtc>(ConvertToKebabCase(nameof(MedAsrCtc)));
+            services.AddKeyedSingleton<IAsr, FunAsrNano>(ConvertToKebabCase(nameof(FunAsrNano)));
+            services.AddKeyedSingleton<IAsr, FireRedAsrCtc>(ConvertToKebabCase(nameof(FireRedAsrCtc)));
+            services.AddKeyedSingleton<IAsr, Qwen3Asr>(ConvertToKebabCase(nameof(Qwen3Asr)));
+            services.AddKeyedSingleton<IAsr, CohereTranscribe>(ConvertToKebabCase(nameof(CohereTranscribe)));
+            services.AddKeyedSingleton<IAsr, OnlineTransducer>(ConvertToKebabCase(nameof(OnlineTransducer)));
+            services.AddKeyedSingleton<IAsr, OnlineParaformer>(ConvertToKebabCase(nameof(OnlineParaformer)));
+            services.AddKeyedSingleton<IAsr, OnlineZipformer2Ctc>(ConvertToKebabCase(nameof(OnlineZipformer2Ctc)));
+            services.AddKeyedSingleton<IAsr, OnlineNemoCtc>(ConvertToKebabCase(nameof(OnlineNemoCtc)));
+            services.AddKeyedSingleton<IAsr, OnlineToneCtc>(ConvertToKebabCase(nameof(OnlineToneCtc)));
+
+            foreach (var asrSettingItem in config.ConfiguredSettings["ASR"])
             {
-                case "sense-voice":
-                    services.AddKeyedSingleton<IAsr, SenseVoice>(key);
-                    break;
-                case "paraformer":
-                    services.AddKeyedSingleton<IAsr, Paraformer>(key);
-                    break;
-                default:
-                    throw new ModelBuildException("Invalid asr model.");
+                string modelName = ConvertToKebabCase(asrSettingItem.Key);
+                if (SherpaModels.IsSherpaModel("asr", modelName))
+                {
+                    continue;
+                }
+                switch (modelName)
+                {
+                    case "huoshan-unidirectional":
+                        services.AddKeyedTransient<IAsr, HuoshanUnidirectionalASR>(modelName);
+                        break;
+                    case "huoshan-bidirection":
+                        services.AddKeyedTransient<IAsr, HuoshanBidirectionASR>(modelName);
+                        break;
+                    case "aliyun-realtime":
+                        services.AddKeyedTransient<IAsr, AliyunRealtimeASR>(modelName);
+                        break;
+                    default:
+                        throw new ModelBuildException("Invalid asr model.");
+                }
             }
         }
         #endregion
@@ -518,95 +572,93 @@ namespace XiaoZhi.Net.Server.Management
                 string? apiKey = llmSettingItem.Value.GetConfigValueOrDefault("ApiKey");
                 string? modelId = llmSettingItem.Value.GetConfigValueOrDefault("ModelName");
 
-                if (string.IsNullOrEmpty(endPoint) || string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(modelId))
+                if (string.IsNullOrWhiteSpace(endPoint) || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(modelId))
                 {
                     throw new ModelBuildException($"Invalid llm model setting, endPoint: {endPoint}, apiKey: {apiKey}, modelId: {modelId}.");
                 }
 
-                switch (llmSettingItem.Key.ToLower())
+                string llmProviderKey = $"LLM_{llmSettingItem.Key}";
+
+                // 注册 IChatClient，使用 MEAI OpenAI 适配器
+                services.AddKeyedSingleton<IChatClient>(llmProviderKey, (_, _) =>
                 {
-                    case "qwen":
-                    case "doubao":
-                    case "deepseek":
-                    case "chatglm":
-                        services.AddOpenAIChatCompletion(modelId, new Uri(endPoint), apiKey, orgId: "Xiao Zhi", $"LLM_{llmSettingItem.Key}");
-                        break;
-                    default:
-                        throw new ModelBuildException("Invalid llm model.");
-                }
+                    OpenAIClient openAIClient = new OpenAIClient(
+                        new ApiKeyCredential(apiKey),
+                        new OpenAIClientOptions { Endpoint = new Uri(endPoint) });
+                    return openAIClient.GetChatClient(modelId).AsIChatClient();
+                });
             }
 
-            services.AddTransient<IFunctionInvocationFilter, MCPToolFunctionFilter>();
-            services.AddTransient<IEmotionAgent, EmotionAgent>();
-            services.AddTransient<IChatAgent, ChatAgent>();
+            services.AddKeyedTransient<IAgent, InputAgent>(SubAgentNames.InputAgent);
+            services.AddKeyedTransient<IAgent, IntentDetectionAgent>(SubAgentNames.IntentDetectionAgent);
+            services.AddKeyedTransient<IAgent, FunctionCallAgent>(SubAgentNames.FunctionCallAgent);
+            services.AddKeyedTransient<IAgent, IntentResponseAgent>(SubAgentNames.IntentResponseAgent);
+            services.AddKeyedTransient<IAgent, ChatAgent>(SubAgentNames.ChatAgent);
+            services.AddKeyedTransient<IAgent, OutputAgent>(SubAgentNames.OutputAgent);
             services.AddTransient<ILlm, GenericOpenAI>();
-        }
-        #endregion
-
-        #region LLMPlugins
-        private static void RegisterLLMPlugins(IServiceCollection services)
-        {
-            services.AddTransient<MusicPlayer>();
-        }
-        #endregion
-
-        #region Memory
-        private static void RegisterMemory(IServiceCollection services, XiaoZhiConfig config, string key)
-        {
-            string modelName = ConvertToKebabCase(config.SelectedSettings["MEMORY"]);
-            switch (modelName)
-            {
-                case "flash-memory":
-                    services.AddKeyedTransient<IMemory, FlashMemory>(modelName);
-                    services.AddKeyedSingleton<IMemory, FlashMemory>(key);
-                    break;
-                case "database":
-                    services.AddKeyedTransient<IMemory, Database>(modelName);
-                    services.AddKeyedSingleton<IMemory, Database>(key);
-                    break;
-                default:
-                    throw new ModelBuildException("Invalid memory model.");
-            }
+            services.AddTransient<SessionChatHistoryProvider>();
         }
         #endregion
 
         #region TTS
-        private static void RegisterTts(IServiceCollection services, XiaoZhiConfig config, string key)
+        private static void RegisterTts(IServiceCollection services, XiaoZhiConfig config)
         {
-            string modelName = ConvertToKebabCase(config.SelectedSettings["TTS"]);
-            switch (modelName)
+            services.AddKeyedSingleton<ITts, Kokoro>(ConvertToKebabCase(nameof(Kokoro)));
+            services.AddKeyedSingleton<ITts, Vits>(ConvertToKebabCase(nameof(Vits)));
+            services.AddKeyedSingleton<ITts, Matcha>(ConvertToKebabCase(nameof(Matcha)));
+            services.AddKeyedSingleton<ITts, Kitten>(ConvertToKebabCase(nameof(Kitten)));
+            services.AddKeyedSingleton<ITts, ZipVoice>(ConvertToKebabCase(nameof(ZipVoice)));
+            services.AddKeyedSingleton<ITts, Pocket>(ConvertToKebabCase(nameof(Pocket)));
+            services.AddKeyedSingleton<ITts, Supertonic>(ConvertToKebabCase(nameof(Supertonic)));
+
+            foreach (var ttsSettingItem in config.ConfiguredSettings["TTS"])
             {
-                case "kokoro":
-                    services.AddKeyedSingleton<ITts, Kokoro>(key);
-                    break;
-                case "huoshan-bidirection":
-                    services.AddKeyedTransient<ITts, HuoshanBidirectionTTS>(modelName);
-                    services.AddKeyedTransient<ITts, HuoshanBidirectionTTS>(key);
-                    break;
-                case "huoshan-unidirectional":
-                    services.AddKeyedTransient<ITts, HuoshanUnidirectionalTTS>(modelName);
-                    services.AddKeyedTransient<ITts, HuoshanUnidirectionalTTS>(key);
-                    break;
-                case "huoshan-http":
-                    services.AddSingleton(_ => new FlurlClientCache()
-                    .Add(nameof(HuoshanHttpTTS), configure: builder =>
-                    {
-                        builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
-                    }));
-                    services.AddKeyedTransient<ITts, HuoshanHttpTTS>(modelName);
-                    services.AddKeyedTransient<ITts, HuoshanHttpTTS>(key);
-                    break;
-                case "huoshan-http-v3":
-                    services.AddSingleton(_ => new FlurlClientCache()
-                    .Add(nameof(HuoshanHttpV3TTS), configure: builder =>
-                    {
-                        builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
-                    }));
-                    services.AddKeyedTransient<ITts, HuoshanHttpV3TTS>(modelName);
-                    services.AddKeyedTransient<ITts, HuoshanHttpV3TTS>(key);
-                    break;
-                default:
-                    throw new ModelBuildException("Invalid tts model.");
+                string modelName = ConvertToKebabCase(ttsSettingItem.Key);
+                if (SherpaModels.IsSherpaModel("tts", modelName))
+                {
+                    continue;
+                }
+                switch (modelName)
+                {
+                    case "huoshan-bidirection":
+                        services.AddKeyedTransient<ITts, HuoshanBidirectionTTS>(modelName);
+                        break;
+                    case "aliyun-realtime-t-t-s":
+                    case "aliyun-realtime-tts":
+                        services.AddKeyedTransient<ITts, AliyunRealtimeTTS>(modelName);
+                        break;
+                    /*
+                    case "huoshan-unidirectional":
+                        services.AddKeyedTransient<ITts, HuoshanUnidirectionalTTS>(modelName);
+                        break;
+                    */
+                    case "huoshan-http":
+                        services.AddKeyedSingleton<IFlurlClientCache>(nameof(HuoshanHttpTTS), (_, _) => new FlurlClientCache()
+                        .Add(nameof(HuoshanHttpTTS), configure: builder =>
+                        {
+                            builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
+                        }));
+                        services.AddKeyedTransient<ITts, HuoshanHttpTTS>(modelName);
+                        break;
+                    case "huoshan-http-v3":
+                        services.AddKeyedSingleton<IFlurlClientCache>(nameof(HuoshanHttpV3TTS), (_, _) => new FlurlClientCache()
+                        .Add(nameof(HuoshanHttpV3TTS), configure: builder =>
+                        {
+                            builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
+                        }));
+                        services.AddKeyedTransient<ITts, HuoshanHttpV3TTS>(modelName);
+                        break;
+                    case "aliyun-http":
+                        services.AddKeyedSingleton<IFlurlClientCache>(nameof(AliyunHttpTTS), (_, _) => new FlurlClientCache()
+                        .Add(nameof(AliyunHttpTTS), configure: builder =>
+                        {
+                            builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonHelper.OPTIONS);
+                        }));
+                        services.AddKeyedTransient<ITts, AliyunHttpTTS>(modelName);
+                        break;
+                    default:
+                        throw new ModelBuildException("Invalid tts model.");
+                }
             }
         }
         #endregion
@@ -618,10 +670,10 @@ namespace XiaoZhi.Net.Server.Management
         }
         public void BuildIoT(Session session)
         {
-            IIoTClient iotClient = this._serviceProvider.GetRequiredService<IIoTClient>();
+            IIoTClient iotClient = session.ServiceProvider.GetRequiredService<IIoTClient>();
             if (!iotClient.Build(session))
             {
-                this._logger.LogWarning(Lang.ProviderManager_BuildIoT_BuildFailed, session.SessionId);
+                this.Logger.LogWarning(Lang.ProviderManager_BuildIoT_BuildFailed, session.SessionId);
             }
             else
             {
@@ -640,23 +692,27 @@ namespace XiaoZhi.Net.Server.Management
         }
         public void BuildMCP(Session session)
         {
-            IMcpClient mcpClient = this._serviceProvider.GetRequiredService<IMcpClient>();
+            // 在发起 MCP 握手前先标记"等待工具列表加载"，防止对话提前使用空工具列表
+            session.PrivateProvider.FunctionToolsContext.SetMcpClientPending();
+
+            IMcpClient mcpClient = session.ServiceProvider.GetRequiredService<IMcpClient>();
 
             Dictionary<string, MCPClientBuildConfig> mcpBuildConfigs = new Dictionary<string, MCPClientBuildConfig>();
-            if (this._config.McpSettings is null || !this._config.McpSettings.Any())
+            if (this.Config.McpSettings is null || !this.Config.McpSettings.Any())
             {
                 mcpBuildConfigs.Add(SubMCPClientTypeNames.DeviceMcpClient, new MCPClientBuildConfig
                 (session, new ModelSetting()));
             }
             else
             {
-                mcpBuildConfigs = this._config.McpSettings.ToDictionary(
+                mcpBuildConfigs = this.Config.McpSettings.ToDictionary(
                     kvp => kvp.Key,
                     kvp => new MCPClientBuildConfig(session, kvp.Value));
             }
             if (!mcpClient.Build(mcpBuildConfigs))
             {
-                this._logger.LogWarning(Lang.ProviderManager_BuildMCP_BuildFailed, session.SessionId);
+                session.PrivateProvider.FunctionToolsContext.SetMcpClientFailed(new InvalidOperationException($"MCP client build failed for session '{session.SessionId}'."));
+                this.Logger.LogWarning(Lang.ProviderManager_BuildMCP_BuildFailed, session.SessionId);
             }
             else
             {
@@ -669,16 +725,15 @@ namespace XiaoZhi.Net.Server.Management
         private static void RegisterAudioPlayer(IServiceCollection services)
         {
             services.AddTransient<IMusicPlayer, FileMusicPlayer>();
-            services.AddTransient<ISystemNotification, NotificationPlayer>();
             services.AddTransient<IAudioPlayerClient, AudioPlayerClient>();
         }
 
         public void BuildAudioPlayer(Session session)
         {
-            IAudioPlayerClient audioPlayerClient = this._serviceProvider.GetRequiredService<IAudioPlayerClient>();
-            if (!audioPlayerClient.Build(this._config.AudioSetting))
+            IAudioPlayerClient audioPlayerClient = session.ServiceProvider.GetRequiredService<IAudioPlayerClient>();
+            if (!audioPlayerClient.Build(this.Config.AudioSetting))
             {
-                this._logger.LogWarning(Lang.ProviderManager_BuildAudioPlayer_BuildFailed, session.SessionId);
+                this.Logger.LogWarning(Lang.ProviderManager_BuildAudioPlayer_BuildFailed, session.SessionId);
             }
             else
             {
@@ -695,10 +750,10 @@ namespace XiaoZhi.Net.Server.Management
 
         public void BuildAudioProcessor(Session session)
         {
-            IAudioProcessor audioProcessor = this._serviceProvider.GetRequiredService<IAudioProcessor>();
-            if (!audioProcessor.Build(this._config.AudioSetting))
+            IAudioProcessor audioProcessor = session.ServiceProvider.GetRequiredService<IAudioProcessor>();
+            if (!audioProcessor.Build(this.Config.AudioSetting))
             {
-                this._logger.LogWarning(Lang.ProviderManager_BuildAudioProcessor_BuildFailed, session.SessionId);
+                this.Logger.LogWarning(Lang.ProviderManager_BuildAudioProcessor_BuildFailed, session.SessionId);
             }
             else
             {
@@ -708,79 +763,120 @@ namespace XiaoZhi.Net.Server.Management
         #endregion
         #endregion
 
-        private bool RegisterGlobalProviders(Session session)
+        private bool RegisterGlobalProviders(Session session, string? memoryInstruction)
         {
-            #region Vad
-            IVad genericVad = this._serviceProvider.GetRequiredKeyedService<IVad>(GlobalProviderNames.GLOBAL_VAD);
-            if (!genericVad.IsSherpaModel && !genericVad.Build(this.GetSelectedSetting("VAD", this._config)))
+            bool vadRegistered = this.RegisterGlobalVadProviders(session);
+            bool asrRegistered = this.RegisterGlobalAsrProviders(session);
+            bool llmRegistered = this.RegisterGlobalLlmProviders(session, memoryInstruction);
+            bool ttsRegistered = this.RegisterGlobalTtsProviders(session);
+            return vadRegistered && asrRegistered && llmRegistered && ttsRegistered;
+        }
+
+        private bool RegisterGlobalVadProviders(Session session)
+        {
+            string selectedVadModelName = ConvertToKebabCase(this.Config.SelectedSettings["VAD"]);
+            IVad genericVad = session.ServiceProvider.GetRequiredKeyedService<IVad>(selectedVadModelName);
+            if (!genericVad.IsSherpaModel && !genericVad.Build(this.GetSelectedSetting("VAD", this.Config)))
             {
-                this._logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_VadBuildFailed, genericVad.ModelName);
+                this.Logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_VadBuildFailed, genericVad.ModelName);
                 return false;
             }
             session.PrivateProvider.SetVad(genericVad);
-            this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_VadInitialized, genericVad.ModelName, session.DeviceId);
-            #endregion
-
-            #region Asr
-            IAsr genericAsr = this._serviceProvider.GetRequiredKeyedService<IAsr>(GlobalProviderNames.GLOBAL_ASR);
-            if (!genericAsr.IsSherpaModel && !genericAsr.Build(this.GetSelectedSetting("ASR", this._config)))
-            {
-                this._logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_AsrBuildFailed, genericAsr.ModelName);
-                return false;
-            }
-            session.PrivateProvider.SetAsr(genericAsr);
-            this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_AsrInitialized, genericAsr.ModelName, session.DeviceId);
-            #endregion
-
-            #region LLM
-            Kernel privateKernel = this._globalKernel.Clone();
-            ILlm genericLlm = this._serviceProvider.GetRequiredService<ILlm>();
-
-            ModelSetting emotionLLMModelSetting = this.GetSelectedLLMSetting("EmotionLLM", this._config);
-            ModelSetting chatLLMModelSetting = this.GetSelectedLLMSetting("ChatLLM", this._config);
-            bool useStreaming = chatLLMModelSetting.Config.GetConfigValueOrDefault("UseStreaming", false);
-            bool useEmotions = emotionLLMModelSetting.Config.GetConfigValueOrDefault("UseEmotions", false);
-
-            LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
-                emotionLLMModelSetting.ModelName,
-                chatLLMModelSetting.ModelName,
-                this._config.Prompt,
-                useStreaming,
-                useEmotions,
-                SummaryMemory: string.Empty,
-                privateKernel);
-
-            privateKernel.Data.Add("session", session);
-            if (!genericLlm.Build(llmBuildConfig))
-            {
-                throw new ModelBuildException("Failed to build generic LLM model.");
-            }
-            session.PrivateProvider.SetKernel(privateKernel);
-            session.PrivateProvider.SetLlm(genericLlm);
-
-            this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_LlmInitialized, emotionLLMModelSetting.ModelName, chatLLMModelSetting.ModelName, session.DeviceId);
-            #endregion
-
-            #region Tts
-            ITts genericTts = this._serviceProvider.GetRequiredKeyedService<ITts>(GlobalProviderNames.GLOBAL_TTS);
-            if (!genericTts.IsSherpaModel && !genericTts.Build(this.GetSelectedSetting("TTS", this._config)))
-            {
-                this._logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_TtsBuildFailed, genericTts.ModelName);
-                return false;
-            }
-            session.PrivateProvider.SetTts(genericTts);
-            this._logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_TtsInitialized, genericTts.ModelName, session.DeviceId);
-            #endregion
-
+            this.Logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_VadInitialized, session.DeviceId, genericVad.ModelName);
             return true;
         }
 
-        private static string ConvertToKebabCase(string input)
+        private bool RegisterGlobalAsrProviders(Session session)
         {
-            if (string.IsNullOrEmpty(input))
-                return input;
+            string selectedAsrModelName = ConvertToKebabCase(this.Config.SelectedSettings["ASR"]);
+            IAsr genericAsr = session.ServiceProvider.GetRequiredKeyedService<IAsr>(selectedAsrModelName);
+            if (!genericAsr.IsSherpaModel && !genericAsr.Build(this.GetSelectedSetting("ASR", this.Config)))
+            {
+                this.Logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_AsrBuildFailed, genericAsr.ModelName);
+                return false;
+            }
+            session.PrivateProvider.SetAsr(genericAsr);
+            this.Logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_AsrInitialized, session.DeviceId, genericAsr.ModelName);
+            return true;
+        }
 
-            return Regex.Replace(input, "(?<!^)([A-Z])", "-$1").ToLower();
+        private bool RegisterGlobalLlmProviders(Session session, string? memoryInstruction)
+        {
+            ILlm genericLlm = session.ServiceProvider.GetRequiredService<ILlm>();
+
+            ModelSetting selectedIntentLLMModelSetting = this.GetSelectedSetting("Intent", this.Config);
+            string intentType = selectedIntentLLMModelSetting.Config.GetConfigValueOrDefault("Type", "None");
+
+            ModelSetting selectedChatLLMModelSetting = this.GetSelectedSetting("LLM", this.Config);
+            selectedChatLLMModelSetting.Config.SetConfigValue("Prompt", this.Config.Prompt);
+            selectedChatLLMModelSetting.Config.SetConfigValue("IntentType", intentType);
+
+            ModelSetting intentResponseAgentSetting = new ModelSetting
+            {
+                ModelName = selectedIntentLLMModelSetting.ModelName,
+                Config = new Dictionary<string, string>(selectedIntentLLMModelSetting.Config)
+            };
+
+            ModelSetting inputAgentSetting = new ModelSetting
+            {
+                ModelName = SubAgentNames.InputAgent,
+                Config = new Dictionary<string, string>
+                {
+                   { "IntentType", intentType }
+                }
+            };
+
+            ModelSetting outputAgentSetting = new ModelSetting
+            {
+                ModelName = SubAgentNames.OutputAgent,
+                Config = new Dictionary<string, string>(0)
+            };
+
+            Dictionary<string, ModelSetting> agentSettings = new Dictionary<string, ModelSetting>
+            {
+                { SubAgentNames.InputAgent, inputAgentSetting },
+                { SubAgentNames.IntentDetectionAgent, selectedIntentLLMModelSetting },
+                { SubAgentNames.FunctionCallAgent, new ModelSetting { ModelName = SubAgentNames.FunctionCallAgent, Config = new Dictionary<string, string>(0) } },
+                { SubAgentNames.IntentResponseAgent, intentResponseAgentSetting },
+                { SubAgentNames.ChatAgent, selectedChatLLMModelSetting },
+                { SubAgentNames.OutputAgent, outputAgentSetting },
+            };
+
+            LLMBuildConfig llmBuildConfig = new LLMBuildConfig(
+                agentSettings,
+                session.PrivateProvider,
+                memoryInstruction);
+
+            if (!genericLlm.Build(llmBuildConfig))
+            {
+                this.Logger.LogError(Lang.ProviderManager_InitializePrivateConfig_GenericLlmBuildFailed, session.DeviceId);
+                return false;
+            }
+            session.PrivateProvider.SetLlm(genericLlm);
+
+            this.Logger.LogInformation(Lang.ProviderManager_InitializePrivateConfig_GenericLlmInitialized, session.DeviceId);
+            return true;
+        }
+
+        private bool RegisterGlobalTtsProviders(Session session)
+        {
+            string selectedTtsModelName = ConvertToKebabCase(this.Config.SelectedSettings["TTS"]);
+            ITts genericTts = session.ServiceProvider.GetRequiredKeyedService<ITts>(selectedTtsModelName);
+            if (!genericTts.IsSherpaModel && !genericTts.Build(this.GetSelectedSetting("TTS", this.Config)))
+            {
+                this.Logger.LogError(Lang.ProviderManager_RegisterGlobalProviders_TtsBuildFailed, genericTts.ModelName);
+                return false;
+            }
+            session.PrivateProvider.SetTts(genericTts);
+            this.Logger.LogInformation(Lang.ProviderManager_RegisterGlobalProviders_TtsInitialized, session.DeviceId, genericTts.ModelName);
+            return true;
+        }
+
+        private bool IsSelectedSherpaModel(string settingType, string modelName)
+        {
+            string selectedModelName = this.Config.SelectedSettings[settingType];
+            return SherpaModels.IsSherpaModel(settingType, selectedModelName)
+                && string.Equals(ConvertToKebabCase(selectedModelName), ConvertToKebabCase(modelName), StringComparison.OrdinalIgnoreCase);
         }
     }
 }

@@ -4,9 +4,9 @@ namespace XiaoZhi.Net.Test.OtherSamples
 {
     internal class Sample16_BatchTts
     {
-        const string MODEL_FILE_FOLER = "./models/kokoro";
-        const float SPEAK_SPPED = 1.0f;
-        const int SPERAKER_ID = 50;
+        private const string ModelFileFoler = "./models/kokoro";
+        private const float SpeakSpped = 1.0f;
+        private const int SperakerId = 50;
 
         public static Task Run()
         {
@@ -17,12 +17,12 @@ namespace XiaoZhi.Net.Test.OtherSamples
         public static void TestBatch()
         {
             var config = new OfflineTtsConfig();
-            config.Model.Kokoro.Model = Path.Combine(MODEL_FILE_FOLER, "model.onnx");
-            config.Model.Kokoro.Voices = Path.Combine(MODEL_FILE_FOLER, "voices.bin");
-            config.Model.Kokoro.Tokens = Path.Combine(MODEL_FILE_FOLER, "tokens.txt");
-            config.Model.Kokoro.DataDir = Path.Combine(MODEL_FILE_FOLER, "espeak-ng-data");
-            config.Model.Kokoro.DictDir = Path.Combine(MODEL_FILE_FOLER, "dict");
-            config.Model.Kokoro.Lexicon = Path.Combine(MODEL_FILE_FOLER, "./lexicon/lexicon-zh.txt") + "," + Path.Combine(MODEL_FILE_FOLER, "./lexicon/lexicon-us-en.txt");
+            config.Model.Kokoro.Model = Path.Combine(ModelFileFoler, "model.onnx");
+            config.Model.Kokoro.Voices = Path.Combine(ModelFileFoler, "voices.bin");
+            config.Model.Kokoro.Tokens = Path.Combine(ModelFileFoler, "tokens.txt");
+            config.Model.Kokoro.DataDir = Path.Combine(ModelFileFoler, "espeak-ng-data");
+            config.Model.Kokoro.DictDir = Path.Combine(ModelFileFoler, "dict");
+            config.Model.Kokoro.Lexicon = Path.Combine(ModelFileFoler, "./lexicon/lexicon-zh.txt") + "," + Path.Combine(ModelFileFoler, "./lexicon/lexicon-us-en.txt");
             config.Model.NumThreads = 2;
             config.Model.Provider = "cpu";
 
@@ -36,7 +36,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             var t1 = Task.Run(() =>
             {
                 Console.WriteLine(DateTime.Now + "task1开始");
-                OfflineTtsGeneratedAudio audio = tts.Generate(text1, SPEAK_SPPED, SPERAKER_ID);
+                OfflineTtsGeneratedAudio audio = tts.Generate(text1, SpeakSpped, SperakerId);
 
                 if (File.Exists("./models/output_tts1.wav"))
                 {
@@ -49,7 +49,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             var t2 = Task.Run(() =>
             {
                 Console.WriteLine(DateTime.Now + "task2开始");
-                OfflineTtsGeneratedAudio audio = tts.Generate(text2, SPEAK_SPPED, SPERAKER_ID);
+                OfflineTtsGeneratedAudio audio = tts.Generate(text2, SpeakSpped, SperakerId);
 
                 if (File.Exists("./models/output_tts2.wav"))
                 {
@@ -61,7 +61,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             var t3 = Task.Run(() =>
             {
                 Console.WriteLine(DateTime.Now + "task3开始");
-                OfflineTtsGeneratedAudio audio = tts.Generate(text3, SPEAK_SPPED, SPERAKER_ID);
+                OfflineTtsGeneratedAudio audio = tts.Generate(text3, SpeakSpped, SperakerId);
                 if (File.Exists("./models/output_tts3.wav"))
                 {
                     File.Delete("./models/output_tts3.wav");
@@ -72,7 +72,7 @@ namespace XiaoZhi.Net.Test.OtherSamples
             var t4 = Task.Run(() =>
             {
                 Console.WriteLine(DateTime.Now + "task4开始");
-                OfflineTtsGeneratedAudio audio = tts.Generate(text4, SPEAK_SPPED, SPERAKER_ID);
+                OfflineTtsGeneratedAudio audio = tts.Generate(text4, SpeakSpped, SperakerId);
                 if (File.Exists("./models/output_tts4.wav"))
                 {
                     File.Delete("./models/output_tts4.wav");

@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	<Authors>mm7h</Authors>
+	<Title>XiaoZhi.Net.Server.Media</Title>
+	<RepositoryUrl>https://github.com/mm7h/XiaoZhi.Net</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/mm7h/XiaoZhi.Net</PackageProjectUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="XiaoZhi.Net.Test" />
+    <PackageReference Include="FFmpeg.AutoGen" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\server\XiaoZhi.Net.Server.Abstractions\XiaoZhi.Net.Server.Abstractions.csproj" />
+    <ProjectReference Include="..\XiaoZhi.Net.Server.Media.Abstractions\XiaoZhi.Net.Server.Media.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

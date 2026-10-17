@@ -112,13 +112,19 @@ foreach ($file in @('deploy.sh', 'deploy.ps1', 'compose.yaml', 'Dockerfile.relea
 foreach ($file in @('Download-SherpaModels.ps1', 'Download-SherpaModels.sh', 'SherpaModels.psv', 'tar-bzip2-probe.tar.bz2')) {
     Copy-Item -LiteralPath (Join-Path $repositoryRoot "scripts/$file") -Destination (Join-Path $packageDirectory 'scripts')
 }
-foreach ($file in @('00.configuration-file.md', '01.extend-custom-model.md', '02.sherpa-models.md', '03.server-development.md')) {
+foreach ($file in @('00.configuration-file.md', '01.extend-custom-model.md', '02.sherpa-models.md', '03.server-development.md', '07.function-tools.md', '08.glyph-push.md')) {
     Copy-Item -LiteralPath (Join-Path $repositoryRoot "docs/$file") -Destination (Join-Path $packageDirectory 'docs')
+}
+New-Item -ItemType Directory -Path (Join-Path $packageDirectory 'docs/assets') | Out-Null
+foreach ($file in @('logo.png', 'logo.ico')) {
+    Copy-Item -LiteralPath (Join-Path $repositoryRoot "docs/assets/$file") -Destination (Join-Path $packageDirectory 'docs/assets')
 }
 @{
     Version = $Version; RuntimeIdentifier = $RuntimeIdentifier; Tag = $ReleaseTag; SourceCommit = $SourceCommit
 } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $packageDirectory 'package.json') -Encoding utf8NoBOM
 Set-Content -LiteralPath (Join-Path $packageDirectory 'README.md') -Encoding utf8NoBOM -Value @'
+<img src="docs/assets/logo.png" alt="XiaoZhi.Net Logo" width="128" height="128" />
+
 # XiaoZhi.Net 运行包
 
 中文 | [English](README_en.md)
@@ -127,12 +133,15 @@ Set-Content -LiteralPath (Join-Path $packageDirectory 'README.md') -Encoding utf
 
 建议将 server/Configs 的 JSON 复制到外部目录后填写密钥，启动时传入 --config <config.json路径>。
 models、ffmpeg、musics、data、logs 保留为空目录；用户需自行下载所选模型和对应平台的 FFmpeg 动态库。
+server/fonts 已包含设备缺字时使用的字体资源，使用说明见 [设备缺字补充](docs/08.glyph-push.md)。
 FFmpeg 资源：https://github.com/mm7h/XiaoZhi.Net/releases#release-resources
 从 server/ 启动主服务，从 ota/ 启动 OTA，并让 OTA 指向同一配置目录。
 Linux 解压后请执行：chmod +x server/XiaoZhi.Net.Sample.Server ota/XiaoZhi.Net.Sample.OTA.Server
 Docker 仅支持 linux-x64 包，从本目录执行 sh docker/deploy.sh --public-host <服务器IP>，无需安装 PowerShell。
 '@
 Set-Content -LiteralPath (Join-Path $packageDirectory 'README_en.md') -Encoding utf8NoBOM -Value @'
+<img src="docs/assets/logo.png" alt="XiaoZhi.Net Logo" width="128" height="128" />
+
 # XiaoZhi.Net Runtime Package
 
 [中文](README.md) | English
@@ -143,6 +152,8 @@ We recommend copying the JSON files from `server/Configs` to an external directo
 
 The `models`, `ffmpeg`, `musics`, `data`, and `logs` directories under `server/` are empty. Download your chosen models and the FFmpeg shared libraries for your platform separately.
 FFmpeg downloads: https://github.com/mm7h/XiaoZhi.Net/releases#release-resources
+
+The `server/fonts` directory includes fonts for devices that support glyph push. See the [glyph push guide (Chinese)](docs/08.glyph-push.md).
 
 Start the main server from `server/` and the OTA server from `ota/`. Configure the OTA server to use the same configuration directory.
 

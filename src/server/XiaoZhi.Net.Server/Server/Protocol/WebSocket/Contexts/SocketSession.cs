@@ -1,16 +1,20 @@
 ﻿using Microsoft.Extensions.Logging;
+using System;
 using SuperSocket.WebSocket;
 using SuperSocket.WebSocket.Server;
 using System.Collections.Generic;
 using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using XiaoZhi.Net.Server.Abstractions.Common.Enums;
 using XiaoZhi.Net.Server.Common.Contexts;
 using XiaoZhi.Net.Server.Common.Exceptions;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Management;
+using System.Text.Json.Nodes;
+using XiaoZhi.Net.Server.Resources;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
 {
@@ -18,11 +22,22 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
     {
         private readonly HandlerManager _handlerManager;
         private readonly ProviderManager _providerManager;
+        private readonly FunctionToolManager _functionToolManager;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly IFont _glyphResource;
 
-        public SocketSession(HandlerManager handlerManager, ProviderManager providerManager)
+        public SocketSession(
+            HandlerManager handlerManager,
+            ProviderManager providerManager,
+            FunctionToolManager functionToolManager,
+            IServiceScopeFactory serviceScopeFactory,
+            IFont glyphResource)
         {
             this._handlerManager = handlerManager;
             this._providerManager = providerManager;
+            this._functionToolManager = functionToolManager;
+            this._serviceScopeFactory = serviceScopeFactory;
+            this._glyphResource = glyphResource;
         }
 
         public Session? XiaoZhiSession { get; set; }
@@ -40,9 +55,9 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
                 return this.XiaoZhiSession;
             }
         }
-        public Task SendAsync(string json)
+        public new Task SendAsync(string json)
         {
-            this.Logger.LogDebug(Lang.SocketSession_SendAsync_SendingJson, this.XiaoZhiSession?.DeviceId, Regex.Unescape(!string.IsNullOrEmpty(json) ? json : string.Empty));
+            this.Logger.LogDebug(Lang.SocketSession_SendAsync_SendingJson, this.XiaoZhiSession?.DeviceId, Regex.Unescape(!string.IsNullOrWhiteSpace(json) ? json : string.Empty));
             return base.SendAsync(json).AsTask();
         }
         public Task SendAsync(byte[] opusPacket)
@@ -56,7 +71,7 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
                 this.Logger.LogError(Lang.SocketSession_SendTtsMessageAsync_SessionNotInitialized);
                 return Task.FromException(new SessionNotInitializedException());
             }
-            var msg = new Dictionary<string, string>
+            var msg = new Dictionary<string, object>
             {
                 ["type"] = "tts",
                 ["state"] = state.GetDescription(),
@@ -65,19 +80,24 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
 
             if (state == TtsStatus.Start)
             {
-                msg["sample_rate"] = this.XiaoZhiSession.PrivateProvider.Tts.GetTtsSampleRate().ToString();
+                msg["sample_rate"] = this.XiaoZhiSession.OutputAudioSetting.SampleRate;
             }
 
-            if (!string.IsNullOrEmpty(text))
+            if (!string.IsNullOrWhiteSpace(text))
             {
                 msg["text"] = text;
             }
 
-            string json = JsonHelper.Serialize(msg);
+            JsonObject message = JsonHelper.ToNode(msg)!.AsObject();
+            if (state == TtsStatus.SentenceStart && !string.IsNullOrWhiteSpace(text))
+            {
+                this.AttachGlyphs(message, text);
+            }
+            string json = JsonHelper.Serialize(message);
 
             if (state == TtsStatus.Stop)
             {
-                this.XiaoZhiSession.Reset();
+                this.XiaoZhiSession.CompletePlayback();
             }
             return this.SendAsync(json);
         }
@@ -94,7 +114,17 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
                 Text = sttText,
                 SessionId = this.SessionId
             };
-            return this.SendAsync(JsonHelper.Serialize(msg));
+            JsonObject message = JsonHelper.ToNode(msg)!.AsObject();
+            this.AttachGlyphs(message, sttText);
+            return this.SendAsync(JsonHelper.Serialize(message));
+        }
+        private void AttachGlyphs(JsonObject message, string text)
+        {
+            JsonObject? glyphs = this._glyphResource.CreatePayload(this.XiaoZhiSession?.TextFontCapability, text);
+            if (glyphs is not null)
+            {
+                message["glyph_push"] = glyphs;
+            }
         }
         public Task SendLlmMessageAsync(Emotion emotion)
         {
@@ -133,31 +163,47 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         }
         #endregion
 
-        protected override ValueTask OnSessionConnectedAsync()
+        protected override async ValueTask OnSessionConnectedAsync()
         {
             string deviceId = this.HttpHeader.Items.Get("device-id")!;
             string token = this.HttpHeader.Items.Get("authorization")!;
             IPEndPoint userEndPoint = (this.RemoteEndPoint as IPEndPoint)!;
 
-
-            Session session = new Session(this.SessionId, deviceId, token, userEndPoint, this);
-
-            this._handlerManager.InitializeHelloMessageHandler(session);
-
-            session.RefreshLastActivityTime();
-
+            IServiceScope serviceScope = this._serviceScopeFactory.CreateScope();
+            Session session = new Session(
+                this.SessionId,
+                deviceId,
+                token,
+                userEndPoint,
+                this,
+                serviceScope);
+            if (this.LocalEndPoint is IPEndPoint localEndPoint)
+            {
+                session.SetLocalEndPoint(localEndPoint);
+            }
             this.XiaoZhiSession = session;
+            session.ProtocolVersionHeader = this.HttpHeader.Items.Get("protocol-version");
 
-            return ValueTask.CompletedTask;
+            await this._handlerManager.OnSessionConnectedAsync(session);
+            await this._providerManager.OnSessionConnectedAsync(session);
+            await this._functionToolManager.OnSessionConnectedAsync(session);
+            session.RefreshLastActivityTime();
         }
 
         protected override async ValueTask OnSessionClosedAsync(SuperSocket.Connection.CloseEventArgs e)
         {
             if (this.XiaoZhiSession is not null)
             {
-                await this._providerManager.SaveMemoryAsync(this.XiaoZhiSession);
-
-                this.XiaoZhiSession.Release();
+                try
+                {
+                    await this._handlerManager.OnSessionClosedAsync(this.XiaoZhiSession);
+                    await this._providerManager.OnSessionClosedAsync(this.XiaoZhiSession);
+                    await this._functionToolManager.OnSessionClosedAsync(this.XiaoZhiSession);
+                }
+                finally
+                {
+                    await this.XiaoZhiSession.ReleaseAsync();
+                }
 
                 this.Logger.LogDebug(Lang.SocketSession_OnSessionClosedAsync_ClientOffline, this.XiaoZhiSession.DeviceId, this.XiaoZhiSession.SessionId, e.Reason);
             }

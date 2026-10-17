@@ -120,9 +120,23 @@ def verify_package(directory, tag, sha, rid):
                     'server/Configs/config.json', 'server/Configs/assets/bind_codes/0.wav',
                     'ota/appsettings.json', 'docker/compose.yaml', 'docker/Dockerfile.release',
                     'docker/deploy.sh', 'scripts/Download-SherpaModels.sh', 'scripts/SherpaModels.psv',
-                    'docs/03.server-development.md')
+                    'docs/03.server-development.md', 'docs/assets/logo.png', 'docs/assets/logo.ico',
+                    'docs/07.function-tools.md', 'docs/08.glyph-push.md', 'server/fonts/noto-v1-full/manifest.json')
         if not set(required).issubset(names):
             raise ValueError('Required package files are missing')
+        fonts = json.loads(package.read('server/fonts/noto-v1-full/manifest.json'))
+        if fonts['bundle_id'] != 'noto-v1' or not fonts['shards']:
+            raise ValueError('Invalid glyph push font bundle')
+        for shard in fonts['shards']:
+            if not shard['profiles']:
+                raise ValueError('Missing glyph push font profiles')
+            for relative in shard['profiles'].values():
+                path = PurePosixPath(relative)
+                filename = f'server/fonts/noto-v1-full/{relative}'
+                if path.is_absolute() or '..' in path.parts or '\\' in relative or ':' in relative:
+                    raise ValueError('Unsafe font profile path')
+                if filename not in names or package.getinfo(filename).file_size == 0:
+                    raise ValueError('Missing or empty glyph push font profile')
         metadata = json.loads(package.read('package.json'))
         expected = dict(Version=version, RuntimeIdentifier=rid, Tag=tag, SourceCommit=sha)
         if any(metadata.get(k) != v for k, v in expected.items()):

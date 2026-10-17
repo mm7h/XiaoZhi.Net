@@ -1,14 +1,15 @@
-﻿using Microsoft.Extensions.Logging;
-using SherpaOnnx;
-using System;
+﻿using System;
 using System.IO;
+using Microsoft.Extensions.Logging;
+using SherpaOnnx;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media.Abstractions;
 
 namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
 {
-    internal class SenseVoice : BaseSherpaAsr<SenseVoice>, IAsr
+    internal class SenseVoice : SherpaOfflineAsr<SenseVoice>
     {
 
         public SenseVoice(IAudioEditor audioEditor, ILogger<SenseVoice> logger) : base(audioEditor, logger)
@@ -21,12 +22,12 @@ namespace XiaoZhi.Net.Server.Providers.ASR.Sherpa
         {
             try
             {
-                if (!this.CheckModelExist())
+                if (!this.CheckModelFiles("model.onnx", "tokens.txt"))
                 {
                     return false;
                 }
                 OfflineRecognizerConfig offlineRecognizerConfig = new OfflineRecognizerConfig();
-                offlineRecognizerConfig.ModelConfig.SenseVoice.Model = Path.Combine(ModelFileFoler, "model.onnx");
+                offlineRecognizerConfig.ModelConfig.SenseVoice.Model = Path.Combine(this.ModelFileFoler, "model.onnx");
                 offlineRecognizerConfig.ModelConfig.SenseVoice.UseInverseTextNormalization = modelSetting.Config.GetConfigValueOrDefault("UseInverseTextNormalization", 1);
 
                 this.Build(offlineRecognizerConfig, modelSetting);

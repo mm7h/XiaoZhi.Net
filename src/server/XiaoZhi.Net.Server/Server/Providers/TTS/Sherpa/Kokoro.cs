@@ -1,8 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
-using SherpaOnnx;
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging;
+using SherpaOnnx;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media.Abstractions;
@@ -11,7 +12,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
 {
     internal class Kokoro : BaseSherpaTts<Kokoro>, ITts
     {
-       
+
 
         public Kokoro(IAudioEditor audioEditor, ILogger<Kokoro> logger) : base(audioEditor, logger)
         {
@@ -23,7 +24,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
         {
             try
             {
-                if (!this.CheckModelExist())
+                if (!this.CheckModelFiles("model.onnx", "voices.bin", "tokens.txt") || !this.CheckModelDirectories("espeak-ng-data", "dict"))
                 {
                     return false;
                 }
@@ -35,7 +36,7 @@ namespace XiaoZhi.Net.Server.Providers.TTS.Sherpa
                 config.Model.Kokoro.DictDir = Path.Combine(this.ModelFileFoler, "dict");
 
                 string? lexicons = modelSetting.Config.GetConfigValueOrDefault("Lexicons");
-                if (!string.IsNullOrEmpty(lexicons))
+                if (!string.IsNullOrWhiteSpace(lexicons))
                 {
                     string lexiconPath = string.Join(',', lexicons.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(l => Path.Combine(this.ModelFileFoler, l)));
                     config.Model.Kokoro.Lexicon = lexiconPath;

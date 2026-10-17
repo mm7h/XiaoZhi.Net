@@ -1,18 +1,18 @@
-﻿using Concentus;
-using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
-using XiaoZhi.Net.Server.I18n;
+using Concentus;
+using Microsoft.Extensions.Logging;
 using XiaoZhi.Net.Server.Common.Configs;
+using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Providers.AudioCodec
 {
     internal class DefaultResampler : BaseProvider<DefaultResampler, ResamplerBuildConfig>, IAudioResampler
     {
         private IResampler? _resampler;
-        private SemaphoreSlim _resamplerSemaphoreSlim = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _resamplerSemaphoreSlim = new SemaphoreSlim(1, 1);
 
         public DefaultResampler(ILogger<DefaultResampler> logger) : base(logger)
         {

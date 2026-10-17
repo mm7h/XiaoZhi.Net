@@ -1,26 +1,39 @@
-﻿using Microsoft.SemanticKernel;
-using System;
+﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
 using XiaoZhi.Net.Server.Providers;
 
 namespace XiaoZhi.Net.Server.Common.Contexts
 {
     internal class PrivateProvider
     {
-        private Kernel? _kernel;
         private IIoTClient? _iotClient;
         private IMcpClient? _mcpClient;
         private IAudioProcessor? _audioProcessor;
         private IAudioPlayerClient? _audioPlayerClient;
+        private CancellationTokenSource? _providerCts;
+        private readonly Session _session;
 
+        public PrivateProvider(Session session)
+        {
+            this._session = session;
+            this.DeviceId = session.DeviceId;
+            this.SessionId = session.SessionId;
+        }
+        public string DeviceId { get; }
+        public string SessionId { get; }
         public IAudioDecoder? AudioDecoder { get; private set; }
         public IVad? Vad { get; private set; }
         public IAsr? Asr { get; private set; }
         public ILlm? Llm { get; private set; }
         public ITts? Tts { get; private set; }
-        public IAudioResampler? AudioResampler { get; private set; }
+        /// <summary>Resamples client input PCM to the internal VAD/ASR format.</summary>
+        public IAudioResampler? InputAudioResampler { get; private set; }
+        /// <summary>Resamples server output PCM to the device playback format.</summary>
+        public IAudioResampler? OutputAudioResampler { get; private set; }
         public IAudioEncoder? AudioEncoder { get; private set; }
+        public FunctionToolsContext FunctionToolsContext { get; } = new FunctionToolsContext();
 
-        public Kernel? Kernel => this._kernel;
         public bool HasIoT { get; private set; }
 
         public IIoTClient? IoTClient => this._iotClient;
@@ -30,6 +43,30 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         public IAudioProcessor? AudioProcessor => this._audioProcessor;
 
         public IAudioPlayerClient? AudioPlayerClient => this._audioPlayerClient;
+
+        public CancellationToken Token { get; private set; }
+
+        public void RegisterCancellationToken()
+        {
+            this._providerCts = CancellationTokenSource.CreateLinkedTokenSource(this._session.SessionCtsToken);
+            this.Token = this._providerCts.Token;
+            this._session.SessionCtsTokenChanged += this.OnSessionCtsTokenChanged;
+        }
+
+        private void OnSessionCtsTokenChanged(CancellationToken newToken)
+        {
+            var oldCts = this._providerCts;
+            try
+            {
+                oldCts?.Cancel();
+                oldCts?.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            this._providerCts = CancellationTokenSource.CreateLinkedTokenSource(newToken);
+            this.Token = this._providerCts.Token;
+        }
 
         public void SetAudioDecoder(IAudioDecoder audioDecoder)
         {
@@ -51,18 +88,17 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         {
             this.Tts = tts;
         }
-        public void SetAudioResampler(IAudioResampler audioResampler)
+        public void SetOutputAudioResampler(IAudioResampler audioResampler)
         {
-            this.AudioResampler = audioResampler;
+            this.OutputAudioResampler = audioResampler;
+        }
+        public void SetInputAudioResampler(IAudioResampler audioResampler)
+        {
+            this.InputAudioResampler = audioResampler;
         }
         public void SetAudioEncoder(IAudioEncoder audioEncoder)
         {
             this.AudioEncoder = audioEncoder;
-        }
-
-        public void SetKernel(Kernel kernel)
-        {
-            this._kernel = kernel;
         }
 
         public void SetIoTClient(IIoTClient iotClient)
@@ -85,28 +121,12 @@ namespace XiaoZhi.Net.Server.Common.Contexts
         {
             this._audioProcessor = audioProcessor;
         }
+        // 会话 Provider 由 Session 的 DI 作用域统一释放。
         public void Release()
         {
-            if (this.Vad is not null && !this.Vad.IsSherpaModel)
-            {
-                this.Vad.Dispose();
-            }
-            if (this.Asr is not null && !this.Asr.IsSherpaModel)
-            {
-                this.Asr.Dispose();
-            }
-            if (this.Tts is not null && !this.Tts.IsSherpaModel)
-            {
-                this.Tts.Dispose();
-            }
-
-            this.AudioResampler?.Dispose();
-            this.AudioEncoder?.Dispose();
-            this._iotClient?.Dispose();
-            this._mcpClient?.Dispose();
-            this._audioPlayerClient?.Dispose();
-            this._audioProcessor?.Dispose();
-            this._kernel = null;
+            this._session.SessionCtsTokenChanged -= this.OnSessionCtsTokenChanged;
+            this._providerCts?.Dispose();
+            this.FunctionToolsContext.Release();
         }
     }
 }

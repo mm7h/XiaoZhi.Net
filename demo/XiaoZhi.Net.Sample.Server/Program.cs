@@ -1,103 +1,111 @@
-﻿using XiaoZhi.Net.Sample.Server.Plugins;
+﻿using Figgle.Fonts;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using XiaoZhi.Net.Sample.Server.Configs;
+using XiaoZhi.Net.Sample.Server.FunctionTools;
+using XiaoZhi.Net.Sample.Server.MemoryStore;
 using XiaoZhi.Net.Server;
 using XiaoZhi.Net.Server.Abstractions;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
-
-Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", "Development");
+PrintBanner();
 
 IHost? serverHost = null;
-// 获取服务引擎构建器
-IServerBuilder serverBuilder = EngineFactory.CreateXiaoZhiServerBuilder();
+ConfigurationRoot? configuration = null;
+
 try
 {
-    Console.WriteLine("Hello, Xiao Zhi!");
-
-    string configJson = File.ReadAllText(Path.Combine(Environment.CurrentDirectory, "configs", "config.json"));
-
-    // 快速从json文件中获取配置信息
-    var options = new JsonSerializerOptions
-    {
-        ReadCommentHandling = JsonCommentHandling.Skip,
-        PropertyNameCaseInsensitive = true
-    };
-    options.Converters.Add(new LenientStringConverter());
-    XiaoZhiConfig? config = JsonSerializer.Deserialize<XiaoZhiConfig>(configJson, options);
-
-    if (config is not null)
-    {
 #if DEBUG
-        string? apiKey = Environment.GetEnvironmentVariable("OPEN_AI_API_KEY", EnvironmentVariableTarget.User);
-        if (string.IsNullOrEmpty(apiKey))
-        {
-            Console.WriteLine("Please set the environment variable \"OPEN_AI_API_KEY\"");
-            return;
-        }
-        config.ConfiguredSettings["LLM"][config.SelectedSettings.GetValueOrDefault("ChatLLM", "ChatGlm")]["ApiKey"] = apiKey;
-        if (config.SelectedSettings["TTS"].StartsWith("Huoshan"))
-        {
-            config.ConfiguredSettings["TTS"][config.SelectedSettings.GetValueOrDefault("TTS", "HuoshanBidirection")]["AppId"] = Environment.GetEnvironmentVariable("HuoshanAppId", EnvironmentVariableTarget.User)!;
-            config.ConfiguredSettings["TTS"][config.SelectedSettings.GetValueOrDefault("TTS", "HuoshanBidirection")]["AccessToken"] = Environment.GetEnvironmentVariable("HuoshanAccessToken", EnvironmentVariableTarget.User)!;
-        }
+    // 开发调试时可直接启动，默认读取现有配置及 Development 覆盖文件。
+    string defaultEnvironmentName = Environments.Development;
+#else
+    string defaultEnvironmentName = Environments.Production;
 #endif
+    string environmentName = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? defaultEnvironmentName;
+    configuration = XiaoZhiConfigurationExtensions.LoadConfiguration(args, environmentName);
+    XiaoZhiConfig config = configuration.GetXiaoZhiConfig();
 
-        // 开始初始化服务
-        serverHost = serverBuilder.Initialize(config)
-            // 添加插件
-            .WithPlugin<GetTime>(nameof(GetTime))
-            // 多媒体文件格式支持
-            .WithMedia(useFFmpegAudioMixer: true)
-            //.WithManageApi("http://localhost:5118", "your-secret")
-            // 设置日志输出语言
-            .WithCulture("zh-CN")
-            // 构建服务引擎
-            .Build();
+    // 获取服务引擎构建器
+    IServerBuilder serverBuilder = EngineFactory.CreateXiaoZhiServerBuilder();
+    // 开始初始化服务
+    serverBuilder.Initialize(config)
+        // 使用 SQLite 保存每台设备最近一次会话的记忆
+        .WithAgentMemory<SqliteAgentMemory>()
+        // 添加自定义函数工具
+        .WithFunctionTools<GetTime>()
+        .WithPrivateFunctionTools<GetWeather>()
+        .WithPrivateFunctionTools<MusicPlayer>()
+        .WithPrivateFunctionTools<ExitConversationFunctionTool>()
+        .WithPrivateFunctionTools<TtsSettingsFunctionTool>()
+        // 多媒体文件格式支持
+        .WithMedia(useFFmpegAudioMixer: true)
+        // 视觉模块独立管理 HTTP 上传、设备令牌和模型配置；主服务只下发 MCP capability。
+        //.WithVision(options =>
+        //{
+        //    // MCP 视觉模块独立运行，监听本地HTTP端口，接收设备上传的图片并调用模型进行分析。
+        //    options.ListenUrl = "http://0.0.0.0:8003";
+        //    options.PublicExplainUrl = "https://your-public-host/mcp/vision/explain";
+        //    options.UploadTokenSigningKey = "replace-with-at-least-32-byte-secret";
+        //    // MCP 视觉模块使用 OpenAI 兼容的模型服务进行图像分析，配置如下：
+        //    options.Model.Endpoint = "https://your-openai-compatible-endpoint/v1";
+        //    options.Model.ApiKey = "read-from-a-secret-store";
+        //    options.Model.ModelName = "your-vision-model";
+        //})
+        //.WithManageApi("http://localhost:4531", "your-secret")
+        //使用 RAG
+        //.WithRagVectorStore(KnowledgeBaseBuilder.VectorStore)
+        // 设置日志输出语言
+        .WithCulture("zh-CN");
 
-        await serverHost.RunAsync();
-    }
-    else
-    {
-        Console.WriteLine("Cannot read the config settings.");
-    }
+    // Host 与 XiaoZhiConfig 使用同一份配置和环境名称。
+    serverBuilder.HostBuilder.UseEnvironment(environmentName)
+        .ConfigureAppConfiguration((_, builder) =>
+        {
+            builder.Sources.Clear();
+            builder.AddConfiguration(configuration, shouldDisposeConfiguration: false);
+        });
+    serverHost = serverBuilder.Build();
+
+    await serverHost
+        // 构建示例知识库
+        //.BuildKnowledgeBase(config, Path.Combine(Environment.CurrentDirectory, "document"))
+        .RunAsync();
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"Got an error: {ex.Message}");
+    Console.Error.WriteLine($"Got an error: {ex}");
+    Environment.ExitCode = 1;
 }
 finally
 {
-    if (serverHost is not null)
-    {
-        await serverHost.StopAsync();
-    }
+    serverHost?.Dispose();
+    configuration?.Dispose();
     Console.WriteLine("The server stopped.");
-    Console.WriteLine("Press any key to exit...");
-    Console.ReadKey();
+#if DEBUG
+    if (!Console.IsInputRedirected)
+    {
+        Console.WriteLine("Press any key to exit...");
+        Console.ReadKey();
+    }
+#endif
 }
 
-public class LenientStringConverter : JsonConverter<string>
+static void PrintBanner()
 {
-    public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    string version = typeof(EngineFactory).Assembly.GetName().Version?.ToString()
+        ?? "unknown";
+    string serverInfo = $"XiaoZhi.Net.Server v{version} \t by mm7h";
+    int consoleWidth;
+    try
     {
-        if (reader.TokenType is JsonTokenType.Number)
-        {
-            using var doc = JsonDocument.ParseValue(ref reader);
-            return doc.RootElement.ToString();
-        }
-        if (reader.TokenType is JsonTokenType.True) return "true";
-        if (reader.TokenType is JsonTokenType.False) return "false";
-        if (reader.TokenType is JsonTokenType.StartObject || reader.TokenType is JsonTokenType.StartArray)
-        {
-            using var doc = JsonDocument.ParseValue(ref reader);
-            return doc.RootElement.GetRawText();
-        }
-        return reader.GetString()!;
+        consoleWidth = Console.WindowWidth;
     }
-
-    public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+    catch (IOException)
     {
-        writer.WriteStringValue(value);
+        consoleWidth = 80;
     }
+    Console.WriteLine(FiggleFonts.Swampland.Render("XiaoZhi.Net"));
+    Console.WriteLine($"{new string(' ', Math.Max(0, (consoleWidth - serverInfo.Length) / 2))}{serverInfo}");
+    Console.WriteLine();
+    Console.WriteLine(new string('=', Math.Max(1, consoleWidth - 1)));
+    Console.WriteLine();
 }

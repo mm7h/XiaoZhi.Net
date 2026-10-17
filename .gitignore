@@ -1,6 +1,13 @@
+/.vscode/
+/.github/*
+!/.github/workflows/
+/.github/workflows/*
+!/.github/workflows/release.yml
+!/.github/workflows/scripts/
 /.vs/
 *.user
 *.pubxml
+!demo/XiaoZhi.Net.Sample.Server/Properties/PublishProfiles/*.pubxml
 *.vssscc
 *.vspscc
 
@@ -9,5 +16,16 @@
 
 src/api/XiaoZhi.Net.WebApi/logs/
 src/api/XiaoZhi.Net.WebApi/appsettings.Development.json
-**/__pycache__/
+
+AGENTS.md
+
+# Local Docker resources, deployment settings, and verification artifacts.
+/docker/runtime/
+/docker/.verification/
+/docker/.env
+
+# Platform-specific native binaries are supplied locally when publishing.
+/demo/XiaoZhi.Net.Sample.Server/NativeLibraries/
+/demo/XiaoZhi.Net.Sample.Server/fonts/
 /artifacts/
+**/__pycache__/

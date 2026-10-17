@@ -4,6 +4,7 @@ using System;
 using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.I18n;
 
 namespace XiaoZhi.Net.Server.Providers.AudioCodec
@@ -77,8 +78,9 @@ namespace XiaoZhi.Net.Server.Providers.AudioCodec
 
         public override void Dispose()
         {
-            this._encoder?.ResetState();
-            this._encoder?.Dispose();
+            IOpusEncoder? encoder = Interlocked.Exchange(ref this._encoder, null);
+            encoder?.ResetState();
+            encoder?.Dispose();
         }
     }
 }

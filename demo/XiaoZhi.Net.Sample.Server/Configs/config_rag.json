@@ -1,0 +1,25 @@
+{
+  "SelectedSettings": {
+    "RAG": ""
+  },
+  "ConfiguredSettings": {
+    "RAG": {
+      "Chatglm": {
+        "BaseUrl": "https://open.bigmodel.cn/api/paas/v4/embeddings",
+        "ApiKey": "to your llm api key",
+        "ModelName": "embedding-3",
+        "DocumentDirectory": "./document",
+        "KnowledgeBaseId": "sample-knowledge-base",
+        "TopK": "5"
+      },
+      "Qwen": {
+        "BaseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "ApiKey": "to your llm api key",
+        "ModelName": "qwen3.7-text-embedding",
+        "DocumentDirectory": "./document",
+        "KnowledgeBaseId": "sample-knowledge-base",
+        "TopK": "5"
+      }
+    }
+  }
+}

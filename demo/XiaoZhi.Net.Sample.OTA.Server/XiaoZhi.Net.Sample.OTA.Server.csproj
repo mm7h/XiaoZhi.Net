@@ -7,9 +7,21 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="8.0.21" />
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+		<PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" />
+		<PackageReference Include="Newtonsoft.Json" />
+		<PackageReference Include="Swashbuckle.AspNetCore" />
+	</ItemGroup>
+
+	<!-- Share the sample server's typed and legacy dictionary configuration conversion. -->
+	<ItemGroup>
+		<Content Update="appsettings*.json" ExcludeFromSingleFile="true" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Compile Include="..\XiaoZhi.Net.Sample.Server\Configs\XiaoZhiConfigurationExtensions.cs" Link="Helpers\XiaoZhiConfigurationExtensions.cs" />
+		<Compile Include="..\XiaoZhi.Net.Sample.Server\Configs\LenientStringConverter.cs" Link="Helpers\LenientStringConverter.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

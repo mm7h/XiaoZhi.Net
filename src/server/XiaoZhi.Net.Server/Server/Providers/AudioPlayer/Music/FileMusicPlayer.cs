@@ -1,26 +1,34 @@
-﻿using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using XiaoZhi.Net.Server.Abstractions.ConfigSettings;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Media.Abstractions;
 using XiaoZhi.Net.Server.Media.Abstractions.Common.Enums;
+using XiaoZhi.Net.Server.Resources;
 
 namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 {
     internal class FileMusicPlayer : BaseProvider<FileMusicPlayer, AudioSetting>, IMusicPlayer
     {
         private readonly SemaphoreSlim _audioPlayerSlim = new SemaphoreSlim(1, 1);
+        private readonly MusicSetting _musicSetting;
         private readonly IUrlAudioPlayer _urlAudioPlayer;
+        private readonly IMusicFileProvider _musicFileProvider;
 
-        private Channel<string>? _processingChannel;
+        private Channel<MusicFileRequest>? _processingChannel;
         private CancellationTokenSource? _processingCts;
+        private CancellationTokenSource? _activePlaybackCts;
         private Task? _processingTask;
-        private CancellationTokenSource? _cancellationTokenSource;
         private AudioSetting? _audioSetting;
+        private long _playbackGeneration;
+
+        private TimeSpan _commandTimeout = TimeSpan.Zero;
+        private TimeSpan _stopTimeout = TimeSpan.Zero;
 
         public override string ProviderType => "audio player";
 
@@ -40,32 +48,44 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
         public event Action<float[], bool, bool>? OnAudioData;
 
-        public FileMusicPlayer(IUrlAudioPlayer urlAudioPlayer, ILogger<FileMusicPlayer> logger) : base(logger)
+        public FileMusicPlayer(
+            IUrlAudioPlayer urlAudioPlayer,
+            IMusicFileProvider musicFileProvider,
+            XiaoZhiConfig config,
+            ILogger<FileMusicPlayer> logger)
+            : base(logger)
         {
             this._urlAudioPlayer = urlAudioPlayer;
+            this._musicFileProvider = musicFileProvider;
+            this._musicSetting = config.MusicSetting;
             this._urlAudioPlayer.OnAudioDataAvailable += this.FireAudioData;
         }
 
         public override bool Build(AudioSetting audioSetting)
         {
-            if (!this._urlAudioPlayer.CheckFFmpegInstalled())
+            if (this._musicSetting.CommandTimeoutSeconds <= 0
+                || this._musicSetting.StopTimeoutSeconds <= 0)
+            {
+                return false;
+            }
+
+            if (!this._urlAudioPlayer.CheckFFmpegInstalledAsync().GetAwaiter().GetResult())
             {
                 this.Logger.LogError(Lang.FileMusicPlayer_Build_FFmpegInitFailed);
                 return false;
             }
+
+            this._commandTimeout = TimeSpan.FromSeconds(this._musicSetting.CommandTimeoutSeconds);
+            this._stopTimeout = TimeSpan.FromSeconds(this._musicSetting.StopTimeoutSeconds);
+
             this._audioSetting = audioSetting;
-            int capacity = 50;
-            BoundedChannelOptions boundedChannelOptions = new BoundedChannelOptions(capacity)
+            BoundedChannelOptions boundedChannelOptions = new(50)
             {
                 FullMode = BoundedChannelFullMode.Wait,
-                SingleWriter = true,
+                SingleWriter = false,
                 SingleReader = true
             };
-            this._processingChannel = Channel.CreateBounded<string>(boundedChannelOptions);
-
-            this._processingCts = new CancellationTokenSource();
-            this._processingTask = Task.Run(() => this.AudioFileProcessingAsync(this._processingCts.Token));
-
+            this._processingChannel = Channel.CreateBounded<MusicFileRequest>(boundedChannelOptions);
             return true;
         }
 
@@ -76,116 +96,191 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                 this.Logger.LogError(Lang.FileMusicPlayer_PlayAsync_NotBuilt);
                 return;
             }
+
             if (files is null || files.Length == 0)
             {
                 this.Logger.LogWarning(Lang.FileMusicPlayer_PlayAsync_NoFiles);
                 return;
             }
+
+            bool lockAcquired = false;
             try
             {
-                await this._audioPlayerSlim.WaitAsync();
+                await this.WaitForAudioPlayerLockAsync(
+                    this._commandTimeout,
+                    cancellationToken);
+                lockAcquired = true;
 
-                this._cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                this._cancellationTokenSource.Token.Register(() =>
+                if (this._processingTask is null)
                 {
-                    this.StopAsync().ConfigureAwait(false);
-                });
+                    this._processingCts = new CancellationTokenSource();
+                    this._processingTask = this.AudioFileProcessingAsync(this._processingCts.Token);
+                }
 
+                if (this.PlaybackState != PlaybackState.Idle
+                    || Volatile.Read(ref this._activePlaybackCts) is not null)
+                {
+                    await this.StopCoreAsync(cancellationToken);
+                }
+
+                long generation = Volatile.Read(ref this._playbackGeneration);
                 foreach (string file in files)
                 {
-                    await this._processingChannel.Writer.WriteAsync(file);
+                    MusicFileRequest request = new(file, generation);
+                    await ExecuteWithTimeoutAsync(
+                        token => this._processingChannel.Writer.WriteAsync(request, token).AsTask(),
+                        this._commandTimeout,
+                        cancellationToken);
                 }
             }
             finally
             {
-                this._audioPlayerSlim.Release();
+                if (lockAcquired)
+                {
+                    this._audioPlayerSlim.Release();
+                }
             }
         }
 
-        public async Task PauseAsync()
+        public async Task PauseAsync(CancellationToken cancellationToken = default)
         {
-            if (this.PlaybackState == PlaybackState.Idle)
-            {
-                this.Logger.LogInformation(Lang.FileMusicPlayer_PauseAsync_Skip, this.PlaybackState);
-                return;
-            }
+            bool lockAcquired = false;
             try
             {
-                await this._audioPlayerSlim.WaitAsync();
-                this._urlAudioPlayer.Pause();
+                await this.WaitForAudioPlayerLockAsync(
+                    this._commandTimeout,
+                    cancellationToken);
+                lockAcquired = true;
+
+                if (this.PlaybackState == PlaybackState.Idle)
+                {
+                    this.Logger.LogInformation(Lang.FileMusicPlayer_PauseAsync_Skip, this.PlaybackState);
+                    return;
+                }
+
+                await ExecuteWithTimeoutAsync(
+                    token => this._urlAudioPlayer.PauseAsync(token),
+                    this._commandTimeout,
+                    cancellationToken);
             }
             finally
             {
-                this._audioPlayerSlim.Release();
+                if (lockAcquired)
+                {
+                    this._audioPlayerSlim.Release();
+                }
             }
         }
 
-        public async Task ResumeAsync()
+        public async Task ResumeAsync(CancellationToken cancellationToken = default)
         {
-            if (this.PlaybackState == PlaybackState.Idle)
-            {
-                this.Logger.LogInformation(Lang.FileMusicPlayer_ResumeAsync_Skip, PlaybackState);
-                return;
-            }
+            bool lockAcquired = false;
             try
             {
-                await this._audioPlayerSlim.WaitAsync();
-                this._urlAudioPlayer.Play();
+                await this.WaitForAudioPlayerLockAsync(
+                    this._commandTimeout,
+                    cancellationToken);
+                lockAcquired = true;
+
+                if (this.PlaybackState == PlaybackState.Idle)
+                {
+                    this.Logger.LogInformation(Lang.FileMusicPlayer_ResumeAsync_Skip, this.PlaybackState);
+                    return;
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // PlayAsync 在暂停状态会同步切换为继续播放，并返回同一个播放完成任务。
+                // 该任务已由后台音乐处理循环等待，Function Tool 不应再次等待整首歌。
+                _ = this._urlAudioPlayer.PlayAsync(cancellationToken);
             }
             finally
             {
-                this._audioPlayerSlim.Release();
+                if (lockAcquired)
+                {
+                    this._audioPlayerSlim.Release();
+                }
             }
         }
 
-        public async Task StopAsync()
+        public async Task StopAsync(CancellationToken cancellationToken = default)
         {
-            if (this.PlaybackState == PlaybackState.Idle)
-            {
-                this.Logger.LogInformation(Lang.FileMusicPlayer_StopAsync_Skip, PlaybackState);
-                return;
-            }
+            bool lockAcquired = false;
             try
             {
-                await this._audioPlayerSlim.WaitAsync();
-                this._urlAudioPlayer.Stop();
-                this._cancellationTokenSource?.Cancel();
+                await this.WaitForAudioPlayerLockAsync(
+                    this._stopTimeout,
+                    cancellationToken);
+                lockAcquired = true;
 
+                await this.StopCoreAsync(cancellationToken);
             }
             finally
             {
-                this._audioPlayerSlim.Release();
+                if (lockAcquired)
+                {
+                    this._audioPlayerSlim.Release();
+                }
             }
         }
 
-        public async Task SeekAsync(TimeSpan position)
+        public async Task SeekAsync(TimeSpan position, CancellationToken cancellationToken = default)
         {
+            bool lockAcquired = false;
+            try
+            {
+                await this.WaitForAudioPlayerLockAsync(
+                    this._commandTimeout,
+                    cancellationToken);
+                lockAcquired = true;
+
+                if (this.PlaybackState == PlaybackState.Idle)
+                {
+                    return;
+                }
+
+                await ExecuteWithTimeoutAsync(
+                    token => this._urlAudioPlayer.SeekAsync(position, token),
+                    this._commandTimeout,
+                    cancellationToken);
+            }
+            finally
+            {
+                if (lockAcquired)
+                {
+                    this._audioPlayerSlim.Release();
+                }
+            }
+        }
+
+        private async Task StopCoreAsync(CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref this._playbackGeneration);
+            this.CancelActivePlayback();
+
             if (this.PlaybackState == PlaybackState.Idle)
             {
                 return;
             }
-            try
-            {
-                await this._audioPlayerSlim.WaitAsync();
 
-                this._urlAudioPlayer.Seek(position);
-
-
-            }
-            finally
-            {
-                this._audioPlayerSlim.Release();
-            }
+            await ExecuteWithTimeoutAsync(
+                token => this._urlAudioPlayer.StopAsync(token),
+                this._stopTimeout,
+                cancellationToken);
         }
 
         private async Task AudioFileProcessingAsync(CancellationToken cancellationToken)
         {
-            if (this._processingChannel is null) return;
+            if (this._processingChannel is null)
+            {
+                return;
+            }
+
             try
             {
-                await foreach (string file in this._processingChannel.Reader.ReadAllAsync(cancellationToken))
+                await foreach (MusicFileRequest request in this._processingChannel.Reader.ReadAllAsync(cancellationToken))
                 {
-                    await this.AudioFileProcessingAsync(file, cancellationToken);
+                    await this.AudioFileProcessingAsync(request, cancellationToken);
                 }
             }
             catch (OperationCanceledException)
@@ -194,38 +289,64 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             }
             finally
             {
-                var playbackCts = Interlocked.Exchange(ref this._cancellationTokenSource, null);
-                playbackCts?.Dispose();
-
                 var processingCts = Interlocked.Exchange(ref this._processingCts, null);
                 processingCts?.Dispose();
             }
         }
 
-        private async Task AudioFileProcessingAsync(string file, CancellationToken cancellationToken)
+        private async Task AudioFileProcessingAsync(MusicFileRequest request, CancellationToken processingCancellationToken)
         {
-            if (this._audioSetting is null)
+            if (this._audioSetting is null || !this.IsCurrentGeneration(request.Generation))
             {
-                this.Logger.LogError(Lang.FileMusicPlayer_PlayAsync_NotBuilt);
                 return;
             }
 
-            string fileName = Path.GetFileName(file);
-
-            this.Logger.LogDebug(Lang.FileMusicPlayer_AudioFileProcessingAsync_Start, fileName);
+            string fileName = Path.GetFileName(request.File);
+            using CancellationTokenSource playbackCts = CancellationTokenSource.CreateLinkedTokenSource(processingCancellationToken);
+            Volatile.Write(ref this._activePlaybackCts, playbackCts);
 
             try
             {
                 this.PlayingMusicName = fileName;
-                cancellationToken.ThrowIfCancellationRequested();
-                await this._urlAudioPlayer.LoadAsync(file, this._audioSetting.SampleRate, this._audioSetting.Channels, this._audioSetting.FrameDuration);
+                this.Logger.LogDebug(Lang.FileMusicPlayer_AudioFileProcessingAsync_Start, fileName);
+
+                playbackCts.Token.ThrowIfCancellationRequested();
+                if (!this.IsCurrentGeneration(request.Generation))
+                {
+                    return;
+                }
+
+                bool loaded = await this._urlAudioPlayer.LoadAsync(
+                    request.File,
+                    this._audioSetting.SampleRate,
+                    this._audioSetting.Channels,
+                    this._audioSetting.FrameDuration,
+                    playbackCts.Token);
+
+                if (!loaded || playbackCts.IsCancellationRequested || !this.IsCurrentGeneration(request.Generation))
+                {
+                    return;
+                }
 
                 this.Logger.LogDebug(Lang.FileMusicPlayer_AudioFileProcessingAsync_Playing, fileName);
-                this._urlAudioPlayer.Play(true);
-
+                await this._urlAudioPlayer.PlayAsync(playbackCts.Token);
                 this.Logger.LogDebug(Lang.FileMusicPlayer_AudioFileProcessingAsync_Completed, fileName);
+                // 仅自然结束后续播；停止或换歌会推进 generation，使旧请求失效。
+                if (!playbackCts.IsCancellationRequested && this.IsCurrentGeneration(request.Generation)
+                    && this._processingChannel is not null && !this._processingChannel.Reader.TryPeek(out _))
+                {
+                    string[] files = this._musicFileProvider.MusicFiles.Values.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                    if (files.Contains(request.File, StringComparer.OrdinalIgnoreCase))
+                    {
+                        string[] candidates = files.Where(file => !string.Equals(file, request.File, StringComparison.OrdinalIgnoreCase)).ToArray();
+                        string nextFile = candidates.Length == 0 ? request.File : candidates[Random.Shared.Next(candidates.Length)];
+                        this._processingChannel.Writer.TryWrite(new MusicFileRequest(nextFile, request.Generation));
+                    }
+                }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (
+                playbackCts.IsCancellationRequested
+                || processingCancellationToken.IsCancellationRequested)
             {
                 this.Logger.LogDebug(Lang.FileMusicPlayer_AudioFileProcessingAsync_PlaybackCanceled, fileName);
             }
@@ -236,9 +357,59 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             finally
             {
                 this.PlayingMusicName = null;
-                this._cancellationTokenSource?.Dispose();
+                Interlocked.CompareExchange(ref this._activePlaybackCts, null, playbackCts);
             }
         }
+
+        private async Task WaitForAudioPlayerLockAsync(TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            if (!await this._audioPlayerSlim.WaitAsync(timeout, cancellationToken))
+            {
+                throw new TimeoutException("等待音乐播放器控制锁超时。");
+            }
+        }
+
+        private static async Task ExecuteWithTimeoutAsync(
+            Func<CancellationToken, Task> operation,
+            TimeSpan timeout,
+            CancellationToken cancellationToken)
+        {
+            using CancellationTokenSource timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(timeout);
+
+            try
+            {
+                await operation(timeoutCts.Token);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && timeoutCts.IsCancellationRequested)
+            {
+                throw new TimeoutException("音乐播放器操作超时。");
+            }
+        }
+
+        private void CancelActivePlayback()
+        {
+            CancellationTokenSource? activePlaybackCts = Volatile.Read(ref this._activePlaybackCts);
+            if (activePlaybackCts is null)
+            {
+                return;
+            }
+
+            try
+            {
+                activePlaybackCts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // 音乐处理循环刚完成并释放 CTS 时，停止请求无需重复取消。
+            }
+        }
+
+        private bool IsCurrentGeneration(long generation)
+        {
+            return generation == Volatile.Read(ref this._playbackGeneration);
+        }
+
         private void FireAudioData(float[] pcmData, bool isFirst, bool isLast)
         {
             this.OnAudioData?.Invoke(pcmData, isFirst, isLast);
@@ -246,6 +417,8 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
 
         public override void Dispose()
         {
+            this.CancelActivePlayback();
+            Interlocked.Increment(ref this._playbackGeneration);
             this._processingChannel?.Writer.TryComplete();
 
             var processingCts = Interlocked.Exchange(ref this._processingCts, null);
@@ -260,7 +433,6 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
                     if (!task.Wait(TimeSpan.FromSeconds(3)))
                     {
                         this.Logger.LogWarning(Lang.FileMusicPlayer_Dispose_Timeout);
-                        // 任务超时未完成，手动释放
                         processingCts?.Dispose();
                     }
                 }
@@ -280,8 +452,9 @@ namespace XiaoZhi.Net.Server.Providers.AudioPlayer.Music
             }
 
             this._urlAudioPlayer.Dispose();
-            this._cancellationTokenSource?.Dispose();
             this._audioPlayerSlim.Dispose();
         }
+
+        private readonly record struct MusicFileRequest(string File, long Generation);
     }
 }

@@ -20,17 +20,24 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Handlers
             }
             if (appSession is SocketSession session && session.XiaoZhiSession is not null)
             {
+                if (session.XiaoZhiSession.CloseAfterChat)
+                {
+                    return;
+                }
+
                 switch (package.OpCode)
                 {
                     case OpCode.Text:
                         JsonNode? jsonObject = JsonNode.Parse(package.Message);
                         string? type = jsonObject?["type"]?.GetValue<string>()?.ToLower();
-                        if (jsonObject is JsonObject jsonObj && !string.IsNullOrEmpty(type) && type == "hello")
+                        if (jsonObject is JsonObject jsonObj && !string.IsNullOrWhiteSpace(type) && type == "hello")
                         {
-                            await session.XiaoZhiSession.HandlerPipeline.HandleHelloMessage(jsonObj);
+                            await session.XiaoZhiSession.HandlerPipeline.HandleHelloMessageAsync(jsonObj);
                         }
                         else
-                            session.XiaoZhiSession.HandlerPipeline.HandleTextMessage(package.Message);
+                        {
+                            await session.XiaoZhiSession.HandlerPipeline.HandleTextMessageAsync(package.Message);
+                        }
                         break;
                     case OpCode.Binary:
                         await session.XiaoZhiSession.HandlerPipeline.HandleBinaryMessageAsync(package.Data.ToArray());
