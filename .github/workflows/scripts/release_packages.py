@@ -37,6 +37,15 @@ def resolve_tag(tag, source):
     return command('git', 'rev-parse', 'FETCH_HEAD^{commit}', cwd=source)
 
 
+def prepare_tag(repo, tag, source):
+    parse_version(tag)
+    if not command('git', 'ls-remote', '--tags', 'origin', f'refs/tags/{tag}', cwd=source):
+        sha = command('git', 'rev-parse', 'HEAD^{commit}', cwd=source)
+        command('gh', 'api', f'repos/{repo}/git/refs', '--method', 'POST', '--input', '-',
+                input=json.dumps(dict(ref=f'refs/tags/{tag}', sha=sha)))
+    return resolve_tag(tag, source)
+
+
 def find_release(repo, tag):
     # The by-tag endpoint omits drafts. Authenticated listings include them.
     for page in range(1, 1001):
@@ -216,8 +225,8 @@ def main():
     version, assembly = parse_version(tag)
     repo = os.environ.get('GH_REPO', '')
     if args.mode == 'prepare':
-        sha = resolve_tag(tag, args.source)
         unpublished(repo, tag)
+        sha = prepare_tag(repo, tag, args.source)
         output(dict(sha=sha, version=version, assembly_version=assembly))
     elif args.mode == 'verify':
         sha = os.environ['RELEASE_SHA']

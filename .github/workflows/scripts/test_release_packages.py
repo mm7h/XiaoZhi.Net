@@ -1,5 +1,6 @@
 import io
 import json
+import os
 from pathlib import Path
 import struct
 import subprocess
@@ -86,8 +87,61 @@ class GitTests(unittest.TestCase):
             release.command('git', 'clone', '--no-tags', str(origin), str(checkout))
             self.assertEqual(release.resolve_tag('0.2.0', checkout), sha)
             self.assertEqual(release.resolve_tag('v0.2.0', checkout), sha)
+            self.assertEqual(release.prepare_tag('owner/repo', '0.2.0', checkout), sha)
+            self.assertEqual(release.prepare_tag('owner/repo', 'v0.2.0', checkout), sha)
             with self.assertRaises(subprocess.CalledProcessError):
                 release.resolve_tag('0.9.0', checkout)
+
+
+class PrepareTests(unittest.TestCase):
+    def test_missing_tag_created_at_checked_out_commit_then_resolved(self):
+        with patch.object(release, 'command', side_effect=['', SHA, '{}']) as calls, patch.object(release, 'resolve_tag', return_value=SHA) as resolve:
+            self.assertEqual(release.prepare_tag('owner/repo', TAG, '.'), SHA)
+            self.assertEqual(calls.call_args_list[0].args, ('git', 'ls-remote', '--tags', 'origin', f'refs/tags/{TAG}'))
+            self.assertEqual(calls.call_args_list[1].args, ('git', 'rev-parse', 'HEAD^{commit}'))
+            create = calls.call_args_list[2]
+            self.assertEqual(create.args, ('gh', 'api', 'repos/owner/repo/git/refs', '--method', 'POST', '--input', '-'))
+            self.assertEqual(json.loads(create.kwargs['input']), dict(ref=f'refs/tags/{TAG}', sha=SHA))
+            resolve.assert_called_once_with(TAG, '.')
+
+    def test_existing_tag_reused_without_creation(self):
+        with patch.object(release, 'command', return_value=f'{SHA}\trefs/tags/{TAG}') as calls, patch.object(release, 'resolve_tag', return_value=SHA):
+            self.assertEqual(release.prepare_tag('owner/repo', TAG, '.'), SHA)
+            self.assertEqual(calls.call_count, 1)
+
+    def test_remote_failure_does_not_create_tag(self):
+        error = subprocess.CalledProcessError(128, 'git', stderr='Network failure')
+        with patch.object(release, 'command', side_effect=error) as calls, patch.object(release, 'resolve_tag') as resolve:
+            with self.assertRaises(subprocess.CalledProcessError):
+                release.prepare_tag('owner/repo', TAG, '.')
+            self.assertEqual(calls.call_count, 1)
+            resolve.assert_not_called()
+
+    def test_creation_failure_stops_preparation(self):
+        error = subprocess.CalledProcessError(1, 'gh', stderr='Forbidden or tag already exists')
+        with patch.object(release, 'command', side_effect=['', SHA, error]), patch.object(release, 'resolve_tag') as resolve:
+            with self.assertRaises(subprocess.CalledProcessError):
+                release.prepare_tag('owner/repo', TAG, '.')
+            resolve.assert_not_called()
+
+    def test_invalid_tag_rejected_before_remote_access(self):
+        with patch.object(release, 'command') as calls:
+            with self.assertRaises(ValueError):
+                release.prepare_tag('owner/repo', 'resources', '.')
+            calls.assert_not_called()
+
+    def test_prepare_outputs_resolved_source_and_version(self):
+        with patch('sys.argv', ['release_packages.py', 'prepare']), patch.dict(os.environ, RELEASE_TAG=TAG, GH_REPO='owner/repo'), patch.object(release, 'unpublished') as check, patch.object(release, 'prepare_tag', return_value=SHA) as prepare, patch.object(release, 'output') as output:
+            release.main()
+            check.assert_called_once_with('owner/repo', TAG)
+            prepare.assert_called_once_with('owner/repo', TAG, '.')
+            output.assert_called_once_with(dict(sha=SHA, version='0.2.0-rc.1', assembly_version='0.2.0.0'))
+
+    def test_published_release_rejected_before_tag_creation(self):
+        with patch('sys.argv', ['release_packages.py', 'prepare']), patch.dict(os.environ, RELEASE_TAG=TAG, GH_REPO='owner/repo'), patch.object(release, 'find_release', return_value=dict(draft=False)), patch.object(release, 'prepare_tag') as prepare:
+            with self.assertRaises(ValueError):
+                release.main()
+            prepare.assert_not_called()
 
 
 class PackageTests(unittest.TestCase):
