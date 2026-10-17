@@ -33,6 +33,7 @@ The detailed guides below are currently available in Chinese.
 | Device cameras, image uploads, and vision models | [👁️ Vision analysis (Chinese)](docs/05.vision.md) |
 | Saving conversations and replacing memory storage | [🧠 Chat memory (Chinese)](docs/06.chat-memory.md) |
 | Adding tools, session control, and invocation modes | [🔌 Function Tool extensions (Chinese)](docs/07.function-tools.md) |
+| Missing characters on the device, font downloads, and setup | [✍️ Glyph push (Chinese)](docs/08.glyph-push.md) |
 
 ## Features ✨
 
@@ -41,6 +42,7 @@ The detailed guides below are currently available in Chinese.
 | Feature | Current capabilities |
 | --- | --- |
 | 🗣️ Voice conversations | Real-time/manual voice input, interruption, and streaming TTS playback; configurable disconnection after voice inactivity. Language support depends on the selected models |
+| ✍️ Missing character support | Send missing characters to devices that support Glyph Push; requires a server font bundle matching the device font. See the [setup guide (Chinese)](docs/08.glyph-push.md) |
 | 🔌 Custom tools and intent detection | Global or session Function Tools; supports the main model's `FunctionCall` mode and a separate model in `IntentLlm` mode |
 | 🌐 IoT / MCP | Device IoT, device MCP, and configured external MCP tools; available capabilities depend on the device and tool service |
 | 🧠 Chat context and saved sessions | The SDK maintains session history; the sample enables SQLite to keep each device's most recent successfully saved nonempty conversation |
@@ -81,6 +83,7 @@ The detailed guides below are currently available in Chinese.
 2. Edit `config.json` and `config_*.json` in `server/Configs`. Select VAD, ASR, LLM, and TTS, and supply credentials for the cloud services you use. A separate intent model also needs its referenced LLM configured.
 3. Download the selected local models into `server/models`. The current VAD template selects `SileroNative`, which requires `models/vad/silero-native/model.onnx`; a VAD model is still needed when ASR / TTS use cloud services.
 4. Place FFmpeg 7.1 shared libraries for the matching platform in `server/ffmpeg`. Keep the prompt audio in `Configs/assets`, and add music to `server/musics` if needed.
+5. Check that `server/fonts/noto-v1-full/manifest.json` exists. New runtime packages containing the font update include these files. For older packages or source runs, download [fonts.zip](https://github.com/mm7h/XiaoZhi.Net/releases/download/resources/fonts.zip) and follow the [glyph push guide (Chinese)](docs/08.glyph-push.md) to place the files and check the configuration. To disable this feature, set `GlyphPushSetting.ManifestPath` to `null`.
 
 > [!TIP]
 > Download models from [Resource Files](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources) or use the repository's download scripts.<br />
@@ -303,7 +306,7 @@ XiaoZhi.Net-<version>-<RID>/
 │   │   └── assets/                        # Prompt audio and spoken digits
 │   ├── models/{vad,asr,tts}/               # Selected local models
 │   ├── ffmpeg/                            # Platform-specific shared libraries
-│   ├── fonts/                             # (Optional) extra fonts covering characters missing from Xiaozhi firmware
+│   ├── fonts/noto-v1-full/                 # Fonts included in new packages, with manifest.json
 │   ├── musics/                            # Local music
 │   ├── data/
 │   │   ├── asr-cache/                     # Generated according to saving options

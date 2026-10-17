@@ -32,6 +32,7 @@
 | 设备拍照、图片上传与视觉模型 | [👁️ 视觉分析](docs/05.vision.md) |
 | 保存聊天记录与替换记忆存储 | [🧠 聊天记忆保存](docs/06.chat-memory.md) |
 | 新增工具、会话控制与调用模式 | [🔌 Function Tool 扩展](docs/07.function-tools.md) |
+| 设备文字显示空白、字体下载与配置 | [✍️ 设备缺字补充](docs/08.glyph-push.md) |
 
 ## 功能清单 ✨
 
@@ -40,6 +41,7 @@
 | 功能名称 | 当前能力 |
 | --- | --- |
 | 🗣️ 语音对话 | 实时／手动语音输入、对话打断、流式 TTS 播报；无语音超时可自动断开连接，多语种能力取决于所选模型 |
+| ✍️ 设备缺字补充 | 向支持 Glyph Push 的设备补充字库中缺少的字；需要服务端字体包与设备字体匹配，详见 [使用说明](docs/08.glyph-push.md) |
 | 🔌 自定义工具与意图识别 | 注册全局或会话 Function Tool；支持主模型 `FunctionCall` 和独立意图模型 `IntentLlm` |
 | 🌐 IoT / MCP | 接入设备 IoT、设备 MCP 和配置的外部 MCP 工具；可用能力取决于设备及工具服务 |
 | 🧠 聊天上下文与会话保存 | SDK 维护会话内历史；示例启用 SQLite，按设备保存最近一次成功写入的非空会话 |
@@ -80,6 +82,7 @@
 2. 编辑 `server/Configs` 中的 `config.json` 与 `config_*.json`，选择 VAD、ASR、LLM、TTS，填写所用云服务凭据；独立意图模型还需配置对应的 LLM。
 3. 下载选中的本地模型到 `server/models`。当前 VAD 模板选择 `SileroNative`，需要 `models/vad/silero-native/model.onnx`；即使 ASR / TTS 使用云服务，也要准备 VAD 模型。
 4. 将对应平台的 FFmpeg 7.1 动态库放入 `server/ffmpeg`，保留提示音 `Configs/assets`，按需向 `server/musics` 放入音乐。
+5. 确认 `server/fonts/noto-v1-full/manifest.json` 存在。包含字体更新的新运行包会自动带上字体；旧包或源码运行需下载 [fonts.zip](https://github.com/mm7h/XiaoZhi.Net/releases/download/resources/fonts.zip) 并按 [设备缺字补充](docs/08.glyph-push.md) 放置文件、检查配置。暂不使用时，将 `GlyphPushSetting.ManifestPath` 设为 `null`。
 
 > [!TIP]
 > 模型可从 [Resource Files](https://github.com/mm7h/XiaoZhi.Net/releases/tag/resources) 下载，或使用仓库提供的下载脚本。<br />
@@ -304,7 +307,7 @@ XiaoZhi.Net-<版本>-<RID>/
 │   │   └── assets/                        # 提示音与数字播报
 │   ├── models/{vad,asr,tts}/               # 所选本地模型
 │   ├── ffmpeg/                            # 对应平台的动态库
-│   ├── fonts/                            # （可选）扩展字体，补充小智固件中可能缺失的字符
+│   ├── fonts/noto-v1-full/                # 新运行包附带的补字字体，含 manifest.json
 │   ├── musics/                            # 本地音乐
 │   ├── data/
 │   │   ├── asr-cache/                     # 按保存配置生成
