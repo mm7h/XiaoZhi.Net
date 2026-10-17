@@ -308,7 +308,7 @@ XiaoZhi.Net-<版本>-<RID>/
 │   │   └── assets/                        # 提示音与数字播报
 │   ├── models/{vad,asr,tts}/               # 所选本地模型
 │   ├── ffmpeg/                            # 对应平台的动态库
-│   ├── fonts/noto-v1-full/                # 新运行包附带的补字字体，含 manifest.json
+│   ├── fonts/noto-v1-full/                # （可选）扩展字体，补充小智固件中可能缺失的字符，含 manifest.json
 │   ├── musics/                            # 本地音乐
 │   ├── data/
 │   │   ├── asr-cache/                     # 按保存配置生成
@@ -346,7 +346,7 @@ XiaoZhi.Net-<版本>-<RID>/
 
 项目希望为 .NET 生态提供可扩展的小智服务端，抛砖引玉。
 
-欢迎通过 [Issues](https://github.com/mm7h/XiaoZhi.Net/issues) 和 Pull Requests 反馈问题、完善文档或贡献实现。
+欢迎通过 [Issues](https://github.com/mm7h/XiaoZhi.Net/issues) 和 [Pull Requests](https://github.com/mm7h/XiaoZhi.Net/pulls) 反馈问题、完善文档或贡献实现。
 
 如果本项目对你有帮助，欢迎在 GitHub 上给个 ⭐️。
 

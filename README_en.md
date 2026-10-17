@@ -307,7 +307,7 @@ XiaoZhi.Net-<version>-<RID>/
 │   │   └── assets/                        # Prompt audio and spoken digits
 │   ├── models/{vad,asr,tts}/               # Selected local models
 │   ├── ffmpeg/                            # Platform-specific shared libraries
-│   ├── fonts/noto-v1-full/                 # Fonts included in new packages, with manifest.json
+│   ├── fonts/noto-v1-full/                 # (Optional) extra fonts covering characters missing from Xiaozhi firmware, with manifest.json
 │   ├── musics/                            # Local music
 │   ├── data/
 │   │   ├── asr-cache/                     # Generated according to saving options
@@ -345,7 +345,7 @@ These are future directions, not enabled features or delivery commitments:
 
 This project aims to provide an extensible Xiaozhi server for the .NET ecosystem, as a starting point for the community to build on.
 
-[Issues](https://github.com/mm7h/XiaoZhi.Net/issues) and Pull Requests are welcome for bug reports, documentation improvements, and implementations.
+[Issues](https://github.com/mm7h/XiaoZhi.Net/issues) and [Pull Requests](https://github.com/mm7h/XiaoZhi.Net/pulls) are welcome for bug reports, documentation improvements, and implementations.
 
 If this project helps you, please give it a ⭐️ on GitHub.
 
