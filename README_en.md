@@ -8,6 +8,7 @@
 
 [![.NET](https://img.shields.io/badge/.NET-8.0-7355dd?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Releases](https://img.shields.io/github/v/release/mm7h/XiaoZhi.Net?logo=github)](https://github.com/mm7h/XiaoZhi.Net/releases/latest)
+[![Release build status](https://img.shields.io/github/actions/workflow/status/mm7h/XiaoZhi.Net/release.yml?logo=githubactions&label=Release%20build)](https://github.com/mm7h/XiaoZhi.Net/actions/workflows/release.yml)
 [![Issues](https://img.shields.io/github/issues/mm7h/XiaoZhi.Net)](https://github.com/mm7h/XiaoZhi.Net/issues)
 [![License](https://img.shields.io/github/license/mm7h/XiaoZhi.Net?logo=mit)](LICENSE)
 
