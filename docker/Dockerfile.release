@@ -11,6 +11,7 @@ ENV TZ=Asia/Shanghai DOTNET_BUNDLE_EXTRACT_BASE_DIR=/app/.net
 FROM runtime AS sample-server
 COPY server/XiaoZhi.Net.Sample.Server ./
 COPY server/ffmpeg/ ./ffmpeg/
+COPY server/fonts/ ./fonts/
 COPY LICENSE /opt/licenses/XiaoZhi.Net.LICENSE
 RUN chmod 755 XiaoZhi.Net.Sample.Server \
     && mkdir -p Configs models musics data logs .net && chown -R app:app data logs .net

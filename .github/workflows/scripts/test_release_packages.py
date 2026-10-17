@@ -34,7 +34,11 @@ def package(directory, rid, change=None):
                           'server/Configs/assets/bind_codes/0.wav', 'ota/appsettings.json',
                           'docker/compose.yaml', 'docker/Dockerfile.release', 'docker/deploy.sh',
                           'scripts/Download-SherpaModels.sh', 'scripts/SherpaModels.psv',
-                          'docs/03.server-development.md', 'docs/assets/logo.png', 'docs/assets/logo.ico'), b'test')
+                          'docs/03.server-development.md', 'docs/assets/logo.png', 'docs/assets/logo.ico',
+                          'docs/07.function-tools.md', 'docs/08.glyph-push.md'), b'test')
+    files['server/fonts/noto-v1-full/manifest.json'] = json.dumps(dict(
+        bundle_id='noto-v1', shards=[dict(profiles={'20_4': '20_4/cjk_sc.cbin'})])).encode()
+    files['server/fonts/noto-v1-full/20_4/cjk_sc.cbin'] = b'font'
     files['package.json'] = json.dumps(dict(Version=version, RuntimeIdentifier=rid, Tag=TAG, SourceCommit=SHA)).encode()
     files['assembly-versions.json'] = json.dumps([
         dict(Name=name, AssemblyVersion=assembly, FileVersion=assembly, InformationalVersion=version)
@@ -98,6 +102,24 @@ class PackageTests(unittest.TestCase):
         for rid in release.RIDS:
             package(self.directory, rid)
         self.assertEqual(len(release.verify_all(self.directory, TAG, SHA)), 4)
+
+    def test_missing_or_empty_font_resources(self):
+        for name in ('manifest.json', '20_4/cjk_sc.cbin'):
+            path = f'server/fonts/noto-v1-full/{name}'
+            for change in (lambda files: files.pop(path), lambda files: files.update({path: b''})):
+                with self.subTest(path=path, change=change):
+                    package(self.directory, 'linux-x64', change)
+                    with self.assertRaises(ValueError):
+                        release.verify_package(self.directory, TAG, SHA, 'linux-x64')
+
+    def test_invalid_font_bundle_or_profile_path(self):
+        for bundle, profile in (('other', '20_4/cjk_sc.cbin'), ('noto-v1', '../outside.cbin')):
+            def change(files):
+                files['server/fonts/noto-v1-full/manifest.json'] = json.dumps(dict(
+                    bundle_id=bundle, shards=[dict(profiles={'20_4': profile})])).encode()
+            package(self.directory, 'linux-x64', change)
+            with self.subTest(bundle=bundle, profile=profile), self.assertRaises(ValueError):
+                release.verify_package(self.directory, TAG, SHA, 'linux-x64')
 
     def test_missing_architecture_or_extra_file(self):
         for rid in release.RIDS[:3]:

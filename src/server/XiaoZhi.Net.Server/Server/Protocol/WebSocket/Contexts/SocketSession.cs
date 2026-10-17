@@ -14,7 +14,7 @@ using XiaoZhi.Net.Server.Helpers;
 using XiaoZhi.Net.Server.I18n;
 using XiaoZhi.Net.Server.Management;
 using System.Text.Json.Nodes;
-using XiaoZhi.Net.Server.Resources.Fonts;
+using XiaoZhi.Net.Server.Resources;
 
 namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
 {
@@ -24,14 +24,14 @@ namespace XiaoZhi.Net.Server.Protocol.WebSocket.Contexts
         private readonly ProviderManager _providerManager;
         private readonly FunctionToolManager _functionToolManager;
         private readonly IServiceScopeFactory _serviceScopeFactory;
-        private readonly GlyphResource _glyphResource;
+        private readonly IFont _glyphResource;
 
         public SocketSession(
             HandlerManager handlerManager,
             ProviderManager providerManager,
             FunctionToolManager functionToolManager,
             IServiceScopeFactory serviceScopeFactory,
-            GlyphResource glyphResource)
+            IFont glyphResource)
         {
             this._handlerManager = handlerManager;
             this._providerManager = providerManager;
