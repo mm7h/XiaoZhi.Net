@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: '已推送的版本 tag，例如 0.2.0、v0.2.0、0.2.0-rc.1'
+        description: '版本 tag，例如 v0.2.0；不存在时在所选分支的本次运行提交上自动创建'
         required: true
         type: string
       prerelease:
@@ -27,6 +27,8 @@ jobs:
   prepare:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: write
     outputs:
       sha: ${{ steps.prepare.outputs.sha }}
       version: ${{ steps.prepare.outputs.version }}
@@ -40,7 +42,7 @@ jobs:
           python-version: '3.13'
       - name: Test release safeguards
         run: python -m unittest discover -s .github/workflows/scripts -p 'test_*.py' -v
-      - name: Resolve tag and validate draft state
+      - name: Validate draft state and resolve or create tag
         id: prepare
         env:
           GH_TOKEN: ${{ github.token }}
